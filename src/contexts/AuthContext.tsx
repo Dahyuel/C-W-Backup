@@ -50,30 +50,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         if (error) {
           console.error('❌ AuthContext: Error getting session:', error);
+          setUser(null);
+          setProfile(null);
           setLoading(false);
           return;
         }
         
         console.log('📋 AuthContext: Initial session:', session ? 'Found' : 'None');
-        console.log('📋 AuthContext: Session details:', {
-          userId: session?.user?.id,
-          email: session?.user?.email,
-          role: session?.user?.role
-        });
-        
-        setUser(session?.user ?? null);
         
         if (session?.user) {
           console.log('👤 AuthContext: User found, fetching profile for ID:', session.user.id);
-          await fetchUserProfile(session.user.id);
+          setUser(session.user);
+          
+          // Always fetch profile and handle the result
+          const profileFetched = await fetchUserProfile(session.user.id);
+          
+          if (!profileFetched) {
+            console.log('⚠️ AuthContext: Profile not found, but keeping session');
+            // Keep the user session but clear profile
+            setProfile(null);
+          }
         } else {
           console.log('❌ AuthContext: No user found');
+          setUser(null);
+          setProfile(null);
         }
         
         console.log('✅ AuthContext: Initial loading complete');
+        setLoading(false);
       } catch (error) {
         console.error('💥 AuthContext: Exception in getInitialSession:', error);
-      } finally {
+        setUser(null);
+        setProfile(null);
         setLoading(false);
       }
     };
@@ -84,19 +92,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('🔔 AuthContext: Auth state changed:', event, session ? 'Session exists' : 'No session');
-        console.log('🔔 AuthContext: Event details:', {
-          event,
-          userId: session?.user?.id,
-          email: session?.user?.email
-        });
-        
-        setUser(session?.user ?? null);
         
         if (session?.user) {
-          console.log('👤 AuthContext: Fetching profile for user:', session.user.id);
-          await fetchUserProfile(session.user.id);
+          console.log('👤 AuthContext: Setting user and fetching profile for:', session.user.id);
+          setUser(session.user);
+          
+          const profileFetched = await fetchUserProfile(session.user.id);
+          
+          if (!profileFetched) {
+            console.log('⚠️ AuthContext: Profile not found during auth change');
+            setProfile(null);
+          }
         } else {
-          console.log('🚫 AuthContext: Clearing profile');
+          console.log('🚫 AuthContext: Clearing user and profile');
+          setUser(null);
           setProfile(null);
         }
         
@@ -110,7 +119,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, []);
 
-  const fetchUserProfile = async (userId: string) => {
+  const fetchUserProfile = async (userId: string): Promise<boolean> => {
     try {
       console.log('🔍 AuthContext: Fetching profile for user ID:', userId);
       
@@ -140,8 +149,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           hint: error.hint
         });
         
-        // Don't set loading to false here, let the parent handle it
-        return;
+        setProfile(null);
+        return false;
       }
 
       if (data) {
@@ -153,18 +162,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           faculty: data.faculty
         });
         setProfile(data);
+        return true;
       } else {
         console.log('⚠️ AuthContext: No profile data returned');
         setProfile(null);
+        return false;
       }
     } catch (error) {
       console.error('💥 AuthContext: Exception in fetchUserProfile:', error);
+      setProfile(null);
+      return false;
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
       console.log('🔐 AuthContext: Attempting sign in for:', email);
+      setLoading(true);
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -173,19 +187,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (error) {
         console.error('❌ AuthContext: Sign in error:', error);
+        setLoading(false);
         return { error };
       }
 
       console.log('✅ AuthContext: Sign in successful for user:', data.user?.id);
 
       if (data.user) {
+        setUser(data.user);
         console.log('👤 AuthContext: Fetching profile after sign in');
-        await fetchUserProfile(data.user.id);
+        
+        const profileFetched = await fetchUserProfile(data.user.id);
+        
+        if (!profileFetched) {
+          console.log('⚠️ AuthContext: Profile not found after sign in');
+        }
       }
 
+      setLoading(false);
       return { error: null };
     } catch (error) {
       console.error('💥 AuthContext: Exception in signIn:', error);
+      setLoading(false);
       return { error };
     }
   };
@@ -193,6 +216,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signOut = async () => {
     try {
       console.log('🚪 AuthContext: Signing out...');
+      setLoading(true);
       
       const { error } = await supabase.auth.signOut();
       
@@ -203,8 +227,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } else {
         console.error('❌ AuthContext: Sign out error:', error);
       }
+      
+      setLoading(false);
     } catch (error) {
       console.error('💥 AuthContext: Exception in signOut:', error);
+      setLoading(false);
     }
   };
 
@@ -282,9 +309,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return redirect;
   };
 
+  // Modified authentication check - user must have both session AND profile
   const isAuthenticated = !!user && !!profile;
 
-  // Log current state periodically for debugging
+  // Also provide a way to check if user has session but no profile
+  const hasSessionButNoProfile = !!user && !profile;
+
+  // Log current state periodically for debugging (reduced frequency)
   useEffect(() => {
     const interval = setInterval(() => {
       console.log('📊 AuthContext: Current state:', {
@@ -292,14 +323,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         hasUser: !!user,
         hasProfile: !!profile,
         isAuthenticated,
+        hasSessionButNoProfile,
         userEmail: user?.email,
         profileRole: profile?.role,
         profileName: profile ? `${profile.first_name} ${profile.last_name}` : null
       });
-    }, 5000);
+    }, 10000); // Reduced to every 10 seconds
 
     return () => clearInterval(interval);
-  }, [loading, user, profile, isAuthenticated]);
+  }, [loading, user, profile, isAuthenticated, hasSessionButNoProfile]);
 
   const contextValue: AuthContextType = {
     user,
@@ -317,7 +349,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     loading,
     hasUser: !!user,
     hasProfile: !!profile,
-    isAuthenticated
+    isAuthenticated,
+    hasSessionButNoProfile
   });
 
   return (
