@@ -412,7 +412,7 @@ const userData = {
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Volunteer Registration Successful!</h2>
           <p className="text-gray-600 mb-6">
-            Thank you for volunteering! Your account has been created successfully. You can now log in to access your volunteer dashboard.
+            Your account has been created successfully. You can now log in to access your volunteer dashboard.
           </p>
           <button
             onClick={() => navigate('/login')}
