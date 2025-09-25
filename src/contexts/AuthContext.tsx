@@ -132,82 +132,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // ✅ Enhanced SIGN UP for volunteers with pre-validation
-// Enhanced sign up volunteer function with pre-validation
-export const signUpVolunteer = async (email: string, password: string, userData: any) => {
-  try {
-    console.log('Starting volunteer registration validation...');
-    
-    // Pre-validate data (volunteers don't need volunteer_id validation)
-    const validation = await validateRegistrationData(
-      email,
-      userData.personal_id
-    );
-    
-    if (!validation.isValid) {
-      console.log('Validation failed:', validation.errors);
+  const signUpVolunteerFunc = async (email: string, password: string, profileData: any) => {
+    try {
+      console.log('🔄 Starting volunteer registration with validation...');
+      
+      // Use the imported signUpVolunteer function from lib/supabase
+      const result = await signUpVolunteer(email, password, profileData);
+      
+      if (result.error) {
+        console.error('❌ Volunteer registration failed:', result.error);
+        return result;
+      }
+
+      console.log('✅ Volunteer registration successful');
+      
+      // Fetch the newly created profile
+      if (result.data?.user) {
+        await fetchProfile(result.data.user.id);
+      }
+
+      return result;
+    } catch (error: any) {
+      console.error('Volunteer registration exception:', error);
       return { 
         data: null, 
-        error: { 
-          message: validation.errors.join('. '),
-          validationErrors: validation.errors
-        }
+        error: { message: error.message || 'Volunteer registration failed' } 
       };
     }
-    
-    console.log('✅ All validations passed, proceeding with volunteer registration...');
+  };
 
-    // Create auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: email.trim().toLowerCase(),
-      password,
-    });
-
-    if (authError) {
-      console.error('Auth signup error:', authError);
-      return { data: null, error: authError };
-    }
-
-    if (!authData.user) {
-      return { data: null, error: { message: 'Failed to create volunteer account' } };
-    }
-
-    console.log('✅ Auth user created, creating volunteer profile...');
-
-    // Create complete profile with the selected volunteer role
-    const { data: profileData, error: profileError } = await supabase
-      .from("users_profiles")
-      .insert({
-        id: authData.user.id,
-        ...userData,
-        role: userData.role || 'volunteer', // ✅ Use the selected role or default to 'volunteer'
-        score: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .select();
-
-    if (profileError) {
-      console.error('Volunteer profile creation error:', profileError);
-      
-      // Clean up auth user if profile creation fails
-      try {
-        await supabase.auth.admin.deleteUser(authData.user.id);
-        console.log('Cleaned up auth user due to profile creation failure');
-      } catch (cleanupError) {
-        console.error('Failed to cleanup auth user:', cleanupError);
-      }
-      
-      return { data: null, error: profileError };
-    }
-
-    console.log('✅ Volunteer registration completed successfully');
-    return { data: authData, error: null };
-
-  } catch (error: any) {
-    console.error('Volunteer registration error:', error);
-    return { data: null, error: { message: error.message || 'Volunteer registration failed' } };
-  }
-};
   // ✅ SIGN IN
   const signIn = async (email: string, password: string) => {
     try {
