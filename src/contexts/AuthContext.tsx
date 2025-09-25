@@ -112,22 +112,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   // ✅ SIGN IN
-  const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+const signIn = async (email: string, password: string) => {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
 
-    if (error) return { error };
+  if (error) return { error };
 
-    if (data.user) {
-      await fetchProfile(data.user.id);
-      setUser(data.user);
-    }
+  if (data.user) {
+    // Wait for profile to be fetched and state to update
+    await fetchProfile(data.user.id);
+    setUser(data.user);
+    
+    // Return success without profile - the useEffect in LoginForm will handle redirect
+    return { error: null };
+  }
 
-    return { error: null, profile };
-  };
-
+  return { error: null };
+};
+  
   // ✅ SIGN OUT
   const signOut = async () => {
     await supabase.auth.signOut();
