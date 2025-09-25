@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 
 interface UserProfile {
   id: string;
@@ -45,86 +45,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(null);
     setProfile(null);
     setLoading(false);
-    navigate('/login');
+    // Use setTimeout to avoid navigation during render
+    setTimeout(() => {
+      if (window.location.pathname !== '/login') {
+        navigate('/login');
+      }
+    }, 0);
   };
-
-  useEffect(() => {
-    console.log('🔄 AuthContext: Starting authentication check...');
-    
-    // Get initial session
-    const getInitialSession = async () => {
-      console.log('🔍 AuthContext: Getting initial session...');
-      
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('❌ AuthContext: Error getting session:', error);
-          redirectToLogin();
-          return;
-        }
-        
-        console.log('📋 AuthContext: Initial session:', session ? 'Found' : 'None');
-        
-        if (session?.user) {
-          console.log('👤 AuthContext: User found, fetching profile for ID:', session.user.id);
-          setUser(session.user);
-          
-          // Fetch profile and redirect if not found
-          const profileFetched = await fetchUserProfile(session.user.id);
-          
-          if (!profileFetched) {
-            console.log('❌ AuthContext: Profile not found, redirecting to login');
-            redirectToLogin();
-            return;
-          }
-        } else {
-          console.log('❌ AuthContext: No user found, redirecting to login');
-          redirectToLogin();
-          return;
-        }
-        
-        console.log('✅ AuthContext: Initial loading complete');
-        setLoading(false);
-      } catch (error) {
-        console.error('💥 AuthContext: Exception in getInitialSession:', error);
-        redirectToLogin();
-      }
-    };
-
-    getInitialSession();
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('🔔 AuthContext: Auth state changed:', event);
-        
-        if (session?.user) {
-          console.log('👤 AuthContext: Setting user and fetching profile for:', session.user.id);
-          setUser(session.user);
-          
-          const profileFetched = await fetchUserProfile(session.user.id);
-          
-          if (!profileFetched) {
-            console.log('❌ AuthContext: Profile not found during auth change, redirecting to login');
-            redirectToLogin();
-            return;
-          }
-        } else {
-          console.log('🚫 AuthContext: No session, redirecting to login');
-          redirectToLogin();
-          return;
-        }
-        
-        setLoading(false);
-      }
-    );
-
-    return () => {
-      console.log('🧹 AuthContext: Cleaning up subscription');
-      subscription.unsubscribe();
-    };
-  }, [navigate]);
 
   const fetchUserProfile = async (userId: string): Promise<boolean> => {
     try {
@@ -165,6 +92,109 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return false;
     }
   };
+
+  useEffect(() => {
+    console.log('🔄 AuthContext: Starting authentication check...');
+    
+    let mounted = true;
+    let authSubscription: any = null;
+
+    // Get initial session
+    const getInitialSession = async () => {
+      if (!mounted) return;
+      
+      console.log('🔍 AuthContext: Getting initial session...');
+      
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (!mounted) return;
+        
+        if (error) {
+          console.error('❌ AuthContext: Error getting session:', error);
+          redirectToLogin();
+          return;
+        }
+        
+        console.log('📋 AuthContext: Initial session:', session ? 'Found' : 'None');
+        
+        if (session?.user) {
+          console.log('👤 AuthContext: User found, fetching profile for ID:', session.user.id);
+          setUser(session.user);
+          
+          // Fetch profile and redirect if not found
+          const profileFetched = await fetchUserProfile(session.user.id);
+          
+          if (!mounted) return;
+          
+          if (!profileFetched) {
+            console.log('❌ AuthContext: Profile not found, redirecting to login');
+            redirectToLogin();
+            return;
+          }
+        } else {
+          console.log('❌ AuthContext: No user found, redirecting to login');
+          redirectToLogin();
+          return;
+        }
+        
+        console.log('✅ AuthContext: Initial loading complete');
+        setLoading(false);
+      } catch (error) {
+        console.error('💥 AuthContext: Exception in getInitialSession:', error);
+        if (mounted) {
+          redirectToLogin();
+        }
+      }
+    };
+
+    // Listen for auth changes
+    const setupAuthListener = () => {
+      if (!mounted) return;
+      
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          if (!mounted) return;
+          
+          console.log('🔔 AuthContext: Auth state changed:', event);
+          
+          if (session?.user) {
+            console.log('👤 AuthContext: Setting user and fetching profile for:', session.user.id);
+            setUser(session.user);
+            
+            const profileFetched = await fetchUserProfile(session.user.id);
+            
+            if (!mounted) return;
+            
+            if (!profileFetched) {
+              console.log('❌ AuthContext: Profile not found during auth change, redirecting to login');
+              redirectToLogin();
+              return;
+            }
+          } else {
+            console.log('🚫 AuthContext: No session, redirecting to login');
+            redirectToLogin();
+            return;
+          }
+          
+          setLoading(false);
+        }
+      );
+      
+      authSubscription = subscription;
+    };
+
+    getInitialSession();
+    setupAuthListener();
+
+    return () => {
+      console.log('🧹 AuthContext: Cleaning up');
+      mounted = false;
+      if (authSubscription) {
+        authSubscription.unsubscribe();
+      }
+    };
+  }, [navigate]);
 
   const signIn = async (email: string, password: string) => {
     try {
