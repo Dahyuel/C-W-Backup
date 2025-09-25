@@ -113,7 +113,7 @@ const roleOptions = [
     }
   };
 
-const handleSubmit = async (e: React.FormEvent) => {
+ const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validate all sections
@@ -134,19 +134,15 @@ const handleSubmit = async (e: React.FormEvent) => {
     setErrors([]);
 
     try {
-      // Determine the role to send to the backend
-const roleToSend = formData.role === 'other' || formData.role === 'info desk' 
-  ? 'volunteer' 
-  : formData.role;
-
-const userData = {
-  first_name: formData.firstName.trim(),
-  last_name: formData.lastName.trim(),
-  phone: formData.phone.trim(),
-  personal_id: formData.personalId.trim(),
-  faculty: formData.faculty,
-  role: formData.role // Send the selected role directly
-};
+      // Send the selected role directly
+      const userData = {
+        first_name: formData.firstName.trim(),
+        last_name: formData.lastName.trim(),
+        phone: formData.phone.trim(),
+        personal_id: formData.personalId.trim(),
+        faculty: formData.faculty,
+        role: formData.role // Send the exact role selected
+      };
 
       const { data, error } = await signUpVolunteer(formData.email, formData.password, userData);
 
@@ -155,7 +151,17 @@ const userData = {
         return;
       }
 
-      setShowSuccess(true);
+      // Auto-signin after successful registration
+      console.log('✅ Registration successful, attempting auto-login...');
+      
+      const { error: signInError } = await signIn(formData.email, formData.password);
+      
+      if (signInError) {
+        // If auto-login fails, show success message with manual login option
+        console.log('⚠️ Auto-login failed, showing success message');
+        setShowSuccess(true);
+      }
+      // If auto-login succeeds, the AuthContext will handle the redirect
       
     } catch (error: any) {
       setErrors([{ 
