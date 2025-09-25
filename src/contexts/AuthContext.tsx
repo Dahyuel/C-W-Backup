@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { useNavigate } from 'react-router-dom';
 
 interface UserProfile {
   id: string;
@@ -37,6 +38,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  const redirectToLogin = () => {
+    console.log('🔐 Redirecting to login page...');
+    setUser(null);
+    setProfile(null);
+    setLoading(false);
+    navigate('/login');
+  };
 
   useEffect(() => {
     console.log('🔄 AuthContext: Starting authentication check...');
@@ -50,9 +60,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         if (error) {
           console.error('❌ AuthContext: Error getting session:', error);
-          setUser(null);
-          setProfile(null);
-          setLoading(false);
+          redirectToLogin();
           return;
         }
         
@@ -62,27 +70,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.log('👤 AuthContext: User found, fetching profile for ID:', session.user.id);
           setUser(session.user);
           
-          // Always fetch profile and handle the result
+          // Fetch profile and redirect if not found
           const profileFetched = await fetchUserProfile(session.user.id);
           
           if (!profileFetched) {
-            console.log('⚠️ AuthContext: Profile not found, but keeping session');
-            // Keep the user session but clear profile
-            setProfile(null);
+            console.log('❌ AuthContext: Profile not found, redirecting to login');
+            redirectToLogin();
+            return;
           }
         } else {
-          console.log('❌ AuthContext: No user found');
-          setUser(null);
-          setProfile(null);
+          console.log('❌ AuthContext: No user found, redirecting to login');
+          redirectToLogin();
+          return;
         }
         
         console.log('✅ AuthContext: Initial loading complete');
         setLoading(false);
       } catch (error) {
         console.error('💥 AuthContext: Exception in getInitialSession:', error);
-        setUser(null);
-        setProfile(null);
-        setLoading(false);
+        redirectToLogin();
       }
     };
 
@@ -91,7 +97,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('🔔 AuthContext: Auth state changed:', event, session ? 'Session exists' : 'No session');
+        console.log('🔔 AuthContext: Auth state changed:', event);
         
         if (session?.user) {
           console.log('👤 AuthContext: Setting user and fetching profile for:', session.user.id);
@@ -100,13 +106,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           const profileFetched = await fetchUserProfile(session.user.id);
           
           if (!profileFetched) {
-            console.log('⚠️ AuthContext: Profile not found during auth change');
-            setProfile(null);
+            console.log('❌ AuthContext: Profile not found during auth change, redirecting to login');
+            redirectToLogin();
+            return;
           }
         } else {
-          console.log('🚫 AuthContext: Clearing user and profile');
-          setUser(null);
-          setProfile(null);
+          console.log('🚫 AuthContext: No session, redirecting to login');
+          redirectToLogin();
+          return;
         }
         
         setLoading(false);
@@ -117,7 +124,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('🧹 AuthContext: Cleaning up subscription');
       subscription.unsubscribe();
     };
-  }, []);
+  }, [navigate]);
 
   const fetchUserProfile = async (userId: string): Promise<boolean> => {
     try {
@@ -142,35 +149,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (error) {
         console.error('❌ AuthContext: Error fetching user profile:', error);
-        console.error('❌ AuthContext: Error details:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
-        });
-        
-        setProfile(null);
         return false;
       }
 
       if (data) {
-        console.log('✅ AuthContext: Profile fetched successfully:', {
-          id: data.id,
-          role: data.role,
-          name: `${data.first_name} ${data.last_name}`,
-          university: data.university,
-          faculty: data.faculty
-        });
+        console.log('✅ AuthContext: Profile fetched successfully');
         setProfile(data);
         return true;
       } else {
-        console.log('⚠️ AuthContext: No profile data returned');
-        setProfile(null);
+        console.log('❌ AuthContext: No profile data returned');
         return false;
       }
     } catch (error) {
       console.error('💥 AuthContext: Exception in fetchUserProfile:', error);
-      setProfile(null);
       return false;
     }
   };
@@ -200,7 +191,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const profileFetched = await fetchUserProfile(data.user.id);
         
         if (!profileFetched) {
-          console.log('⚠️ AuthContext: Profile not found after sign in');
+          console.log('❌ AuthContext: Profile not found after sign in');
+          setLoading(false);
+          return { error: { message: 'User profile not found' } };
         }
       }
 
@@ -224,6 +217,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('✅ AuthContext: Sign out successful');
         setUser(null);
         setProfile(null);
+        navigate('/login');
       } else {
         console.error('❌ AuthContext: Sign out error:', error);
       }
@@ -257,81 +251,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const hasRole = (requiredRole: string | string[]): boolean => {
-    const result = (() => {
-      if (!profile?.role) return false;
-      
-      if (Array.isArray(requiredRole)) {
-        return requiredRole.includes(profile.role);
-      }
-      
-      return profile.role === requiredRole;
-    })();
+    if (!profile?.role) return false;
     
-    console.log('🔒 AuthContext: Role check:', {
-      userRole: profile?.role,
-      requiredRole,
-      hasAccess: result
-    });
+    if (Array.isArray(requiredRole)) {
+      return requiredRole.includes(profile.role);
+    }
     
-    return result;
+    return profile.role === requiredRole;
   };
 
   const getRoleBasedRedirect = (): string => {
     if (!profile?.role) {
-      console.log('⚠️ AuthContext: No role found, redirecting to login');
       return '/login';
     }
     
-    const redirect = (() => {
-      switch (profile.role) {
-        case 'attendee':
-          return '/attendee';
-        case 'volunteer':
-          return '/volunteer';
-        case 'registration':
-          return '/regteam';
-        case 'building':
-          return '/buildteam';
-        case 'team_leader':
-          return '/teamleader';
-        case 'admin':
-          return '/secure-9821panel';
-        default:
-          return '/attendee';
-      }
-    })();
-    
-    console.log('🎯 AuthContext: Role-based redirect:', {
-      role: profile.role,
-      redirect
-    });
-    
-    return redirect;
+    switch (profile.role) {
+      case 'attendee':
+        return '/attendee';
+      case 'volunteer':
+        return '/volunteer';
+      case 'registration':
+        return '/regteam';
+      case 'building':
+        return '/buildteam';
+      case 'team_leader':
+        return '/teamleader';
+      case 'admin':
+        return '/secure-9821panel';
+      default:
+        return '/attendee';
+    }
   };
 
-  // Modified authentication check - user must have both session AND profile
   const isAuthenticated = !!user && !!profile;
-
-  // Also provide a way to check if user has session but no profile
-  const hasSessionButNoProfile = !!user && !profile;
-
-  // Log current state periodically for debugging (reduced frequency)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      console.log('📊 AuthContext: Current state:', {
-        loading,
-        hasUser: !!user,
-        hasProfile: !!profile,
-        isAuthenticated,
-        hasSessionButNoProfile,
-        userEmail: user?.email,
-        profileRole: profile?.role,
-        profileName: profile ? `${profile.first_name} ${profile.last_name}` : null
-      });
-    }, 10000); // Reduced to every 10 seconds
-
-    return () => clearInterval(interval);
-  }, [loading, user, profile, isAuthenticated, hasSessionButNoProfile]);
 
   const contextValue: AuthContextType = {
     user,
@@ -344,14 +296,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticated,
     getRoleBasedRedirect
   };
-
-  console.log('🔄 AuthContext: Rendering with state:', {
-    loading,
-    hasUser: !!user,
-    hasProfile: !!profile,
-    isAuthenticated,
-    hasSessionButNoProfile
-  });
 
   return (
     <AuthContext.Provider value={contextValue}>
