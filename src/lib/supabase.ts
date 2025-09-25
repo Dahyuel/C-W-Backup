@@ -226,6 +226,7 @@ export const signUpUser = async (email: string, password: string, userData: any)
 
 
 // Enhanced sign up volunteer function with pre-validation
+// Enhanced sign up volunteer function with pre-validation
 export const signUpVolunteer = async (email: string, password: string, userData: any) => {
   try {
     console.log('Starting volunteer registration validation...');
@@ -266,13 +267,13 @@ export const signUpVolunteer = async (email: string, password: string, userData:
 
     console.log('✅ Auth user created, creating volunteer profile...');
 
-    // Create complete profile with volunteer role
+    // Create complete profile with the selected volunteer role
     const { data: profileData, error: profileError } = await supabase
-      .from('users_profiles')
+      .from("users_profiles")
       .insert({
         id: authData.user.id,
         ...userData,
-        role: 'volunteer',
+        role: userData.role || 'volunteer', // ✅ Use the selected role or default to 'volunteer'
         score: 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
