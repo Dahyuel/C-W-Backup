@@ -17,6 +17,7 @@ import {
   validateConfirmPassword
 } from '../../utils/validation';
 import { signUpVolunteer } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 
 export const VolunteerRegistration: React.FC = () => {
   const navigate = useNavigate();
