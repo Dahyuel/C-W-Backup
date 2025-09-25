@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import ProtectedRoute from './components/ProtectedRoute'; // Fixed import path
+import ProtectedRoute from './components/ProtectedRoute';
 
 // Auth Components
 import { LoginForm } from './components/LoginForm';
@@ -20,8 +20,8 @@ import { SuperAdminPanel } from './pages/admin/SuperAdminPanel';
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
+    <Router>
+      <AuthProvider>
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<LoginForm />} />
@@ -107,8 +107,8 @@ function App() {
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
-      </Router>
-    </AuthProvider>
+      </AuthProvider>
+    </Router>
   );
 }
 
