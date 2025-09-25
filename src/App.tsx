@@ -51,7 +51,7 @@ function App() {
           <Route 
             path="/regteam" 
             element={
-              <ProtectedRoute requiredRole={['registration', 'team_leader', 'admin']}>
+              <ProtectedRoute requiredRole={['registration']}>
                 <RegTeamDashboard />
               </ProtectedRoute>
             } 
