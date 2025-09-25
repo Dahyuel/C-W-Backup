@@ -80,105 +80,137 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-useEffect(() => {
-  console.log('🔄 AuthContext: Starting authentication check...');
-  
-  let mounted = true;
+  useEffect(() => {
+    console.log('🔄 AuthContext: Starting authentication check...');
+    
+    let mounted = true;
 
-  const getInitialSession = async () => {
-    if (!mounted) return;
-    
-    console.log('🔍 AuthContext: Getting initial session...');
-    
-    try {
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
+    // Get initial session
+    const getInitialSession = async () => {
       if (!mounted) return;
       
-      if (error) {
-        console.error('❌ AuthContext: Error getting session:', error);
-        setLoading(false);
-        return;
-      }
+      console.log('🔍 AuthContext: Getting initial session...');
       
-      console.log('📋 AuthContext: Initial session:', session ? 'Found' : 'None');
-      
-      if (session?.user) {
-        console.log('👤 AuthContext: User found, fetching profile for ID:', session.user.id);
-        setUser(session.user);
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
         
-        const profileFetched = await fetchUserProfile(session.user.id);
+        if (!mounted) return;
         
-        if (profileFetched) {
-          // If user is already authenticated, redirect to their dashboard
-          setTimeout(() => {
-            const redirectPath = getRoleBasedRedirect();
-            console.log('🔄 AuthContext: User already authenticated, redirecting to:', redirectPath);
-            navigate(redirectPath);
-          }, 500); // Small delay to ensure everything is loaded
+        if (error) {
+          console.error('❌ AuthContext: Error getting session:', error);
+          setLoading(false);
+          return;
         }
-      } else {
-        console.log('❌ AuthContext: No user found');
-        setUser(null);
-        setProfile(null);
+        
+        console.log('📋 AuthContext: Initial session:', session ? 'Found' : 'None');
+        
+        if (session?.user) {
+          console.log('👤 AuthContext: User found, fetching profile for ID:', session.user.id);
+          setUser(session.user);
+          
+          const profileFetched = await fetchUserProfile(session.user.id);
+          
+          if (profileFetched) {
+            // Redirect user if already authenticated
+            setTimeout(() => {
+              const redirectPath = getRoleBasedRedirect();
+              console.log('🔄 AuthContext: User already authenticated, redirecting to:', redirectPath);
+              navigate(redirectPath);
+            }, 500); // small delay to ensure profile is loaded
+          }
+        } else {
+          console.log('❌ AuthContext: No user found');
+          setUser(null);
+          setProfile(null);
+        }
+        
+        console.log('✅ AuthContext: Initial loading complete');
+        setLoading(false);
+      } catch (error) {
+        console.error('💥 AuthContext: Exception in getInitialSession:', error);
+        if (mounted) {
+          setLoading(false);
+        }
       }
-      
-      console.log('✅ AuthContext: Initial loading complete');
-      setLoading(false);
-    } catch (error) {
-      console.error('💥 AuthContext: Exception in getInitialSession:', error);
-      if (mounted) {
+    };
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!mounted) return;
+        
+        console.log('🔔 AuthContext: Auth state changed:', event);
+        
+        if (session?.user) {
+          console.log('👤 AuthContext: Setting user and fetching profile for:', session.user.id);
+          setUser(session.user);
+          await fetchUserProfile(session.user.id);
+        } else {
+          console.log('🚫 AuthContext: No session, clearing user data');
+          setUser(null);
+          setProfile(null);
+        }
+        
         setLoading(false);
       }
-    }
-  };
+    );
 
-const signIn = async (email: string, password: string) => {
-  try {
-    console.log('🔐 AuthContext: Attempting sign in for:', email);
-    setLoading(true);
-    
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
+    getInitialSession();
 
-    if (error) {
-      console.error('❌ AuthContext: Sign in error:', error);
+    return () => {
+      console.log('🧹 AuthContext: Cleaning up');
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [navigate]);
+
+  const signIn = async (email: string, password: string) => {
+    try {
+      console.log('🔐 AuthContext: Attempting sign in for:', email);
+      setLoading(true);
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        console.error('❌ AuthContext: Sign in error:', error);
+        setLoading(false);
+        return { error };
+      }
+
+      console.log('✅ AuthContext: Sign in successful for user:', data.user?.id);
+
+      if (data.user) {
+        setUser(data.user);
+        console.log('👤 AuthContext: Fetching profile after sign in');
+        
+        const profileFetched = await fetchUserProfile(data.user.id);
+        
+        if (!profileFetched) {
+          console.log('❌ AuthContext: Profile not found after sign in');
+          setLoading(false);
+          return { error: { message: 'User profile not found' } };
+        }
+        
+        // Wait a moment to ensure everything is loaded, then redirect
+        setTimeout(() => {
+          const redirectPath = getRoleBasedRedirect();
+          console.log('🔄 AuthContext: Redirecting to:', redirectPath);
+          navigate(redirectPath);
+        }, 1000);
+      }
+
+      setLoading(false);
+      return { error: null };
+    } catch (error) {
+      console.error('💥 AuthContext: Exception in signIn:', error);
       setLoading(false);
       return { error };
     }
+  };
 
-    console.log('✅ AuthContext: Sign in successful for user:', data.user?.id);
-
-    if (data.user) {
-      setUser(data.user);
-      console.log('👤 AuthContext: Fetching profile after sign in');
-      
-      const profileFetched = await fetchUserProfile(data.user.id);
-      
-      if (!profileFetched) {
-        console.log('❌ AuthContext: Profile not found after sign in');
-        setLoading(false);
-        return { error: { message: 'User profile not found' } };
-      }
-      
-      // Wait a moment to ensure everything is loaded, then redirect
-      setTimeout(() => {
-        const redirectPath = getRoleBasedRedirect();
-        console.log('🔄 AuthContext: Redirecting to:', redirectPath);
-        navigate(redirectPath);
-      }, 1000); // 1 second delay
-    }
-
-    setLoading(false);
-    return { error: null };
-  } catch (error) {
-    console.error('💥 AuthContext: Exception in signIn:', error);
-    setLoading(false);
-    return { error };
-  }
-};
   const signOut = async () => {
     try {
       console.log('🚪 AuthContext: Signing out...');
@@ -282,4 +314,4 @@ export const useAuth = (): AuthContextType => {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-}, [navigate]);
+};
