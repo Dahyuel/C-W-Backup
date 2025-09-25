@@ -72,11 +72,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // ✅ SIGN IN
-  const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) console.error("SignIn error:", error.message);
-    return { data, error };
-  };
+const signIn = async (email: string, password: string) => {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) return { error };
+
+  let profile = null;
+  if (data.user) {
+    const { data: profileData } = await supabase
+      .from("users_profiles")
+      .select("*")
+      .eq("id", data.user.id)
+      .single();
+
+    profile = profileData;
+    setProfile(profile);
+  }
+
+  setUser(data.user);
+  return { error: null, profile };
+};
 
   // ✅ SIGN OUT
   const signOut = async () => {
