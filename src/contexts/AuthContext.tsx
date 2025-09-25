@@ -156,47 +156,52 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, []);
 
-  const signIn = async (email: string, password: string) => {
-    try {
-      console.log('🔐 AuthContext: Attempting sign in for:', email);
-      setLoading(true);
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+const signIn = async (email: string, password: string) => {
+  try {
+    console.log('🔐 AuthContext: Attempting sign in for:', email);
+    setLoading(true);
+    
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
 
-      if (error) {
-        console.error('❌ AuthContext: Sign in error:', error);
-        setLoading(false);
-        return { error };
-      }
-
-      console.log('✅ AuthContext: Sign in successful for user:', data.user?.id);
-
-      if (data.user) {
-        setUser(data.user);
-        console.log('👤 AuthContext: Fetching profile after sign in');
-        
-        const profileFetched = await fetchUserProfile(data.user.id);
-        
-        if (!profileFetched) {
-          console.log('❌ AuthContext: Profile not found after sign in');
-          // Don't redirect here, just return error
-          setLoading(false);
-          return { error: { message: 'User profile not found' } };
-        }
-      }
-
-      setLoading(false);
-      return { error: null };
-    } catch (error) {
-      console.error('💥 AuthContext: Exception in signIn:', error);
+    if (error) {
+      console.error('❌ AuthContext: Sign in error:', error);
       setLoading(false);
       return { error };
     }
-  };
 
+    console.log('✅ AuthContext: Sign in successful for user:', data.user?.id);
+
+    if (data.user) {
+      setUser(data.user);
+      console.log('👤 AuthContext: Fetching profile after sign in');
+      
+      const profileFetched = await fetchUserProfile(data.user.id);
+      
+      if (!profileFetched) {
+        console.log('❌ AuthContext: Profile not found after sign in');
+        setLoading(false);
+        return { error: { message: 'User profile not found' } };
+      }
+      
+      // Wait a moment to ensure everything is loaded, then redirect
+      setTimeout(() => {
+        const redirectPath = getRoleBasedRedirect();
+        console.log('🔄 AuthContext: Redirecting to:', redirectPath);
+        navigate(redirectPath);
+      }, 1000); // 1 second delay
+    }
+
+    setLoading(false);
+    return { error: null };
+  } catch (error) {
+    console.error('💥 AuthContext: Exception in signIn:', error);
+    setLoading(false);
+    return { error };
+  }
+};
   const signOut = async () => {
     try {
       console.log('🚪 AuthContext: Signing out...');
