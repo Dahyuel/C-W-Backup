@@ -94,6 +94,56 @@ export const signUpUser = async (email: string, password: string, userData: any)
   }
 };
 
+// Sign up volunteer function
+export const signUpVolunteer = async (email: string, password: string, userData: any) => {
+  try {
+    // Validate personal ID is unique
+    const { isUnique, error: uniqueError } = await checkPersonalIdUnique(userData.personal_id);
+    if (!isUnique) {
+      return { 
+        data: null, 
+        error: { message: uniqueError || 'This Personal ID is already registered.' }
+      };
+    }
+
+    // Create auth user
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+    });
+
+    if (authError) {
+      return { data: null, error: authError };
+    }
+
+    if (!authData.user) {
+      return { data: null, error: { message: 'Failed to create user account' } };
+    }
+
+    // Create complete profile with volunteer role
+    const { data: profileData, error: profileError } = await supabase
+      .from('users_profiles')
+      .insert({
+        id: authData.user.id,
+        ...userData,
+        role: 'volunteer',
+        score: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select();
+
+    if (profileError) {
+      return { data: null, error: profileError };
+    }
+
+    return { data: authData, error: null };
+
+  } catch (error: any) {
+    return { data: null, error: { message: error.message } };
+  }
+};
+
 // Sign in with email
 export const signInUser = async (email: string, password: string) => {
   const { data, error } = await supabase.auth.signInWithPassword({

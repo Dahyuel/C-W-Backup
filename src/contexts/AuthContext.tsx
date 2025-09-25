@@ -1,4 +1,3 @@
-// src/contexts/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
@@ -8,10 +7,13 @@ interface UserProfile {
   first_name: string;
   last_name: string;
   email: string;
-  role: 'attendee' | 'volunteer' | 'reg_team' | 'build_team' | 'info_desk' | 'team_leader' | 'admin' | 'super_admin';
+  role: 'attendee' | 'volunteer' | 'registration' | 'building' | 'team_leader' | 'admin';
   university?: string;
   faculty?: string;
   phone?: string;
+  personal_id?: string;
+  score?: number;
+  created_at?: string;
 }
 
 interface AuthContextType {
@@ -23,6 +25,7 @@ interface AuthContextType {
   resetPassword: (email: string) => Promise<{ error?: any }>;
   hasRole: (role: string | string[]) => boolean;
   isAuthenticated: boolean;
+  getRoleBasedRedirect: () => string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -72,7 +75,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const fetchUserProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
-        .from('user_profiles')
+        .from('users_profiles')
         .select(`
           id,
           first_name,
@@ -81,7 +84,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           role,
           university,
           faculty,
-          phone
+          phone,
+          personal_id,
+          score,
+          created_at
         `)
         .eq('id', userId)
         .single();
@@ -149,6 +155,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return profile.role === requiredRole;
   };
 
+  const getRoleBasedRedirect = (): string => {
+    if (!profile?.role) return '/login';
+    
+    switch (profile.role) {
+      case 'attendee':
+        return '/attendee';
+      case 'volunteer':
+        return '/volunteer';
+      case 'registration':
+        return '/regteam';
+      case 'building':
+        return '/buildteam';
+      case 'team_leader':
+        return '/teamleader';
+      case 'admin':
+        return '/secure-9821panel';
+      default:
+        return '/attendee';
+    }
+  };
+
   const isAuthenticated = !!user && !!profile;
 
   const contextValue: AuthContextType = {
@@ -159,7 +186,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     signOut,
     resetPassword,
     hasRole,
-    isAuthenticated
+    isAuthenticated,
+    getRoleBasedRedirect
   };
 
   return (

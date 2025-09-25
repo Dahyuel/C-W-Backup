@@ -1,18 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, Mail, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { LoginData, ValidationError } from '../types';
 import { validateEmail, validatePassword } from '../utils/validation';
-import { signInUser } from '../lib/supabase';
 
-interface LoginFormProps {
-  onSwitchToRegister: () => void;
-  onSwitchToForgotPassword: () => void;
-}
-
-export const LoginForm: React.FC<LoginFormProps> = ({ 
-  onSwitchToRegister, 
-  onSwitchToForgotPassword 
-}) => {
+export const LoginForm: React.FC = () => {
+  const navigate = useNavigate();
+  const { signIn, isAuthenticated, getRoleBasedRedirect, loading: authLoading } = useAuth();
+  
   const [formData, setFormData] = useState<LoginData>({
     email: '',
     password: ''
@@ -20,6 +16,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && !authLoading) {
+      navigate(getRoleBasedRedirect(), { replace: true });
+    }
+  }, [isAuthenticated, authLoading, navigate, getRoleBasedRedirect]);
 
   const updateField = (field: keyof LoginData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -52,15 +55,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({
     setErrors([]);
 
     try {
-      const { data, error } = await signInUser(formData.email, formData.password);
+      const { error } = await signIn(formData.email, formData.password);
 
       if (error) {
         setErrors([{ field: 'general', message: 'Invalid email or password' }]);
         return;
       }
 
-      // Redirect to dashboard or main app
-      console.log('Login successful:', data);
+      // Navigation will be handled by useEffect when isAuthenticated changes
       
     } catch (error) {
       setErrors([{ field: 'general', message: 'Login failed. Please try again.' }]);
@@ -72,6 +74,17 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   const getFieldError = (field: string) => {
     return errors.find(error => error.field === field)?.message;
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center p-4">
@@ -149,7 +162,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
             <div className="text-right">
               <button
                 type="button"
-                onClick={onSwitchToForgotPassword}
+                onClick={() => navigate('/forgot-password')}
                 className="text-sm text-orange-600 hover:text-orange-700 hover:underline font-medium"
               >
                 Forgot Password?
@@ -172,16 +185,26 @@ export const LoginForm: React.FC<LoginFormProps> = ({
               )}
             </button>
 
-            {/* Register Link */}
-            <div className="text-center pt-4 border-t border-gray-200">
+            {/* Register Links */}
+            <div className="text-center pt-4 border-t border-gray-200 space-y-2">
               <p className="text-gray-600">
                 Don't have an account?{' '}
                 <button
                   type="button"
-                  onClick={onSwitchToRegister}
+                  onClick={() => navigate('/register')}
                   className="text-orange-600 hover:text-orange-700 font-medium hover:underline"
                 >
-                  Create Account
+                  Create Attendee Account
+                </button>
+              </p>
+              <p className="text-gray-600">
+                Want to volunteer?{' '}
+                <button
+                  type="button"
+                  onClick={() => navigate('/V0lunt33ringR3g')}
+                  className="text-orange-600 hover:text-orange-700 font-medium hover:underline"
+                >
+                  Register as Volunteer
                 </button>
               </p>
             </div>

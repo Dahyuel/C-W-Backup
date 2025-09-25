@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { User, GraduationCap, Users, Lock, ChevronRight, CheckCircle, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { 
   RegistrationData, 
   ValidationError, 
@@ -78,11 +79,8 @@ const FileUpload: React.FC<{
   );
 };
 
-interface RegistrationFormProps {
-  onSwitchToLogin: () => void;
-}
-
-export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSwitchToLogin }) => {
+export const RegistrationForm: React.FC = () => {
+  const navigate = useNavigate();
   const [currentSection, setCurrentSection] = useState(1);
   const [formData, setFormData] = useState<RegistrationData>({
     firstName: '',
@@ -706,7 +704,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSwitchToLo
             Your account has been created successfully. You can now log in to access Career Week Account.
           </p>
           <button
-            onClick={onSwitchToLogin}
+            onClick={() => navigate('/login')}
             className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 transform hover:scale-105"
           >
             Go to Login
@@ -721,7 +719,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSwitchToLo
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Join Career Week</h1>
-          <p className="text-gray-600">Create your account to access exclusive events</p>
+          <p className="text-gray-600">Create your attendee account to access exclusive events</p>
         </div>
 
         {/* Progress Steps */}
@@ -828,7 +826,7 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSwitchToLo
               Already have an account?{' '}
               <button
                 type="button"
-                onClick={onSwitchToLogin}
+                onClick={() => navigate('/login')}
                 className="text-orange-600 hover:text-orange-700 font-medium transition-colors"
               >
                 Sign in here
@@ -840,5 +838,3 @@ export const RegistrationForm: React.FC<RegistrationFormProps> = ({ onSwitchToLo
     </div>
   );
 };
-
-export default RegistrationForm

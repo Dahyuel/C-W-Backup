@@ -1,34 +1,113 @@
-import React, { useState } from 'react';
-import { RegistrationForm } from './components/RegistrationForm';
-import { LoginForm } from './components/LoginForm';
-import { ForgotPasswordForm } from './components/ForgotPasswordForm';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 
-type ViewState = 'login' | 'register' | 'forgot-password';
+// Auth Components
+import { LoginForm } from './components/LoginForm';
+import { RegistrationForm } from './components/RegistrationForm';
+import { ForgotPasswordForm } from './components/ForgotPasswordForm';
+import { VolunteerRegistration } from './pages/volunteer/VolunteerRegistration';
+
+// Dashboard Components
+import { AttendeeDashboard } from './pages/user/AttendeeDashboard';
+import { VolunteerDashboard } from './pages/volunteer/VolunteerDashboard';
+import { RegTeamDashboard } from './pages/team/RegTeamDashboard';
+import { BuildTeamDashboard } from './pages/team/BuildTeamDashboard';
+import { TeamLeaderDashboard } from './pages/team/TeamLeaderDashboard';
+import { AdminPanel } from './pages/admin/AdminPanel';
+import { SuperAdminPanel } from './pages/admin/SuperAdminPanel';
 
 function App() {
-  const [currentView, setCurrentView] = useState<ViewState>('login');
-
-  const switchToLogin = () => setCurrentView('login');
-  const switchToRegister = () => setCurrentView('register');
-  const switchToForgotPassword = () => setCurrentView('forgot-password');
-
   return (
-    <>
-      {currentView === 'login' && (
-        <LoginForm 
-          onSwitchToRegister={switchToRegister}
-          onSwitchToForgotPassword={switchToForgotPassword}
-        />
-      )}
-      
-      {currentView === 'register' && (
-        <RegistrationForm onSwitchToLogin={switchToLogin} />
-      )}
-      
-      {currentView === 'forgot-password' && (
-        <ForgotPasswordForm onSwitchToLogin={switchToLogin} />
-      )}
-    </>
+    <AuthProvider>
+      <Router>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/login" element={<LoginForm />} />
+          <Route path="/register" element={<RegistrationForm />} />
+          <Route path="/forgot-password" element={<ForgotPasswordForm />} />
+          <Route path="/V0lunt33ringR3g" element={<VolunteerRegistration />} />
+
+          {/* Protected Routes */}
+          <Route 
+            path="/attendee" 
+            element={
+              <ProtectedRoute requiredRole="attendee">
+                <AttendeeDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/volunteer" 
+            element={
+              <ProtectedRoute requiredRole="volunteer">
+                <VolunteerDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/regteam" 
+            element={
+              <ProtectedRoute requiredRole={['registration', 'team_leader', 'admin']}>
+                <RegTeamDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/buildteam" 
+            element={
+              <ProtectedRoute requiredRole={['building', 'team_leader', 'admin']}>
+                <BuildTeamDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/infodesk" 
+            element={
+              <ProtectedRoute requiredRole={['building', 'team_leader', 'admin']}>
+                <BuildTeamDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/teamleader" 
+            element={
+              <ProtectedRoute requiredRole={['team_leader', 'admin']}>
+                <TeamLeaderDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/secure-9821panel" 
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminPanel />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/super-ctrl-92k1x" 
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <SuperAdminPanel />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Default redirect */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 

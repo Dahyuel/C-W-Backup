@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { KeyRound, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import { ForgotPasswordData, ValidationError } from '../types';
 import { validatePersonalId, validateEmail } from '../utils/validation';
-import { resetPassword } from '../lib/supabase';
 
-interface ForgotPasswordFormProps {
-  onSwitchToLogin: () => void;
-}
-
-export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onSwitchToLogin }) => {
+export const ForgotPasswordForm: React.FC = () => {
+  const navigate = useNavigate();
+  const { resetPassword } = useAuth();
+  
   const [formData, setFormData] = useState<ForgotPasswordData>({
     personalId: '',
     email: ''
@@ -48,7 +48,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onSwitch
     setErrors([]);
 
     try {
-      const { data, error } = await resetPassword(formData.email);
+      const { error } = await resetPassword(formData.email);
 
       if (error) {
         setErrors([{ field: 'general', message: error.message }]);
@@ -78,7 +78,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onSwitch
             We've sent password reset instructions to your email address. Please check your inbox and follow the link to reset your password.
           </p>
           <button
-            onClick={onSwitchToLogin}
+            onClick={() => navigate('/login')}
             className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200"
           >
             Back to Login
@@ -167,7 +167,7 @@ export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ onSwitch
             {/* Back to Login */}
             <button
               type="button"
-              onClick={onSwitchToLogin}
+              onClick={() => navigate('/login')}
               className="w-full flex items-center justify-center space-x-2 text-orange-600 hover:text-orange-700 font-medium py-2 transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
