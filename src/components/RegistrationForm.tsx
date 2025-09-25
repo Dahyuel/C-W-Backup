@@ -239,16 +239,17 @@ const handleSubmit = async (e: React.FormEvent) => {
   setErrors([]);
 
   try {
+    // UPDATED: Simplified profile data structure without role
     const profileData = {
       first_name: formData.firstName.trim(),
       last_name: formData.lastName.trim(),
       phone: formData.phone.trim(),
       personal_id: formData.personalId.trim(),
       faculty: formData.faculty,
-      role: formData.role, // This should now be preserved as volunteer role
+      // Note: role is handled by signUpVolunteer function
     };
 
-    // FIX: Use signUpVolunteer instead of signUp
+    // FIXED: Use signUpVolunteer instead of signUp
     const { data, error } = await signUpVolunteer(formData.email, formData.password, profileData);
 
     if (error) {
