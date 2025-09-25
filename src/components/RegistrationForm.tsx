@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, GraduationCap, Users, Lock, ChevronRight, CheckCircle, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -32,8 +32,7 @@ const FileUpload: React.FC<{
   onFileRemove: () => void;
   label: string;
   currentFile?: File;
-  required?: boolean;
-}> = ({ accept, maxSize, onFileSelect, onFileRemove, label, currentFile, required = false }) => {
+}> = ({ accept, maxSize, onFileSelect, onFileRemove, label, currentFile }) => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -47,12 +46,9 @@ const FileUpload: React.FC<{
 
   return (
     <div className="space-y-2">
-      <div className={`border-2 border-dashed rounded-lg p-6 text-center ${
-        currentFile ? 'border-green-200 bg-green-50' : 'border-orange-200'
-      }`}>
+      <div className="border-2 border-dashed border-orange-200 rounded-lg p-6 text-center">
         {currentFile ? (
           <div className="flex items-center justify-center space-x-3">
-            <CheckCircle className="w-5 h-5 text-green-600" />
             <span className="text-sm font-medium text-gray-900">{currentFile.name}</span>
             <button
               type="button"
@@ -69,14 +65,13 @@ const FileUpload: React.FC<{
               accept={accept}
               onChange={handleFileChange}
               className="hidden"
-              id={`file-${label.replace(/\s+/g, '-').toLowerCase()}`}
-              required={required}
+              id={`file-${label}`}
             />
             <label
-              htmlFor={`file-${label.replace(/\s+/g, '-').toLowerCase()}`}
+              htmlFor={`file-${label}`}
               className="cursor-pointer text-sm font-medium text-orange-600 hover:text-orange-700"
             >
-              {label} {required && '*'}
+              {label}
             </label>
           </div>
         )}
@@ -87,7 +82,7 @@ const FileUpload: React.FC<{
 
 export const RegistrationForm: React.FC = () => {
   const navigate = useNavigate();
-  const { signUp, signIn, isAuthenticated, profile, loading: authLoading, getRoleBasedRedirect, validateRegistration } = useAuth();
+  const { signUp, signIn, isAuthenticated, profile, loading: authLoading, getRoleBasedRedirect } = useAuth();
   
   const [currentSection, setCurrentSection] = useState(1);
   const [formData, setFormData] = useState<RegistrationData>({
@@ -125,7 +120,7 @@ export const RegistrationForm: React.FC = () => {
   // Redirect when authentication is complete after auto-login
   useEffect(() => {
     if (isAuthenticated && profile && !authLoading) {
-      console.log('Auth context ready, redirecting to dashboard...');
+      console.log('✅ Auth context ready, redirecting to dashboard...');
       navigate(getRoleBasedRedirect(), { replace: true });
     }
   }, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect]);
@@ -148,7 +143,6 @@ export const RegistrationForm: React.FC = () => {
       if (!formData.gender) validationErrors.push({ field: 'gender', message: 'Gender is required' });
       if (!formData.nationality) validationErrors.push({ field: 'nationality', message: 'Nationality is required' });
 
-      // Add only basic client-side validation errors (not database validation)
       const emailError = validateEmail(formData.email);
       if (emailError) validationErrors.push({ field: 'email', message: emailError });
 
@@ -175,17 +169,8 @@ export const RegistrationForm: React.FC = () => {
     if (section === 3) {
       if (!formData.howDidYouHear) validationErrors.push({ field: 'howDidYouHear', message: 'This field is required' });
       
-      // Only basic client-side validation for volunteer ID
       const volunteerIdError = validateVolunteerId(formData.volunteerId || '');
       if (volunteerIdError) validationErrors.push({ field: 'volunteerId', message: volunteerIdError });
-
-      // Validate required file uploads
-      if (!fileUploads.universityId) {
-        validationErrors.push({ field: 'universityId', message: 'University ID is required' });
-      }
-      if (!fileUploads.resume) {
-        validationErrors.push({ field: 'resume', message: 'CV/Resume is required' });
-      }
     }
 
     if (section === 4) {
@@ -231,7 +216,7 @@ export const RegistrationForm: React.FC = () => {
       const firstErrorSection = Math.min(...allErrors.map(error => {
         if (['firstName', 'lastName', 'gender', 'nationality', 'email', 'phone', 'personalId'].includes(error.field)) return 1;
         if (['university', 'customUniversity', 'faculty', 'degreeLevel', 'program', 'classYear'].includes(error.field)) return 2;
-        if (['howDidYouHear', 'volunteerId', 'universityId', 'resume'].includes(error.field)) return 3;
+        if (['howDidYouHear', 'volunteerId'].includes(error.field)) return 3;
         if (['password', 'confirmPassword'].includes(error.field)) return 4;
         return 1;
       }));
@@ -263,7 +248,7 @@ export const RegistrationForm: React.FC = () => {
 
       console.log('Submitting registration with data:', profileData);
 
-      // Use AuthContext's signUp (which now includes validation)
+      // Use AuthContext's signUp
       const { data, error } = await signUp(formData.email, formData.password, profileData);
 
       if (error) {
@@ -272,7 +257,7 @@ export const RegistrationForm: React.FC = () => {
         return;
       }
 
-      // Handle required file uploads
+      // Handle file uploads if any
       if (data?.user && (fileUploads.universityId || fileUploads.resume)) {
         const filePaths: { university_id_path?: string, cv_path?: string } = {};
 
@@ -291,14 +276,14 @@ export const RegistrationForm: React.FC = () => {
         }
       }
 
-      console.log('Registration successful, attempting auto-login...');
+      console.log('✅ Registration successful, attempting auto-login...');
       
       // Auto-signin after successful registration
       const { error: signInError } = await signIn(formData.email, formData.password);
       
       if (signInError) {
         // If auto-login fails, show success message with manual login option
-        console.log('Auto-login failed, showing success message');
+        console.log('⚠️ Auto-login failed, showing success message');
         setShowSuccess(true);
       }
       // If auto-login succeeds, the useEffect will handle the redirect
@@ -406,17 +391,15 @@ export const RegistrationForm: React.FC = () => {
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Email Address *
         </label>
-        <div className="relative">
-          <input
-            type="email"
-            value={formData.email}
-            onChange={(e) => updateField('email', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-              getFieldError('email') ? 'border-red-500' : 'border-gray-300'
-            }`}
-            placeholder="Enter your email address"
-          />
-        </div>
+        <input
+          type="email"
+          value={formData.email}
+          onChange={(e) => updateField('email', e.target.value)}
+          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
+            getFieldError('email') ? 'border-red-500' : 'border-gray-300'
+          }`}
+          placeholder="Enter your email address"
+        />
         {getFieldError('email') && (
           <p className="mt-1 text-sm text-red-600">{getFieldError('email')}</p>
         )}
@@ -445,18 +428,16 @@ export const RegistrationForm: React.FC = () => {
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Personal ID *
           </label>
-          <div className="relative">
-            <input
-              type="text"
-              value={formData.personalId}
-              onChange={(e) => updateField('personalId', e.target.value)}
-              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-                getFieldError('personalId') ? 'border-red-500' : 'border-gray-300'
-              }`}
-              placeholder="14-digit Egyptian ID"
-              maxLength={14}
-            />
-          </div>
+          <input
+            type="text"
+            value={formData.personalId}
+            onChange={(e) => updateField('personalId', e.target.value)}
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
+              getFieldError('personalId') ? 'border-red-500' : 'border-gray-300'
+            }`}
+            placeholder="14-digit Egyptian ID"
+            maxLength={14}
+          />
           {getFieldError('personalId') && (
             <p className="mt-1 text-sm text-red-600">{getFieldError('personalId')}</p>
           )}
@@ -621,65 +602,49 @@ export const RegistrationForm: React.FC = () => {
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Volunteer ID (Optional)
         </label>
-        <div className="relative">
-          <input
-            type="text"
-            value={formData.volunteerId}
-            onChange={(e) => updateField('volunteerId', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-              getFieldError('volunteerId') ? 'border-red-500' : 'border-gray-300'
-            }`}
-            placeholder="Enter volunteer ID (if applicable)"
-          />
-        </div>
+        <input
+          type="text"
+          value={formData.volunteerId}
+          onChange={(e) => updateField('volunteerId', e.target.value)}
+          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
+            getFieldError('volunteerId') ? 'border-red-500' : 'border-gray-300'
+          }`}
+          placeholder="Enter volunteer ID (if applicable)"
+        />
         {getFieldError('volunteerId') && (
           <p className="mt-1 text-sm text-red-600">{getFieldError('volunteerId')}</p>
         )}
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-medium text-gray-900">Required Documents</h3>
+        <h3 className="text-lg font-medium text-gray-900">Document Uploads (Optional)</h3>
         
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            University ID *
+            University ID
           </label>
           <FileUpload
             accept=".jpg,.jpeg,.png,.pdf"
             maxSize={10 * 1024 * 1024}
-            onFileSelect={(file) => {
-              setFileUploads(prev => ({ ...prev, universityId: file }));
-              setErrors(prev => prev.filter(error => error.field !== 'universityId'));
-            }}
+            onFileSelect={(file) => setFileUploads(prev => ({ ...prev, universityId: file }))}
             onFileRemove={() => setFileUploads(prev => ({ ...prev, universityId: undefined }))}
             label="Upload University ID (JPG, PNG, PDF - Max 10MB)"
             currentFile={fileUploads.universityId}
-            required={true}
           />
-          {getFieldError('universityId') && (
-            <p className="mt-1 text-sm text-red-600">{getFieldError('universityId')}</p>
-          )}
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            CV/Resume *
+            CV/Resume
           </label>
           <FileUpload
             accept=".pdf,.doc,.docx"
             maxSize={10 * 1024 * 1024}
-            onFileSelect={(file) => {
-              setFileUploads(prev => ({ ...prev, resume: file }));
-              setErrors(prev => prev.filter(error => error.field !== 'resume'));
-            }}
+            onFileSelect={(file) => setFileUploads(prev => ({ ...prev, resume: file }))}
             onFileRemove={() => setFileUploads(prev => ({ ...prev, resume: undefined }))}
             label="Upload CV/Resume (PDF, DOC, DOCX - Max 10MB)"
             currentFile={fileUploads.resume}
-            required={true}
           />
-          {getFieldError('resume') && (
-            <p className="mt-1 text-sm text-red-600">{getFieldError('resume')}</p>
-          )}
         </div>
       </div>
     </div>
