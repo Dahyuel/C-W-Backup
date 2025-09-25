@@ -97,7 +97,7 @@ function App() {
           <Route 
             path="/super-ctrl-92k1x" 
             element={
-              <ProtectedRoute requiredRole="admin">
+              <ProtectedRoute requiredRole="sadmin">
                 <SuperAdminPanel />
               </ProtectedRoute>
             } 
