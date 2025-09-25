@@ -143,7 +143,7 @@ const userData = {
   phone: formData.phone.trim(),
   personal_id: formData.personalId.trim(),
   faculty: formData.faculty,
-  role: roleToSend // Only send the role field
+  role: formData.role // Send the selected role directly
 };
 
       const { data, error } = await signUpVolunteer(formData.email, formData.password, userData);
