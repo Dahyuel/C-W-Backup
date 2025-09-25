@@ -81,6 +81,7 @@ const FileUpload: React.FC<{
 
 export const RegistrationForm: React.FC = () => {
   const navigate = useNavigate();
+  const { signIn } = useAuth();
   const [currentSection, setCurrentSection] = useState(1);
   const [formData, setFormData] = useState<RegistrationData>({
     firstName: '',
