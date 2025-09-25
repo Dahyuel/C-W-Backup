@@ -32,7 +32,8 @@ const FileUpload: React.FC<{
   onFileRemove: () => void;
   label: string;
   currentFile?: File;
-}> = ({ accept, maxSize, onFileSelect, onFileRemove, label, currentFile }) => {
+  required?: boolean;
+}> = ({ accept, maxSize, onFileSelect, onFileRemove, label, currentFile, required = false }) => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -46,9 +47,12 @@ const FileUpload: React.FC<{
 
   return (
     <div className="space-y-2">
-      <div className="border-2 border-dashed border-orange-200 rounded-lg p-6 text-center">
+      <div className={`border-2 border-dashed rounded-lg p-6 text-center ${
+        currentFile ? 'border-green-200 bg-green-50' : 'border-orange-200'
+      }`}>
         {currentFile ? (
           <div className="flex items-center justify-center space-x-3">
+            <CheckCircle className="w-5 h-5 text-green-600" />
             <span className="text-sm font-medium text-gray-900">{currentFile.name}</span>
             <button
               type="button"
@@ -65,19 +69,21 @@ const FileUpload: React.FC<{
               accept={accept}
               onChange={handleFileChange}
               className="hidden"
-              id={`file-${label}`}
+              id={`file-${label.replace(/\s+/g, '-').toLowerCase()}`}
+              required={required}
             />
             <label
-              htmlFor={`file-${label}`}
+              htmlFor={`file-${label.replace(/\s+/g, '-').toLowerCase()}`}
               className="cursor-pointer text-sm font-medium text-orange-600 hover:text-orange-700"
             >
-              {label}
+              {label} {required && '*'}
             </label>
           </div>
         )}
       </div>
     </div>
   );
+};
 
 export const RegistrationForm: React.FC = () => {
   const navigate = useNavigate();
@@ -325,6 +331,14 @@ export const RegistrationForm: React.FC = () => {
       if (validationStates.volunteerId.isValid === false && validationStates.volunteerId.message) {
         validationErrors.push({ field: 'volunteerId', message: validationStates.volunteerId.message });
       }
+
+      // Validate required file uploads
+      if (!fileUploads.universityId) {
+        validationErrors.push({ field: 'universityId', message: 'University ID is required' });
+      }
+      if (!fileUploads.resume) {
+        validationErrors.push({ field: 'resume', message: 'CV/Resume is required' });
+      }
     }
 
     if (section === 4) {
@@ -370,7 +384,7 @@ export const RegistrationForm: React.FC = () => {
       const firstErrorSection = Math.min(...allErrors.map(error => {
         if (['firstName', 'lastName', 'gender', 'nationality', 'email', 'phone', 'personalId'].includes(error.field)) return 1;
         if (['university', 'customUniversity', 'faculty', 'degreeLevel', 'program', 'classYear'].includes(error.field)) return 2;
-        if (['howDidYouHear', 'volunteerId'].includes(error.field)) return 3;
+        if (['howDidYouHear', 'volunteerId', 'universityId', 'resume'].includes(error.field)) return 3;
         if (['password', 'confirmPassword'].includes(error.field)) return 4;
         return 1;
       }));
@@ -411,7 +425,7 @@ export const RegistrationForm: React.FC = () => {
         return;
       }
 
-      // Handle file uploads if any
+      // Handle required file uploads
       if (data?.user && (fileUploads.universityId || fileUploads.resume)) {
         const filePaths: { university_id_path?: string, cv_path?: string } = {};
 
@@ -798,34 +812,48 @@ export const RegistrationForm: React.FC = () => {
       </div>
 
       <div className="space-y-4">
-        <h3 className="text-lg font-medium text-gray-900">Document Uploads (Optional)</h3>
+        <h3 className="text-lg font-medium text-gray-900">Required Documents</h3>
         
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            University ID
+            University ID *
           </label>
           <FileUpload
             accept=".jpg,.jpeg,.png,.pdf"
             maxSize={10 * 1024 * 1024}
-            onFileSelect={(file) => setFileUploads(prev => ({ ...prev, universityId: file }))}
+            onFileSelect={(file) => {
+              setFileUploads(prev => ({ ...prev, universityId: file }));
+              setErrors(prev => prev.filter(error => error.field !== 'universityId'));
+            }}
             onFileRemove={() => setFileUploads(prev => ({ ...prev, universityId: undefined }))}
             label="Upload University ID (JPG, PNG, PDF - Max 10MB)"
             currentFile={fileUploads.universityId}
+            required={true}
           />
+          {getFieldError('universityId') && (
+            <p className="mt-1 text-sm text-red-600">{getFieldError('universityId')}</p>
+          )}
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            CV/Resume
+            CV/Resume *
           </label>
           <FileUpload
             accept=".pdf,.doc,.docx"
             maxSize={10 * 1024 * 1024}
-            onFileSelect={(file) => setFileUploads(prev => ({ ...prev, resume: file }))}
+            onFileSelect={(file) => {
+              setFileUploads(prev => ({ ...prev, resume: file }));
+              setErrors(prev => prev.filter(error => error.field !== 'resume'));
+            }}
             onFileRemove={() => setFileUploads(prev => ({ ...prev, resume: undefined }))}
             label="Upload CV/Resume (PDF, DOC, DOCX - Max 10MB)"
             currentFile={fileUploads.resume}
+            required={true}
           />
+          {getFieldError('resume') && (
+            <p className="mt-1 text-sm text-red-600">{getFieldError('resume')}</p>
+          )}
         </div>
       </div>
     </div>
@@ -1044,3 +1072,4 @@ export const RegistrationForm: React.FC = () => {
       </div>
     </div>
   );
+};
