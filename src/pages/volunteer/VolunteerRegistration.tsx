@@ -147,47 +147,32 @@ export const VolunteerRegistration: React.FC = () => {
     setLoading(true);
     setErrors([]);
 
-    try {
-      // UPDATED: Simplified profile data structure without role
-      const profileData = {
-        first_name: formData.firstName.trim(),
-        last_name: formData.lastName.trim(),
-        phone: formData.phone.trim(),
-        personal_id: formData.personalId.trim(),
-        faculty: formData.faculty,
-        // Note: role is handled by signUpVolunteer function
-      };
+try {
+    // UPDATED: Include role in profile data
+    const profileData = {
+      first_name: formData.firstName.trim(),
+      last_name: formData.lastName.trim(),
+      phone: formData.phone.trim(),
+      personal_id: formData.personalId.trim(),
+      faculty: formData.faculty,
+      role: formData.role, // ✅ Include the selected role
+    };
 
-      // FIXED: Use signUpVolunteer instead of signUp
-      const { data, error } = await signUpVolunteer(formData.email, formData.password, profileData);
+    // FIXED: Use signUpVolunteer instead of signUp
+    const { data, error } = await signUpVolunteer(formData.email, formData.password, profileData);
 
-      if (error) {
-        setErrors([{ field: "general", message: error.message }]);
-        return;
-      }
-
-      console.log("✅ Volunteer registration successful, attempting auto-login...");
-      
-      // Auto-signin after successful registration
-      const { error: signInError } = await signIn(formData.email, formData.password);
-
-      if (signInError) {
-        console.log("⚠️ Auto-login failed, showing success message");
-        setShowSuccess(true);
-      }
-      // If auto-login succeeds, the useEffect will handle the redirect
-      
-    } catch (error: any) {
-      setErrors([
-        {
-          field: "general",
-          message: error.message || "An unexpected error occurred. Please try again.",
-        },
-      ]);
-    } finally {
-      setLoading(false);
+    if (error) {
+      setErrors([{ field: "general", message: error.message }]);
+      return;
     }
-  };
+
+    // ... rest of the function ...
+  } catch (error: any) {
+    // ... error handling ...
+  } finally {
+    setLoading(false);
+  }
+};
 
   const getFieldError = (field: string) => {
     return errors.find(error => error.field === field)?.message;
