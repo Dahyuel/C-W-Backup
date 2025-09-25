@@ -30,7 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // 🔹 Fetch profile for a user
+  // 🔹 Fetch profile from DB
   const fetchProfile = async (uid: string) => {
     const { data, error } = await supabase
       .from("users_profiles")
@@ -38,12 +38,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       .eq("id", uid)
       .single();
 
-    if (!error) setProfile(data);
+    if (!error && data) {
+      setProfile(data);
+    } else {
+      setProfile(null);
+    }
   };
 
+  // 🔹 Load session & profile on mount
   useEffect(() => {
-    // Get current session
-    const getSession = async () => {
+    const initAuth = async () => {
       const { data, error } = await supabase.auth.getSession();
       if (!error && data.session?.user) {
         setUser(data.session.user);
@@ -52,9 +56,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setLoading(false);
     };
 
-    getSession();
+    initAuth();
 
-    // Listen for auth changes
+    // 🔹 Listen for auth state changes
     const { data: subscription } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         const u = session?.user ?? null;
@@ -116,19 +120,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (error) return { error };
 
-    let profile = null;
     if (data.user) {
-      const { data: profileData } = await supabase
-        .from("users_profiles")
-        .select("*")
-        .eq("id", data.user.id)
-        .single();
-
-      profile = profileData;
-      setProfile(profile);
+      await fetchProfile(data.user.id);
+      setUser(data.user);
     }
 
-    setUser(data.user);
     return { error: null, profile };
   };
 
@@ -161,7 +157,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         return "/regteam";
       case "volunteer":
         return "/volunteer";
-      case "attendee": // 👈 added attendee redirect
+      case "attendee":
         return "/attendee";
       default:
         return "/";
@@ -187,6 +183,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 };
 
+// ✅ Hook
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) throw new Error("useAuth must be used within an AuthProvider");
