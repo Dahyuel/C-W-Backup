@@ -148,25 +148,29 @@ const signIn = async (email: string, password: string) => {
     return profile.role === roles;
   };
 
-  const getRoleBasedRedirect = (role?: string) => {
-    const r = role || profile?.role;
-    switch (r) {
-      case "admin":
-        return "/admin";
-      case "superadmin":
-        return "/superadmin";
-      case "team_leader":
-        return "/teamleader";
-      case "registration":
-        return "/regteam";
-      case "volunteer":
-        return "/volunteer";
-      case "attendee":
-        return "/attendee";
-      default:
-        return "/";
-    }
-  };
+const getRoleBasedRedirect = (role?: string) => {
+  const r = role || profile?.role;
+  switch (r) {
+    case "admin":
+      return "/secure-9821panel";
+    case "sadmin":
+      return "/super-ctrl-92k1x";
+    case "team_leader":
+      return "/teamleader";
+    case "registration":
+      return "/regteam";
+    case "building":
+      return "/buildteam";
+    case "info_desk":
+      return "/infodesk";
+    case "volunteer":
+      return "/volunteer";
+    case "attendee":
+      return "/attendee";
+    default:
+      return "/login";
+  }
+};
 
   return (
     <AuthContext.Provider
