@@ -1,16 +1,12 @@
 import React, { useState } from 'react';
-import { User, GraduationCap, Users, Lock, ChevronRight, CheckCircle, AlertCircle, Heart } from 'lucide-react';
+import { User, Lock, ChevronRight, CheckCircle, AlertCircle, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { 
   RegistrationData, 
-  ValidationError, 
-  FileUpload as FileUploadType 
+  ValidationError
 } from '../../types';
 import { 
-  UNIVERSITIES, 
-  FACULTIES, 
-  CLASS_YEARS, 
-  HOW_DID_YOU_HEAR_OPTIONS 
+  FACULTIES
 } from '../../utils/constants';
 import { 
   validateName,
@@ -20,63 +16,7 @@ import {
   validatePassword,
   validateConfirmPassword
 } from '../../utils/validation';
-import { signUpVolunteer, uploadFile, updateUserFiles } from '../../lib/supabase';
-
-// FileUpload Component
-const FileUpload: React.FC<{
-  accept: string;
-  maxSize: number;
-  onFileSelect: (file: File) => void;
-  onFileRemove: () => void;
-  label: string;
-  currentFile?: File;
-}> = ({ accept, maxSize, onFileSelect, onFileRemove, label, currentFile }) => {
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > maxSize) {
-        alert(`File size must be less than ${Math.round(maxSize / 1024 / 1024)}MB`);
-        return;
-      }
-      onFileSelect(file);
-    }
-  };
-
-  return (
-    <div className="space-y-2">
-      <div className="border-2 border-dashed border-orange-200 rounded-lg p-6 text-center">
-        {currentFile ? (
-          <div className="flex items-center justify-center space-x-3">
-            <span className="text-sm font-medium text-gray-900">{currentFile.name}</span>
-            <button
-              type="button"
-              onClick={onFileRemove}
-              className="text-red-600 hover:text-red-800"
-            >
-              Remove
-            </button>
-          </div>
-        ) : (
-          <div>
-            <input
-              type="file"
-              accept={accept}
-              onChange={handleFileChange}
-              className="hidden"
-              id={`file-${label}`}
-            />
-            <label
-              htmlFor={`file-${label}`}
-              className="cursor-pointer text-sm font-medium text-orange-600 hover:text-orange-700"
-            >
-              {label}
-            </label>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
+import { signUpVolunteer } from '../../lib/supabase';
 
 export const VolunteerRegistration: React.FC = () => {
   const navigate = useNavigate();
@@ -84,33 +24,30 @@ export const VolunteerRegistration: React.FC = () => {
   const [formData, setFormData] = useState<RegistrationData>({
     firstName: '',
     lastName: '',
-    gender: '',
-    nationality: '',
     email: '',
     phone: '',
     personalId: '',
-    university: '',
-    customUniversity: '',
     faculty: '',
-    degreeLevel: '',
-    program: '',
-    classYear: '',
-    howDidYouHear: '',
-    volunteerId: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    role: '' // New role field
   });
   
-  const [fileUploads, setFileUploads] = useState<FileUploadType>({});
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
   const sections = [
     { id: 1, title: 'Personal Information', icon: User },
-    { id: 2, title: 'Academic Information', icon: GraduationCap },
-    { id: 3, title: 'Volunteer Information', icon: Heart },
-    { id: 4, title: 'Account Security', icon: Lock }
+    { id: 2, title: 'Role Selection', icon: Heart },
+    { id: 3, title: 'Account Security', icon: Lock }
+  ];
+
+  const roleOptions = [
+    { value: 'registration', label: 'Registration Desk' },
+    { value: 'building', label: 'Building Assistance' },
+    { value: 'info desk', label: 'Information Desk' },
+    { value: 'other', label: 'Other Volunteer Role' }
   ];
 
   const updateField = (field: keyof RegistrationData, value: string) => {
@@ -128,9 +65,6 @@ export const VolunteerRegistration: React.FC = () => {
       const lastNameError = validateName(formData.lastName, 'Last name');
       if (lastNameError) validationErrors.push({ field: 'lastName', message: lastNameError });
 
-      if (!formData.gender) validationErrors.push({ field: 'gender', message: 'Gender is required' });
-      if (!formData.nationality) validationErrors.push({ field: 'nationality', message: 'Nationality is required' });
-
       const emailError = validateEmail(formData.email);
       if (emailError) validationErrors.push({ field: 'email', message: emailError });
 
@@ -139,26 +73,15 @@ export const VolunteerRegistration: React.FC = () => {
 
       const personalIdError = validatePersonalId(formData.personalId);
       if (personalIdError) validationErrors.push({ field: 'personalId', message: personalIdError });
+
+      if (!formData.faculty) validationErrors.push({ field: 'faculty', message: 'Faculty is required' });
     }
 
     if (section === 2) {
-      if (!formData.university) validationErrors.push({ field: 'university', message: 'University is required' });
-      if (formData.university === 'Other' && !formData.customUniversity?.trim()) {
-        validationErrors.push({ field: 'customUniversity', message: 'Custom university name is required' });
-      }
-      if (!formData.faculty) validationErrors.push({ field: 'faculty', message: 'Faculty is required' });
-      if (!formData.degreeLevel) validationErrors.push({ field: 'degreeLevel', message: 'Degree level is required' });
-      if (!formData.program?.trim()) validationErrors.push({ field: 'program', message: 'Program is required' });
-      if (formData.degreeLevel === 'Student' && !formData.classYear) {
-        validationErrors.push({ field: 'classYear', message: 'Class year is required for students' });
-      }
+      if (!formData.role) validationErrors.push({ field: 'role', message: 'Please select a volunteer role' });
     }
 
     if (section === 3) {
-      if (!formData.howDidYouHear) validationErrors.push({ field: 'howDidYouHear', message: 'This field is required' });
-    }
-
-    if (section === 4) {
       const passwordError = validatePassword(formData.password);
       if (passwordError) validationErrors.push({ field: 'password', message: passwordError });
 
@@ -177,7 +100,7 @@ export const VolunteerRegistration: React.FC = () => {
     }
     
     setErrors([]);
-    if (currentSection < 4) {
+    if (currentSection < 3) {
       setCurrentSection(currentSection + 1);
     }
   };
@@ -192,14 +115,13 @@ export const VolunteerRegistration: React.FC = () => {
     e.preventDefault();
     
     // Validate all sections
-    const allErrors = [1, 2, 3, 4].flatMap(section => validateSection(section));
+    const allErrors = [1, 2, 3].flatMap(section => validateSection(section));
     if (allErrors.length > 0) {
       setErrors(allErrors);
       const firstErrorSection = Math.min(...allErrors.map(error => {
-        if (['firstName', 'lastName', 'gender', 'nationality', 'email', 'phone', 'personalId'].includes(error.field)) return 1;
-        if (['university', 'customUniversity', 'faculty', 'degreeLevel', 'program', 'classYear'].includes(error.field)) return 2;
-        if (['howDidYouHear'].includes(error.field)) return 3;
-        if (['password', 'confirmPassword'].includes(error.field)) return 4;
+        if (['firstName', 'lastName', 'email', 'phone', 'personalId', 'faculty'].includes(error.field)) return 1;
+        if (['role'].includes(error.field)) return 2;
+        if (['password', 'confirmPassword'].includes(error.field)) return 3;
         return 1;
       }));
       setCurrentSection(firstErrorSection);
@@ -210,20 +132,19 @@ export const VolunteerRegistration: React.FC = () => {
     setErrors([]);
 
     try {
+      // Determine the role to send to the backend
+      const roleToSend = formData.role === 'other' || formData.role === 'info desk' 
+        ? 'volunteer' 
+        : formData.role;
+
       const userData = {
         first_name: formData.firstName.trim(),
         last_name: formData.lastName.trim(),
-        gender: formData.gender,
-        nationality: formData.nationality,
         phone: formData.phone.trim(),
         personal_id: formData.personalId.trim(),
-        university: formData.university === 'Other' ? formData.customUniversity?.trim() : formData.university,
         faculty: formData.faculty,
-        degree_level: formData.degreeLevel.toLowerCase(),
-        program: formData.program.trim(),
-        class: formData.degreeLevel.toLowerCase() === 'student' ? formData.classYear || '1' : null,
-        how_did_hear_about_event: formData.howDidYouHear,
-        volunteer_id: null // Volunteers don't have volunteer IDs initially
+        role: roleToSend, // Send the determined role
+        volunteer_role: formData.role // Keep the original selection for reference
       };
 
       const { data, error } = await signUpVolunteer(formData.email, formData.password, userData);
@@ -231,25 +152,6 @@ export const VolunteerRegistration: React.FC = () => {
       if (error) {
         setErrors([{ field: 'general', message: error.message }]);
         return;
-      }
-
-      // Handle file uploads if any
-      if (data?.user && (fileUploads.universityId || fileUploads.resume)) {
-        const filePaths: { university_id_path?: string, cv_path?: string } = {};
-
-        if (fileUploads.universityId) {
-          const { data: uploadData } = await uploadFile('university-ids', data.user.id, fileUploads.universityId);
-          if (uploadData) filePaths.university_id_path = uploadData.path;
-        }
-
-        if (fileUploads.resume) {
-          const { data: uploadData } = await uploadFile('cvs', data.user.id, fileUploads.resume);
-          if (uploadData) filePaths.cv_path = uploadData.path;
-        }
-
-        if (Object.keys(filePaths).length > 0) {
-          await updateUserFiles(data.user.id, filePaths);
-        }
       }
 
       setShowSuccess(true);
@@ -304,50 +206,6 @@ export const VolunteerRegistration: React.FC = () => {
           />
           {getFieldError('lastName') && (
             <p className="mt-1 text-sm text-red-600">{getFieldError('lastName')}</p>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Gender *
-          </label>
-          <select
-            value={formData.gender}
-            onChange={(e) => updateField('gender', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-              getFieldError('gender') ? 'border-red-500' : 'border-gray-300'
-            }`}
-          >
-            <option value="">Select gender</option>
-            <option value="male">Male</option>
-            <option value="female">Female</option>
-            <option value="other">Other</option>
-            <option value="prefer_not_to_say">Prefer not to say</option>
-          </select>
-          {getFieldError('gender') && (
-            <p className="mt-1 text-sm text-red-600">{getFieldError('gender')}</p>
-          )}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Nationality *
-          </label>
-          <select
-            value={formData.nationality}
-            onChange={(e) => updateField('nationality', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-              getFieldError('nationality') ? 'border-red-500' : 'border-gray-300'
-            }`}
-          >
-            <option value="">Select nationality</option>
-            <option value="Egyptian">Egyptian</option>
-            <option value="Other">Other</option>
-          </select>
-          {getFieldError('nationality') && (
-            <p className="mt-1 text-sm text-red-600">{getFieldError('nationality')}</p>
           )}
         </div>
       </div>
@@ -408,51 +266,6 @@ export const VolunteerRegistration: React.FC = () => {
           )}
         </div>
       </div>
-    </div>
-  );
-
-  const renderAcademicInfo = () => (
-    <div className="space-y-6">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          University *
-        </label>
-        <select
-          value={formData.university}
-          onChange={(e) => updateField('university', e.target.value)}
-          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-            getFieldError('university') ? 'border-red-500' : 'border-gray-300'
-          }`}
-        >
-          <option value="">Select university</option>
-          {UNIVERSITIES.map(uni => (
-            <option key={uni} value={uni}>{uni}</option>
-          ))}
-        </select>
-        {getFieldError('university') && (
-          <p className="mt-1 text-sm text-red-600">{getFieldError('university')}</p>
-        )}
-      </div>
-
-      {formData.university === 'Other' && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Custom University Name *
-          </label>
-          <input
-            type="text"
-            value={formData.customUniversity}
-            onChange={(e) => updateField('customUniversity', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-              getFieldError('customUniversity') ? 'border-red-500' : 'border-gray-300'
-            }`}
-            placeholder="Enter your university name"
-          />
-          {getFieldError('customUniversity') && (
-            <p className="mt-1 text-sm text-red-600">{getFieldError('customUniversity')}</p>
-          )}
-        </div>
-      )}
 
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -474,146 +287,64 @@ export const VolunteerRegistration: React.FC = () => {
           <p className="mt-1 text-sm text-red-600">{getFieldError('faculty')}</p>
         )}
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Degree Level *
-          </label>
-          <select
-            value={formData.degreeLevel}
-            onChange={(e) => updateField('degreeLevel', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-              getFieldError('degreeLevel') ? 'border-red-500' : 'border-gray-300'
-            }`}
-          >
-            <option value="">Select degree level</option>
-            <option value="Student">Student</option>
-            <option value="Graduate">Graduate</option>
-          </select>
-          {getFieldError('degreeLevel') && (
-            <p className="mt-1 text-sm text-red-600">{getFieldError('degreeLevel')}</p>
-          )}
-        </div>
-
-        {formData.degreeLevel === 'Student' && (
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Class Year *
-            </label>
-            <select
-              value={formData.classYear}
-              onChange={(e) => updateField('classYear', e.target.value)}
-              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-                getFieldError('classYear') ? 'border-red-500' : 'border-gray-300'
-              }`}
-            >
-              <option value="">Select class year</option>
-              {CLASS_YEARS.map(option => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
-            </select>
-            {getFieldError('classYear') && (
-              <p className="mt-1 text-sm text-red-600">{getFieldError('classYear')}</p>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Program/Major *
-        </label>
-        <input
-          type="text"
-          value={formData.program}
-          onChange={(e) => updateField('program', e.target.value)}
-          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-            getFieldError('program') ? 'border-red-500' : 'border-gray-300'
-          }`}
-          placeholder="Enter your program or major"
-        />
-        {getFieldError('program') && (
-          <p className="mt-1 text-sm text-red-600">{getFieldError('program')}</p>
-        )}
-      </div>
     </div>
   );
 
-  const renderVolunteerInfo = () => (
+  const renderRoleSelection = () => (
     <div className="space-y-6">
       <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
         <div className="flex items-center mb-4">
           <Heart className="h-6 w-6 text-orange-600 mr-2" />
-          <h3 className="text-lg font-semibold text-orange-900">Thank you for volunteering!</h3>
+          <h3 className="text-lg font-semibold text-orange-900">Volunteer Role Selection</h3>
         </div>
-        <p className="text-orange-800 mb-4">
-          As a volunteer, you'll help make Career Week a success by assisting with various activities, 
-          guiding attendees, and supporting event operations. Your contribution is invaluable to our community.
+        <p className="text-orange-800">
+          Please select the volunteer role you're interested in. This helps us assign you to the most suitable position.
         </p>
-        <div className="text-sm text-orange-700">
-          <p className="font-medium mb-2">Volunteer Benefits:</p>
-          <ul className="list-disc list-inside space-y-1">
-            <li>Gain valuable experience in event management</li>
-            <li>Network with industry professionals</li>
-            <li>Receive volunteer certificates</li>
-            <li>Access to exclusive volunteer training sessions</li>
-            <li>Priority access to career development workshops</li>
-          </ul>
-        </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          How did you hear about this volunteer opportunity? *
+        <label className="block text-sm font-medium text-gray-700 mb-4">
+          Preferred Volunteer Role *
         </label>
-        <select
-          value={formData.howDidYouHear}
-          onChange={(e) => updateField('howDidYouHear', e.target.value)}
-          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-            getFieldError('howDidYouHear') ? 'border-red-500' : 'border-gray-300'
-          }`}
-        >
-          <option value="">Select an option</option>
-          {HOW_DID_YOU_HEAR_OPTIONS.map(option => (
-            <option key={option.value} value={option.value}>{option.label}</option>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {roleOptions.map((option) => (
+            <label
+              key={option.value}
+              className={`relative flex cursor-pointer rounded-lg border p-4 focus:outline-none transition-colors ${
+                formData.role === option.value
+                  ? 'border-orange-500 bg-orange-50'
+                  : 'border-gray-300 bg-white hover:bg-gray-50'
+              }`}
+            >
+              <input
+                type="radio"
+                name="role"
+                value={option.value}
+                checked={formData.role === option.value}
+                onChange={(e) => updateField('role', e.target.value)}
+                className="sr-only"
+              />
+              <div className="flex w-full items-center justify-between">
+                <div className="flex flex-col">
+                  <span className="font-medium text-gray-900">{option.label}</span>
+                </div>
+                <div className={`flex-shrink-0 ${formData.role === option.value ? 'text-orange-600' : 'text-gray-300'}`}>
+                  <CheckCircle className="h-6 w-6" />
+                </div>
+              </div>
+            </label>
           ))}
-        </select>
-        {getFieldError('howDidYouHear') && (
-          <p className="mt-1 text-sm text-red-600">{getFieldError('howDidYouHear')}</p>
+        </div>
+        {getFieldError('role') && (
+          <p className="mt-2 text-sm text-red-600">{getFieldError('role')}</p>
         )}
       </div>
 
-      <div className="space-y-4">
-        <h3 className="text-lg font-medium text-gray-900">Document Uploads (Optional but Recommended)</h3>
-        
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            University ID
-          </label>
-          <FileUpload
-            accept=".jpg,.jpeg,.png,.pdf"
-            maxSize={10 * 1024 * 1024}
-            onFileSelect={(file) => setFileUploads(prev => ({ ...prev, universityId: file }))}
-            onFileRemove={() => setFileUploads(prev => ({ ...prev, universityId: undefined }))}
-            label="Upload University ID (JPG, PNG, PDF - Max 10MB)"
-            currentFile={fileUploads.universityId}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            CV/Resume
-          </label>
-          <FileUpload
-            accept=".pdf,.doc,.docx"
-            maxSize={10 * 1024 * 1024}
-            onFileSelect={(file) => setFileUploads(prev => ({ ...prev, resume: file }))}
-            onFileRemove={() => setFileUploads(prev => ({ ...prev, resume: undefined }))}
-            label="Upload CV/Resume (PDF, DOC, DOCX - Max 10MB)"
-            currentFile={fileUploads.resume}
-          />
-        </div>
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <p className="text-sm text-blue-800">
+          <strong>Note:</strong> Selecting "Information Desk" or "Other Volunteer Role" will register you as a general volunteer. 
+          Specific role assignments will be communicated after registration.
+        </p>
       </div>
     </div>
   );
@@ -663,10 +394,8 @@ export const VolunteerRegistration: React.FC = () => {
       case 1:
         return renderPersonalInfo();
       case 2:
-        return renderAcademicInfo();
+        return renderRoleSelection();
       case 3:
-        return renderVolunteerInfo();
-      case 4:
         return renderAccountSecurity();
       default:
         return null;
@@ -754,7 +483,7 @@ export const VolunteerRegistration: React.FC = () => {
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div 
                 className="bg-gradient-to-r from-orange-500 to-orange-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${(currentSection / 4) * 100}%` }}
+                style={{ width: `${(currentSection / 3) * 100}%` }}
               />
             </div>
           </div>
@@ -777,7 +506,7 @@ export const VolunteerRegistration: React.FC = () => {
               Previous
             </button>
 
-            {currentSection < 4 ? (
+            {currentSection < 3 ? (
               <button
                 type="button"
                 onClick={nextSection}
