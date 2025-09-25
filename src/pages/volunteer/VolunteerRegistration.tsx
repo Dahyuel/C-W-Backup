@@ -113,66 +113,67 @@ const roleOptions = [
     }
   };
 
- const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validate all sections
-    const allErrors = [1, 2, 3].flatMap(section => validateSection(section));
-    if (allErrors.length > 0) {
-      setErrors(allErrors);
-      const firstErrorSection = Math.min(...allErrors.map(error => {
-        if (['firstName', 'lastName', 'email', 'phone', 'personalId', 'faculty'].includes(error.field)) return 1;
-        if (['role'].includes(error.field)) return 2;
-        if (['password', 'confirmPassword'].includes(error.field)) return 3;
-        return 1;
-      }));
-      setCurrentSection(firstErrorSection);
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  // Validate all sections
+  const allErrors = [1, 2, 3].flatMap(section => validateSection(section));
+  if (allErrors.length > 0) {
+    setErrors(allErrors);
+    const firstErrorSection = Math.min(...allErrors.map(error => {
+      if (['firstName', 'lastName', 'email', 'phone', 'personalId', 'faculty'].includes(error.field)) return 1;
+      if (['role'].includes(error.field)) return 2;
+      if (['password', 'confirmPassword'].includes(error.field)) return 3;
+      return 1;
+    }));
+    setCurrentSection(firstErrorSection);
+    return;
+  }
+
+  setLoading(true);
+  setErrors([]);
+
+  try {
+    // Profile data to insert after signup
+    const profileData = {
+      first_name: formData.firstName.trim(),
+      last_name: formData.lastName.trim(),
+      phone: formData.phone.trim(),
+      personal_id: formData.personalId.trim(),
+      faculty: formData.faculty,
+      role: formData.role, // directly pass volunteer role
+    };
+
+    // ✅ Signup (creates auth user + profile row)
+    const { data, error } = await signUp(formData.email, formData.password, profileData);
+
+    if (error) {
+      setErrors([{ field: "general", message: error.message }]);
       return;
     }
 
-    setLoading(true);
-    setErrors([]);
+    // ✅ Auto-signin after successful registration
+    console.log("✅ Registration successful, attempting auto-login...");
 
-    try {
-      // Send the selected role directly
-      const userData = {
-        first_name: formData.firstName.trim(),
-        last_name: formData.lastName.trim(),
-        phone: formData.phone.trim(),
-        personal_id: formData.personalId.trim(),
-        faculty: formData.faculty,
-        role: formData.role // Send the exact role selected
-      };
+    const { error: signInError } = await signIn(formData.email, formData.password);
 
-      const { data, error } = await signUpVolunteer(formData.email, formData.password, userData);
-
-      if (error) {
-        setErrors([{ field: 'general', message: error.message }]);
-        return;
-      }
-
-      // Auto-signin after successful registration
-      console.log('✅ Registration successful, attempting auto-login...');
-      
-      const { error: signInError } = await signIn(formData.email, formData.password);
-      
-      if (signInError) {
-        // If auto-login fails, show success message with manual login option
-        console.log('⚠️ Auto-login failed, showing success message');
-        setShowSuccess(true);
-      }
-      // If auto-login succeeds, the AuthContext will handle the redirect
-      
-    } catch (error: any) {
-      setErrors([{ 
-        field: 'general', 
-        message: error.message || 'An unexpected error occurred. Please try again.' 
-      }]);
-    } finally {
-      setLoading(false);
+    if (signInError) {
+      console.log("⚠️ Auto-login failed, showing success message");
+      setShowSuccess(true);
     }
-  };
+    // If auto-login succeeds, AuthContext will handle redirect
 
+  } catch (error: any) {
+    setErrors([
+      {
+        field: "general",
+        message: error.message || "An unexpected error occurred. Please try again.",
+      },
+    ]);
+  } finally {
+    setLoading(false);
+  }
+};
   const getFieldError = (field: string) => {
     return errors.find(error => error.field === field)?.message;
   };
