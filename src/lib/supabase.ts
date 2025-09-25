@@ -182,33 +182,31 @@ export const signUpUser = async (email: string, password: string, userData: any)
 
     console.log('Auth user created successfully, creating profile...');
 
-    // STEP 3: Create profile (this should succeed since we pre-validated)
+    // STEP 3: Create or update profile in users_profiles table
     const { data: profileData, error: profileError } = await supabase
       .from('users_profiles')
-      .insert({
-        id: authData.user.id,
+      .upsert({
+        id: authData.user.id,  // Insert or update based on the auth user ID
         ...userData,
-        role: 'attendee',
+        role: 'attendee', // Default role (you can adjust based on business logic)
         score: 0,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .select();
 
     if (profileError) {
       console.error('Profile creation error:', profileError);
       
-      // CRITICAL: Clean up the auth user since profile creation failed
+      // Clean up the auth user if profile creation fails
       try {
         console.log('Cleaning up auth user due to profile creation failure...');
         await supabase.auth.admin.deleteUser(authData.user.id);
         console.log('Auth user cleaned up successfully');
       } catch (cleanupError) {
         console.error('CRITICAL: Failed to cleanup auth user:', cleanupError);
-        // This is a serious issue - we have an orphaned auth user
       }
       
-      // Return a user-friendly error message
       return { 
         data: null, 
         error: { message: 'Registration failed. Please try again.' } 
@@ -223,6 +221,9 @@ export const signUpUser = async (email: string, password: string, userData: any)
     return { data: null, error: { message: error.message || 'Registration failed' } };
   }
 };
+
+
+
 
 // Enhanced sign up volunteer function with pre-validation
 export const signUpVolunteer = async (email: string, password: string, userData: any) => {
