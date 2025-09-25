@@ -20,7 +20,7 @@ import { useAuth } from '../../contexts/AuthContext';
 
 export const VolunteerRegistration: React.FC = () => {
   const navigate = useNavigate();
-  const { signUp, signIn, isAuthenticated, profile, loading: authLoading, getRoleBasedRedirect } = useAuth();
+  const { signUpVolunteer, signIn, isAuthenticated, profile, loading: authLoading, getRoleBasedRedirect } = useAuth();
   
   const [currentSection, setCurrentSection] = useState(1);
   const [formData, setFormData] = useState<RegistrationData>({
@@ -32,7 +32,7 @@ export const VolunteerRegistration: React.FC = () => {
     faculty: '',
     password: '',
     confirmPassword: '',
-    role: '' // New role field
+    role: ''
   });
   
   const [errors, setErrors] = useState<ValidationError[]>([]);
@@ -48,6 +48,7 @@ export const VolunteerRegistration: React.FC = () => {
   const roleOptions = [
     { value: 'registration', label: 'Registration Desk' },
     { value: 'building', label: 'Building Assistance' },
+    { value: 'info_desk', label: 'Info Desk' },
     { value: 'volunteer', label: 'Other Volunteer' },
     { value: 'team_leader', label: 'Team Leader' }
   ];
@@ -88,7 +89,12 @@ export const VolunteerRegistration: React.FC = () => {
     }
 
     if (section === 2) {
-      if (!formData.role) validationErrors.push({ field: 'role', message: 'Please select a volunteer role' });
+      // ENHANCED: Added role validation with info_desk
+      if (!formData.role) {
+        validationErrors.push({ field: 'role', message: 'Please select a volunteer role' });
+      } else if (!['registration', 'building', 'info_desk', 'volunteer', 'team_leader'].includes(formData.role)) {
+        validationErrors.push({ field: 'role', message: 'Please select a valid volunteer role' });
+      }
     }
 
     if (section === 3) {
@@ -142,23 +148,25 @@ export const VolunteerRegistration: React.FC = () => {
     setErrors([]);
 
     try {
+      // UPDATED: Simplified profile data structure without role
       const profileData = {
         first_name: formData.firstName.trim(),
         last_name: formData.lastName.trim(),
         phone: formData.phone.trim(),
         personal_id: formData.personalId.trim(),
         faculty: formData.faculty,
-        role: formData.role,
+        // Note: role is handled by signUpVolunteer function
       };
 
-      const { data, error } = await signUp(formData.email, formData.password, profileData);
+      // FIXED: Use signUpVolunteer instead of signUp
+      const { data, error } = await signUpVolunteer(formData.email, formData.password, profileData);
 
       if (error) {
         setErrors([{ field: "general", message: error.message }]);
         return;
       }
 
-      console.log("✅ Registration successful, attempting auto-login...");
+      console.log("✅ Volunteer registration successful, attempting auto-login...");
       
       // Auto-signin after successful registration
       const { error: signInError } = await signIn(formData.email, formData.password);
