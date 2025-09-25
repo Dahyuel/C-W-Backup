@@ -46,7 +46,7 @@ export const VolunteerRegistration: React.FC = () => {
 const roleOptions = [
   { value: 'registration', label: 'Registration Desk' },
   { value: 'building', label: 'Building Assistance' },
-  { value: 'volunteer', label: 'General Volunteer' }, // Changed from 'info desk'
+  { value: 'volunteer', label: 'Other Volunteer' }, // Changed from 'info desk'
   { value: 'team_leader', label: 'Team Leader' } // Added team_leader option
 ];
 
