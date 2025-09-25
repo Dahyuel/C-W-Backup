@@ -115,110 +115,12 @@ export const RegistrationForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  // Real-time validation states
-  const [validationStates, setValidationStates] = useState({
-    email: { isValidating: false, isValid: null as boolean | null, message: '' },
-    personalId: { isValidating: false, isValid: null as boolean | null, message: '' },
-    volunteerId: { isValidating: false, isValid: null as boolean | null, message: '' }
-  });
-
   const sections = [
     { id: 1, title: 'Personal Information', icon: User },
     { id: 2, title: 'Academic Information', icon: GraduationCap },
     { id: 3, title: 'Event & Volunteer Info', icon: Users },
     { id: 4, title: 'Account Security', icon: Lock }
   ];
-
-  // Debounced validation function
-  const debouncedValidation = useCallback(
-    async (email: string, personalId: string, volunteerId: string) => {
-      // Skip validation if required fields are empty
-      if (!email.trim() && !personalId.trim()) return;
-
-      // Set validating states
-      const statesToUpdate: any = {};
-      if (email.trim()) {
-        statesToUpdate.email = { isValidating: true, isValid: null, message: '' };
-      }
-      if (personalId.trim()) {
-        statesToUpdate.personalId = { isValidating: true, isValid: null, message: '' };
-      }
-      if (volunteerId.trim()) {
-        statesToUpdate.volunteerId = { isValidating: true, isValid: null, message: '' };
-      }
-
-      if (Object.keys(statesToUpdate).length > 0) {
-        setValidationStates(prev => ({ ...prev, ...statesToUpdate }));
-      }
-
-      // Perform validation
-      if (email.trim() || personalId.trim()) {
-        try {
-          const validation = await validateRegistration(email, personalId, volunteerId || undefined);
-          
-          // Update validation states based on results
-          const newStates: any = {};
-          
-          if (email.trim()) {
-            const emailError = validation.errors.find(e => e.toLowerCase().includes('email'));
-            newStates.email = {
-              isValidating: false,
-              isValid: !emailError,
-              message: emailError || ''
-            };
-          }
-
-          if (personalId.trim()) {
-            const personalIdError = validation.errors.find(e => e.toLowerCase().includes('personal'));
-            newStates.personalId = {
-              isValidating: false,
-              isValid: !personalIdError,
-              message: personalIdError || ''
-            };
-          }
-
-          if (volunteerId.trim()) {
-            const volunteerError = validation.errors.find(e => e.toLowerCase().includes('volunteer'));
-            newStates.volunteerId = {
-              isValidating: false,
-              isValid: !volunteerError,
-              message: volunteerError || ''
-            };
-          } else if (volunteerId === '') {
-            newStates.volunteerId = {
-              isValidating: false,
-              isValid: null,
-              message: ''
-            };
-          }
-
-          setValidationStates(prev => ({ ...prev, ...newStates }));
-
-        } catch (error) {
-          console.error('Validation error:', error);
-          // Reset validation states on error
-          const resetStates: any = {};
-          if (email.trim()) resetStates.email = { isValidating: false, isValid: null, message: '' };
-          if (personalId.trim()) resetStates.personalId = { isValidating: false, isValid: null, message: '' };
-          if (volunteerId.trim()) resetStates.volunteerId = { isValidating: false, isValid: null, message: '' };
-          
-          setValidationStates(prev => ({ ...prev, ...resetStates }));
-        }
-      }
-    },
-    [validateRegistration]
-  );
-
-  // Trigger validation when relevant fields change (with debounce)
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (formData.email || formData.personalId) {
-        debouncedValidation(formData.email, formData.personalId, formData.volunteerId || '');
-      }
-    }, 800);
-
-    return () => clearTimeout(timeoutId);
-  }, [formData.email, formData.personalId, formData.volunteerId, debouncedValidation]);
 
   // Redirect when authentication is complete after auto-login
   useEffect(() => {
@@ -231,50 +133,6 @@ export const RegistrationForm: React.FC = () => {
   const updateField = (field: keyof RegistrationData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setErrors(prev => prev.filter(error => error.field !== field));
-    
-    // Clear validation state when field is being edited
-    if (field === 'email' || field === 'personalId' || field === 'volunteerId') {
-      setValidationStates(prev => ({
-        ...prev,
-        [field]: { isValidating: false, isValid: null, message: '' }
-      }));
-    }
-  };
-
-  // Enhanced validation indicator component
-  const ValidationIndicator: React.FC<{ 
-    field: 'email' | 'personalId' | 'volunteerId',
-    value: string 
-  }> = ({ field, value }) => {
-    const state = validationStates[field];
-    
-    if (!value?.trim()) return null;
-    
-    if (state.isValidating) {
-      return (
-        <div className="absolute right-3 top-3">
-          <div className="animate-spin h-4 w-4 border-2 border-orange-500 border-t-transparent rounded-full"></div>
-        </div>
-      );
-    }
-    
-    if (state.isValid === true) {
-      return (
-        <div className="absolute right-3 top-3">
-          <CheckCircle className="h-4 w-4 text-green-500" />
-        </div>
-      );
-    }
-    
-    if (state.isValid === false) {
-      return (
-        <div className="absolute right-3 top-3">
-          <AlertCircle className="h-4 w-4 text-red-500" />
-        </div>
-      );
-    }
-    
-    return null;
   };
 
   const validateSection = (section: number): ValidationError[] => {
@@ -290,6 +148,7 @@ export const RegistrationForm: React.FC = () => {
       if (!formData.gender) validationErrors.push({ field: 'gender', message: 'Gender is required' });
       if (!formData.nationality) validationErrors.push({ field: 'nationality', message: 'Nationality is required' });
 
+      // Add only basic client-side validation errors (not database validation)
       const emailError = validateEmail(formData.email);
       if (emailError) validationErrors.push({ field: 'email', message: emailError });
 
@@ -298,14 +157,6 @@ export const RegistrationForm: React.FC = () => {
 
       const personalIdError = validatePersonalId(formData.personalId);
       if (personalIdError) validationErrors.push({ field: 'personalId', message: personalIdError });
-
-      // Add real-time validation errors
-      if (validationStates.email.isValid === false && validationStates.email.message) {
-        validationErrors.push({ field: 'email', message: validationStates.email.message });
-      }
-      if (validationStates.personalId.isValid === false && validationStates.personalId.message) {
-        validationErrors.push({ field: 'personalId', message: validationStates.personalId.message });
-      }
     }
 
     if (section === 2) {
@@ -324,13 +175,9 @@ export const RegistrationForm: React.FC = () => {
     if (section === 3) {
       if (!formData.howDidYouHear) validationErrors.push({ field: 'howDidYouHear', message: 'This field is required' });
       
+      // Only basic client-side validation for volunteer ID
       const volunteerIdError = validateVolunteerId(formData.volunteerId || '');
       if (volunteerIdError) validationErrors.push({ field: 'volunteerId', message: volunteerIdError });
-
-      // Add real-time validation error for volunteer ID
-      if (validationStates.volunteerId.isValid === false && validationStates.volunteerId.message) {
-        validationErrors.push({ field: 'volunteerId', message: validationStates.volunteerId.message });
-      }
 
       // Validate required file uploads
       if (!fileUploads.universityId) {
@@ -564,21 +411,14 @@ export const RegistrationForm: React.FC = () => {
             type="email"
             value={formData.email}
             onChange={(e) => updateField('email', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors pr-12 ${
-              getFieldError('email') || (validationStates.email.isValid === false && validationStates.email.message)
-                ? 'border-red-500' 
-                : validationStates.email.isValid === true 
-                ? 'border-green-500' 
-                : 'border-gray-300'
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
+              getFieldError('email') ? 'border-red-500' : 'border-gray-300'
             }`}
             placeholder="Enter your email address"
           />
-          <ValidationIndicator field="email" value={formData.email} />
         </div>
-        {(getFieldError('email') || (validationStates.email.isValid === false && validationStates.email.message)) && (
-          <p className="mt-1 text-sm text-red-600">
-            {getFieldError('email') || validationStates.email.message}
-          </p>
+        {getFieldError('email') && (
+          <p className="mt-1 text-sm text-red-600">{getFieldError('email')}</p>
         )}
       </div>
 
@@ -610,22 +450,15 @@ export const RegistrationForm: React.FC = () => {
               type="text"
               value={formData.personalId}
               onChange={(e) => updateField('personalId', e.target.value)}
-              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors pr-12 ${
-                getFieldError('personalId') || (validationStates.personalId.isValid === false && validationStates.personalId.message)
-                  ? 'border-red-500' 
-                  : validationStates.personalId.isValid === true 
-                  ? 'border-green-500' 
-                  : 'border-gray-300'
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
+                getFieldError('personalId') ? 'border-red-500' : 'border-gray-300'
               }`}
               placeholder="14-digit Egyptian ID"
               maxLength={14}
             />
-            <ValidationIndicator field="personalId" value={formData.personalId} />
           </div>
-          {(getFieldError('personalId') || (validationStates.personalId.isValid === false && validationStates.personalId.message)) && (
-            <p className="mt-1 text-sm text-red-600">
-              {getFieldError('personalId') || validationStates.personalId.message}
-            </p>
+          {getFieldError('personalId') && (
+            <p className="mt-1 text-sm text-red-600">{getFieldError('personalId')}</p>
           )}
         </div>
       </div>
@@ -793,21 +626,14 @@ export const RegistrationForm: React.FC = () => {
             type="text"
             value={formData.volunteerId}
             onChange={(e) => updateField('volunteerId', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors pr-12 ${
-              getFieldError('volunteerId') || (validationStates.volunteerId.isValid === false && validationStates.volunteerId.message)
-                ? 'border-red-500' 
-                : validationStates.volunteerId.isValid === true 
-                ? 'border-green-500' 
-                : 'border-gray-300'
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
+              getFieldError('volunteerId') ? 'border-red-500' : 'border-gray-300'
             }`}
             placeholder="Enter volunteer ID (if applicable)"
           />
-          <ValidationIndicator field="volunteerId" value={formData.volunteerId} />
         </div>
-        {(getFieldError('volunteerId') || (validationStates.volunteerId.isValid === false && validationStates.volunteerId.message)) && (
-          <p className="mt-1 text-sm text-red-600">
-            {getFieldError('volunteerId') || validationStates.volunteerId.message}
-          </p>
+        {getFieldError('volunteerId') && (
+          <p className="mt-1 text-sm text-red-600">{getFieldError('volunteerId')}</p>
         )}
       </div>
 
