@@ -22,7 +22,7 @@ import {
   validateVolunteerId
 } from '../utils/validation';
 import { signUpUser, uploadFile, updateUserFiles } from '../lib/supabase';
-
+import { useAuth } from '../contexts/AuthContext';
 // FileUpload Component
 const FileUpload: React.FC<{
   accept: string;
