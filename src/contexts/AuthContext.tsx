@@ -40,19 +40,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
-  const redirectToLogin = () => {
-    console.log('🔐 Redirecting to login page...');
-    setUser(null);
-    setProfile(null);
-    setLoading(false);
-    // Use setTimeout to avoid navigation during render
-    setTimeout(() => {
-      if (window.location.pathname !== '/login') {
-        navigate('/login');
-      }
-    }, 0);
-  };
-
   const fetchUserProfile = async (userId: string): Promise<boolean> => {
     try {
       console.log('🔍 AuthContext: Fetching profile for user ID:', userId);
@@ -97,7 +84,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     console.log('🔄 AuthContext: Starting authentication check...');
     
     let mounted = true;
-    let authSubscription: any = null;
 
     // Get initial session
     const getInitialSession = async () => {
@@ -112,7 +98,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         if (error) {
           console.error('❌ AuthContext: Error getting session:', error);
-          redirectToLogin();
+          setLoading(false);
           return;
         }
         
@@ -122,20 +108,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.log('👤 AuthContext: User found, fetching profile for ID:', session.user.id);
           setUser(session.user);
           
-          // Fetch profile and redirect if not found
-          const profileFetched = await fetchUserProfile(session.user.id);
-          
-          if (!mounted) return;
-          
-          if (!profileFetched) {
-            console.log('❌ AuthContext: Profile not found, redirecting to login');
-            redirectToLogin();
-            return;
-          }
+          // Fetch profile - don't redirect if not found, just set loading to false
+          await fetchUserProfile(session.user.id);
         } else {
-          console.log('❌ AuthContext: No user found, redirecting to login');
-          redirectToLogin();
-          return;
+          console.log('❌ AuthContext: No user found');
+          setUser(null);
+          setProfile(null);
         }
         
         console.log('✅ AuthContext: Initial loading complete');
@@ -143,58 +121,40 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       } catch (error) {
         console.error('💥 AuthContext: Exception in getInitialSession:', error);
         if (mounted) {
-          redirectToLogin();
+          setLoading(false);
         }
       }
     };
 
     // Listen for auth changes
-    const setupAuthListener = () => {
-      if (!mounted) return;
-      
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (event, session) => {
-          if (!mounted) return;
-          
-          console.log('🔔 AuthContext: Auth state changed:', event);
-          
-          if (session?.user) {
-            console.log('👤 AuthContext: Setting user and fetching profile for:', session.user.id);
-            setUser(session.user);
-            
-            const profileFetched = await fetchUserProfile(session.user.id);
-            
-            if (!mounted) return;
-            
-            if (!profileFetched) {
-              console.log('❌ AuthContext: Profile not found during auth change, redirecting to login');
-              redirectToLogin();
-              return;
-            }
-          } else {
-            console.log('🚫 AuthContext: No session, redirecting to login');
-            redirectToLogin();
-            return;
-          }
-          
-          setLoading(false);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!mounted) return;
+        
+        console.log('🔔 AuthContext: Auth state changed:', event);
+        
+        if (session?.user) {
+          console.log('👤 AuthContext: Setting user and fetching profile for:', session.user.id);
+          setUser(session.user);
+          await fetchUserProfile(session.user.id);
+        } else {
+          console.log('🚫 AuthContext: No session, clearing user data');
+          setUser(null);
+          setProfile(null);
         }
-      );
-      
-      authSubscription = subscription;
-    };
+        
+        setLoading(false);
+      }
+    );
 
     getInitialSession();
-    setupAuthListener();
 
     return () => {
       console.log('🧹 AuthContext: Cleaning up');
       mounted = false;
-      if (authSubscription) {
-        authSubscription.unsubscribe();
-      }
+      subscription.unsubscribe();
     };
-  }, [navigate]);
+  }, []);
 
   const signIn = async (email: string, password: string) => {
     try {
@@ -222,6 +182,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         
         if (!profileFetched) {
           console.log('❌ AuthContext: Profile not found after sign in');
+          // Don't redirect here, just return error
           setLoading(false);
           return { error: { message: 'User profile not found' } };
         }
@@ -247,7 +208,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('✅ AuthContext: Sign out successful');
         setUser(null);
         setProfile(null);
-        navigate('/login');
       } else {
         console.error('❌ AuthContext: Sign out error:', error);
       }
