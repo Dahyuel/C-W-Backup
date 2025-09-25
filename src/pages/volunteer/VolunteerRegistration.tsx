@@ -43,12 +43,12 @@ export const VolunteerRegistration: React.FC = () => {
     { id: 3, title: 'Account Security', icon: Lock }
   ];
 
-  const roleOptions = [
-    { value: 'registration', label: 'Registration Desk' },
-    { value: 'building', label: 'Building Assistance' },
-    { value: 'info desk', label: 'Information Desk' },
-    { value: 'other', label: 'Other Volunteer Role' }
-  ];
+const roleOptions = [
+  { value: 'registration', label: 'Registration Desk' },
+  { value: 'building', label: 'Building Assistance' },
+  { value: 'volunteer', label: 'General Volunteer' }, // Changed from 'info desk'
+  { value: 'team_leader', label: 'Team Leader' } // Added team_leader option
+];
 
   const updateField = (field: keyof RegistrationData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
