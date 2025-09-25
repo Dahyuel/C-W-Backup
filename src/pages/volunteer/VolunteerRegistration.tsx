@@ -133,19 +133,18 @@ export const VolunteerRegistration: React.FC = () => {
 
     try {
       // Determine the role to send to the backend
-      const roleToSend = formData.role === 'other' || formData.role === 'info desk' 
-        ? 'volunteer' 
-        : formData.role;
+const roleToSend = formData.role === 'other' || formData.role === 'info desk' 
+  ? 'volunteer' 
+  : formData.role;
 
-      const userData = {
-        first_name: formData.firstName.trim(),
-        last_name: formData.lastName.trim(),
-        phone: formData.phone.trim(),
-        personal_id: formData.personalId.trim(),
-        faculty: formData.faculty,
-        role: roleToSend, // Send the determined role
-        volunteer_role: formData.role // Keep the original selection for reference
-      };
+const userData = {
+  first_name: formData.firstName.trim(),
+  last_name: formData.lastName.trim(),
+  phone: formData.phone.trim(),
+  personal_id: formData.personalId.trim(),
+  faculty: formData.faculty,
+  role: roleToSend // Only send the role field
+};
 
       const { data, error } = await signUpVolunteer(formData.email, formData.password, userData);
 
