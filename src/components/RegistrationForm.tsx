@@ -202,7 +202,6 @@ export const RegistrationForm: React.FC = () => {
     if (allErrors.length > 0) {
       console.log('Validation errors found:', allErrors);
       setErrors(allErrors);
-      // Go to first section with errors
       const firstErrorSection = Math.min(...allErrors.map(error => {
         if (['firstName', 'lastName', 'gender', 'nationality', 'email', 'phone', 'personalId'].includes(error.field)) return 1;
         if (['university', 'customUniversity', 'faculty', 'degreeLevel', 'program', 'classYear'].includes(error.field)) return 2;
@@ -221,27 +220,18 @@ export const RegistrationForm: React.FC = () => {
       const userData = {
         first_name: formData.firstName.trim(),
         last_name: formData.lastName.trim(),
-        gender: formData.gender, // enum: male, female, other, prefer_not_to_say
+        gender: formData.gender,
         nationality: formData.nationality,
         phone: formData.phone.trim(),
         personal_id: formData.personalId.trim(),
         university: formData.university === 'Other' ? formData.customUniversity?.trim() : formData.university,
         faculty: formData.faculty,
-        degree_level: formData.degreeLevel.toLowerCase(), // enum: student/graduate
+        degree_level: formData.degreeLevel.toLowerCase(),
         program: formData.program.trim(),
-        // Fix: Set class based on degree level per constraint requirements
         class: formData.degreeLevel.toLowerCase() === 'student' ? formData.classYear || '1' : null,
-        how_did_hear_about_event: formData.howDidYouHear, // enum: linkedin, facebook, instagram, etc.
+        how_did_hear_about_event: formData.howDidYouHear,
         volunteer_id: formData.volunteerId?.trim() || null
       };
-
-      console.log('Form data debug:', {
-        degreeLevel: formData.degreeLevel,
-        degreeLevelLower: formData.degreeLevel.toLowerCase(),
-        classYear: formData.classYear,
-        willIncludeClass: formData.degreeLevel.toLowerCase() === 'student' && formData.classYear
-      });
-      console.log('Final userData:', userData);
 
       console.log('Submitting registration with data:', userData);
 
@@ -272,8 +262,17 @@ export const RegistrationForm: React.FC = () => {
         }
       }
 
-      console.log('Registration successful!');
-      setShowSuccess(true);
+      console.log('✅ Registration successful, attempting auto-login...');
+      
+      // Auto-signin after successful registration
+      const { error: signInError } = await signIn(formData.email, formData.password);
+      
+      if (signInError) {
+        // If auto-login fails, show success message with manual login option
+        console.log('⚠️ Auto-login failed, showing success message');
+        setShowSuccess(true);
+      }
+      // If auto-login succeeds, the AuthContext will handle the redirect
       
     } catch (error: any) {
       console.error('Registration error:', error);
@@ -285,7 +284,6 @@ export const RegistrationForm: React.FC = () => {
       setLoading(false);
     }
   };
-
   const getFieldError = (field: string) => {
     return errors.find(error => error.field === field)?.message;
   };
