@@ -25,7 +25,7 @@ import { signUpUser, uploadFile, updateUserFiles } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 // FileUpload Component
 
-const [loginSuccess, setLoginSuccess] = useState(false);
+
 const FileUpload: React.FC<{
   accept: string;
   maxSize: number;
@@ -44,7 +44,7 @@ const FileUpload: React.FC<{
       onFileSelect(file);
     }
   };
-
+const [loginSuccess, setLoginSuccess] = useState(false);
   return (
     <div className="space-y-2">
       <div className="border-2 border-dashed border-orange-200 rounded-lg p-6 text-center">
