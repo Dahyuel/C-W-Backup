@@ -60,7 +60,7 @@ function App() {
           <Route 
             path="/buildteam" 
             element={
-              <ProtectedRoute requiredRole={['building', 'team_leader', 'admin']}>
+              <ProtectedRoute requiredRole={['building']}>
                 <BuildTeamDashboard />
               </ProtectedRoute>
             } 
