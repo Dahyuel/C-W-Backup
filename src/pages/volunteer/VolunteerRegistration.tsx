@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Lock, ChevronRight, CheckCircle, AlertCircle, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { 
@@ -16,12 +16,12 @@ import {
   validatePassword,
   validateConfirmPassword
 } from '../../utils/validation';
-import { signUpVolunteer } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
 export const VolunteerRegistration: React.FC = () => {
   const navigate = useNavigate();
-const { signUp, signIn } = useAuth(); // ✅ now using signUp from AuthContext
+  const { signUp, signIn, isAuthenticated, profile, loading: authLoading, getRoleBasedRedirect } = useAuth();
+  
   const [currentSection, setCurrentSection] = useState(1);
   const [formData, setFormData] = useState<RegistrationData>({
     firstName: '',
@@ -38,7 +38,6 @@ const { signUp, signIn } = useAuth(); // ✅ now using signUp from AuthContext
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [loginSuccess, setLoginSuccess] = useState(false);
 
   const sections = [
     { id: 1, title: 'Personal Information', icon: User },
@@ -46,12 +45,20 @@ const { signUp, signIn } = useAuth(); // ✅ now using signUp from AuthContext
     { id: 3, title: 'Account Security', icon: Lock }
   ];
 
-const roleOptions = [
-  { value: 'registration', label: 'Registration Desk' },
-  { value: 'building', label: 'Building Assistance' },
-  { value: 'volunteer', label: 'Other Volunteer' }, // Changed from 'info desk'
-  { value: 'team_leader', label: 'Team Leader' } // Added team_leader option
-];
+  const roleOptions = [
+    { value: 'registration', label: 'Registration Desk' },
+    { value: 'building', label: 'Building Assistance' },
+    { value: 'volunteer', label: 'Other Volunteer' },
+    { value: 'team_leader', label: 'Team Leader' }
+  ];
+
+  // Redirect when authentication is complete after auto-login
+  useEffect(() => {
+    if (isAuthenticated && profile && !authLoading) {
+      console.log('✅ Auth context ready, redirecting to dashboard...');
+      navigate(getRoleBasedRedirect(), { replace: true });
+    }
+  }, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect]);
 
   const updateField = (field: keyof RegistrationData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -114,66 +121,66 @@ const roleOptions = [
     }
   };
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  // Validate all sections
-  const allErrors = [1, 2, 3].flatMap(section => validateSection(section));
-  if (allErrors.length > 0) {
-    setErrors(allErrors);
-    const firstErrorSection = Math.min(...allErrors.map(error => {
-      if (['firstName', 'lastName', 'email', 'phone', 'personalId', 'faculty'].includes(error.field)) return 1;
-      if (['role'].includes(error.field)) return 2;
-      if (['password', 'confirmPassword'].includes(error.field)) return 3;
-      return 1;
-    }));
-    setCurrentSection(firstErrorSection);
-    return;
-  }
-
-  setLoading(true);
-  setErrors([]);
-
-  try {
-    const profileData = {
-      first_name: formData.firstName.trim(),
-      last_name: formData.lastName.trim(),
-      phone: formData.phone.trim(),
-      personal_id: formData.personalId.trim(),
-      faculty: formData.faculty,
-      role: formData.role,
-    };
-
-    const { data, error } = await signUp(formData.email, formData.password, profileData);
-
-    if (error) {
-      setErrors([{ field: "general", message: error.message }]);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate all sections
+    const allErrors = [1, 2, 3].flatMap(section => validateSection(section));
+    if (allErrors.length > 0) {
+      setErrors(allErrors);
+      const firstErrorSection = Math.min(...allErrors.map(error => {
+        if (['firstName', 'lastName', 'email', 'phone', 'personalId', 'faculty'].includes(error.field)) return 1;
+        if (['role'].includes(error.field)) return 2;
+        if (['password', 'confirmPassword'].includes(error.field)) return 3;
+        return 1;
+      }));
+      setCurrentSection(firstErrorSection);
       return;
     }
 
-    console.log("✅ Registration successful, attempting auto-login...");
-    const { error: signInError } = await signIn(formData.email, formData.password);
+    setLoading(true);
+    setErrors([]);
 
-    if (signInError) {
-      console.log("⚠️ Auto-login failed, showing success message");
-      setShowSuccess(true);
-    } else {
-      setLoginSuccess(true); // Set login success for redirect
+    try {
+      const profileData = {
+        first_name: formData.firstName.trim(),
+        last_name: formData.lastName.trim(),
+        phone: formData.phone.trim(),
+        personal_id: formData.personalId.trim(),
+        faculty: formData.faculty,
+        role: formData.role,
+      };
+
+      const { data, error } = await signUp(formData.email, formData.password, profileData);
+
+      if (error) {
+        setErrors([{ field: "general", message: error.message }]);
+        return;
+      }
+
+      console.log("✅ Registration successful, attempting auto-login...");
+      
+      // Auto-signin after successful registration
+      const { error: signInError } = await signIn(formData.email, formData.password);
+
+      if (signInError) {
+        console.log("⚠️ Auto-login failed, showing success message");
+        setShowSuccess(true);
+      }
+      // If auto-login succeeds, the useEffect will handle the redirect
+      
+    } catch (error: any) {
+      setErrors([
+        {
+          field: "general",
+          message: error.message || "An unexpected error occurred. Please try again.",
+        },
+      ]);
+    } finally {
+      setLoading(false);
     }
+  };
 
-  } catch (error: any) {
-    setErrors([
-      {
-        field: "general",
-        message: error.message || "An unexpected error occurred. Please try again.",
-      },
-    ]);
-  } finally {
-    setLoading(false);
-  }
-};
-
-  
   const getFieldError = (field: string) => {
     return errors.find(error => error.field === field)?.message;
   };
@@ -350,8 +357,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-sm text-blue-800">
-          <strong>Note:</strong> Selecting "Information Desk" or "Other Volunteer Role" will register you as a general volunteer. 
-          Specific role assignments will be communicated after registration.
+          <strong>Note:</strong> Specific role assignments will be communicated after registration.
         </p>
       </div>
     </div>
@@ -410,6 +416,19 @@ const handleSubmit = async (e: React.FormEvent) => {
     }
   };
 
+  // Show loading while AuthContext is initializing
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show success message only when auto-login fails
   if (showSuccess) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center p-4">
