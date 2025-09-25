@@ -78,8 +78,6 @@ const FileUpload: React.FC<{
       </div>
     </div>
   );
-};
-};
 
 export const RegistrationForm: React.FC = () => {
   const navigate = useNavigate();
