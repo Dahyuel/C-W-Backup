@@ -6,7 +6,6 @@ interface UserProfile {
   id: string;
   first_name: string;
   last_name: string;
-  email: string;
   role: 'attendee' | 'volunteer' | 'registration' | 'building' | 'team_leader' | 'admin';
   university?: string;
   faculty?: string;
@@ -40,16 +39,43 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('🔄 AuthContext: Starting authentication check...');
+    
     // Get initial session
     const getInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
+      console.log('🔍 AuthContext: Getting initial session...');
       
-      if (session?.user) {
-        await fetchUserProfile(session.user.id);
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('❌ AuthContext: Error getting session:', error);
+          setLoading(false);
+          return;
+        }
+        
+        console.log('📋 AuthContext: Initial session:', session ? 'Found' : 'None');
+        console.log('📋 AuthContext: Session details:', {
+          userId: session?.user?.id,
+          email: session?.user?.email,
+          role: session?.user?.role
+        });
+        
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          console.log('👤 AuthContext: User found, fetching profile for ID:', session.user.id);
+          await fetchUserProfile(session.user.id);
+        } else {
+          console.log('❌ AuthContext: No user found');
+        }
+        
+        console.log('✅ AuthContext: Initial loading complete');
+      } catch (error) {
+        console.error('💥 AuthContext: Exception in getInitialSession:', error);
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     };
 
     getInitialSession();
@@ -57,11 +83,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('🔔 AuthContext: Auth state changed:', event, session ? 'Session exists' : 'No session');
+        console.log('🔔 AuthContext: Event details:', {
+          event,
+          userId: session?.user?.id,
+          email: session?.user?.email
+        });
+        
         setUser(session?.user ?? null);
         
         if (session?.user) {
+          console.log('👤 AuthContext: Fetching profile for user:', session.user.id);
           await fetchUserProfile(session.user.id);
         } else {
+          console.log('🚫 AuthContext: Clearing profile');
           setProfile(null);
         }
         
@@ -69,18 +104,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      console.log('🧹 AuthContext: Cleaning up subscription');
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchUserProfile = async (userId: string) => {
     try {
+      console.log('🔍 AuthContext: Fetching profile for user ID:', userId);
+      
       const { data, error } = await supabase
         .from('users_profiles')
         .select(`
           id,
           first_name,
           last_name,
-          email,
           role,
           university,
           faculty,
@@ -93,90 +132,174 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         .single();
 
       if (error) {
-        console.error('Error fetching user profile:', error);
+        console.error('❌ AuthContext: Error fetching user profile:', error);
+        console.error('❌ AuthContext: Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        
+        // Don't set loading to false here, let the parent handle it
         return;
       }
 
       if (data) {
+        console.log('✅ AuthContext: Profile fetched successfully:', {
+          id: data.id,
+          role: data.role,
+          name: `${data.first_name} ${data.last_name}`,
+          university: data.university,
+          faculty: data.faculty
+        });
         setProfile(data);
+      } else {
+        console.log('⚠️ AuthContext: No profile data returned');
+        setProfile(null);
       }
     } catch (error) {
-      console.error('Error in fetchUserProfile:', error);
+      console.error('💥 AuthContext: Exception in fetchUserProfile:', error);
     }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
+      console.log('🔐 AuthContext: Attempting sign in for:', email);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
       if (error) {
+        console.error('❌ AuthContext: Sign in error:', error);
         return { error };
       }
 
+      console.log('✅ AuthContext: Sign in successful for user:', data.user?.id);
+
       if (data.user) {
+        console.log('👤 AuthContext: Fetching profile after sign in');
         await fetchUserProfile(data.user.id);
       }
 
       return { error: null };
     } catch (error) {
+      console.error('💥 AuthContext: Exception in signIn:', error);
       return { error };
     }
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (!error) {
-      setUser(null);
-      setProfile(null);
+    try {
+      console.log('🚪 AuthContext: Signing out...');
+      
+      const { error } = await supabase.auth.signOut();
+      
+      if (!error) {
+        console.log('✅ AuthContext: Sign out successful');
+        setUser(null);
+        setProfile(null);
+      } else {
+        console.error('❌ AuthContext: Sign out error:', error);
+      }
+    } catch (error) {
+      console.error('💥 AuthContext: Exception in signOut:', error);
     }
   };
 
   const resetPassword = async (email: string) => {
     try {
+      console.log('🔄 AuthContext: Resetting password for:', email);
+      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`
       });
+      
+      if (error) {
+        console.error('❌ AuthContext: Password reset error:', error);
+      } else {
+        console.log('✅ AuthContext: Password reset email sent');
+      }
+      
       return { error };
     } catch (error) {
+      console.error('💥 AuthContext: Exception in resetPassword:', error);
       return { error };
     }
   };
 
   const hasRole = (requiredRole: string | string[]): boolean => {
-    if (!profile?.role) return false;
+    const result = (() => {
+      if (!profile?.role) return false;
+      
+      if (Array.isArray(requiredRole)) {
+        return requiredRole.includes(profile.role);
+      }
+      
+      return profile.role === requiredRole;
+    })();
     
-    if (Array.isArray(requiredRole)) {
-      return requiredRole.includes(profile.role);
-    }
+    console.log('🔒 AuthContext: Role check:', {
+      userRole: profile?.role,
+      requiredRole,
+      hasAccess: result
+    });
     
-    return profile.role === requiredRole;
+    return result;
   };
 
   const getRoleBasedRedirect = (): string => {
-    if (!profile?.role) return '/login';
-    
-    switch (profile.role) {
-      case 'attendee':
-        return '/attendee';
-      case 'volunteer':
-        return '/volunteer';
-      case 'registration':
-        return '/regteam';
-      case 'building':
-        return '/buildteam';
-      case 'team_leader':
-        return '/teamleader';
-      case 'admin':
-        return '/secure-9821panel';
-      default:
-        return '/attendee';
+    if (!profile?.role) {
+      console.log('⚠️ AuthContext: No role found, redirecting to login');
+      return '/login';
     }
+    
+    const redirect = (() => {
+      switch (profile.role) {
+        case 'attendee':
+          return '/attendee';
+        case 'volunteer':
+          return '/volunteer';
+        case 'registration':
+          return '/regteam';
+        case 'building':
+          return '/buildteam';
+        case 'team_leader':
+          return '/teamleader';
+        case 'admin':
+          return '/secure-9821panel';
+        default:
+          return '/attendee';
+      }
+    })();
+    
+    console.log('🎯 AuthContext: Role-based redirect:', {
+      role: profile.role,
+      redirect
+    });
+    
+    return redirect;
   };
 
   const isAuthenticated = !!user && !!profile;
+
+  // Log current state periodically for debugging
+  useEffect(() => {
+    const interval = setInterval(() => {
+      console.log('📊 AuthContext: Current state:', {
+        loading,
+        hasUser: !!user,
+        hasProfile: !!profile,
+        isAuthenticated,
+        userEmail: user?.email,
+        profileRole: profile?.role,
+        profileName: profile ? `${profile.first_name} ${profile.last_name}` : null
+      });
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [loading, user, profile, isAuthenticated]);
 
   const contextValue: AuthContextType = {
     user,
@@ -189,6 +312,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isAuthenticated,
     getRoleBasedRedirect
   };
+
+  console.log('🔄 AuthContext: Rendering with state:', {
+    loading,
+    hasUser: !!user,
+    hasProfile: !!profile,
+    isAuthenticated
+  });
 
   return (
     <AuthContext.Provider value={contextValue}>
