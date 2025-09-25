@@ -24,6 +24,8 @@ import {
 import { signUpUser, uploadFile, updateUserFiles } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 // FileUpload Component
+
+const [loginSuccess, setLoginSuccess] = useState(false);
 const FileUpload: React.FC<{
   accept: string;
   maxSize: number;
