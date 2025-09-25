@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import ProtectedRoute from './components/ProtectedRoute';
+import ProtectedRoute from './components/shared/ProtectedRoute'; // Fixed import path
 
 // Auth Components
 import { LoginForm } from './components/LoginForm';
@@ -28,7 +28,7 @@ function App() {
           <Route path="/register" element={<RegistrationForm />} />
           <Route path="/forgot-password" element={<ForgotPasswordForm />} />
           <Route path="/V0lunt33ringR3g" element={<VolunteerRegistration />} />
-
+          
           {/* Protected Routes */}
           <Route 
             path="/attendee" 
@@ -66,6 +66,7 @@ function App() {
             } 
           />
           
+          {/* Create a separate component for infodesk if it should be different */}
           <Route 
             path="/infodesk" 
             element={
@@ -101,7 +102,7 @@ function App() {
               </ProtectedRoute>
             } 
           />
-
+          
           {/* Default redirect */}
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
