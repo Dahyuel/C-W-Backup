@@ -21,7 +21,7 @@ import { useAuth } from '../../contexts/AuthContext';
 
 export const VolunteerRegistration: React.FC = () => {
   const navigate = useNavigate();
-  const { signIn } = useAuth();
+const { signUp, signIn } = useAuth(); // ✅ now using signUp from AuthContext
   const [currentSection, setCurrentSection] = useState(1);
   const [formData, setFormData] = useState<RegistrationData>({
     firstName: '',
