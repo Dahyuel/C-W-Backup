@@ -134,17 +134,15 @@ const handleSubmit = async (e: React.FormEvent) => {
   setErrors([]);
 
   try {
-    // Profile data to insert after signup
     const profileData = {
       first_name: formData.firstName.trim(),
       last_name: formData.lastName.trim(),
       phone: formData.phone.trim(),
       personal_id: formData.personalId.trim(),
       faculty: formData.faculty,
-      role: formData.role, // directly pass volunteer role
+      role: formData.role,
     };
 
-    // ✅ Signup (creates auth user + profile row)
     const { data, error } = await signUp(formData.email, formData.password, profileData);
 
     if (error) {
@@ -152,16 +150,15 @@ const handleSubmit = async (e: React.FormEvent) => {
       return;
     }
 
-    // ✅ Auto-signin after successful registration
     console.log("✅ Registration successful, attempting auto-login...");
-
     const { error: signInError } = await signIn(formData.email, formData.password);
 
     if (signInError) {
       console.log("⚠️ Auto-login failed, showing success message");
       setShowSuccess(true);
+    } else {
+      setLoginSuccess(true); // Set login success for redirect
     }
-    // If auto-login succeeds, AuthContext will handle redirect
 
   } catch (error: any) {
     setErrors([
@@ -174,6 +171,8 @@ const handleSubmit = async (e: React.FormEvent) => {
     setLoading(false);
   }
 };
+
+  
   const getFieldError = (field: string) => {
     return errors.find(error => error.field === field)?.message;
   };
