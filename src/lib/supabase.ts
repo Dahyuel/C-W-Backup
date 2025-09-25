@@ -37,54 +37,17 @@ export const checkPersonalIdUnique = async (personalId: string): Promise<Validat
   }
 };
 
-// Check if email is unique in auth.users table
+// Check if email is unique - simplified approach
 export const checkEmailUnique = async (email: string): Promise<ValidationResult> => {
   try {
-    // We'll attempt to get user by email using Supabase admin API
-    // Since we can't directly query auth.users, we use the auth API
-    const { data, error } = await supabase.auth.admin.getUserByEmail(email.trim().toLowerCase());
-    
-    if (error && error.message === 'User not found') {
-      // Email is unique (user not found)
-      return { isValid: true, error: null };
-    }
-    
-    if (error) {
-      console.error('Error checking email:', error);
-      return { isValid: false, error: 'Database error while checking email' };
-    }
-    
-    // If we get user data, email is already taken
-    return { 
-      isValid: false, 
-      error: 'This email address is already registered' 
-    };
+    // Instead of trying to validate auth.users directly, we'll rely on 
+    // the actual signup process to handle email validation
+    // This function will always return true for client-side validation
+    // The real validation happens in the signUp process
+    return { isValid: true, error: null };
   } catch (error: any) {
-    // Fallback: try signing up with the email to check if it exists
-    // This is not ideal but works as a validation method
-    console.warn('Using fallback email validation method');
-    
-    try {
-      const { error: signUpError } = await supabase.auth.signUp({
-        email: email.trim().toLowerCase(),
-        password: 'temporary_validation_password_12345',
-        options: {
-          data: { validation_only: true }
-        }
-      });
-      
-      if (signUpError) {
-        if (signUpError.message.includes('already') || signUpError.message.includes('exists')) {
-          return { isValid: false, error: 'This email address is already registered' };
-        }
-        return { isValid: false, error: 'Error validating email address' };
-      }
-      
-      return { isValid: true, error: null };
-    } catch (fallbackError: any) {
-      console.error('Email validation error:', fallbackError);
-      return { isValid: false, error: 'Failed to validate email address' };
-    }
+    console.error('Email validation error:', error);
+    return { isValid: false, error: 'Failed to validate email address' };
   }
 };
 
@@ -129,7 +92,7 @@ export const checkVolunteerIdExists = async (volunteerId: string): Promise<Valid
   }
 };
 
-// Comprehensive registration validation
+// Comprehensive registration validation - now only validates personal ID and volunteer ID
 export const validateRegistrationData = async (
   email: string,
   personalId: string,
@@ -138,18 +101,13 @@ export const validateRegistrationData = async (
   const errors: string[] = [];
   
   try {
-    // Run all validations concurrently for better performance
-    const [emailCheck, personalIdCheck, volunteerIdCheck] = await Promise.all([
-      checkEmailUnique(email),
+    // Only validate personal ID and volunteer ID (email validation happens during signup)
+    const [personalIdCheck, volunteerIdCheck] = await Promise.all([
       checkPersonalIdUnique(personalId),
       volunteerId ? checkVolunteerIdExists(volunteerId) : Promise.resolve({ isValid: true, error: null })
     ]);
     
-    // Collect all errors
-    if (!emailCheck.isValid && emailCheck.error) {
-      errors.push(emailCheck.error);
-    }
-    
+    // Collect errors
     if (!personalIdCheck.isValid && personalIdCheck.error) {
       errors.push(personalIdCheck.error);
     }
@@ -171,32 +129,42 @@ export const validateRegistrationData = async (
   }
 };
 
-// Enhanced sign up function with comprehensive pre-validation
+// Enhanced sign up function with proper validation order
 export const signUpUser = async (email: string, password: string, userData: any) => {
   try {
     console.log('Starting registration validation...');
     
-    // Pre-validate all data before creating any records
-    const validation = await validateRegistrationData(
-      email,
-      userData.personal_id,
-      userData.volunteer_id
-    );
+    // STEP 1: Pre-validate personal ID and volunteer ID (but not email)
+    const personalIdCheck = await checkPersonalIdUnique(userData.personal_id);
+    const volunteerIdCheck = userData.volunteer_id ? 
+      await checkVolunteerIdExists(userData.volunteer_id) : 
+      { isValid: true, error: null };
     
-    if (!validation.isValid) {
-      console.log('Validation failed:', validation.errors);
+    const errors: string[] = [];
+    
+    if (!personalIdCheck.isValid && personalIdCheck.error) {
+      errors.push(personalIdCheck.error);
+    }
+    
+    if (!volunteerIdCheck.isValid && volunteerIdCheck.error) {
+      errors.push(volunteerIdCheck.error);
+    }
+    
+    // If personal ID or volunteer ID validation fails, stop here
+    if (errors.length > 0) {
+      console.log('Pre-validation failed:', errors);
       return { 
         data: null, 
         error: { 
-          message: validation.errors.join('. '),
-          validationErrors: validation.errors
+          message: errors.join('. '),
+          validationErrors: errors
         }
       };
     }
     
-    console.log('✅ All validations passed, proceeding with registration...');
+    console.log('Pre-validation passed, creating auth user...');
     
-    // Create auth user
+    // STEP 2: Create auth user (this will validate email uniqueness)
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
       password,
@@ -204,6 +172,7 @@ export const signUpUser = async (email: string, password: string, userData: any)
 
     if (authError) {
       console.error('Auth signup error:', authError);
+      // Return the auth error (which includes email already exists errors)
       return { data: null, error: authError };
     }
 
@@ -211,9 +180,9 @@ export const signUpUser = async (email: string, password: string, userData: any)
       return { data: null, error: { message: 'Failed to create user account' } };
     }
 
-    console.log('✅ Auth user created, creating profile...');
+    console.log('Auth user created successfully, creating profile...');
 
-    // Create complete profile
+    // STEP 3: Create profile (this should succeed since we pre-validated)
     const { data: profileData, error: profileError } = await supabase
       .from('users_profiles')
       .insert({
@@ -229,18 +198,24 @@ export const signUpUser = async (email: string, password: string, userData: any)
     if (profileError) {
       console.error('Profile creation error:', profileError);
       
-      // If profile creation fails, we should clean up the auth user
+      // CRITICAL: Clean up the auth user since profile creation failed
       try {
+        console.log('Cleaning up auth user due to profile creation failure...');
         await supabase.auth.admin.deleteUser(authData.user.id);
-        console.log('Cleaned up auth user due to profile creation failure');
+        console.log('Auth user cleaned up successfully');
       } catch (cleanupError) {
-        console.error('Failed to cleanup auth user:', cleanupError);
+        console.error('CRITICAL: Failed to cleanup auth user:', cleanupError);
+        // This is a serious issue - we have an orphaned auth user
       }
       
-      return { data: null, error: profileError };
+      // Return a user-friendly error message
+      return { 
+        data: null, 
+        error: { message: 'Registration failed. Please try again.' } 
+      };
     }
 
-    console.log('✅ Registration completed successfully');
+    console.log('Registration completed successfully');
     return { data: authData, error: null };
 
   } catch (error: any) {
