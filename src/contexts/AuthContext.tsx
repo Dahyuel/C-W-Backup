@@ -4,24 +4,50 @@ import { supabase } from "../lib/supabase";
 
 type AuthContextType = {
   user: any;
+  profile: any;
   loading: boolean;
-  signUp: (email: string, password: string, profileData: any) => Promise<{ data: any; error: any }>;
-  signIn: (email: string, password: string) => Promise<{ data: any; error: any }>;
+  isAuthenticated: boolean;
+  signUp: (
+    email: string,
+    password: string,
+    profileData: any
+  ) => Promise<{ data: any; error: any }>;
+  signIn: (
+    email: string,
+    password: string
+  ) => Promise<{ error: any; profile?: any }>;
   signOut: () => Promise<void>;
+  hasRole: (roles: string | string[]) => boolean;
+  getRoleBasedRedirect: (role?: string) => string;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+
+  // 🔹 Fetch profile for a user
+  const fetchProfile = async (uid: string) => {
+    const { data, error } = await supabase
+      .from("users_profiles")
+      .select("*")
+      .eq("id", uid)
+      .single();
+
+    if (!error) setProfile(data);
+  };
 
   useEffect(() => {
     // Get current session
     const getSession = async () => {
       const { data, error } = await supabase.auth.getSession();
-      if (!error) {
-        setUser(data.session?.user ?? null);
+      if (!error && data.session?.user) {
+        setUser(data.session.user);
+        await fetchProfile(data.session.user.id);
       }
       setLoading(false);
     };
@@ -29,9 +55,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     getSession();
 
     // Listen for auth changes
-    const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
+    const { data: subscription } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        const u = session?.user ?? null;
+        setUser(u);
+        if (u) {
+          await fetchProfile(u.id);
+        } else {
+          setProfile(null);
+        }
+      }
+    );
 
     return () => {
       subscription.subscription.unsubscribe();
@@ -59,51 +93,95 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         phone: profileData.phone,
         personal_id: profileData.personal_id,
         faculty: profileData.faculty,
-        role: profileData.role || "attendee", // default role if none passed
+        role: profileData.role || "attendee", // 👈 default role
       });
 
       if (profileError) {
         console.error("Profile insert error:", profileError.message);
         return { data: null, error: profileError };
       }
+
+      await fetchProfile(user.id);
     }
 
     return { data: signUpData, error: null };
   };
 
   // ✅ SIGN IN
-const signIn = async (email: string, password: string) => {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+  const signIn = async (email: string, password: string) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
 
-  if (error) return { error };
+    if (error) return { error };
 
-  let profile = null;
-  if (data.user) {
-    const { data: profileData } = await supabase
-      .from("users_profiles")
-      .select("*")
-      .eq("id", data.user.id)
-      .single();
+    let profile = null;
+    if (data.user) {
+      const { data: profileData } = await supabase
+        .from("users_profiles")
+        .select("*")
+        .eq("id", data.user.id)
+        .single();
 
-    profile = profileData;
-    setProfile(profile);
-  }
+      profile = profileData;
+      setProfile(profile);
+    }
 
-  setUser(data.user);
-  return { error: null, profile };
-};
+    setUser(data.user);
+    return { error: null, profile };
+  };
 
   // ✅ SIGN OUT
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
+    setProfile(null);
+  };
+
+  // ✅ ROLE HELPERS
+  const hasRole = (roles: string | string[]) => {
+    if (!profile?.role) return false;
+    if (Array.isArray(roles)) {
+      return roles.includes(profile.role);
+    }
+    return profile.role === roles;
+  };
+
+  const getRoleBasedRedirect = (role?: string) => {
+    const r = role || profile?.role;
+    switch (r) {
+      case "admin":
+        return "/admin";
+      case "superadmin":
+        return "/superadmin";
+      case "team_leader":
+        return "/teamleader";
+      case "registration":
+        return "/regteam";
+      case "volunteer":
+        return "/volunteer";
+      case "attendee": // 👈 added attendee redirect
+        return "/attendee";
+      default:
+        return "/";
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        loading,
+        isAuthenticated: !!user,
+        signUp,
+        signIn,
+        signOut,
+        hasRole,
+        getRoleBasedRedirect,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
