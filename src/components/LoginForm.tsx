@@ -55,12 +55,17 @@ export const LoginForm: React.FC = () => {
     setErrors([]);
 
     try {
-      const { error } = await signIn(formData.email, formData.password);
+const { error, profile } = await signIn(formData.email, formData.password);
 
-      if (error) {
-        setErrors([{ field: 'general', message: 'Invalid email or password' }]);
-        return;
-      }
+if (error) {
+  setErrors([{ field: 'general', message: 'Invalid email or password' }]);
+  return;
+}
+
+// Redirect immediately based on role
+if (profile) {
+  navigate(getRoleBasedRedirect(profile.role), { replace: true });
+}
 
       // Navigation will be handled by useEffect when isAuthenticated changes
       
