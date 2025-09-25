@@ -113,7 +113,7 @@ const roleOptions = [
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Validate all sections
