@@ -7,7 +7,7 @@ import { validateEmail, validatePassword } from '../utils/validation';
 
 export const LoginForm: React.FC = () => {
   const navigate = useNavigate();
-  const { signIn, isAuthenticated, getRoleBasedRedirect, loading: authLoading } = useAuth();
+  const { signIn, isAuthenticated, getRoleBasedRedirect, loading: authLoading, profile } = useAuth();
   
   const [formData, setFormData] = useState<LoginData>({
     email: '',
@@ -16,17 +16,17 @@ export const LoginForm: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loginSuccess, setLoginSuccess] = useState(false);
 
-  // Redirect if already authenticated
+  // Redirect when authentication is complete and profile is loaded
   useEffect(() => {
-    if (isAuthenticated && !authLoading) {
+    if (isAuthenticated && profile && !authLoading) {
       navigate(getRoleBasedRedirect(), { replace: true });
     }
-  }, [isAuthenticated, authLoading, navigate, getRoleBasedRedirect]);
+  }, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect]);
 
   const updateField = (field: keyof LoginData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear specific field error when user starts typing
     setErrors(prev => prev.filter(error => error.field !== field));
   };
 
@@ -55,19 +55,15 @@ export const LoginForm: React.FC = () => {
     setErrors([]);
 
     try {
-const { error, profile } = await signIn(formData.email, formData.password);
+      const { error } = await signIn(formData.email, formData.password);
 
-if (error) {
-  setErrors([{ field: 'general', message: 'Invalid email or password' }]);
-  return;
-}
+      if (error) {
+        setErrors([{ field: 'general', message: 'Invalid email or password' }]);
+        return;
+      }
 
-// Redirect immediately based on role
-if (profile) {
-  navigate(getRoleBasedRedirect(profile.role), { replace: true });
-}
-
-      // Navigation will be handled by useEffect when isAuthenticated changes
+      // Set login success flag - redirection will be handled by useEffect
+      setLoginSuccess(true);
       
     } catch (error) {
       setErrors([{ field: 'general', message: 'Login failed. Please try again.' }]);
@@ -80,12 +76,25 @@ if (profile) {
     return errors.find(error => error.field === field)?.message;
   };
 
+  // Show loading state while checking authentication
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show success message while redirecting
+  if (loginSuccess && isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Login successful! Redirecting...</p>
         </div>
       </div>
     );
