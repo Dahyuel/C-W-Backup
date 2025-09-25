@@ -38,6 +38,7 @@ const { signUp, signIn } = useAuth(); // ✅ now using signUp from AuthContext
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [loginSuccess, setLoginSuccess] = useState(false);
 
   const sections = [
     { id: 1, title: 'Personal Information', icon: User },
