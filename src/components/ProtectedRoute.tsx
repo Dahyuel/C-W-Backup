@@ -16,15 +16,20 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const location = useLocation();
   const [profileLoading, setProfileLoading] = useState(true);
 
-  // Handle profile loading state separately
+  // Handle profile loading state
   useEffect(() => {
     if (initialized && user && !loading) {
-      // Give profile a moment to load after user is set
-      const timer = setTimeout(() => {
+      if (profile) {
+        // Profile is already loaded
         setProfileLoading(false);
-      }, 2000); // 2 second timeout for profile loading
+      } else {
+        // Wait for profile to load with timeout
+        const timer = setTimeout(() => {
+          setProfileLoading(false);
+        }, 3000); // 3 second timeout for profile loading
 
-      return () => clearTimeout(timer);
+        return () => clearTimeout(timer);
+      }
     } else if (initialized && !user) {
       setProfileLoading(false);
     }
@@ -43,11 +48,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // Redirect to login if not authenticated
-  if (!user) {
+  if (!user || !isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // Show loading while profile is being fetched (but only for a limited time)
+  // Show loading while profile is being fetched
   if (user && !profile && profileLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center">
@@ -82,7 +87,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // Check role requirements if profile exists
+  // Check role requirements if profile exists and role is required
   if (requiredRole && profile && !hasRole(requiredRole)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-white flex items-center justify-center p-4">
@@ -115,8 +120,19 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
+  // If role is required but profile is still loading, show loading
+  if (requiredRole && !profile) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking permissions...</p>
+        </div>
+      </div>
+    );
+  }
+
   // All checks passed - render the protected component
-  // Allow rendering even if profile is not loaded yet (for cases where role check is not required)
   return <>{children}</>;
 };
 
