@@ -199,13 +199,14 @@ const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   
   // Validate all sections
-  const allErrors = [1, 2, 3].flatMap(section => validateSection(section));
+  const allErrors = [1, 2, 3, 4].flatMap(section => validateSection(section));
   if (allErrors.length > 0) {
     setErrors(allErrors);
     const firstErrorSection = Math.min(...allErrors.map(error => {
-      if (['firstName', 'lastName', 'email', 'phone', 'personalId', 'faculty'].includes(error.field)) return 1;
-      if (['role'].includes(error.field)) return 2;
-      if (['password', 'confirmPassword'].includes(error.field)) return 3;
+      if (['firstName', 'lastName', 'email', 'phone', 'personalId', 'faculty', 'gender', 'nationality'].includes(error.field)) return 1;
+      if (['university', 'degreeLevel', 'program', 'classYear'].includes(error.field)) return 2;
+      if (['howDidYouHear', 'universityId', 'resume'].includes(error.field)) return 3;
+      if (['password', 'confirmPassword'].includes(error.field)) return 4;
       return 1;
     }));
     setCurrentSection(firstErrorSection);
@@ -216,25 +217,32 @@ const handleSubmit = async (e: React.FormEvent) => {
   setErrors([]);
 
   try {
-    // UPDATED: Simplified profile data structure without role
     const profileData = {
       first_name: formData.firstName.trim(),
       last_name: formData.lastName.trim(),
       phone: formData.phone.trim(),
       personal_id: formData.personalId.trim(),
       faculty: formData.faculty,
-      // Note: role is handled by signUpVolunteer function
+      university: formData.university === 'Other' ? formData.customUniversity : formData.university,
+      gender: formData.gender,
+      nationality: formData.nationality,
+      degree_level: formData.degreeLevel,
+      program: formData.program,
+      class: formData.classYear,
+      how_did_hear_about_event: formData.howDidYouHear,
+      volunteer_id: formData.volunteerId || null,
+      // role will be set to 'attendee' by signUp function
     };
 
-    // FIXED: Use signUpVolunteer instead of signUp
-    const { data, error } = await signUpVolunteer(formData.email, formData.password, profileData);
+    // Use regular signUp for attendee registration
+    const { data, error } = await signUp(formData.email, formData.password, profileData);
 
     if (error) {
       setErrors([{ field: "general", message: error.message }]);
       return;
     }
 
-    console.log("✅ Volunteer registration successful, attempting auto-login...");
+    console.log("✅ Registration successful, attempting auto-login...");
     
     // Auto-signin after successful registration
     const { error: signInError } = await signIn(formData.email, formData.password);
@@ -257,6 +265,9 @@ const handleSubmit = async (e: React.FormEvent) => {
   }
 };
 
+
+
+  
   const getFieldError = (field: string) => {
     return errors.find(error => error.field === field)?.message;
   };
