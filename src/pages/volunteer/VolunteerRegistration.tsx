@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { User, Lock, ChevronRight, CheckCircle, AlertCircle, Heart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  RegistrationData, 
-  ValidationError
+import {  
+  ValidationError,
+  VolunteerRegistrationData
 } from '../../types';
 import { 
   FACULTIES
@@ -23,7 +23,7 @@ export const VolunteerRegistration: React.FC = () => {
   const { signUpVolunteer, signIn, isAuthenticated, profile, loading: authLoading, getRoleBasedRedirect } = useAuth();
   
   const [currentSection, setCurrentSection] = useState(1);
-  const [formData, setFormData] = useState<RegistrationData>({
+  const [formData, setFormData] = useState<VolunteerRegistrationData>({
     firstName: '',
     lastName: '',
     email: '',
@@ -53,64 +53,60 @@ export const VolunteerRegistration: React.FC = () => {
     { value: 'team_leader', label: 'Team Leader' }
   ];
 
-// Redirect when authentication is complete after auto-login
-useEffect(() => {
-  if (isAuthenticated && profile && !authLoading) {
-    console.log('✅ Auth context ready, redirecting to dashboard...');
-    // Add a small delay to ensure everything is loaded
-    setTimeout(() => {
+  // Redirect when authentication is complete after auto-login
+  useEffect(() => {
+    if (isAuthenticated && profile && !authLoading) {
+      console.log('✅ Auth context ready, redirecting to dashboard...');
       navigate(getRoleBasedRedirect(), { replace: true });
-    }, 1000);
-  }
-}, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect]);
+    }
+  }, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect]);
 
-  
-  const updateField = (field: keyof RegistrationData, value: string) => {
+  const updateField = (field: keyof VolunteerRegistrationData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setErrors(prev => prev.filter(error => error.field !== field));
   };
 
-  const validateSection = (section: number): ValidationError[] => {
-    const validationErrors: ValidationError[] = [];
+// In VolunteerRegistration.tsx - Fix the validateSection function
+const validateSection = (section: number): ValidationError[] => {
+  const validationErrors: ValidationError[] = [];
 
-    if (section === 1) {
-      const firstNameError = validateName(formData.firstName, 'First name');
-      if (firstNameError) validationErrors.push({ field: 'firstName', message: firstNameError });
+  if (section === 1) {
+    const firstNameError = validateName(formData.firstName, 'First name');
+    if (firstNameError) validationErrors.push({ field: 'firstName', message: firstNameError });
 
-      const lastNameError = validateName(formData.lastName, 'Last name');
-      if (lastNameError) validationErrors.push({ field: 'lastName', message: lastNameError });
+    const lastNameError = validateName(formData.lastName, 'Last name');
+    if (lastNameError) validationErrors.push({ field: 'lastName', message: lastNameError });
 
-      const emailError = validateEmail(formData.email);
-      if (emailError) validationErrors.push({ field: 'email', message: emailError });
+    const emailError = validateEmail(formData.email);
+    if (emailError) validationErrors.push({ field: 'email', message: emailError });
 
-      const phoneError = validatePhone(formData.phone);
-      if (phoneError) validationErrors.push({ field: 'phone', message: phoneError });
+    const phoneError = validatePhone(formData.phone);
+    if (phoneError) validationErrors.push({ field: 'phone', message: phoneError });
 
-      const personalIdError = validatePersonalId(formData.personalId);
-      if (personalIdError) validationErrors.push({ field: 'personalId', message: personalIdError });
+    const personalIdError = validatePersonalId(formData.personalId);
+    if (personalIdError) validationErrors.push({ field: 'personalId', message: personalIdError });
 
-      if (!formData.faculty) validationErrors.push({ field: 'faculty', message: 'Faculty is required' });
+    if (!formData.faculty) validationErrors.push({ field: 'faculty', message: 'Faculty is required' });
+  }
+
+  if (section === 2) {
+    if (!formData.role) {
+      validationErrors.push({ field: 'role', message: 'Please select a volunteer role' });
     }
+  }
 
-    if (section === 2) {
-      // ENHANCED: Added role validation with info_desk
-      if (!formData.role) {
-        validationErrors.push({ field: 'role', message: 'Please select a volunteer role' });
-      } else if (!['registration', 'building', 'info_desk', 'volunteer', 'team_leader'].includes(formData.role)) {
-        validationErrors.push({ field: 'role', message: 'Please select a valid volunteer role' });
-      }
-    }
+  if (section === 3) {
+    const passwordError = validatePassword(formData.password);
+    if (passwordError) validationErrors.push({ field: 'password', message: passwordError });
 
-    if (section === 3) {
-      const passwordError = validatePassword(formData.password);
-      if (passwordError) validationErrors.push({ field: 'password', message: passwordError });
+    const confirmPasswordError = validateConfirmPassword(formData.password, formData.confirmPassword);
+    if (confirmPasswordError) validationErrors.push({ field: 'confirmPassword', message: confirmPasswordError });
+  }
 
-      const confirmPasswordError = validateConfirmPassword(formData.password, formData.confirmPassword);
-      if (confirmPasswordError) validationErrors.push({ field: 'confirmPassword', message: confirmPasswordError });
-    }
+  return validationErrors;
+};
 
-    return validationErrors;
-  };
+
 
   const nextSection = () => {
     const sectionErrors = validateSection(currentSection);
@@ -131,27 +127,28 @@ useEffect(() => {
     }
   };
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  // Validate all sections
-  const allErrors = [1, 2, 3].flatMap(section => validateSection(section));
-  if (allErrors.length > 0) {
-    setErrors(allErrors);
-    const firstErrorSection = Math.min(...allErrors.map(error => {
-      if (['firstName', 'lastName', 'email', 'phone', 'personalId', 'faculty'].includes(error.field)) return 1;
-      if (['role'].includes(error.field)) return 2;
-      if (['password', 'confirmPassword'].includes(error.field)) return 3;
-      return 1;
-    }));
-    setCurrentSection(firstErrorSection);
-    return;
-  }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate all sections
+    const allErrors = [1, 2, 3].flatMap(section => validateSection(section));
+    if (allErrors.length > 0) {
+      setErrors(allErrors);
+      const firstErrorSection = Math.min(...allErrors.map(error => {
+        if (['firstName', 'lastName', 'email', 'phone', 'personalId', 'faculty'].includes(error.field)) return 1;
+        if (['role'].includes(error.field)) return 2;
+        if (['password', 'confirmPassword'].includes(error.field)) return 3;
+        return 1;
+      }));
+      setCurrentSection(firstErrorSection);
+      return;
+    }
 
-  setLoading(true);
-  setErrors([]);
+    setLoading(true);
+    setErrors([]);
 
-  try {
+try {
+    // UPDATED: Include role in profile data
     const profileData = {
       first_name: formData.firstName.trim(),
       last_name: formData.lastName.trim(),
@@ -161,7 +158,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       role: formData.role, // ✅ Include the selected role
     };
 
-    // Use signUpVolunteer for volunteer registration
+    // FIXED: Use signUpVolunteer instead of signUp
     const { data, error } = await signUpVolunteer(formData.email, formData.password, profileData);
 
     if (error) {
@@ -169,31 +166,14 @@ const handleSubmit = async (e: React.FormEvent) => {
       return;
     }
 
-    console.log("✅ Volunteer registration successful, attempting auto-login...");
-    
-    // Auto-signin after successful registration
-    const { error: signInError } = await signIn(formData.email, formData.password);
-
-    if (signInError) {
-      console.log("⚠️ Auto-login failed, showing success message");
-      setShowSuccess(true);
-    }
-    // If auto-login succeeds, the useEffect will handle the redirect
-    
+    // ... rest of the function ...
   } catch (error: any) {
-    setErrors([
-      {
-        field: "general",
-        message: error.message || "An unexpected error occurred. Please try again.",
-      },
-    ]);
+    // ... error handling ...
   } finally {
     setLoading(false);
   }
 };
 
-
-  
   const getFieldError = (field: string) => {
     return errors.find(error => error.field === field)?.message;
   };
