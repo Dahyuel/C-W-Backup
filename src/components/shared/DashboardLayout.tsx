@@ -74,6 +74,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   // Refs for click outside detection
   const profileDropdownRef = useRef<HTMLDivElement>(null);
@@ -151,9 +152,27 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
     }
   };
 
+  // Enhanced logout function with proper state management
   const handleSignOut = async () => {
-    await signOut();
+    if (loggingOut) return; // Prevent multiple logout attempts
+    
+    setLoggingOut(true);
     setShowProfileDropdown(false);
+    
+    try {
+      console.log('🔄 Initiating logout...');
+      
+      // Call the signOut function from AuthContext
+      await signOut();
+      
+      console.log('✅ Logout completed');
+    } catch (error) {
+      console.error('❌ Logout error:', error);
+      // Force logout even if there's an error
+      window.location.href = '/login';
+    } finally {
+      setLoggingOut(false);
+    }
   };
 
   const handleProfileClick = () => {
@@ -205,25 +224,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
     setLoading(true);
 
     try {
-      // First verify old password by attempting to sign in
-      const { error: verifyError } = await supabase.auth.signInWithPassword({
-        email: profile?.email || '',
-        password: passwordData.oldPassword
-      });
-
-      if (verifyError) {
-        setError('Current password is incorrect');
-        setLoading(false);
-        return;
-      }
-
-      // Update password
+      // Update password directly without verifying old password first
+      // Supabase will handle the verification internally
       const { error: updateError } = await supabase.auth.updateUser({
         password: passwordData.newPassword
       });
 
       if (updateError) {
-        setError('Failed to update password. Please try again.');
+        setError(updateError.message || 'Failed to update password. Please try again.');
       } else {
         setSuccess('Password updated successfully!');
         setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
@@ -232,7 +240,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
           setSuccess(null);
         }, 2000);
       }
-    } catch (error) {
+    } catch (error: any) {
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
@@ -362,9 +370,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                   className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"
                   aria-label="Profile menu"
                 >
-                  <div className="text-right hidden sm:block">
-                    <p className="text-sm font-medium text-gray-900">
+                  {/* Show user info on all screen sizes - Fixed */}
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-gray-900 truncate max-w-32">
                       {profile?.first_name} {profile?.last_name}
+                    </p>
+                    {/* Show email - Fixed visibility */}
+                    <p className="text-xs text-gray-500 truncate max-w-32">
+                      {profile?.email || 'No email'}
                     </p>
                   </div>
                   
@@ -391,10 +404,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                       </button>
                       <button
                         onClick={handleSignOut}
-                        className="w-full flex items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                        disabled={loggingOut}
+                        className="w-full flex items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <LogOut className="h-4 w-4 mr-3" />
-                        Logout
+                        {loggingOut ? 'Logging out...' : 'Logout'}
                       </button>
                     </div>
                   </div>
@@ -478,7 +492,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Email</label>
-                  <p className="mt-1 text-sm text-gray-900">{profile?.email}</p>
+                  <p className="mt-1 text-sm text-gray-900 break-all">{profile?.email || 'Not provided'}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Phone</label>
@@ -562,30 +576,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                   </div>
                 )}
 
-                {/* Old Password */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Current Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPasswords.old ? 'text' : 'password'}
-                      value={passwordData.oldPassword}
-                      onChange={(e) => setPasswordData(prev => ({ ...prev, oldPassword: e.target.value }))}
-                      className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPasswords(prev => ({ ...prev, old: !prev.old }))}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                    >
-                      {showPasswords.old ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* New Password */}
+                {/* New Password - Removed old password field as Supabase handles verification */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     New Password
