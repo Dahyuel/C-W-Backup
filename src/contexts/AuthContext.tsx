@@ -31,6 +31,7 @@ type AuthContextType = {
     personalId: string,
     volunteerId?: string
   ) => Promise<{ isValid: boolean; errors: string[] }>;
+  refetchProfile: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -47,43 +48,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const fetchingProfile = useRef(false);
   const initializingAuth = useRef(false);
   const mountedRef = useRef(true);
+  const profileFetchAttempts = useRef(0);
+  const maxProfileFetchAttempts = 3;
 
-  // Enhanced profile fetch with better error handling and timeout
-  const fetchProfile = useCallback(async (uid: string, maxRetries: number = 2): Promise<any> => {
+  // Enhanced profile fetch with better error handling and retry logic
+  const fetchProfile = useCallback(async (uid: string, forceRefresh = false): Promise<any> => {
     if (!mountedRef.current || !uid) return null;
     
-    // Prevent concurrent fetches for the same user
-    if (fetchingProfile.current) {
+    // Prevent concurrent fetches for the same user unless forced
+    if (fetchingProfile.current && !forceRefresh) {
       console.log('Profile fetch already in progress, skipping...');
       return null;
     }
 
     fetchingProfile.current = true;
-    console.log(`Fetching profile for user ${uid}`);
+    console.log(`Fetching profile for user ${uid} (attempt ${profileFetchAttempts.current + 1})`);
 
     try {
-      // Add timeout to prevent hanging requests
-      const fetchWithTimeout = new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Profile fetch timeout'));
-        }, 10000); // 10 second timeout
-
-        supabase
-          .from("users_profiles")
-          .select("*")
-          .eq("id", uid)
-          .single()
-          .then((result) => {
-            clearTimeout(timeout);
-            resolve(result);
-          })
-          .catch((error) => {
-            clearTimeout(timeout);
-            reject(error);
-          });
-      });
-
-      const { data, error } = await fetchWithTimeout as any;
+      const { data, error } = await supabase
+        .from("users_profiles")
+        .select("*")
+        .eq("id", uid)
+        .single();
 
       if (!mountedRef.current) {
         fetchingProfile.current = false;
@@ -92,23 +78,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (error) {
         console.log('Profile fetch error:', error);
-        fetchingProfile.current = false;
         
-        // Don't retry on certain errors
+        // Don't retry on "no rows found" errors
         if (error.code === 'PGRST116' || error.message?.includes('No rows found')) {
           console.log('Profile not found for user:', uid);
+          profileFetchAttempts.current = maxProfileFetchAttempts; // Stop retrying
+          fetchingProfile.current = false;
           return null;
         }
         
         // Retry on network/permission errors
-        if (maxRetries > 0 && (error.code === 'PGRST301' || error.code === '42501')) {
-          console.log(`Retrying profile fetch in 2 seconds... (${maxRetries} retries left)`);
+        if (profileFetchAttempts.current < maxProfileFetchAttempts && 
+            (error.code === 'PGRST301' || error.code === '42501' || error.message?.includes('network'))) {
+          
+          profileFetchAttempts.current++;
+          console.log(`Retrying profile fetch in 2 seconds... (${profileFetchAttempts.current}/${maxProfileFetchAttempts})`);
+          
           setTimeout(() => {
             if (mountedRef.current) {
               fetchingProfile.current = false;
-              fetchProfile(uid, maxRetries - 1);
+              fetchProfile(uid);
             }
           }, 2000);
+        } else {
+          fetchingProfile.current = false;
         }
         
         return null;
@@ -116,6 +109,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (data) {
         console.log('✅ Profile fetched successfully:', data.role);
+        profileFetchAttempts.current = 0; // Reset attempts on success
+        
         if (mountedRef.current) {
           setProfile(data);
         }
@@ -128,9 +123,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } catch (error) {
       console.log('Profile fetch exception:', error);
       fetchingProfile.current = false;
+      
+      // Retry on exceptions if we haven't exceeded max attempts
+      if (profileFetchAttempts.current < maxProfileFetchAttempts) {
+        profileFetchAttempts.current++;
+        setTimeout(() => {
+          if (mountedRef.current) {
+            fetchProfile(uid);
+          }
+        }, 2000);
+      }
+      
       return null;
     }
   }, []);
+
+  // Manual profile refetch function
+  const refetchProfile = useCallback(async () => {
+    if (user?.id) {
+      profileFetchAttempts.current = 0; // Reset attempts
+      await fetchProfile(user.id, true); // Force refresh
+    }
+  }, [user?.id, fetchProfile]);
 
   // Initialize auth on mount with better error handling
   useEffect(() => {
@@ -145,16 +159,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.log('🔄 Initializing authentication...');
 
       try {
-        // Set a timeout for session fetch
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => {
-          setTimeout(() => reject(new Error('Session fetch timeout')), 8000);
-        });
-
-        const { data: { session }, error } = await Promise.race([
-          sessionPromise,
-          timeoutPromise
-        ]) as any;
+        const { data: { session }, error } = await supabase.auth.getSession();
         
         if (!mountedRef.current) return;
 
@@ -211,14 +216,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setUser(null);
           setProfile(null);
           fetchingProfile.current = false;
+          profileFetchAttempts.current = 0;
           return;
         }
 
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           if (session.user) {
             setUser(session.user);
-            // Only fetch profile if we don't have one or it's a different user
+            // Reset profile fetch attempts for new user
             if (!profile || profile.id !== session.user.id) {
+              profileFetchAttempts.current = 0;
               fetchProfile(session.user.id).catch(console.error);
             }
           }
@@ -237,10 +244,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       mountedRef.current = false;
       fetchingProfile.current = false;
       initializingAuth.current = false;
+      profileFetchAttempts.current = 0;
     };
   }, []);
 
-  // Sign up function
+  // Sign up function for regular attendees
   const signUp = async (email: string, password: string, profileData: any) => {
     try {
       console.log('🔄 Starting attendee registration...');
@@ -256,6 +264,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       
       if (result.data?.user && mountedRef.current) {
         setUser(result.data.user);
+        profileFetchAttempts.current = 0; // Reset attempts for new user
         fetchProfile(result.data.user.id).catch(console.error);
       }
 
@@ -285,6 +294,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       
       if (result.data?.user && mountedRef.current) {
         setUser(result.data.user);
+        profileFetchAttempts.current = 0; // Reset attempts for new user
         fetchProfile(result.data.user.id).catch(console.error);
       }
 
@@ -313,7 +323,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         console.log('✅ Sign in successful, updating state...');
         setUser(data.user);
         
-        // Fetch profile and wait for it
+        // Reset attempts and fetch profile
+        profileFetchAttempts.current = 0;
         const profileData = await fetchProfile(data.user.id);
         
         console.log('✅ Sign in process completed');
@@ -336,6 +347,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setUser(null);
       setProfile(null);
       fetchingProfile.current = false;
+      profileFetchAttempts.current = 0;
       
       // Then sign out from Supabase
       const { error } = await supabase.auth.signOut();
@@ -416,6 +428,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         hasRole,
         getRoleBasedRedirect,
         validateRegistration,
+        refetchProfile,
       }}
     >
       {children}
