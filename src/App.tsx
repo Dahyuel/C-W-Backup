@@ -19,73 +19,94 @@ import { TeamLeaderDashboard } from './pages/team/TeamLeaderDashboard';
 import { AdminPanel } from './pages/admin/AdminPanel';
 import { SuperAdminPanel } from './pages/admin/SuperAdminPanel';
 
-// Updated App.tsx
 function App() {
-  const { isAuthenticated, profile, loading } = useAuth();
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <Router>
       <AuthProvider>
         <Routes>
-          {/* Public routes - redirect to dashboard if already authenticated */}
+          {/* Public Routes */}
+          <Route path="/login" element={<LoginForm />} />
+          <Route path="/register" element={<RegistrationForm />} />
+          <Route path="/forgot-password" element={<ForgotPasswordForm />} />
+          <Route path="/V0lunt33ringR3g" element={<VolunteerRegistration />} />
+          
+          {/* Protected Routes */}
           <Route 
-            path="/login" 
+            path="/attendee" 
             element={
-              !isAuthenticated ? <LoginForm /> : <Navigate to={getRoleBasedRedirect()} replace />
-            } 
-          />
-          <Route 
-            path="/register" 
-            element={
-              !isAuthenticated ? <RegistrationForm /> : <Navigate to={getRoleBasedRedirect()} replace />
-            } 
-          />
-          <Route 
-            path="/forgot-password" 
-            element={
-              !isAuthenticated ? <ForgotPasswordForm /> : <Navigate to={getRoleBasedRedirect()} replace />
-            } 
-          />
-          <Route 
-            path="/V0lunt33ringR3g" 
-            element={
-              !isAuthenticated ? <VolunteerRegistration /> : <Navigate to={getRoleBasedRedirect()} replace />
+              <ProtectedRoute requiredRole="attendee">
+                <AttendeeDashboard />
+              </ProtectedRoute>
             } 
           />
           
-          {/* Protected routes */}
-          <Route path="/attendee" element={<ProtectedRoute requiredRole="attendee"><AttendeeDashboard /></ProtectedRoute>} />
-          <Route path="/volunteer" element={<ProtectedRoute requiredRole="volunteer"><VolunteerDashboard /></ProtectedRoute>} />
-          <Route path="/regteam" element={<ProtectedRoute requiredRole="registration"><RegTeamDashboard /></ProtectedRoute>} />
-          <Route path="/buildteam" element={<ProtectedRoute requiredRole="building"><BuildTeamDashboard /></ProtectedRoute>} />
-          <Route path="/infodesk" element={<ProtectedRoute requiredRole="info_desk"><InfoDeskDashboard /></ProtectedRoute>} />
-          <Route path="/teamleader" element={<ProtectedRoute requiredRole="team_leader"><TeamLeaderDashboard /></ProtectedRoute>} />
-          <Route path="/secure-9821panel" element={<ProtectedRoute requiredRole="admin"><AdminPanel /></ProtectedRoute>} />
-          <Route path="/super-ctrl-92k1x" element={<ProtectedRoute requiredRole="sadmin"><SuperAdminPanel /></ProtectedRoute>} />
-          
-          {/* Root redirect */}
           <Route 
-            path="/" 
+            path="/volunteer" 
             element={
-              isAuthenticated ? 
-                <Navigate to={getRoleBasedRedirect()} replace /> : 
-                <Navigate to="/login" replace />
+              <ProtectedRoute requiredRole="volunteer">
+                <VolunteerDashboard />
+              </ProtectedRoute>
             } 
           />
           
-          {/* Catch all route */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route 
+            path="/regteam" 
+            element={
+              <ProtectedRoute requiredRole={['registration']}>
+                <RegTeamDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/buildteam" 
+            element={
+              <ProtectedRoute requiredRole={['building']}>
+                <BuildTeamDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Create a separate component for infodesk if it should be different */}
+          <Route 
+            path="/infodesk" 
+            element={
+              <ProtectedRoute requiredRole={['info_desk']}>
+                <InfoDeskDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/teamleader" 
+            element={
+              <ProtectedRoute requiredRole={['team_leader']}>
+                <TeamLeaderDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/secure-9821panel" 
+            element={
+              <ProtectedRoute requiredRole="admin">
+                <AdminPanel />
+              </ProtectedRoute>
+            } 
+          />
+          
+          <Route 
+            path="/super-ctrl-92k1x" 
+            element={
+              <ProtectedRoute requiredRole="sadmin">
+                <SuperAdminPanel />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Default redirect */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </AuthProvider>
     </Router>
