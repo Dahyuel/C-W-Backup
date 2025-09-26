@@ -1,12 +1,14 @@
-// src/contexts/AuthContext.tsx - Updated with enhanced validation
-import React, { createContext, useContext, useEffect, useState } from "react";
+// src/contexts/AuthContext.tsx - Enhanced with robust session management
+import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { supabase, signUpUser, signUpVolunteer, signInUser, validateRegistrationData } from "../lib/supabase";
+import type { User, Session } from '@supabase/supabase-js';
 
 type AuthContextType = {
-  user: any;
+  user: User | null;
   profile: any;
   loading: boolean;
   isAuthenticated: boolean;
+  sessionLoaded: boolean;
   signUp: (
     email: string,
     password: string,
@@ -29,6 +31,7 @@ type AuthContextType = {
     personalId: string,
     volunteerId?: string
   ) => Promise<{ isValid: boolean; errors: string[] }>;
+  refreshProfile: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,77 +39,257 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
 
-  // 🔹 Fetch profile from DB
-  const fetchProfile = async (uid: string) => {
+  // 🔹 Session storage helpers
+  const saveProfileToSession = (profileData: any) => {
     try {
-      const { data, error } = await supabase
-        .from("users_profiles")
-        .select("*")
-        .eq("id", uid)
-        .single();
-
-      if (!error && data) {
-        setProfile(data);
-        console.log('✅ Profile fetched:', data.role);
-      } else {
-        console.error('Profile fetch error:', error);
-        setProfile(null);
-      }
+      sessionStorage.setItem('user_profile', JSON.stringify(profileData));
     } catch (error) {
-      console.error('Profile fetch exception:', error);
-      setProfile(null);
+      console.warn('Could not save profile to session storage:', error);
     }
   };
 
-  // 🔹 Load session & profile on mount
-  useEffect(() => {
-    const initAuth = async () => {
+  const getProfileFromSession = () => {
+    try {
+      const stored = sessionStorage.getItem('user_profile');
+      return stored ? JSON.parse(stored) : null;
+    } catch (error) {
+      console.warn('Could not read profile from session storage:', error);
+      return null;
+    }
+  };
+
+  const clearProfileFromSession = () => {
+    try {
+      sessionStorage.removeItem('user_profile');
+    } catch (error) {
+      console.warn('Could not clear profile from session storage:', error);
+    }
+  };
+
+  // 🔹 Enhanced profile fetching with session storage and retry logic
+  const fetchProfile = useCallback(async (uid: string, retries = 3): Promise<boolean> => {
+    // First check session storage for cached profile
+    const cachedProfile = getProfileFromSession();
+    if (cachedProfile && cachedProfile.id === uid) {
+      console.log('✅ Using cached profile:', cachedProfile.role);
+      setProfile(cachedProfile);
+      return true;
+    }
+
+    for (let attempt = 1; attempt <= retries; attempt++) {
       try {
-        const { data, error } = await supabase.auth.getSession();
-        if (!error && data.session?.user) {
-          setUser(data.session.user);
-          await fetchProfile(data.session.user.id);
+        console.log(`🔄 Fetching profile (attempt ${attempt}/${retries}) for user:`, uid);
+        
+        const { data, error } = await supabase
+          .from("users_profiles")
+          .select("*")
+          .eq("id", uid)
+          .single();
+
+        if (error) {
+          console.error(`❌ Profile fetch error (attempt ${attempt}):`, error);
+          
+          // If it's the last attempt or a non-retryable error, handle it
+          if (attempt === retries || error.code === 'PGRST116') { // PGRST116 = no rows returned
+            console.error('Profile not found or fetch failed permanently');
+            
+            // If we have a cached profile, use it as fallback
+            if (cachedProfile && cachedProfile.id === uid) {
+              console.log('🔄 Using cached profile as fallback');
+              setProfile(cachedProfile);
+              return true;
+            }
+            
+            setProfile(null);
+            clearProfileFromSession();
+            return false;
+          }
+          
+          // Wait before retry
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          continue;
         }
+
+        if (data) {
+          console.log('✅ Profile fetched successfully:', data.role);
+          setProfile(data);
+          saveProfileToSession(data);
+          return true;
+        }
+
+        console.warn('No profile data returned');
+        
+        // Use cached profile as fallback
+        if (cachedProfile && cachedProfile.id === uid) {
+          console.log('🔄 Using cached profile as fallback');
+          setProfile(cachedProfile);
+          return true;
+        }
+        
+        setProfile(null);
+        clearProfileFromSession();
+        return false;
       } catch (error) {
-        console.error('Auth initialization error:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    initAuth();
-
-    // 🔹 Listen for auth state changes
-    const { data: subscription } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state change:', event);
-        
-        const u = session?.user ?? null;
-        setUser(u);
-        
-        if (u) {
-          await fetchProfile(u.id);
-        } else {
+        console.error(`Profile fetch exception (attempt ${attempt}):`, error);
+        if (attempt === retries) {
+          // Use cached profile as final fallback
+          if (cachedProfile && cachedProfile.id === uid) {
+            console.log('🔄 Using cached profile as final fallback');
+            setProfile(cachedProfile);
+            return true;
+          }
+          
           setProfile(null);
+          clearProfileFromSession();
+          return false;
         }
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
       }
-    );
-
-    return () => {
-      subscription.subscription.unsubscribe();
-    };
+    }
+    return false;
   }, []);
 
-  // ✅ Enhanced SIGN UP for attendees with pre-validation
+  // 🔹 Handle auth state changes
+  const handleAuthStateChange = useCallback(async (event: string, session: Session | null) => {
+    console.log('🔄 Auth state change:', event, session ? 'Session exists' : 'No session');
+    
+    try {
+      if (session?.user) {
+        console.log('Setting user from session:', session.user.id);
+        setUser(session.user);
+        
+        // Set session loaded immediately - don't wait for profile
+        setSessionLoaded(true);
+        
+        // Fetch profile for authenticated user (non-blocking)
+        fetchProfile(session.user.id).then(profileFetched => {
+          if (!profileFetched) {
+            console.warn('⚠️ Could not fetch profile, but session is valid');
+          }
+          setLoading(false);
+        }).catch(error => {
+          console.error('Profile fetch failed:', error);
+          setLoading(false);
+        });
+      } else {
+        console.log('Clearing user and profile');
+        setUser(null);
+        setProfile(null);
+        clearProfileFromSession();
+        setSessionLoaded(true);
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error('Error handling auth state change:', error);
+      setUser(null);
+      setProfile(null);
+      clearProfileFromSession();
+      setSessionLoaded(true);
+      setLoading(false);
+    }
+  }, [fetchProfile]);
+
+  // 🔹 Initialize auth on mount
+  useEffect(() => {
+    let mounted = true;
+    let authListener: any = null;
+
+    const initializeAuth = async () => {
+      try {
+        console.log('🚀 Initializing authentication...');
+        
+        // Get current session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('❌ Error getting session:', error);
+          if (mounted) {
+            setUser(null);
+            setProfile(null);
+            clearProfileFromSession();
+            setSessionLoaded(true);
+            setLoading(false);
+          }
+          return;
+        }
+
+        if (session?.user && mounted) {
+          console.log('✅ Found existing session for user:', session.user.id);
+          setUser(session.user);
+          setSessionLoaded(true); // Set this immediately
+          
+          // Fetch profile asynchronously
+          fetchProfile(session.user.id).then(profileFetched => {
+            if (mounted) {
+              if (!profileFetched) {
+                console.warn('⚠️ Profile not found for authenticated user');
+              }
+              setLoading(false);
+            }
+          }).catch(error => {
+            console.error('Profile fetch error during init:', error);
+            if (mounted) {
+              setLoading(false);
+            }
+          });
+        } else {
+          console.log('ℹ️ No existing session found');
+          if (mounted) {
+            setUser(null);
+            setProfile(null);
+            clearProfileFromSession();
+            setSessionLoaded(true);
+            setLoading(false);
+          }
+        }
+
+      } catch (error) {
+        console.error('❌ Auth initialization error:', error);
+        if (mounted) {
+          setUser(null);
+          setProfile(null);
+          clearProfileFromSession();
+          setSessionLoaded(true);
+          setLoading(false);
+        }
+      }
+    };
+
+    // Start initialization
+    initializeAuth();
+
+    // Set up auth listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange);
+    authListener = subscription;
+
+    // Cleanup function
+    return () => {
+      mounted = false;
+      if (authListener) {
+        authListener.unsubscribe();
+      }
+    };
+  }, []); // Remove dependencies to prevent re-initialization
+
+  // 🔹 Refresh profile manually
+  const refreshProfile = useCallback(async () => {
+    if (user?.id) {
+      console.log('🔄 Manually refreshing profile...');
+      await fetchProfile(user.id);
+    }
+  }, [user?.id, fetchProfile]);
+
+  // 🔹 Enhanced SIGN UP for attendees
   const signUp = async (email: string, password: string, profileData: any) => {
     try {
-      console.log('🔄 Starting attendee registration with validation...');
+      console.log('🔄 Starting attendee registration...');
+      setLoading(true);
       
-      // Use the enhanced signUpUser function which includes validation
       const result = await signUpUser(email, password, profileData);
       
       if (result.error) {
@@ -116,11 +299,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       console.log('✅ Registration successful');
       
-      // Fetch the newly created profile
-      if (result.data?.user) {
-        await fetchProfile(result.data.user.id);
-      }
-
+      // The auth state listener will handle setting user and fetching profile
       return result;
     } catch (error: any) {
       console.error('Registration exception:', error);
@@ -128,15 +307,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         data: null, 
         error: { message: error.message || 'Registration failed' } 
       };
+    } finally {
+      setLoading(false);
     }
   };
 
-  // ✅ Enhanced SIGN UP for volunteers with pre-validation
+  // 🔹 Enhanced SIGN UP for volunteers
   const signUpVolunteerFunc = async (email: string, password: string, profileData: any) => {
     try {
-      console.log('🔄 Starting volunteer registration with validation...');
+      console.log('🔄 Starting volunteer registration...');
+      setLoading(true);
       
-      // Use the imported signUpVolunteer function from lib/supabase
       const result = await signUpVolunteer(email, password, profileData);
       
       if (result.error) {
@@ -146,11 +327,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       console.log('✅ Volunteer registration successful');
       
-      // Fetch the newly created profile
-      if (result.data?.user) {
-        await fetchProfile(result.data.user.id);
-      }
-
+      // The auth state listener will handle setting user and fetching profile
       return result;
     } catch (error: any) {
       console.error('Volunteer registration exception:', error);
@@ -158,12 +335,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         data: null, 
         error: { message: error.message || 'Volunteer registration failed' } 
       };
+    } finally {
+      setLoading(false);
     }
   };
 
-  // ✅ SIGN IN
+  // 🔹 Enhanced SIGN IN
   const signIn = async (email: string, password: string) => {
     try {
+      console.log('🔄 Starting sign in...');
+      setLoading(true);
+      
       const { data, error } = await signInUser(email, password);
 
       if (error) {
@@ -171,32 +353,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         return { error };
       }
 
-      if (data.user) {
-        setUser(data.user);
-        await fetchProfile(data.user.id);
-        console.log('✅ Sign in successful');
-      }
-
+      console.log('✅ Sign in successful');
+      
+      // The auth state listener will handle setting user and fetching profile
       return { error: null };
     } catch (error: any) {
       console.error('Sign in exception:', error);
       return { error: { message: error.message || 'Sign in failed' } };
+    } finally {
+      setLoading(false);
     }
   };
   
-  // ✅ SIGN OUT
+  // 🔹 Enhanced SIGN OUT
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      console.log('🔄 Signing out...');
+      setLoading(true);
+      
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Sign out error:', error);
+      } else {
+        console.log('✅ Signed out successfully');
+      }
+      
+      // Clear session storage and state
+      clearProfileFromSession();
       setUser(null);
       setProfile(null);
-      console.log('✅ Signed out successfully');
+      
+      // Auth state listener will handle the rest
     } catch (error) {
-      console.error('Sign out error:', error);
+      console.error('Sign out exception:', error);
+      // Still clear local state
+      clearProfileFromSession();
+      setUser(null);
+      setProfile(null);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // ✅ VALIDATION HELPER - expose validation function for form validation
+  // 🔹 VALIDATION HELPER
   const validateRegistration = async (
     email: string,
     personalId: string,
@@ -205,7 +405,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return await validateRegistrationData(email, personalId, volunteerId);
   };
 
-  // ✅ ROLE HELPERS
+  // 🔹 ROLE HELPERS
   const hasRole = (roles: string | string[]) => {
     if (!profile?.role) return false;
     if (Array.isArray(roles)) {
@@ -238,13 +438,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  // 🔹 Computed values - Updated logic for authentication
+  // A user is authenticated if they have a valid session (user) 
+  // We'll allow access even if profile is temporarily unavailable
+  const isAuthenticated = !!user && sessionLoaded;
+  
+  console.log('Auth Context State:', {
+    hasUser: !!user,
+    hasProfile: !!profile,
+    loading,
+    sessionLoaded,
+    isAuthenticated,
+    userRole: profile?.role
+  });
+
   return (
     <AuthContext.Provider
       value={{
         user,
         profile,
         loading,
-        isAuthenticated: !!user,
+        sessionLoaded,
+        isAuthenticated,
         signUp,
         signUpVolunteer: signUpVolunteerFunc,
         signIn,
@@ -252,6 +467,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         hasRole,
         getRoleBasedRedirect,
         validateRegistration,
+        refreshProfile,
       }}
     >
       {children}
@@ -259,9 +475,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 };
 
-// ✅ Hook
+// ✅ Hook with better error handling
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used within an AuthProvider");
+  if (!context) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
   return context;
 };
