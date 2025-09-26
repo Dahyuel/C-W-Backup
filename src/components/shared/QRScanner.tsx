@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, CheckCircle, AlertCircle, Scan } from 'lucide-react';
-import jsQR from 'jsqr';
 
 interface QRScannerProps {
   onScan: (data: string) => void;
@@ -8,6 +7,12 @@ interface QRScannerProps {
   isOpen: boolean;
   title?: string;
   description?: string;
+}
+
+declare global {
+  interface Window {
+    ZXing: any;
+  }
 }
 
 export const QRScanner: React.FC<QRScannerProps> = ({
@@ -24,21 +29,37 @@ export const QRScanner: React.FC<QRScannerProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const scanningRef = useRef<boolean>(false);
+  const animationRef = useRef<number>();
+  const codeReaderRef = useRef<any>(null);
 
   const stopCamera = () => {
     scanningRef.current = false;
     setIsScanning(false);
     setCameraStarted(false);
     
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+    }
+    
+    if (codeReaderRef.current) {
+      try {
+        codeReaderRef.current.reset();
+      } catch (e) {
+        console.log('Error resetting code reader:', e);
+      }
+    }
+    
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current.getTracks().forEach(track => {
+        track.stop();
+      });
       streamRef.current = null;
     }
   };
 
   useEffect(() => {
     if (isOpen) {
-      startCamera();
+      loadZXingLibrary();
     } else {
       stopCamera();
       setScanSuccess(false);
@@ -50,6 +71,24 @@ export const QRScanner: React.FC<QRScannerProps> = ({
     };
   }, [isOpen]);
 
+  const loadZXingLibrary = () => {
+    if (!window.ZXing) {
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/@zxing/library@latest/umd/index.min.js';
+      script.onload = () => {
+        console.log('ZXing library loaded');
+        startCamera();
+      };
+      script.onerror = () => {
+        console.error('Failed to load ZXing library');
+        setError('Failed to load QR scanner library');
+      };
+      document.head.appendChild(script);
+    } else {
+      startCamera();
+    }
+  };
+
   const startCamera = async () => {
     try {
       setError(null);
@@ -58,13 +97,31 @@ export const QRScanner: React.FC<QRScannerProps> = ({
       
       console.log('Requesting camera access...');
       
-      const stream = await navigator.mediaDevices.getUserMedia({
+      // Get camera stream
+      const constraints = {
         video: {
-          facingMode: 'environment',
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        }
-      });
+          facingMode: { ideal: 'environment' },
+          width: { min: 320, ideal: 640, max: 1920 },
+          height: { min: 240, ideal: 480, max: 1080 },
+          frameRate: { ideal: 30, max: 60 }
+        },
+        audio: false
+      };
+
+      let stream: MediaStream;
+      
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (envError) {
+        console.log('Environment camera failed, trying any camera:', envError);
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { min: 320, ideal: 640, max: 1920 },
+            height: { min: 240, ideal: 480, max: 1080 }
+          },
+          audio: false
+        });
+      }
       
       console.log('Camera access granted');
       streamRef.current = stream;
@@ -85,81 +142,121 @@ export const QRScanner: React.FC<QRScannerProps> = ({
               })
               .catch((err) => {
                 console.error('Error playing video:', err);
-                setError('Failed to start video');
+                setError('Failed to start video preview');
               });
           }
         };
 
         videoRef.current.onerror = (err) => {
           console.error('Video error:', err);
-          setError('Video playback error');
+          setError('Camera error occurred');
         };
       }
     } catch (err: any) {
       console.error('Camera error:', err);
       if (err.name === 'NotAllowedError') {
-        setError('Camera permission denied. Please allow camera access.');
+        setError('Camera permission denied. Please allow camera access and refresh the page.');
       } else if (err.name === 'NotFoundError') {
-        setError('No camera found.');
+        setError('No camera found on this device.');
+      } else if (err.name === 'NotReadableError') {
+        setError('Camera is being used by another application.');
       } else {
-        setError('Unable to access camera: ' + err.message);
+        setError(`Camera access failed: ${err.message || 'Unknown error'}`);
       }
     }
   };
 
   const startScanning = () => {
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    
-    const tick = () => {
-      if (!scanningRef.current || !videoRef.current || !context) return;
+    if (!window.ZXing) {
+      setError('QR scanner library not loaded');
+      return;
+    }
+
+    try {
+      // Initialize ZXing code reader
+      const codeReader = new window.ZXing.BrowserQRCodeReader();
+      codeReaderRef.current = codeReader;
+
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
       
-      const video = videoRef.current;
-      
-      if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
+      if (!context) {
+        setError('Canvas not supported');
+        return;
+      }
+
+      const tick = () => {
+        if (!scanningRef.current || !videoRef.current || !context) {
+          return;
+        }
         
-        if (canvas.width > 0 && canvas.height > 0) {
-          context.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        const video = videoRef.current;
+        
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          const { videoWidth, videoHeight } = video;
           
-          const code = jsQR(imageData.data, imageData.width, imageData.height, {
-            inversionAttempts: "dontInvert",
-          });
-          
-          if (code) {
-            console.log('QR Code found:', code.data);
-            handleSuccessfulScan(code.data);
-            return;
+          if (videoWidth > 0 && videoHeight > 0) {
+            canvas.width = videoWidth;
+            canvas.height = videoHeight;
+            
+            try {
+              context.drawImage(video, 0, 0, videoWidth, videoHeight);
+              const imageData = context.getImageData(0, 0, videoWidth, videoHeight);
+              
+              // Use ZXing to decode QR code
+              const luminanceSource = new window.ZXing.RGBLuminanceSource(
+                new Uint8ClampedArray(imageData.data.buffer),
+                videoWidth,
+                videoHeight
+              );
+              const binaryBitmap = new window.ZXing.BinaryBitmap(
+                new window.ZXing.HybridBinarizer(luminanceSource)
+              );
+              
+              try {
+                const result = codeReader.decode(binaryBitmap);
+                if (result && result.text) {
+                  console.log('QR Code found:', result.text);
+                  handleSuccessfulScan(result.text);
+                  return;
+                }
+              } catch (decodeError) {
+                // No QR code found in this frame, continue scanning
+              }
+            } catch (drawError) {
+              console.error('Drawing/decoding error:', drawError);
+            }
           }
         }
-      }
+        
+        if (scanningRef.current) {
+          animationRef.current = requestAnimationFrame(tick);
+        }
+      };
       
-      if (scanningRef.current) {
-        requestAnimationFrame(tick);
-      }
-    };
-    
-    tick();
+      tick();
+    } catch (scanError) {
+      console.error('Scanner initialization error:', scanError);
+      setError('Failed to initialize QR scanner');
+    }
   };
 
   const handleSuccessfulScan = (data: string) => {
+    if (!data || data.trim() === '') {
+      console.log('Invalid QR code data');
+      return;
+    }
+
+    console.log('Processing scanned UUID/ID:', data);
+    
     scanningRef.current = false;
     setScanSuccess(true);
     setIsScanning(false);
     
     setTimeout(() => {
-      onScan(data);
+      onScan(data.trim());
       onClose();
     }, 1000);
-  };
-
-  const handleManualInput = () => {
-    const input = prompt('Enter Personal ID:');
-    if (input && input.trim()) {
-      handleSuccessfulScan(input.trim());
-    }
   };
 
   if (!isOpen) return null;
@@ -189,8 +286,8 @@ export const QRScanner: React.FC<QRScannerProps> = ({
                 <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Scan Successful!</h3>
-                <p className="text-gray-600">Processing attendee information...</p>
+                <h3 className="text-lg font-semibold text-gray-900">QR Code Scanned!</h3>
+                <p className="text-gray-600">Loading attendee information...</p>
               </div>
             </div>
           ) : error ? (
@@ -199,34 +296,23 @@ export const QRScanner: React.FC<QRScannerProps> = ({
                 <AlertCircle className="w-8 h-8 text-red-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Camera Error</h3>
-                <p className="text-gray-600 mb-4">{error}</p>
-                <div className="space-y-2">
-                  <button
-                    onClick={startCamera}
-                    className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors"
-                  >
-                    Try Again
-                  </button>
-                  <button
-                    onClick={handleManualInput}
-                    className="w-full bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
-                  >
-                    Enter Personal ID Manually
-                  </button>
-                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Scanner Error</h3>
+                <p className="text-gray-600 mb-4 text-sm">{error}</p>
+                <button
+                  onClick={startCamera}
+                  className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors"
+                >
+                  Try Again
+                </button>
               </div>
             </div>
           ) : !cameraStarted ? (
             <div className="text-center space-y-4">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
               <p className="text-gray-600">Starting camera...</p>
-              <button
-                onClick={handleManualInput}
-                className="w-full bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors text-sm"
-              >
-                Skip and enter manually
-              </button>
+              <p className="text-xs text-gray-500">
+                Please allow camera access when prompted
+              </p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -253,7 +339,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
                     
                     {/* Scanning Line Animation */}
                     <div className="absolute inset-0 overflow-hidden">
-                      <div className="w-full h-0.5 bg-orange-500 opacity-75 animate-pulse"></div>
+                      <div className="w-full h-0.5 bg-orange-500 opacity-75 animate-pulse transform translate-y-24"></div>
                     </div>
                   </div>
                 </div>
@@ -269,18 +355,10 @@ export const QRScanner: React.FC<QRScannerProps> = ({
                 )}
               </div>
 
-              {/* Manual Input Option */}
-              <div className="space-y-2">
-                <button
-                  onClick={handleManualInput}
-                  className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors text-sm"
-                >
-                  Can't scan? Enter Personal ID manually
-                </button>
-                
-                {/* Instructions */}
-                <p className="text-xs text-gray-500 text-center">
-                  Position the QR code clearly within the frame. Make sure there's adequate lighting.
+              {/* Instructions */}
+              <div className="text-center">
+                <p className="text-xs text-gray-500">
+                  Position the QR code clearly within the frame. Ensure good lighting for best results.
                 </p>
               </div>
             </div>

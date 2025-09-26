@@ -1,4 +1,4 @@
-// lib/supabase.ts - Enhanced with email column and proper validation
+// lib/supabase.ts - Enhanced with UUID search support and dynamic attendee search
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://ypiwfedtvgmazqcwolac.supabase.co';
@@ -421,6 +421,7 @@ export const updateUserFiles = async (userId: string, filePaths: { university_id
     return { data: null, error: { message: error.message } };
   }
 };
+
 export const processAttendance = async (personalId: string, action: 'enter' | 'exit') => {
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -454,39 +455,7 @@ export const processAttendance = async (personalId: string, action: 'enter' | 'e
   }
 };
 
-// Search attendees (only from users_profiles)
-export const searchAttendees = async (searchTerm: string) => {
-  try {
-    const { data, error } = await supabase
-      .from('users_profiles')
-      .select(`
-        id,
-        first_name,
-        last_name,
-        email,
-        phone,
-        personal_id,
-        role,
-        university,
-        faculty
-      `)
-      .or(`personal_id.ilike.%${searchTerm}%,first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
-      .order('first_name')
-      .limit(10);
-
-    if (error) {
-      console.error('Search error:', error);
-      return { data: [], error };
-    }
-
-    return { data: data || [], error: null };
-  } catch (error: any) {
-    console.error('Search exception:', error);
-    return { data: [], error: { message: error.message } };
-  }
-};
-
-// Get attendee by personal ID
+// Get attendee by personal ID (only attendees)
 export const getAttendeeByPersonalId = async (personalId: string) => {
   try {
     const { data, error } = await supabase
@@ -504,10 +473,11 @@ export const getAttendeeByPersonalId = async (personalId: string) => {
         created_at
       `)
       .eq('personal_id', personalId.trim())
+      .eq('role', 'attendee') // Only get attendees
       .single();
 
     if (error) {
-      console.error('Get attendee error:', error);
+      console.error('Get attendee by Personal ID error:', error);
       return { data: null, error };
     }
 
@@ -529,8 +499,114 @@ export const getAttendeeByPersonalId = async (personalId: string) => {
       error: null 
     };
   } catch (error: any) {
-    console.error('Get attendee exception:', error);
+    console.error('Get attendee by Personal ID exception:', error);
     return { data: null, error: { message: error.message } };
+  }
+};
+
+// Get attendee by UUID (for QR code scans) - only attendees
+export const getAttendeeByUUID = async (uuid: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('users_profiles')
+      .select(`
+        id,
+        first_name,
+        last_name,
+        email,
+        phone,
+        personal_id,
+        role,
+        university,
+        faculty,
+        created_at
+      `)
+      .eq('id', uuid.trim())
+      .eq('role', 'attendee') // Only get attendees
+      .single();
+
+    if (error) {
+      console.error('Get attendee by UUID error:', error);
+      return { data: null, error };
+    }
+
+    // Get last attendance record to determine current status
+    const { data: lastAttendance } = await supabase
+      .from('attendances')
+      .select('scan_type, scanned_at')
+      .eq('user_id', data.id)
+      .order('scanned_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    return { 
+      data: {
+        ...data,
+        current_status: lastAttendance?.scan_type === 'entry' ? 'inside' : 'outside',
+        last_scan: lastAttendance?.scanned_at || null
+      }, 
+      error: null 
+    };
+  } catch (error: any) {
+    console.error('Get attendee by UUID exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
+// NEW: Dynamic search for attendees by partial Personal ID
+export const searchAttendeesByPersonalId = async (partialPersonalId: string) => {
+  try {
+    if (!partialPersonalId || partialPersonalId.trim().length < 2) {
+      return { data: [], error: null };
+    }
+
+    const { data, error } = await supabase
+      .from('users_profiles')
+      .select(`
+        id,
+        first_name,
+        last_name,
+        email,
+        phone,
+        personal_id,
+        role,
+        university,
+        faculty,
+        created_at
+      `)
+      .eq('role', 'attendee') // Only search attendees
+      .ilike('personal_id', `%${partialPersonalId.trim()}%`) // Search by partial Personal ID
+      .order('personal_id')
+      .limit(10); // Limit results to prevent overwhelming UI
+
+    if (error) {
+      console.error('Search attendees error:', error);
+      return { data: [], error };
+    }
+
+    // Get attendance status for each attendee
+    const attendeesWithStatus = await Promise.all(
+      data.map(async (attendee) => {
+        const { data: lastAttendance } = await supabase
+          .from('attendances')
+          .select('scan_type, scanned_at')
+          .eq('user_id', attendee.id)
+          .order('scanned_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        return {
+          ...attendee,
+          current_status: lastAttendance?.scan_type === 'entry' ? 'inside' : 'outside',
+          last_scan: lastAttendance?.scanned_at || null
+        };
+      })
+    );
+
+    return { data: attendeesWithStatus, error: null };
+  } catch (error: any) {
+    console.error('Search attendees exception:', error);
+    return { data: [], error: { message: error.message } };
   }
 };
 
