@@ -1,4 +1,4 @@
-import React, { ReactNode } from 'react';
+import React, { ReactNode, useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
   LogOut, 
@@ -12,8 +12,15 @@ import {
   Shield,
   Heart,
   BarChart3,
-  UserCheck
+  UserCheck,
+  ChevronDown,
+  X,
+  Eye,
+  EyeOff,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -21,11 +28,185 @@ interface DashboardLayoutProps {
   subtitle?: string;
 }
 
+interface Notification {
+  id: string;
+  title: string;
+  message: string;
+  sender: string;
+  created_at: string;
+  is_read: boolean;
+}
+
+interface PasswordChangeData {
+  oldPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subtitle }) => {
   const { profile, signOut } = useAuth();
+  
+  // State management
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const [showNotificationDropdown, setShowNotificationDropdown] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
+  
+  // Data state
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [passwordData, setPasswordData] = useState<PasswordChangeData>({
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [showPasswords, setShowPasswords] = useState({
+    old: false,
+    new: false,
+    confirm: false
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  // Refs for click outside detection
+  const profileDropdownRef = useRef<HTMLDivElement>(null);
+  const notificationDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fetch notifications on component mount
+  useEffect(() => {
+    fetchNotifications();
+  }, [profile?.id]);
+
+  // Click outside handlers
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
+        setShowProfileDropdown(false);
+      }
+      if (notificationDropdownRef.current && !notificationDropdownRef.current.contains(event.target as Node)) {
+        setShowNotificationDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const fetchNotifications = async () => {
+    if (!profile?.id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', profile.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) {
+        console.error('Error fetching notifications:', error);
+      } else if (data) {
+        setNotifications(data);
+      }
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
 
   const handleSignOut = async () => {
     await signOut();
+    setShowProfileDropdown(false);
+  };
+
+  const handleProfileClick = () => {
+    setShowProfileModal(true);
+    setShowProfileDropdown(false);
+  };
+
+  const handleNotificationClick = (notification: Notification) => {
+    setSelectedNotification(notification);
+    setShowNotificationModal(true);
+    setShowNotificationDropdown(false);
+  };
+
+  const markNotificationAsRead = async (notificationId: string) => {
+    try {
+      const { error } = await supabase
+        .from('notifications')
+        .update({ is_read: true })
+        .eq('id', notificationId);
+
+      if (!error) {
+        setNotifications(prev => 
+          prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
+        );
+        setShowNotificationModal(false);
+        setSelectedNotification(null);
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+
+    // Validation
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setError('New passwords do not match');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      setError('New password must be at least 6 characters long');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // First verify old password by attempting to sign in
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: profile?.email || '',
+        password: passwordData.oldPassword
+      });
+
+      if (verifyError) {
+        setError('Current password is incorrect');
+        setLoading(false);
+        return;
+      }
+
+      // Update password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: passwordData.newPassword
+      });
+
+      if (updateError) {
+        setError('Failed to update password. Please try again.');
+      } else {
+        setSuccess('Password updated successfully!');
+        setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
+        setTimeout(() => {
+          setShowPasswordModal(false);
+          setSuccess(null);
+        }, 2000);
+      }
+    } catch (error) {
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateQRCode = () => {
+    // In a real implementation, you'd generate a proper QR code
+    // For now, we'll show the user ID as QR data
+    return profile?.id || '';
   };
 
   const getRoleIcon = () => {
@@ -66,6 +247,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
     }
   };
 
+  const unreadCount = notifications.filter(n => !n.is_read).length;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white">
       {/* Header */}
@@ -74,10 +257,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
           <div className="flex justify-between items-center h-16">
             {/* Logo and Title */}
             <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">CW</span>
-                </div>
+              <div className="flex items-center space-x-3">
+                <img 
+                  src="/src/Assets/logo.png" 
+                  alt="Career Week Logo" 
+                  className="w-8 h-8 object-contain"
+                />
                 <span className="text-xl font-bold text-gray-900">Career Week</span>
               </div>
             </div>
@@ -85,39 +270,105 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
             {/* User Menu */}
             <div className="flex items-center space-x-4">
               {/* Notifications */}
-              <button className="p-2 text-gray-400 hover:text-orange-600 transition-colors">
-                <Bell className="h-5 w-5" />
-              </button>
+              <div className="relative" ref={notificationDropdownRef}>
+                <button 
+                  onClick={() => setShowNotificationDropdown(!showNotificationDropdown)}
+                  className="relative p-2 text-gray-400 hover:text-orange-600 transition-colors"
+                  aria-label="Notifications"
+                >
+                  <Bell className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </button>
 
-              {/* User Info */}
-              <div className="flex items-center space-x-3">
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">
-                    {profile?.first_name} {profile?.last_name}
-                  </p>
-                  <div className="flex items-center justify-end">
-                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRoleColor()}`}>
-                      {getRoleIcon()}
-                      <span className="ml-1 capitalize">{profile?.role}</span>
+                {/* Notification Dropdown */}
+                {showNotificationDropdown && (
+                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-y-auto">
+                    <div className="p-4 border-b border-gray-200">
+                      <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto">
+                      {notifications.length > 0 ? (
+                        notifications.map((notification) => (
+                          <button
+                            key={notification.id}
+                            onClick={() => handleNotificationClick(notification)}
+                            className={`w-full text-left p-4 hover:bg-gray-50 border-b border-gray-100 transition-colors ${
+                              !notification.is_read ? 'bg-orange-50' : ''
+                            }`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h4 className="font-medium text-gray-900 text-sm">{notification.title}</h4>
+                                <p className="text-sm text-gray-600 mt-1 line-clamp-2">{notification.message}</p>
+                                <p className="text-xs text-gray-500 mt-2">
+                                  {new Date(notification.created_at).toLocaleDateString()}
+                                </p>
+                              </div>
+                              {!notification.is_read && (
+                                <div className="w-2 h-2 bg-orange-500 rounded-full ml-2 mt-1"></div>
+                              )}
+                            </div>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="p-8 text-center text-gray-500">
+                          <Bell className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                          <p>No notifications yet</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Profile Menu */}
+              <div className="relative" ref={profileDropdownRef}>
+                <button
+                  onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                  className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                  aria-label="Profile menu"
+                >
+                  <div className="text-right hidden sm:block">
+                    <p className="text-sm font-medium text-gray-900">
+                      {profile?.first_name} {profile?.last_name}
+                    </p>
+                  </div>
+                  
+                  {/* Profile Picture */}
+                  <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center">
+                    <span className="text-white font-medium text-sm">
+                      {profile?.first_name?.charAt(0)}{profile?.last_name?.charAt(0)}
                     </span>
                   </div>
-                </div>
-                
-                {/* Profile Picture */}
-                <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center">
-                  <span className="text-white font-medium text-sm">
-                    {profile?.first_name?.charAt(0)}{profile?.last_name?.charAt(0)}
-                  </span>
-                </div>
 
-                {/* Sign Out */}
-                <button
-                  onClick={handleSignOut}
-                  className="p-2 text-gray-400 hover:text-red-600 transition-colors"
-                  title="Sign Out"
-                >
-                  <LogOut className="h-5 w-5" />
+                  <ChevronDown className="h-4 w-4 text-gray-400" />
                 </button>
+
+                {/* Profile Dropdown */}
+                {showProfileDropdown && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                    <div className="p-2">
+                      <button
+                        onClick={handleProfileClick}
+                        className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                      >
+                        <User className="h-4 w-4 mr-3" />
+                        Profile
+                      </button>
+                      <button
+                        onClick={handleSignOut}
+                        className="w-full flex items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                      >
+                        <LogOut className="h-4 w-4 mr-3" />
+                        Logout
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -137,6 +388,251 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
         {/* Page Content */}
         {children}
       </main>
+
+      {/* Profile Modal */}
+      {showProfileModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Profile Information</h2>
+                <button
+                  onClick={() => setShowProfileModal(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              {/* QR Code Section */}
+              <div className="text-center mb-6">
+                <div className="w-32 h-32 bg-gray-100 rounded-lg mx-auto mb-4 flex items-center justify-center">
+                  <div className="text-center">
+                    <QrCode className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                    <p className="text-xs text-gray-500">Your QR Code</p>
+                    <p className="text-xs text-gray-400 mt-1 font-mono">{generateQRCode()}</p>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600">Show this QR code for check-ins</p>
+              </div>
+
+              {/* Profile Information */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">First Name</label>
+                  <p className="mt-1 text-sm text-gray-900">{profile?.first_name}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Last Name</label>
+                  <p className="mt-1 text-sm text-gray-900">{profile?.last_name}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <p className="mt-1 text-sm text-gray-900">{profile?.email}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Phone</label>
+                  <p className="mt-1 text-sm text-gray-900">{profile?.phone || 'Not provided'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Personal ID</label>
+                  <p className="mt-1 text-sm text-gray-900">{profile?.personal_id || 'Not provided'}</p>
+                </div>
+              </div>
+
+              {/* Change Password Button */}
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <button
+                  onClick={() => setShowPasswordModal(true)}
+                  className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors"
+                >
+                  Change Password
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change Password Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Change Password</h2>
+                <button
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
+                    setError(null);
+                    setSuccess(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <form onSubmit={handlePasswordChange} className="space-y-4">
+                {/* Error/Success Messages */}
+                {error && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
+                    <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
+                    <p className="text-red-700 text-sm">{error}</p>
+                  </div>
+                )}
+                {success && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center">
+                    <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                    <p className="text-green-700 text-sm">{success}</p>
+                  </div>
+                )}
+
+                {/* Old Password */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Current Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPasswords.old ? 'text' : 'password'}
+                      value={passwordData.oldPassword}
+                      onChange={(e) => setPasswordData(prev => ({ ...prev, oldPassword: e.target.value }))}
+                      className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswords(prev => ({ ...prev, old: !prev.old }))}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                    >
+                      {showPasswords.old ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* New Password */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    New Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPasswords.new ? 'text' : 'password'}
+                      value={passwordData.newPassword}
+                      onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                      className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      required
+                      minLength={6}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                    >
+                      {showPasswords.new ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Confirm New Password */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Confirm New Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPasswords.confirm ? 'text' : 'password'}
+                      value={passwordData.confirmPassword}
+                      onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                      className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                      required
+                      minLength={6}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                    >
+                      {showPasswords.confirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Buttons */}
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPasswordModal(false);
+                      setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
+                      setError(null);
+                      setSuccess(null);
+                    }}
+                    className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? 'Updating...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notification Modal */}
+      {showNotificationModal && selectedNotification && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Notification</h2>
+                <button
+                  onClick={() => {
+                    setShowNotificationModal(false);
+                    setSelectedNotification(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold text-gray-900">{selectedNotification.title}</h3>
+                </div>
+                <div>
+                  <p className="text-gray-700">{selectedNotification.message}</p>
+                </div>
+                <div className="text-sm text-gray-500">
+                  <p>From: {selectedNotification.sender}</p>
+                  <p>Date: {new Date(selectedNotification.created_at).toLocaleString()}</p>
+                </div>
+              </div>
+
+              {!selectedNotification.is_read && (
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <button
+                    onClick={() => markNotificationAsRead(selectedNotification.id)}
+                    className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors"
+                  >
+                    Mark as Read
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
