@@ -1,10 +1,32 @@
-// src/lib/supabase.ts - Fixed with proper signUpVolunteer implementation
+// src/lib/supabase.ts - Fixed version
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl ='https://ypiwfedtvgmazqcwolac.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlwaXdmZWR0dmdtYXpxY3dvbGFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDYxMDIsImV4cCI6MjA3NDIyMjEwMn0.QnHPyeMBpezC-Q72fVDuRPdM5dkSYqoHC3uY_Dgsuxs';
+// Use environment variables from Create React App
+// These should be defined in your .env file with REACT_APP_ prefix
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
+const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Validate environment variables
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing Supabase environment variables:');
+  console.error('REACT_APP_SUPABASE_URL:', supabaseUrl ? '✓ Set' : '✗ Missing');
+  console.error('REACT_APP_SUPABASE_ANON_KEY:', supabaseAnonKey ? '✓ Set' : '✗ Missing');
+  
+  throw new Error(
+    'Supabase environment variables are not configured. ' +
+    'Please check your .env file and make sure REACT_APP_SUPABASE_URL and ' +
+    'REACT_APP_SUPABASE_ANON_KEY are set.'
+  );
+}
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+    flowType: 'pkce'
+  }
+});
 
 // Generate QR code for user
 const generateQRCode = (userId: string): string => {
@@ -49,8 +71,8 @@ export const signUpUser = async (email: string, password: string, profileData: a
         nationality: profileData.nationality || null,
         degree_level: profileData.degree_level || null,
         program: profileData.program || null,
-        class: profileData.class_year || null,
-        how_did_hear_about_event: profileData.how_did_you_hear || null,
+        class: profileData.class || null,
+        how_did_hear_about_event: profileData.how_did_hear_about_event || null,
         volunteer_id: profileData.volunteer_id || null,
         role: 'attendee', // Always attendee for regular signup
         qr_code: generateQRCode(authData.user.id),
@@ -62,9 +84,8 @@ export const signUpUser = async (email: string, password: string, profileData: a
     if (profileError) {
       console.error('❌ Profile creation error:', profileError);
       
-      // Clean up auth user if profile creation fails
-      await supabase.auth.admin.deleteUser(authData.user.id);
-      
+      // Note: We can't delete the auth user client-side due to permissions
+      // The user will need to contact admin if profile creation fails
       return { data: null, error: profileError };
     }
 
@@ -125,10 +146,6 @@ export const signUpVolunteer = async (email: string, password: string, profileDa
 
     if (profileError) {
       console.error('❌ Volunteer profile creation error:', profileError);
-      
-      // Clean up auth user if profile creation fails
-      await supabase.auth.admin.deleteUser(authData.user.id);
-      
       return { data: null, error: profileError };
     }
 
@@ -175,36 +192,42 @@ export const validateRegistrationData = async (
 
   try {
     // Check if email already exists
-    const { data: emailCheck } = await supabase
+    const { data: emailCheck, error: emailError } = await supabase
       .from('users_profiles')
       .select('id')
       .eq('email', email.trim().toLowerCase())
-      .single();
+      .maybeSingle();
 
-    if (emailCheck) {
+    if (emailError && emailError.code !== 'PGRST116') { // Ignore "not found" errors
+      console.error('Email validation error:', emailError);
+    } else if (emailCheck) {
       errors.push('Email address is already registered');
     }
 
     // Check if personal ID already exists
-    const { data: personalIdCheck } = await supabase
+    const { data: personalIdCheck, error: personalIdError } = await supabase
       .from('users_profiles')
       .select('id')
       .eq('personal_id', personalId.trim())
-      .single();
+      .maybeSingle();
 
-    if (personalIdCheck) {
+    if (personalIdError && personalIdError.code !== 'PGRST116') {
+      console.error('Personal ID validation error:', personalIdError);
+    } else if (personalIdCheck) {
       errors.push('Personal ID is already registered');
     }
 
     // Check volunteer ID if provided
     if (volunteerId) {
-      const { data: volunteerIdCheck } = await supabase
+      const { data: volunteerIdCheck, error: volunteerIdError } = await supabase
         .from('users_profiles')
         .select('id')
         .eq('volunteer_id', volunteerId.trim())
-        .single();
+        .maybeSingle();
 
-      if (volunteerIdCheck) {
+      if (volunteerIdError && volunteerIdError.code !== 'PGRST116') {
+        console.error('Volunteer ID validation error:', volunteerIdError);
+      } else if (volunteerIdCheck) {
         errors.push('Volunteer ID is already used');
       }
     }
@@ -220,7 +243,7 @@ export const validateRegistrationData = async (
   };
 };
 
-// Upload file (placeholder for file upload functionality)
+// Upload file function
 export const uploadFile = async (file: File, bucket: string, path: string) => {
   try {
     const { data, error } = await supabase.storage
