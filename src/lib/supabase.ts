@@ -129,7 +129,7 @@ export const validateRegistrationData = async (
   }
 };
 
-// Enhanced sign up function with proper validation order
+// Enhanced sign up function with proper validation order and EMAIL STORAGE
 export const signUpUser = async (email: string, password: string, userData: any) => {
   try {
     console.log('Starting registration validation...');
@@ -182,11 +182,12 @@ export const signUpUser = async (email: string, password: string, userData: any)
 
     console.log('Auth user created successfully, creating profile...');
 
-    // STEP 3: Create or update profile in users_profiles table
+    // STEP 3: Create or update profile in users_profiles table with EMAIL
     const { data: profileData, error: profileError } = await supabase
       .from('users_profiles')
       .upsert({
         id: authData.user.id,  // Insert or update based on the auth user ID
+        email: email.trim().toLowerCase(), // 🔹 STORE EMAIL IN PROFILE
         ...userData,
         role: 'attendee', // Default role (you can adjust based on business logic)
         score: 0,
@@ -222,11 +223,7 @@ export const signUpUser = async (email: string, password: string, userData: any)
   }
 };
 
-
-
-
-// Enhanced sign up volunteer function with pre-validation
-// Enhanced sign up volunteer function with pre-validation
+// Enhanced sign up volunteer function with pre-validation and EMAIL STORAGE
 export const signUpVolunteer = async (email: string, password: string, userData: any) => {
   try {
     console.log('Starting volunteer registration validation...');
@@ -267,11 +264,12 @@ export const signUpVolunteer = async (email: string, password: string, userData:
 
     console.log('✅ Auth user created, creating volunteer profile...');
 
-    // Create complete profile with the selected volunteer role
+    // Create complete profile with the selected volunteer role and EMAIL
     const { data: profileData, error: profileError } = await supabase
       .from("users_profiles")
       .insert({
         id: authData.user.id,
+        email: email.trim().toLowerCase(), // 🔹 STORE EMAIL IN PROFILE
         ...userData,
         role: userData.role || 'volunteer', // ✅ Use the selected role or default to 'volunteer'
         score: 0,
