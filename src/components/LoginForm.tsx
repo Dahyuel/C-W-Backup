@@ -7,15 +7,7 @@ import { validateEmail, validatePassword } from '../utils/validation';
 
 export const LoginForm: React.FC = () => {
   const navigate = useNavigate();
-  const { 
-    signIn, 
-    user,
-    profile,
-    isAuthenticated, 
-    getRoleBasedRedirect, 
-    loading: authLoading, 
-    initialized
-  } = useAuth();
+  const { signIn, isAuthenticated, getRoleBasedRedirect, loading: authLoading, profile } = useAuth();
   
   const [formData, setFormData] = useState<LoginData>({
     email: '',
@@ -24,40 +16,14 @@ export const LoginForm: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [loading, setLoading] = useState(false);
-  const [redirectTimer, setRedirectTimer] = useState<NodeJS.Timeout | null>(null);
+  const [loginSuccess, setLoginSuccess] = useState(false);
 
-  // Handle redirection with better logic
+  // Redirect when authentication is complete and profile is loaded
   useEffect(() => {
-    if (redirectTimer) {
-      clearTimeout(redirectTimer);
+    if (isAuthenticated && profile && !authLoading) {
+      navigate(getRoleBasedRedirect(), { replace: true });
     }
-
-    // Only redirect when all conditions are met:
-    // 1. Auth is initialized
-    // 2. User exists
-    // 3. We're not currently loading auth
-    // 4. Profile exists (or we've waited long enough)
-    if (initialized && user && !authLoading) {
-      if (profile) {
-        // Profile loaded - redirect immediately
-        console.log('Redirecting authenticated user with profile to:', getRoleBasedRedirect());
-        navigate(getRoleBasedRedirect(), { replace: true });
-      } else {
-        // Profile not loaded yet - wait a bit then redirect
-        const timer = setTimeout(() => {
-          console.log('Profile loading timeout - redirecting with available data');
-          navigate(getRoleBasedRedirect(), { replace: true });
-        }, 3000);
-        setRedirectTimer(timer);
-      }
-    }
-
-    return () => {
-      if (redirectTimer) {
-        clearTimeout(redirectTimer);
-      }
-    };
-  }, [initialized, user, profile, authLoading, navigate, getRoleBasedRedirect]);
+  }, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect]);
 
   const updateField = (field: keyof LoginData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -92,25 +58,14 @@ export const LoginForm: React.FC = () => {
       const { error } = await signIn(formData.email, formData.password);
 
       if (error) {
-        console.error('Login error:', error);
-        let errorMessage = 'Invalid email or password';
-        
-        if (error.message?.includes('Invalid login credentials')) {
-          errorMessage = 'Invalid email or password';
-        } else if (error.message?.includes('Email not confirmed')) {
-          errorMessage = 'Please check your email and confirm your account';
-        } else if (error.message?.includes('Too many requests')) {
-          errorMessage = 'Too many login attempts. Please try again later';
-        }
-        
-        setErrors([{ field: 'general', message: errorMessage }]);
+        setErrors([{ field: 'general', message: 'Invalid email or password' }]);
         return;
       }
 
-      console.log('Login successful, authentication flow will handle redirect...');
+      // Set login success flag - redirection will be handled by useEffect
+      setLoginSuccess(true);
       
     } catch (error) {
-      console.error('Login exception:', error);
       setErrors([{ field: 'general', message: 'Login failed. Please try again.' }]);
     } finally {
       setLoading(false);
@@ -121,27 +76,25 @@ export const LoginForm: React.FC = () => {
     return errors.find(error => error.field === field)?.message;
   };
 
-  // Show loading state while initializing authentication
-  if (!initialized) {
+  // Show loading state while checking authentication
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Initializing...</p>
+          <p className="text-gray-600">Loading...</p>
         </div>
       </div>
     );
   }
 
-  // Show loading state if user is authenticated but being redirected
-  if (user && (authLoading || profile)) {
+  // Show success message while redirecting
+  if (loginSuccess && isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">
-            {profile ? 'Redirecting to your dashboard...' : 'Loading your dashboard...'}
-          </p>
+          <p className="text-gray-600">Login successful! Redirecting...</p>
         </div>
       </div>
     );
@@ -181,8 +134,6 @@ export const LoginForm: React.FC = () => {
                   getFieldError('email') ? 'border-red-300' : 'border-gray-300'
                 }`}
                 placeholder="Enter your email address"
-                disabled={loading}
-                autoComplete="email"
               />
               {getFieldError('email') && (
                 <p className="text-sm text-red-600 mt-2">{getFieldError('email')}</p>
@@ -203,14 +154,11 @@ export const LoginForm: React.FC = () => {
                     getFieldError('password') ? 'border-red-300' : 'border-gray-300'
                   }`}
                   placeholder="Enter your password"
-                  disabled={loading}
-                  autoComplete="current-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-orange-600 transition-colors"
-                  disabled={loading}
                 >
                   {showPassword ? (
                     <EyeOff className="h-5 w-5" />
@@ -230,7 +178,6 @@ export const LoginForm: React.FC = () => {
                 type="button"
                 onClick={() => navigate('/forgot-password')}
                 className="text-sm text-orange-600 hover:text-orange-700 hover:underline font-medium"
-                disabled={loading}
               >
                 Forgot Password?
               </button>
@@ -239,7 +186,7 @@ export const LoginForm: React.FC = () => {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={loading || authLoading}
+              disabled={loading}
               className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
@@ -260,7 +207,6 @@ export const LoginForm: React.FC = () => {
                   type="button"
                   onClick={() => navigate('/register')}
                   className="text-orange-600 hover:text-orange-700 font-medium hover:underline"
-                  disabled={loading}
                 >
                   Create Attendee Account
                 </button>
@@ -271,7 +217,6 @@ export const LoginForm: React.FC = () => {
                   type="button"
                   onClick={() => navigate('/V0lunt33ringR3g')}
                   className="text-orange-600 hover:text-orange-700 font-medium hover:underline"
-                  disabled={loading}
                 >
                   Register as Volunteer
                 </button>
