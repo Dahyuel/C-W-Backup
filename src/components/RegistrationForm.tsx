@@ -135,7 +135,7 @@ export const RegistrationForm: React.FC = () => {
     setErrors(prev => prev.filter(error => error.field !== field));
   };
 
- const validateSection = (section: number): ValidationError[] => {
+const validateSection = (section: number): ValidationError[] => {
   const validationErrors: ValidationError[] = [];
 
   if (section === 1) {
@@ -154,19 +154,32 @@ export const RegistrationForm: React.FC = () => {
     const personalIdError = validatePersonalId(formData.personalId);
     if (personalIdError) validationErrors.push({ field: 'personalId', message: personalIdError });
 
-    if (!formData.faculty) validationErrors.push({ field: 'faculty', message: 'Faculty is required' });
+    if (!formData.gender) validationErrors.push({ field: 'gender', message: 'Gender is required' });
+    if (!formData.nationality) validationErrors.push({ field: 'nationality', message: 'Nationality is required' });
   }
 
   if (section === 2) {
-    // ENHANCED: Added role validation
-    if (!formData.role) {
-      validationErrors.push({ field: 'role', message: 'Please select a volunteer role' });
-    } else if (!['registration', 'building', 'volunteer', 'team_leader'].includes(formData.role)) {
-      validationErrors.push({ field: 'role', message: 'Please select a valid volunteer role' });
+    if (!formData.university) validationErrors.push({ field: 'university', message: 'University is required' });
+    if (formData.university === 'Other' && !formData.customUniversity) {
+      validationErrors.push({ field: 'customUniversity', message: 'Custom university name is required' });
+    }
+    if (!formData.faculty) validationErrors.push({ field: 'faculty', message: 'Faculty is required' });
+    if (!formData.degreeLevel) validationErrors.push({ field: 'degreeLevel', message: 'Degree level is required' });
+    if (!formData.program) validationErrors.push({ field: 'program', message: 'Program/Major is required' });
+    if (formData.degreeLevel === 'Student' && !formData.classYear) {
+      validationErrors.push({ field: 'classYear', message: 'Class year is required for students' });
     }
   }
 
   if (section === 3) {
+    if (!formData.howDidYouHear) validationErrors.push({ field: 'howDidYouHear', message: 'This field is required' });
+    
+    // File upload validation
+    if (!fileUploads.universityId) validationErrors.push({ field: 'universityId', message: 'University ID is required' });
+    if (!fileUploads.resume) validationErrors.push({ field: 'resume', message: 'CV/Resume is required' });
+  }
+
+  if (section === 4) {
     const passwordError = validatePassword(formData.password);
     if (passwordError) validationErrors.push({ field: 'password', message: passwordError });
 
@@ -176,6 +189,8 @@ export const RegistrationForm: React.FC = () => {
 
   return validationErrors;
 };
+
+  
   const nextSection = () => {
     const sectionErrors = validateSection(currentSection);
     if (sectionErrors.length > 0) {
