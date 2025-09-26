@@ -7,7 +7,14 @@ import { validateEmail, validatePassword } from '../utils/validation';
 
 export const LoginForm: React.FC = () => {
   const navigate = useNavigate();
-  const { signIn, isAuthenticated, getRoleBasedRedirect, loading: authLoading, profile } = useAuth();
+  const { 
+    signIn, 
+    isAuthenticated, 
+    getRoleBasedRedirect, 
+    loading: authLoading, 
+    sessionLoaded,
+    profile 
+  } = useAuth();
   
   const [formData, setFormData] = useState<LoginData>({
     email: '',
@@ -16,14 +23,21 @@ export const LoginForm: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [loading, setLoading] = useState(false);
-  const [loginSuccess, setLoginSuccess] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
 
-  // Redirect when authentication is complete and profile is loaded
+  // Handle redirect when user is authenticated and session is loaded
   useEffect(() => {
-    if (isAuthenticated && profile && !authLoading) {
+    // Only redirect if:
+    // 1. Session is loaded (not still checking)
+    // 2. User is authenticated
+    // 3. Profile exists
+    // 4. Not currently in a loading state
+    if (sessionLoaded && isAuthenticated && profile && !authLoading) {
+      console.log('🚀 Redirecting authenticated user to:', getRoleBasedRedirect());
+      setRedirecting(true);
       navigate(getRoleBasedRedirect(), { replace: true });
     }
-  }, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect]);
+  }, [sessionLoaded, isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect]);
 
   const updateField = (field: keyof LoginData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -55,17 +69,21 @@ export const LoginForm: React.FC = () => {
     setErrors([]);
 
     try {
+      console.log('🔄 Attempting login...');
+      
       const { error } = await signIn(formData.email, formData.password);
 
       if (error) {
+        console.error('❌ Login error:', error);
         setErrors([{ field: 'general', message: 'Invalid email or password' }]);
         return;
       }
 
-      // Set login success flag - redirection will be handled by useEffect
-      setLoginSuccess(true);
+      console.log('✅ Login initiated successfully');
+      // Don't set any success state here - let the auth context handle the flow
       
-    } catch (error) {
+    } catch (error: any) {
+      console.error('❌ Login exception:', error);
       setErrors([{ field: 'general', message: 'Login failed. Please try again.' }]);
     } finally {
       setLoading(false);
@@ -76,8 +94,8 @@ export const LoginForm: React.FC = () => {
     return errors.find(error => error.field === field)?.message;
   };
 
-  // Show loading state while checking authentication
-  if (authLoading) {
+  // Show loading while checking session
+  if (!sessionLoaded || authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center">
         <div className="text-center">
@@ -88,13 +106,13 @@ export const LoginForm: React.FC = () => {
     );
   }
 
-  // Show success message while redirecting
-  if (loginSuccess && isAuthenticated) {
+  // Show redirecting state
+  if (redirecting || (isAuthenticated && profile)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Login successful! Redirecting...</p>
+          <p className="text-gray-600">Welcome back! Redirecting to your dashboard...</p>
         </div>
       </div>
     );
@@ -115,7 +133,7 @@ export const LoginForm: React.FC = () => {
           {/* General Error */}
           {getFieldError('general') && (
             <div className="bg-red-50 border border-red-200 p-4 rounded-lg flex items-center space-x-2 mb-6">
-              <AlertCircle className="h-5 w-5 text-red-600" />
+              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
               <p className="text-red-700">{getFieldError('general')}</p>
             </div>
           )}
@@ -134,6 +152,8 @@ export const LoginForm: React.FC = () => {
                   getFieldError('email') ? 'border-red-300' : 'border-gray-300'
                 }`}
                 placeholder="Enter your email address"
+                disabled={loading}
+                autoComplete="email"
               />
               {getFieldError('email') && (
                 <p className="text-sm text-red-600 mt-2">{getFieldError('email')}</p>
@@ -154,11 +174,14 @@ export const LoginForm: React.FC = () => {
                     getFieldError('password') ? 'border-red-300' : 'border-gray-300'
                   }`}
                   placeholder="Enter your password"
+                  disabled={loading}
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-orange-600 transition-colors"
+                  disabled={loading}
                 >
                   {showPassword ? (
                     <EyeOff className="h-5 w-5" />
@@ -177,7 +200,8 @@ export const LoginForm: React.FC = () => {
               <button
                 type="button"
                 onClick={() => navigate('/forgot-password')}
-                className="text-sm text-orange-600 hover:text-orange-700 hover:underline font-medium"
+                className="text-sm text-orange-600 hover:text-orange-700 hover:underline font-medium transition-colors"
+                disabled={loading}
               >
                 Forgot Password?
               </button>
@@ -206,7 +230,8 @@ export const LoginForm: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => navigate('/register')}
-                  className="text-orange-600 hover:text-orange-700 font-medium hover:underline"
+                  className="text-orange-600 hover:text-orange-700 font-medium hover:underline transition-colors"
+                  disabled={loading}
                 >
                   Create Attendee Account
                 </button>
@@ -216,7 +241,8 @@ export const LoginForm: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => navigate('/V0lunt33ringR3g')}
-                  className="text-orange-600 hover:text-orange-700 font-medium hover:underline"
+                  className="text-orange-600 hover:text-orange-700 font-medium hover:underline transition-colors"
+                  disabled={loading}
                 >
                   Register as Volunteer
                 </button>
