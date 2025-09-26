@@ -19,6 +19,7 @@ import { TeamLeaderDashboard } from './pages/team/TeamLeaderDashboard';
 import { AdminPanel } from './pages/admin/AdminPanel';
 import { SuperAdminPanel } from './pages/admin/SuperAdminPanel';
 
+// Updated App.tsx
 function App() {
   const { isAuthenticated, profile, loading } = useAuth();
 
@@ -90,4 +91,5 @@ function App() {
     </Router>
   );
 }
+
 export default App;
