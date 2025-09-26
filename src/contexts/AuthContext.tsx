@@ -1,4 +1,4 @@
-// src/contexts/AuthContext.tsx - Updated with enhanced validation
+// src/contexts/AuthContext.tsx - Updated with enhanced validation and logout fix
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase, signUpUser, signUpVolunteer, signInUser, validateRegistrationData } from "../lib/supabase";
 
@@ -184,15 +184,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
   
-  // ✅ SIGN OUT
+  // ✅ SIGN OUT - Enhanced with proper navigation
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      // First, sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Supabase sign out error:', error);
+        throw error;
+      }
+
+      // Clear local state
       setUser(null);
       setProfile(null);
+      
       console.log('✅ Signed out successfully');
+      
+      // Force navigation to login page
+      // Clear any cached data and redirect
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 100);
+      
     } catch (error) {
       console.error('Sign out error:', error);
+      // Even if there's an error, clear local state and redirect
+      setUser(null);
+      setProfile(null);
+      window.location.href = '/login';
     }
   };
 
