@@ -1,4 +1,3 @@
-// src/components/shared/ProtectedRoute.tsx
 import React, { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,10 +12,11 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children, 
   requiredRole 
 }) => {
-  const { user, profile, loading, isAuthenticated, hasRole } = useAuth();
+  const { user, profile, loading, initialized, isAuthenticated, hasRole } = useAuth();
   const location = useLocation();
 
-  if (loading) {
+  // Show loading while authentication is initializing or loading
+  if (!initialized || loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center">
         <div className="text-center">
@@ -27,10 +27,12 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
+  // Redirect to login if not authenticated
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // Check role requirements and show your custom access denied page
   if (requiredRole && !hasRole(requiredRole)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-red-50 to-white flex items-center justify-center p-4">
@@ -63,6 +65,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
+  // All checks passed - render the protected component
   return <>{children}</>;
 };
 
