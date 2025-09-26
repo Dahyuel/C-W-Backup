@@ -14,9 +14,10 @@ import { AttendeeCard } from "../../components/shared/AttendeeCard";
 import { useAuth } from "../../contexts/AuthContext";
 import { 
   processAttendance, 
-  searchAttendees, 
-  getAttendeeByPersonalId, 
-  getRegistrationStats 
+  getAttendeeByPersonalId,
+  getAttendeeByUUID,
+  getRegistrationStats,
+  searchAttendeesByPersonalId // New function we'll add
 } from "../../lib/supabase";
 
 interface RegistrationStats {
@@ -40,6 +41,14 @@ interface Attendee {
   last_scan?: string;
 }
 
+// Helper function to type-cast attendee data
+const castToAttendee = (data: any): Attendee => {
+  return {
+    ...data,
+    current_status: data.current_status === 'inside' ? 'inside' : 'outside'
+  } as Attendee;
+};
+
 export const RegTeamDashboard: React.FC = () => {
   const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState<"scanner" | "dashboard">("scanner");
@@ -52,8 +61,12 @@ export const RegTeamDashboard: React.FC = () => {
   const [showScanner, setShowScanner] = useState(false);
   const [searchMode, setSearchMode] = useState<"qr" | "manual">("manual");
   const [searchTerm, setSearchTerm] = useState("");
-  const [searchResults, setSearchResults] = useState<Attendee[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+
+  // Dynamic search state
+  const [searchResults, setSearchResults] = useState<Attendee[]>([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Attendee card state
   const [selectedAttendee, setSelectedAttendee] = useState<Attendee | null>(null);
@@ -71,6 +84,30 @@ export const RegTeamDashboard: React.FC = () => {
       fetchDashboardData();
     }
   }, [activeTab]);
+
+  // Dynamic search effect
+  useEffect(() => {
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    if (searchTerm.trim().length >= 2) {
+      const timeout = setTimeout(() => {
+        performDynamicSearch(searchTerm.trim());
+      }, 300); // 300ms debounce
+
+      setSearchTimeout(timeout);
+    } else {
+      setSearchResults([]);
+      setShowSearchResults(false);
+    }
+
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTerm]);
 
   const fetchDashboardData = async () => {
     try {
@@ -91,70 +128,109 @@ export const RegTeamDashboard: React.FC = () => {
     }
   };
 
-  const showFeedback = (type: 'success' | 'error', message: string) => {
-    setFeedback({ type, message });
-    setTimeout(() => setFeedback(null), 5000);
-  };
-
-  const handleSearch = async () => {
-    if (!searchTerm.trim()) {
-      setSearchResults([]);
-      return;
-    }
-
+  const performDynamicSearch = async (query: string) => {
     try {
       setSearchLoading(true);
-      const { data, error } = await searchAttendees(searchTerm);
-
+      const { data, error } = await searchAttendeesByPersonalId(query);
+      
       if (error) {
         console.error("Search error:", error);
-        showFeedback('error', 'Search failed. Please try again.');
         setSearchResults([]);
       } else {
-        setSearchResults(data);
-        if (data.length === 0) {
-          showFeedback('error', 'No attendees found matching your search');
-        }
+        const attendees = (data || []).map(item => castToAttendee(item));
+        setSearchResults(attendees);
+        setShowSearchResults(true);
       }
     } catch (error) {
       console.error("Search exception:", error);
-      showFeedback('error', 'Search failed. Please try again.');
       setSearchResults([]);
     } finally {
       setSearchLoading(false);
     }
   };
 
-  const handleAttendeeSelect = async (attendee: Attendee) => {
-    try {
-      // Fetch full attendee details including current status
-      const { data, error } = await getAttendeeByPersonalId(attendee.personal_id);
-      
-      if (error || !data) {
-        showFeedback('error', 'Failed to load attendee details');
-        return;
-      }
+  const showFeedback = (type: 'success' | 'error', message: string) => {
+    setFeedback({ type, message });
+    setTimeout(() => setFeedback(null), 5000);
+  };
 
-      setSelectedAttendee(data);
-      setShowAttendeeCard(true);
-      setSearchResults([]);
-      setSearchTerm("");
-    } catch (error) {
-      console.error("Error selecting attendee:", error);
-      showFeedback('error', 'Failed to load attendee details');
+  // Check if a string is a UUID format
+  const isUUID = (str: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
+  };
+
+  const handleSearchByPersonalId = async () => {
+    if (!searchTerm.trim()) {
+      showFeedback('error', 'Please enter a Personal ID');
+      return;
     }
+
+    try {
+      setSearchLoading(true);
+      const { data, error } = await getAttendeeByPersonalId(searchTerm.trim());
+
+      if (error || !data) {
+        showFeedback('error', 'Personal ID not found');
+      } else if (data.role !== 'attendee') {
+        showFeedback('error', 'Only attendees can be processed through this system');
+      } else {
+        setSelectedAttendee(castToAttendee(data));
+        setShowAttendeeCard(true);
+        setSearchTerm("");
+        setShowSearchResults(false);
+      }
+    } catch (error) {
+      console.error("Search exception:", error);
+      showFeedback('error', 'Search failed. Please try again.');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleSelectSearchResult = (attendee: Attendee) => {
+    setSelectedAttendee(attendee);
+    setShowAttendeeCard(true);
+    setSearchTerm("");
+    setShowSearchResults(false);
+    setSearchResults([]);
   };
 
   const handleQRScan = async (qrData: string) => {
     try {
-      const { data, error } = await getAttendeeByPersonalId(qrData);
+      console.log('Processing QR data:', qrData);
       
-      if (error || !data) {
-        showFeedback('error', 'Invalid QR code or attendee not found');
+      let attendeeData: Attendee | null = null;
+      let error;
+
+      // Check if QR data is UUID or Personal ID
+      if (isUUID(qrData)) {
+        console.log('Detected UUID format, searching by UUID...');
+        const result = await getAttendeeByUUID(qrData);
+        attendeeData = result.data ? castToAttendee(result.data) : null;
+        error = result.error;
+      } else {
+        console.log('Detected Personal ID format, searching by Personal ID...');
+        const result = await getAttendeeByPersonalId(qrData);
+        attendeeData = result.data ? castToAttendee(result.data) : null;
+        error = result.error;
+      }
+      
+      if (error || !attendeeData) {
+        const errorMsg = isUUID(qrData) 
+          ? 'Invalid QR code: UUID not found in system'
+          : 'Invalid QR code: Personal ID not found';
+        showFeedback('error', errorMsg);
         return;
       }
 
-      setSelectedAttendee(data);
+      // Check if the person is an attendee
+      if (attendeeData.role !== 'attendee') {
+        showFeedback('error', 'Only attendees can be processed through this system');
+        return;
+      }
+
+      setSelectedAttendee(attendeeData);
       setShowAttendeeCard(true);
       setShowScanner(false);
     } catch (error) {
@@ -207,6 +283,15 @@ export const RegTeamDashboard: React.FC = () => {
   const clearSearch = () => {
     setSearchTerm("");
     setSearchResults([]);
+    setShowSearchResults(false);
+  };
+
+  // Close search results when clicking outside
+  const handleSearchInputBlur = () => {
+    // Delay hiding to allow clicks on search results
+    setTimeout(() => {
+      setShowSearchResults(false);
+    }, 200);
   };
 
   return (
@@ -277,7 +362,7 @@ export const RegTeamDashboard: React.FC = () => {
               }`}
             >
               <Search className="h-4 w-4 inline mr-2" />
-              Search by ID/Name
+              Search by Personal ID
             </button>
             <button
               onClick={() => {
@@ -295,22 +380,24 @@ export const RegTeamDashboard: React.FC = () => {
             </button>
           </div>
 
-          {/* Manual Search */}
+          {/* Manual Search - Personal ID Only */}
           {searchMode === "manual" && (
             <div className="bg-white rounded-xl shadow-sm p-6">
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Search Attendees
+                    Search Attendees by Personal ID
                   </label>
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-3 relative">
                     <div className="flex-1 relative">
                       <input
                         type="text"
-                        placeholder="Enter Personal ID, name, or email..."
+                        placeholder="Start typing Personal ID (e.g., 123456...)"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSearchByPersonalId()}
+                        onBlur={handleSearchInputBlur}
+                        onFocus={() => searchResults.length > 0 && setShowSearchResults(true)}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-colors"
                       />
                       {searchTerm && (
@@ -321,9 +408,64 @@ export const RegTeamDashboard: React.FC = () => {
                           <X className="h-5 w-5" />
                         </button>
                       )}
+
+                      {/* Dynamic Search Results Dropdown */}
+                      {showSearchResults && searchResults.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                          {searchResults.map((attendee) => (
+                            <button
+                              key={attendee.id}
+                              onClick={() => handleSelectSearchResult(attendee)}
+                              className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:bg-orange-50 focus:outline-none"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-medium text-gray-900">
+                                    {attendee.first_name} {attendee.last_name}
+                                  </p>
+                                  <p className="text-sm text-gray-600">
+                                    ID: {attendee.personal_id}
+                                  </p>
+                                  {attendee.university && (
+                                    <p className="text-xs text-gray-500">
+                                      {attendee.university}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="text-right">
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    attendee.current_status === 'inside'
+                                      ? 'bg-green-100 text-green-800'
+                                      : 'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {attendee.current_status === 'inside' ? 'Inside' : 'Outside'}
+                                  </span>
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* No Results Message */}
+                      {showSearchResults && searchResults.length === 0 && searchTerm.trim().length >= 2 && !searchLoading && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 px-4 py-3">
+                          <p className="text-gray-600 text-sm">No attendees found matching "{searchTerm}"</p>
+                        </div>
+                      )}
+
+                      {/* Loading State */}
+                      {searchLoading && searchTerm.trim().length >= 2 && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 px-4 py-3">
+                          <div className="flex items-center space-x-2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500"></div>
+                            <p className="text-gray-600 text-sm">Searching attendees...</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <button
-                      onClick={handleSearch}
+                      onClick={handleSearchByPersonalId}
                       disabled={searchLoading || !searchTerm.trim()}
                       className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
                     >
@@ -339,40 +481,15 @@ export const RegTeamDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Search Results */}
-                {searchResults.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="font-medium text-gray-900">Search Results</h4>
-                    <div className="max-h-80 overflow-y-auto space-y-2">
-                      {searchResults.map((attendee) => (
-                        <button
-                          key={attendee.id}
-                          onClick={() => handleAttendeeSelect(attendee)}
-                          className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-orange-300 transition-colors"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="font-medium text-gray-900">
-                                {attendee.first_name} {attendee.last_name}
-                              </p>
-                              <p className="text-sm text-gray-600">{attendee.email}</p>
-                              <p className="text-xs text-gray-500">ID: {attendee.personal_id}</p>
-                            </div>
-                            <div className="text-right">
-                              <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${
-                                attendee.role === 'attendee' 
-                                  ? 'bg-blue-100 text-blue-800'
-                                  : 'bg-gray-100 text-gray-800'
-                              }`}>
-                                {attendee.role.replace(/_/g, ' ').toUpperCase()}
-                              </span>
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                <div className="text-sm text-gray-600 bg-blue-50 p-4 rounded-lg">
+                  <p className="font-medium mb-1">Search Tips:</p>
+                  <ul className="list-disc list-inside space-y-1 text-xs">
+                    <li>Start typing to see dynamic suggestions (minimum 2 characters)</li>
+                    <li>Only attendees will appear in search results</li>
+                    <li>Click on a suggestion to select that attendee</li>
+                    <li>Use QR Scanner for faster lookup</li>
+                  </ul>
+                </div>
               </div>
             </div>
           )}
@@ -385,7 +502,7 @@ export const RegTeamDashboard: React.FC = () => {
                 QR Code Scanner
               </h3>
               <p className="text-gray-600 mb-6">
-                Click the button below to open the QR scanner and scan an attendee's QR code
+                Scan the attendee's QR code to instantly load their information and process entry/exit
               </p>
               <button
                 onClick={() => setShowScanner(true)}
@@ -394,6 +511,15 @@ export const RegTeamDashboard: React.FC = () => {
                 <QrCode className="h-5 w-5" />
                 <span>Open QR Scanner</span>
               </button>
+              
+              <div className="mt-6 text-sm text-gray-600 bg-green-50 p-4 rounded-lg">
+                <p className="font-medium mb-1">QR Scanner supports:</p>
+                <ul className="list-disc list-inside space-y-1 text-xs">
+                  <li>UUID format (from QR codes)</li>
+                  <li>Personal ID format (fallback)</li>
+                  <li>Automatic attendee role verification</li>
+                </ul>
+              </div>
             </div>
           )}
         </div>
