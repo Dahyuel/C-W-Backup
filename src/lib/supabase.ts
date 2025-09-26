@@ -421,3 +421,170 @@ export const updateUserFiles = async (userId: string, filePaths: { university_id
     return { data: null, error: { message: error.message } };
   }
 };
+export const processAttendance = async (personalId: string, action: 'enter' | 'exit') => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session?.access_token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/process-attendance`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        personal_id: personalId,
+        action: action
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to process attendance');
+    }
+
+    return { data, error: null };
+  } catch (error: any) {
+    console.error('Process attendance error:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
+// Search attendees (only from users_profiles)
+export const searchAttendees = async (searchTerm: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('users_profiles')
+      .select(`
+        id,
+        first_name,
+        last_name,
+        email,
+        phone,
+        personal_id,
+        role,
+        university,
+        faculty
+      `)
+      .or(`personal_id.ilike.%${searchTerm}%,first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`)
+      .order('first_name')
+      .limit(10);
+
+    if (error) {
+      console.error('Search error:', error);
+      return { data: [], error };
+    }
+
+    return { data: data || [], error: null };
+  } catch (error: any) {
+    console.error('Search exception:', error);
+    return { data: [], error: { message: error.message } };
+  }
+};
+
+// Get attendee by personal ID
+export const getAttendeeByPersonalId = async (personalId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('users_profiles')
+      .select(`
+        id,
+        first_name,
+        last_name,
+        email,
+        phone,
+        personal_id,
+        role,
+        university,
+        faculty,
+        created_at
+      `)
+      .eq('personal_id', personalId.trim())
+      .single();
+
+    if (error) {
+      console.error('Get attendee error:', error);
+      return { data: null, error };
+    }
+
+    // Get last attendance record to determine current status
+    const { data: lastAttendance } = await supabase
+      .from('attendances')
+      .select('scan_type, scanned_at')
+      .eq('user_id', data.id)
+      .order('scanned_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    return { 
+      data: {
+        ...data,
+        current_status: lastAttendance?.scan_type === 'entry' ? 'inside' : 'outside',
+        last_scan: lastAttendance?.scanned_at || null
+      }, 
+      error: null 
+    };
+  } catch (error: any) {
+    console.error('Get attendee exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
+// Get registration statistics
+export const getRegistrationStats = async () => {
+  try {
+    // Total registered users
+    const { count: totalRegistered } = await supabase
+      .from('users_profiles')
+      .select('*', { count: 'exact', head: true });
+
+    // Checked in today (entry scans today)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const { count: checkedInToday } = await supabase
+      .from('attendances')
+      .select('*', { count: 'exact', head: true })
+      .eq('scan_type', 'entry')
+      .gte('scanned_at', today.toISOString());
+
+    // Currently inside (users whose last scan was entry)
+    const { data: lastScans } = await supabase
+      .from('attendances')
+      .select('user_id, scan_type')
+      .order('scanned_at', { ascending: false });
+
+    // Group by user_id and get the last scan for each user
+    const userLastScans = new Map();
+    lastScans?.forEach(scan => {
+      if (!userLastScans.has(scan.user_id)) {
+        userLastScans.set(scan.user_id, scan.scan_type);
+      }
+    });
+
+    const insideEvent = Array.from(userLastScans.values())
+      .filter(scanType => scanType === 'entry').length;
+
+    // Total attendees (only attendee role)
+    const { count: totalAttendees } = await supabase
+      .from('users_profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'attendee');
+
+    return {
+      data: {
+        total_registered: totalRegistered || 0,
+        checked_in_today: checkedInToday || 0,
+        inside_event: insideEvent || 0,
+        total_attendees: totalAttendees || 0
+      },
+      error: null
+    };
+  } catch (error: any) {
+    console.error('Get stats error:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
