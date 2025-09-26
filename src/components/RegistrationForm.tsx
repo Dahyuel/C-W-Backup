@@ -21,10 +21,10 @@ import {
   validateConfirmPassword,
   validateVolunteerId
 } from '../utils/validation';
-import { uploadFile, updateUserFiles } from '../lib/supabase';
+import { uploadFile, updateUserFiles, signUpUser } from '../lib/supabase'; // Import signUpUser
 import { useAuth } from '../contexts/AuthContext';
 
-// FileUpload Component
+// FileUpload Component (keep as is)
 const FileUpload: React.FC<{
   accept: string;
   maxSize: number;
@@ -87,7 +87,7 @@ const FileUpload: React.FC<{
 
 export const RegistrationForm: React.FC = () => {
   const navigate = useNavigate();
-  const { signUp, signIn, isAuthenticated, profile, loading: authLoading, getRoleBasedRedirect, validateRegistration } = useAuth();
+  const { signIn, isAuthenticated, profile, loading: authLoading, getRoleBasedRedirect } = useAuth();
   
   const [currentSection, setCurrentSection] = useState(1);
   const [formData, setFormData] = useState<RegistrationData>({
@@ -135,62 +135,65 @@ export const RegistrationForm: React.FC = () => {
     setErrors(prev => prev.filter(error => error.field !== field));
   };
 
-const validateSection = (section: number): ValidationError[] => {
-  const validationErrors: ValidationError[] = [];
-
-  if (section === 1) {
-    const firstNameError = validateName(formData.firstName, 'First name');
-    if (firstNameError) validationErrors.push({ field: 'firstName', message: firstNameError });
-
-    const lastNameError = validateName(formData.lastName, 'Last name');
-    if (lastNameError) validationErrors.push({ field: 'lastName', message: lastNameError });
-
-    const emailError = validateEmail(formData.email);
-    if (emailError) validationErrors.push({ field: 'email', message: emailError });
-
-    const phoneError = validatePhone(formData.phone);
-    if (phoneError) validationErrors.push({ field: 'phone', message: phoneError });
-
-    const personalIdError = validatePersonalId(formData.personalId);
-    if (personalIdError) validationErrors.push({ field: 'personalId', message: personalIdError });
-
-    if (!formData.gender) validationErrors.push({ field: 'gender', message: 'Gender is required' });
-    if (!formData.nationality) validationErrors.push({ field: 'nationality', message: 'Nationality is required' });
-  }
-
-  if (section === 2) {
-    if (!formData.university) validationErrors.push({ field: 'university', message: 'University is required' });
-    if (formData.university === 'Other' && !formData.customUniversity) {
-      validationErrors.push({ field: 'customUniversity', message: 'Custom university name is required' });
-    }
-    if (!formData.faculty) validationErrors.push({ field: 'faculty', message: 'Faculty is required' });
-    if (!formData.degreeLevel) validationErrors.push({ field: 'degreeLevel', message: 'Degree level is required' });
-    if (!formData.program) validationErrors.push({ field: 'program', message: 'Program/Major is required' });
-    if (formData.degreeLevel === 'Student' && !formData.classYear) {
-      validationErrors.push({ field: 'classYear', message: 'Class year is required for students' });
-    }
-  }
-
-  if (section === 3) {
-    if (!formData.howDidYouHear) validationErrors.push({ field: 'howDidYouHear', message: 'This field is required' });
-    
-    // File upload validation
-    if (!fileUploads.universityId) validationErrors.push({ field: 'universityId', message: 'University ID is required' });
-    if (!fileUploads.resume) validationErrors.push({ field: 'resume', message: 'CV/Resume is required' });
-  }
-
-  if (section === 4) {
-    const passwordError = validatePassword(formData.password);
-    if (passwordError) validationErrors.push({ field: 'password', message: passwordError });
-
-    const confirmPasswordError = validateConfirmPassword(formData.password, formData.confirmPassword);
-    if (confirmPasswordError) validationErrors.push({ field: 'confirmPassword', message: confirmPasswordError });
-  }
-
-  return validationErrors;
-};
-
+  const validateSection = (section: number): ValidationError[] => {
+    const validationErrors: ValidationError[] = [];
   
+    if (section === 1) {
+      const firstNameError = validateName(formData.firstName, 'First name');
+      if (firstNameError) validationErrors.push({ field: 'firstName', message: firstNameError });
+  
+      const lastNameError = validateName(formData.lastName, 'Last name');
+      if (lastNameError) validationErrors.push({ field: 'lastName', message: lastNameError });
+  
+      if (!formData.gender) validationErrors.push({ field: 'gender', message: 'Gender is required' });
+      if (!formData.nationality) validationErrors.push({ field: 'nationality', message: 'Nationality is required' });
+  
+      const emailError = validateEmail(formData.email);
+      if (emailError) validationErrors.push({ field: 'email', message: emailError });
+  
+      const phoneError = validatePhone(formData.phone);
+      if (phoneError) validationErrors.push({ field: 'phone', message: phoneError });
+  
+      const personalIdError = validatePersonalId(formData.personalId);
+      if (personalIdError) validationErrors.push({ field: 'personalId', message: personalIdError });
+    }
+  
+    if (section === 2) {
+      if (!formData.university) validationErrors.push({ field: 'university', message: 'University is required' });
+      if (!formData.faculty) validationErrors.push({ field: 'faculty', message: 'Faculty is required' });
+      if (!formData.degreeLevel) validationErrors.push({ field: 'degreeLevel', message: 'Degree level is required' });
+      if (!formData.program) validationErrors.push({ field: 'program', message: 'Program/Major is required' });
+      // Only validate class year for students, not for graduates
+      if (formData.degreeLevel === 'student' && !formData.classYear) {
+        validationErrors.push({ field: 'classYear', message: 'Class year is required for students' });
+      }
+    }
+  
+    if (section === 3) {
+      if (!formData.howDidYouHear) validationErrors.push({ field: 'howDidYouHear', message: 'This field is required' });
+      
+      // File upload validation
+      if (!fileUploads.universityId) validationErrors.push({ field: 'universityId', message: 'University ID is required' });
+      if (!fileUploads.resume) validationErrors.push({ field: 'resume', message: 'CV/Resume is required' });
+  
+      // Volunteer ID validation (if provided)
+      if (formData.volunteerId && formData.volunteerId.trim()) {
+        const volunteerIdError = validateVolunteerId(formData.volunteerId);
+        if (volunteerIdError) validationErrors.push({ field: 'volunteerId', message: volunteerIdError });
+      }
+    }
+  
+    if (section === 4) {
+      const passwordError = validatePassword(formData.password);
+      if (passwordError) validationErrors.push({ field: 'password', message: passwordError });
+  
+      const confirmPasswordError = validateConfirmPassword(formData.password, formData.confirmPassword);
+      if (confirmPasswordError) validationErrors.push({ field: 'confirmPassword', message: confirmPasswordError });
+    }
+  
+    return validationErrors;
+  };
+
   const nextSection = () => {
     const sectionErrors = validateSection(currentSection);
     if (sectionErrors.length > 0) {
@@ -210,79 +213,77 @@ const validateSection = (section: number): ValidationError[] => {
     }
   };
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  // Validate all sections
-  const allErrors = [1, 2, 3, 4].flatMap(section => validateSection(section));
-  if (allErrors.length > 0) {
-    setErrors(allErrors);
-    const firstErrorSection = Math.min(...allErrors.map(error => {
-      if (['firstName', 'lastName', 'email', 'phone', 'personalId', 'faculty', 'gender', 'nationality'].includes(error.field)) return 1;
-      if (['university', 'degreeLevel', 'program', 'classYear'].includes(error.field)) return 2;
-      if (['howDidYouHear', 'universityId', 'resume'].includes(error.field)) return 3;
-      if (['password', 'confirmPassword'].includes(error.field)) return 4;
-      return 1;
-    }));
-    setCurrentSection(firstErrorSection);
-    return;
-  }
-
-  setLoading(true);
-  setErrors([]);
-
-  try {
-    const profileData = {
-      first_name: formData.firstName.trim(),
-      last_name: formData.lastName.trim(),
-      phone: formData.phone.trim(),
-      personal_id: formData.personalId.trim(),
-      faculty: formData.faculty,
-      university: formData.university === 'Other' ? formData.customUniversity : formData.university,
-      gender: formData.gender,
-      nationality: formData.nationality,
-      degree_level: formData.degreeLevel,
-      program: formData.program,
-      class: formData.classYear,
-      how_did_hear_about_event: formData.howDidYouHear,
-      volunteer_id: formData.volunteerId || null,
-      // role will be set to 'attendee' by signUp function
-    };
-
-    // Use regular signUp for attendee registration
-    const { data, error } = await signUp(formData.email, formData.password, profileData);
-
-    if (error) {
-      setErrors([{ field: "general", message: error.message }]);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate all sections
+    const allErrors = [1, 2, 3, 4].flatMap(section => validateSection(section));
+    if (allErrors.length > 0) {
+      setErrors(allErrors);
+      const firstErrorSection = Math.min(...allErrors.map(error => {
+        if (['firstName', 'lastName', 'gender', 'nationality', 'email', 'phone', 'personalId'].includes(error.field)) return 1;
+        if (['university', 'faculty', 'degreeLevel', 'program', 'classYear'].includes(error.field)) return 2;
+        if (['howDidYouHear', 'universityId', 'resume', 'volunteerId'].includes(error.field)) return 3;
+        if (['password', 'confirmPassword'].includes(error.field)) return 4;
+        return 1;
+      }));
+      setCurrentSection(firstErrorSection);
       return;
     }
-
-    console.log("✅ Registration successful, attempting auto-login...");
-    
-    // Auto-signin after successful registration
-    const { error: signInError } = await signIn(formData.email, formData.password);
-
-    if (signInError) {
-      console.log("⚠️ Auto-login failed, showing success message");
-      setShowSuccess(true);
-    }
-    // If auto-login succeeds, the useEffect will handle the redirect
-    
-  } catch (error: any) {
-    setErrors([
-      {
-        field: "general",
-        message: error.message || "An unexpected error occurred. Please try again.",
-      },
-    ]);
-  } finally {
-    setLoading(false);
-  }
-};
-
-
-
   
+    setLoading(true);
+    setErrors([]);
+  
+    try {
+      // Use attendee profile data structure
+      // Only include class year for students, leave as null for graduates
+      const profileData = {
+        first_name: formData.firstName.trim(),
+        last_name: formData.lastName.trim(),
+        gender: formData.gender,
+        nationality: formData.nationality,
+        phone: formData.phone.trim(),
+        personal_id: formData.personalId.trim(),
+        university: formData.university === 'Other' ? formData.customUniversity : formData.university,
+        faculty: formData.faculty,
+        degree_level: formData.degreeLevel,
+        program: formData.program,
+        class: formData.degreeLevel === 'student' ? formData.classYear : null, // Only for students
+        how_did_hear_about_event: formData.howDidYouHear,
+        volunteer_id: formData.volunteerId?.trim() || null,
+      };
+  
+      // FIXED: Use signUpUser for attendees instead of signUp (which is for volunteers)
+      const { data, error } = await signUpUser(formData.email, formData.password, profileData);
+  
+      if (error) {
+        setErrors([{ field: "general", message: error.message }]);
+        return;
+      }
+  
+      console.log("✅ Attendee registration successful, attempting auto-login...");
+      
+      // Auto-signin after successful registration
+      const { error: signInError } = await signIn(formData.email, formData.password);
+  
+      if (signInError) {
+        console.log("⚠️ Auto-login failed, showing success message");
+        setShowSuccess(true);
+      }
+      // If auto-login succeeds, the useEffect will handle the redirect
+      
+    } catch (error: any) {
+      setErrors([
+        {
+          field: "general",
+          message: error.message || "An unexpected error occurred. Please try again.",
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getFieldError = (field: string) => {
     return errors.find(error => error.field === field)?.message;
   };
@@ -342,8 +343,6 @@ const handleSubmit = async (e: React.FormEvent) => {
             <option value="">Select gender</option>
             <option value="male">Male</option>
             <option value="female">Female</option>
-            <option value="other">Other</option>
-            <option value="prefer_not_to_say">Prefer not to say</option>
           </select>
           {getFieldError('gender') && (
             <p className="mt-1 text-sm text-red-600">{getFieldError('gender')}</p>
@@ -511,15 +510,16 @@ const handleSubmit = async (e: React.FormEvent) => {
             }`}
           >
             <option value="">Select degree level</option>
-            <option value="Student">Student</option>
-            <option value="Graduate">Graduate</option>
+            <option value="student">Student</option>
+            <option value="graduate">Graduate</option>
           </select>
           {getFieldError('degreeLevel') && (
             <p className="mt-1 text-sm text-red-600">{getFieldError('degreeLevel')}</p>
           )}
         </div>
 
-        {formData.degreeLevel === 'Student' && (
+        {/* Only show class year for students, not for graduates */}
+        {formData.degreeLevel === 'student' && (
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Class Year *
