@@ -14,7 +14,7 @@ export interface RegistrationData {
   university: string;
   customUniversity?: string;
   faculty: string;
-  degreeLevel: 'Student' | 'Graduate' | '';
+  degreeLevel: 'student' | 'graduate' | '';
   program: string;
   classYear?: string;
   
