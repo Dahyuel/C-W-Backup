@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 // Use environment variables from Create React App
 // These should be defined in your .env file with REACT_APP_ prefix
 const supabaseUrl ='https://ypiwfedtvgmazqcwolac.supabase.co';
-const supabaseAnonKey ='';
+const supabaseAnonKey ='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlwaXdmZWR0dmdtYXpxY3dvbGFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDYxMDIsImV4cCI6MjA3NDIyMjEwMn0.QnHPyeMBpezC-Q72fVDuRPdM5dkSYqoHC3uY_Dgsuxs';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
