@@ -3,21 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 
 // Use environment variables from Create React App
 // These should be defined in your .env file with REACT_APP_ prefix
-const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
-const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
-
-// Validate environment variables
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables:');
-  console.error('REACT_APP_SUPABASE_URL:', supabaseUrl ? '✓ Set' : '✗ Missing');
-  console.error('REACT_APP_SUPABASE_ANON_KEY:', supabaseAnonKey ? '✓ Set' : '✗ Missing');
-  
-  throw new Error(
-    'Supabase environment variables are not configured. ' +
-    'Please check your .env file and make sure REACT_APP_SUPABASE_URL and ' +
-    'REACT_APP_SUPABASE_ANON_KEY are set.'
-  );
-}
+const supabaseUrl ='https://ypiwfedtvgmazqcwolac.supabase.co';
+const supabaseAnonKey ='';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
