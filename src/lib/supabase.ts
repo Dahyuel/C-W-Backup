@@ -1,268 +1,423 @@
-// src/lib/supabase.ts - Fixed version
+// lib/supabase.ts - Enhanced with email column and proper validation
 import { createClient } from '@supabase/supabase-js';
 
-// Use environment variables from Create React App
-// These should be defined in your .env file with REACT_APP_ prefix
-const supabaseUrl ='https://ypiwfedtvgmazqcwolac.supabase.co';
-const supabaseAnonKey ='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlwaXdmZWR0dmdtYXpxY3dvbGFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDYxMDIsImV4cCI6MjA3NDIyMjEwMn0.QnHPyeMBpezC-Q72fVDuRPdM5dkSYqoHC3uY_Dgsuxs';
+const supabaseUrl = 'https://ypiwfedtvgmazqcwolac.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlwaXdmZWR0dmdtYXpxY3dvbGFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDYxMDIsImV4cCI6MjA3NDIyMjEwMn0.QnHPyeMBpezC-Q72fVDuRPdM5dkSYqoHC3uY_Dgsuxs';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: true,
-    flowType: 'pkce'
-  }
-});
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Generate QR code for user
-const generateQRCode = (userId: string): string => {
-  return `CW2024_${userId.slice(0, 8)}_${Date.now().toString(36)}`;
-};
+interface ValidationResult {
+  isValid: boolean;
+  error: string | null;
+}
 
-// Sign up regular attendee
-export const signUpUser = async (email: string, password: string, profileData: any) => {
+// Check if user exists by personal ID or email
+export const checkUserExists = async (personalId: string, email: string): Promise<{exists: boolean, byPersonalId: boolean, byEmail: boolean}> => {
   try {
-    console.log('🔄 Starting attendee registration...');
-
-    // Create auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: email.trim().toLowerCase(),
-      password,
-    });
-
-    if (authError) {
-      console.error('❌ Auth signup error:', authError);
-      return { data: null, error: authError };
-    }
-
-    if (!authData.user) {
-      return { data: null, error: { message: 'User creation failed' } };
-    }
-
-    console.log('✅ Auth user created, creating profile...');
-
-    // Create profile with attendee role
-    const { error: profileError } = await supabase
+    const { data, error } = await supabase
       .from('users_profiles')
-      .insert({
-        id: authData.user.id,
-        first_name: profileData.first_name,
-        last_name: profileData.last_name,
-        email: email.trim().toLowerCase(),
-        phone: profileData.phone,
-        personal_id: profileData.personal_id,
-        faculty: profileData.faculty,
-        university: profileData.university || null,
-        gender: profileData.gender || null,
-        nationality: profileData.nationality || null,
-        degree_level: profileData.degree_level || null,
-        program: profileData.program || null,
-        class: profileData.class || null,
-        how_did_hear_about_event: profileData.how_did_hear_about_event || null,
-        volunteer_id: profileData.volunteer_id || null,
-        role: 'attendee', // Always attendee for regular signup
-        qr_code: generateQRCode(authData.user.id),
-        score: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
-
-    if (profileError) {
-      console.error('❌ Profile creation error:', profileError);
-      
-      // Note: We can't delete the auth user client-side due to permissions
-      // The user will need to contact admin if profile creation fails
-      return { data: null, error: profileError };
-    }
-
-    console.log('✅ Attendee registration completed successfully');
-    return { data: authData, error: null };
-
-  } catch (error: any) {
-    console.error('❌ Registration exception:', error);
-    return { data: null, error: { message: error.message || 'Registration failed' } };
-  }
-};
-
-// Sign up volunteer with specific role
-export const signUpVolunteer = async (email: string, password: string, profileData: any) => {
-  try {
-    console.log('🔄 Starting volunteer registration...');
-
-    // Validate role
-    const validRoles = ['registration', 'building', 'info_desk', 'volunteer', 'team_leader'];
-    if (!profileData.role || !validRoles.includes(profileData.role)) {
-      return { data: null, error: { message: 'Invalid volunteer role specified' } };
-    }
-
-    // Create auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: email.trim().toLowerCase(),
-      password,
-    });
-
-    if (authError) {
-      console.error('❌ Volunteer auth signup error:', authError);
-      return { data: null, error: authError };
-    }
-
-    if (!authData.user) {
-      return { data: null, error: { message: 'User creation failed' } };
-    }
-
-    console.log('✅ Auth user created, creating volunteer profile...');
-
-    // Create profile with specified volunteer role
-    const { error: profileError } = await supabase
-      .from('users_profiles')
-      .insert({
-        id: authData.user.id,
-        first_name: profileData.first_name,
-        last_name: profileData.last_name,
-        email: email.trim().toLowerCase(),
-        phone: profileData.phone,
-        personal_id: profileData.personal_id,
-        faculty: profileData.faculty,
-        role: profileData.role, // Use the specified volunteer role
-        qr_code: generateQRCode(authData.user.id),
-        score: 0,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      });
-
-    if (profileError) {
-      console.error('❌ Volunteer profile creation error:', profileError);
-      return { data: null, error: profileError };
-    }
-
-    console.log('✅ Volunteer registration completed successfully');
-    return { data: authData, error: null };
-
-  } catch (error: any) {
-    console.error('❌ Volunteer registration exception:', error);
-    return { data: null, error: { message: error.message || 'Volunteer registration failed' } };
-  }
-};
-
-// Sign in user
-export const signInUser = async (email: string, password: string) => {
-  try {
-    console.log('🔄 Attempting sign in...');
+      .select('personal_id, email')
+      .or(`personal_id.eq.${personalId.trim()},email.eq.${email.trim().toLowerCase()}`)
+      .limit(1);
     
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password,
-    });
-
     if (error) {
-      console.error('❌ Sign in error:', error);
-      return { data: null, error };
+      console.error('Error checking user existence:', error);
+      return { exists: false, byPersonalId: false, byEmail: false };
     }
-
-    console.log('✅ Sign in successful');
-    return { data, error: null };
-
+    
+    if (data && data.length > 0) {
+      const user = data[0];
+      return {
+        exists: true,
+        byPersonalId: user.personal_id === personalId.trim(),
+        byEmail: user.email === email.trim().toLowerCase()
+      };
+    }
+    
+    return { exists: false, byPersonalId: false, byEmail: false };
   } catch (error: any) {
-    console.error('❌ Sign in exception:', error);
-    return { data: null, error: { message: error.message || 'Sign in failed' } };
+    console.error('User existence check error:', error);
+    return { exists: false, byPersonalId: false, byEmail: false };
   }
 };
 
-// Validate registration data
+// Check if personal ID is unique
+export const checkPersonalIdUnique = async (personalId: string): Promise<ValidationResult> => {
+  try {
+    const { data, error } = await supabase
+      .from('users_profiles')
+      .select('personal_id')
+      .eq('personal_id', personalId.trim())
+      .limit(1);
+    
+    if (error) {
+      return { isValid: false, error: 'Database error while checking Personal ID' };
+    }
+    
+    const isUnique = !data || data.length === 0;
+    return { 
+      isValid: isUnique, 
+      error: isUnique ? null : 'This Personal ID is already registered' 
+    };
+  } catch (error: any) {
+    return { isValid: false, error: 'Failed to validate Personal ID' };
+  }
+};
+
+// Check if email is unique in users_profiles
+export const checkEmailUnique = async (email: string): Promise<ValidationResult> => {
+  try {
+    const { data, error } = await supabase
+      .from('users_profiles')
+      .select('email')
+      .eq('email', email.trim().toLowerCase())
+      .limit(1);
+    
+    if (error) {
+      return { isValid: false, error: 'Database error while checking email' };
+    }
+    
+    const isUnique = !data || data.length === 0;
+    return { 
+      isValid: isUnique, 
+      error: isUnique ? null : 'This email is already registered' 
+    };
+  } catch (error: any) {
+    return { isValid: false, error: 'Failed to validate email address' };
+  }
+};
+
+// Check if volunteer ID exists and is actually a volunteer
+export const checkVolunteerIdExists = async (volunteerId: string): Promise<ValidationResult> => {
+  if (!volunteerId || !volunteerId.trim()) {
+    return { isValid: true, error: null };
+  }
+  
+  try {
+    const { data, error } = await supabase
+      .from('users_profiles')
+      .select('personal_id, role')
+      .eq('personal_id', volunteerId.trim())
+      .limit(1);
+    
+    if (error) {
+      return { isValid: false, error: 'Database error while checking Volunteer ID' };
+    }
+    
+    if (!data || data.length === 0) {
+      return { 
+        isValid: false, 
+        error: 'Volunteer ID not found. Please check the ID and try again.' 
+      };
+    }
+    
+    const user = data[0];
+    if (user.role === 'attendee') {
+      return { 
+        isValid: false, 
+        error: 'The provided ID belongs to an attendee, not a volunteer.' 
+      };
+    }
+    
+    return { isValid: true, error: null };
+  } catch (error: any) {
+    return { isValid: false, error: 'Failed to validate Volunteer ID' };
+  }
+};
+
+// Enhanced registration validation
 export const validateRegistrationData = async (
   email: string,
   personalId: string,
   volunteerId?: string
 ): Promise<{ isValid: boolean; errors: string[] }> => {
   const errors: string[] = [];
-
+  
   try {
-    // Check if email already exists
-    const { data: emailCheck, error: emailError } = await supabase
-      .from('users_profiles')
-      .select('id')
-      .eq('email', email.trim().toLowerCase())
-      .maybeSingle();
-
-    if (emailError && emailError.code !== 'PGRST116') { // Ignore "not found" errors
-      console.error('Email validation error:', emailError);
-    } else if (emailCheck) {
-      errors.push('Email address is already registered');
-    }
-
-    // Check if personal ID already exists
-    const { data: personalIdCheck, error: personalIdError } = await supabase
-      .from('users_profiles')
-      .select('id')
-      .eq('personal_id', personalId.trim())
-      .maybeSingle();
-
-    if (personalIdError && personalIdError.code !== 'PGRST116') {
-      console.error('Personal ID validation error:', personalIdError);
-    } else if (personalIdCheck) {
-      errors.push('Personal ID is already registered');
-    }
-
-    // Check volunteer ID if provided
-    if (volunteerId) {
-      const { data: volunteerIdCheck, error: volunteerIdError } = await supabase
-        .from('users_profiles')
-        .select('id')
-        .eq('volunteer_id', volunteerId.trim())
-        .maybeSingle();
-
-      if (volunteerIdError && volunteerIdError.code !== 'PGRST116') {
-        console.error('Volunteer ID validation error:', volunteerIdError);
-      } else if (volunteerIdCheck) {
-        errors.push('Volunteer ID is already used');
+    // Check if user already exists
+    const userExists = await checkUserExists(personalId, email);
+    if (userExists.exists) {
+      if (userExists.byPersonalId) {
+        errors.push('This Personal ID is already registered');
+      }
+      if (userExists.byEmail) {
+        errors.push('This email is already registered');
       }
     }
 
-  } catch (error) {
-    console.error('Validation error:', error);
-    errors.push('Unable to validate registration data');
+    // Only validate volunteer ID if provided
+    if (volunteerId && volunteerId.trim()) {
+      const volunteerIdCheck = await checkVolunteerIdExists(volunteerId);
+      if (!volunteerIdCheck.isValid && volunteerIdCheck.error) {
+        errors.push(volunteerIdCheck.error);
+      }
+    }
+    
+    return {
+      isValid: errors.length === 0,
+      errors
+    };
+  } catch (error: any) {
+    return {
+      isValid: false,
+      errors: ['An unexpected error occurred during validation. Please try again.']
+    };
   }
-
-  return {
-    isValid: errors.length === 0,
-    errors
-  };
 };
 
-// Upload file function
-export const uploadFile = async (file: File, bucket: string, path: string) => {
+// Enhanced sign up function with proper user existence check
+export const signUpUser = async (email: string, password: string, userData: any) => {
   try {
-    const { data, error } = await supabase.storage
-      .from(bucket)
-      .upload(path, file);
-
-    if (error) {
-      throw error;
+    console.log('Starting attendee registration...');
+    
+    // STEP 1: Check if user already exists
+    const userExists = await checkUserExists(userData.personal_id, email);
+    if (userExists.exists) {
+      const errors: string[] = [];
+      if (userExists.byPersonalId) {
+        errors.push('Personal ID already registered');
+      }
+      if (userExists.byEmail) {
+        errors.push('Email already registered');
+      }
+      return { 
+        data: null, 
+        error: { 
+          message: errors.join('. '),
+          validationErrors: errors
+        }
+      };
     }
 
-    return { data, error: null };
+    console.log('User does not exist, creating auth user...');
+    
+    // STEP 2: Create auth user
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+
+    if (authError) {
+      console.error('Auth signup error:', authError);
+      return { data: null, error: authError };
+    }
+
+    if (!authData.user) {
+      return { data: null, error: { message: 'Failed to create user account' } };
+    }
+
+    console.log('Auth user created, creating profile...');
+
+    // STEP 3: Create profile with email
+    const { data: profileData, error: profileError } = await supabase
+      .from('users_profiles')
+      .insert({
+        id: authData.user.id,
+        email: email.trim().toLowerCase(), // Add email to profile
+        ...userData,
+        role: 'attendee',
+        score: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .select();
+
+    if (profileError) {
+      console.error('Profile creation error:', profileError);
+      
+      // Clean up auth user
+      try {
+        await supabase.auth.admin.deleteUser(authData.user.id);
+      } catch (cleanupError) {
+        console.error('Failed to cleanup auth user:', cleanupError);
+      }
+      
+      return { data: null, error: profileError };
+    }
+
+    console.log('Attendee registration completed successfully');
+    return { data: authData, error: null };
+
   } catch (error: any) {
-    return { data: null, error };
+    console.error('Registration error:', error);
+    return { data: null, error: { message: error.message || 'Registration failed' } };
   }
 };
 
-// Update user files
-export const updateUserFiles = async (userId: string, files: any) => {
+// Enhanced volunteer sign up
+export const signUpVolunteer = async (email: string, password: string, userData: any) => {
   try {
-    const { error } = await supabase
-      .from('users_profiles')
-      .update({
-        university_id_path: files.universityId || null,
-        cv_path: files.resume || null,
+    console.log('Starting volunteer registration...');
+    
+    // STEP 1: Check if user already exists
+    const userExists = await checkUserExists(userData.personal_id, email);
+    if (userExists.exists) {
+      const errors: string[] = [];
+      if (userExists.byPersonalId) {
+        errors.push('Personal ID already registered');
+      }
+      if (userExists.byEmail) {
+        errors.push('Email already registered');
+      }
+      return { 
+        data: null, 
+        error: { 
+          message: errors.join('. '),
+          validationErrors: errors
+        }
+      };
+    }
+
+    console.log('User does not exist, creating volunteer auth user...');
+
+    // STEP 2: Create auth user
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+
+    if (authError) {
+      console.error('Auth signup error:', authError);
+      return { data: null, error: authError };
+    }
+
+    if (!authData.user) {
+      return { data: null, error: { message: 'Failed to create volunteer account' } };
+    }
+
+    console.log('Auth user created, creating volunteer profile...');
+
+    // STEP 3: Create volunteer profile with email
+    const { data: profileData, error: profileError } = await supabase
+      .from("users_profiles")
+      .insert({
+        id: authData.user.id,
+        email: email.trim().toLowerCase(), // Add email to profile
+        ...userData,
+        role: userData.role || 'volunteer',
+        score: 0,
+        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
-      .eq('id', userId);
+      .select();
 
-    return { error };
+    if (profileError) {
+      console.error('Volunteer profile creation error:', profileError);
+      
+      // Clean up auth user
+      try {
+        await supabase.auth.admin.deleteUser(authData.user.id);
+      } catch (cleanupError) {
+        console.error('Failed to cleanup auth user:', cleanupError);
+      }
+      
+      return { data: null, error: profileError };
+    }
+
+    console.log('Volunteer registration completed successfully');
+    return { data: authData, error: null };
+
   } catch (error: any) {
-    return { error };
+    console.error('Volunteer registration error:', error);
+    return { data: null, error: { message: error.message || 'Volunteer registration failed' } };
   }
 };
 
-export default supabase;
+// Keep existing functions for backward compatibility
+export const signInUser = async (email: string, password: string) => {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email.trim().toLowerCase(),
+    password,
+  });
+  return { data, error };
+};
+
+export const resetPassword = async (email: string) => {
+  const { data, error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+    redirectTo: `${window.location.origin}/reset-password`
+  });
+  return { data, error };
+};
+
+export const resetPasswordWithPersonalId = async (personalId: string, email: string) => {
+  try {
+    // Verify personal ID exists
+    const { data: profileData, error: profileError } = await supabase
+      .from('users_profiles')
+      .select('id')
+      .eq('personal_id', personalId.trim())
+      .limit(1);
+
+    if (profileError || !profileData || profileData.length === 0) {
+      return { 
+        data: null, 
+        error: { message: 'Personal ID not found' }
+      };
+    }
+
+    const { data, error } = await resetPassword(email);
+    return { data, error };
+
+  } catch (error: any) {
+    return { data: null, error: { message: error.message || 'Password reset failed' } };
+  }
+};
+
+export const uploadFile = async (bucket: string, userId: string, file: File) => {
+  try {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+    const filePath = `${userId}/${fileName}`;
+
+    console.log(`Uploading file to ${bucket}/${filePath}`);
+
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .upload(filePath, file);
+
+    if (error) {
+      console.error('File upload error:', error);
+      return { data: null, error };
+    }
+
+    const { data: urlData } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(filePath);
+
+    console.log('File uploaded successfully:', urlData.publicUrl);
+
+    return { 
+      data: { 
+        path: filePath, 
+        url: urlData.publicUrl 
+      }, 
+      error: null 
+    };
+  } catch (error: any) {
+    console.error('Upload error:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
+export const updateUserFiles = async (userId: string, filePaths: { university_id_path?: string, cv_path?: string }) => {
+  try {
+    console.log('Updating user files:', filePaths);
+    
+    const { data, error } = await supabase
+      .from('users_profiles')
+      .update(filePaths)
+      .eq('id', userId)
+      .select();
+
+    if (error) {
+      console.error('Profile update error:', error);
+    } else {
+      console.log('Profile updated successfully');
+    }
+
+    return { data, error };
+  } catch (error: any) {
+    console.error('Update error:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
