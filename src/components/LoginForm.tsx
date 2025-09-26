@@ -9,12 +9,12 @@ export const LoginForm: React.FC = () => {
   const navigate = useNavigate();
   const { 
     signIn, 
+    user,
+    profile,
     isAuthenticated, 
     getRoleBasedRedirect, 
     loading: authLoading, 
-    initialized,
-    profile,
-    user 
+    initialized
   } = useAuth();
   
   const [formData, setFormData] = useState<LoginData>({
@@ -24,18 +24,40 @@ export const LoginForm: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [loading, setLoading] = useState(false);
+  const [redirectTimer, setRedirectTimer] = useState<NodeJS.Timeout | null>(null);
 
-  // Handle redirection when authentication is complete
+  // Handle redirection with better logic
   useEffect(() => {
-    // Only redirect when:
-    // 1. Auth is initialized (not loading initial state)
-    // 2. User is authenticated
-    // 3. Profile is loaded
-    if (initialized && isAuthenticated && user && profile && !authLoading) {
-      console.log('Redirecting authenticated user to:', getRoleBasedRedirect());
-      navigate(getRoleBasedRedirect(), { replace: true });
+    if (redirectTimer) {
+      clearTimeout(redirectTimer);
     }
-  }, [initialized, isAuthenticated, user, profile, authLoading, navigate, getRoleBasedRedirect]);
+
+    // Only redirect when all conditions are met:
+    // 1. Auth is initialized
+    // 2. User exists
+    // 3. We're not currently loading auth
+    // 4. Profile exists (or we've waited long enough)
+    if (initialized && user && !authLoading) {
+      if (profile) {
+        // Profile loaded - redirect immediately
+        console.log('Redirecting authenticated user with profile to:', getRoleBasedRedirect());
+        navigate(getRoleBasedRedirect(), { replace: true });
+      } else {
+        // Profile not loaded yet - wait a bit then redirect
+        const timer = setTimeout(() => {
+          console.log('Profile loading timeout - redirecting with available data');
+          navigate(getRoleBasedRedirect(), { replace: true });
+        }, 3000);
+        setRedirectTimer(timer);
+      }
+    }
+
+    return () => {
+      if (redirectTimer) {
+        clearTimeout(redirectTimer);
+      }
+    };
+  }, [initialized, user, profile, authLoading, navigate, getRoleBasedRedirect]);
 
   const updateField = (field: keyof LoginData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -71,12 +93,21 @@ export const LoginForm: React.FC = () => {
 
       if (error) {
         console.error('Login error:', error);
-        setErrors([{ field: 'general', message: 'Invalid email or password' }]);
+        let errorMessage = 'Invalid email or password';
+        
+        if (error.message?.includes('Invalid login credentials')) {
+          errorMessage = 'Invalid email or password';
+        } else if (error.message?.includes('Email not confirmed')) {
+          errorMessage = 'Please check your email and confirm your account';
+        } else if (error.message?.includes('Too many requests')) {
+          errorMessage = 'Too many login attempts. Please try again later';
+        }
+        
+        setErrors([{ field: 'general', message: errorMessage }]);
         return;
       }
 
-      // Don't manually redirect - let the useEffect handle it
-      console.log('Login successful, waiting for profile to load...');
+      console.log('Login successful, authentication flow will handle redirect...');
       
     } catch (error) {
       console.error('Login exception:', error);
@@ -102,13 +133,15 @@ export const LoginForm: React.FC = () => {
     );
   }
 
-  // Show loading state while profile is loading after successful login
-  if (isAuthenticated && (!profile || authLoading)) {
+  // Show loading state if user is authenticated but being redirected
+  if (user && (authLoading || profile)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading your dashboard...</p>
+          <p className="text-gray-600">
+            {profile ? 'Redirecting to your dashboard...' : 'Loading your dashboard...'}
+          </p>
         </div>
       </div>
     );
@@ -149,6 +182,7 @@ export const LoginForm: React.FC = () => {
                 }`}
                 placeholder="Enter your email address"
                 disabled={loading}
+                autoComplete="email"
               />
               {getFieldError('email') && (
                 <p className="text-sm text-red-600 mt-2">{getFieldError('email')}</p>
@@ -170,6 +204,7 @@ export const LoginForm: React.FC = () => {
                   }`}
                   placeholder="Enter your password"
                   disabled={loading}
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"
