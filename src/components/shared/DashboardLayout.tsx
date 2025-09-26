@@ -21,6 +21,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import QRCode from 'qrcode';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -53,6 +54,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
+  
+  // QR Code state
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+  const [qrCodeLoading, setQrCodeLoading] = useState(false);
   
   // Data state
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -94,6 +99,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Generate QR Code when profile modal opens
+  useEffect(() => {
+    if (showProfileModal && profile?.id) {
+      generateQRCode();
+    }
+  }, [showProfileModal, profile?.id]);
+
   const fetchNotifications = async () => {
     if (!profile?.id) return;
 
@@ -112,6 +124,30 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
+    }
+  };
+
+  const generateQRCode = async () => {
+    if (!profile?.id) return;
+    
+    setQrCodeLoading(true);
+    try {
+      // Generate QR code with the user's UUID
+      const qrCodeDataUrl = await QRCode.toDataURL(profile.id, {
+        width: 200,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        },
+        errorCorrectionLevel: 'M'
+      });
+      setQrCodeUrl(qrCodeDataUrl);
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      setQrCodeUrl(''); // Reset on error
+    } finally {
+      setQrCodeLoading(false);
     }
   };
 
@@ -201,12 +237,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
     } finally {
       setLoading(false);
     }
-  };
-
-  const generateQRCode = () => {
-    // In a real implementation, you'd generate a proper QR code
-    // For now, we'll show the user ID as QR data
-    return profile?.id || '';
   };
 
   const getRoleIcon = () => {
@@ -397,7 +427,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-gray-900">Profile Information</h2>
                 <button
-                  onClick={() => setShowProfileModal(false)}
+                  onClick={() => {
+                    setShowProfileModal(false);
+                    setQrCodeUrl(''); // Clear QR code when closing modal
+                  }}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   <X className="h-6 w-6" />
@@ -406,14 +439,31 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
 
               {/* QR Code Section */}
               <div className="text-center mb-6">
-                <div className="w-32 h-32 bg-gray-100 rounded-lg mx-auto mb-4 flex items-center justify-center">
-                  <div className="text-center">
-                    <QrCode className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                    <p className="text-xs text-gray-500">Your QR Code</p>
-                    <p className="text-xs text-gray-400 mt-1 font-mono">{generateQRCode()}</p>
-                  </div>
+                <div className="w-48 h-48 bg-white border-2 border-gray-200 rounded-lg mx-auto mb-4 flex items-center justify-center overflow-hidden">
+                  {qrCodeLoading ? (
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
+                      <p className="text-xs text-gray-500">Generating QR Code...</p>
+                    </div>
+                  ) : qrCodeUrl ? (
+                    <img 
+                      src={qrCodeUrl} 
+                      alt="Profile QR Code" 
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <div className="text-center">
+                      <QrCode className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                      <p className="text-xs text-gray-500">QR Code unavailable</p>
+                    </div>
+                  )}
                 </div>
                 <p className="text-sm text-gray-600">Show this QR code for check-ins</p>
+                {profile?.id && (
+                  <p className="text-xs text-gray-400 mt-1 font-mono break-all px-4">
+                    ID: {profile.id}
+                  </p>
+                )}
               </div>
 
               {/* Profile Information */}
@@ -438,16 +488,39 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                   <label className="block text-sm font-medium text-gray-700">Personal ID</label>
                   <p className="mt-1 text-sm text-gray-900">{profile?.personal_id || 'Not provided'}</p>
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Role</label>
+                  <div className="mt-1 flex items-center">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor()}`}>
+                      {getRoleIcon()}
+                      <span className="ml-1 capitalize">{profile?.role?.replace('_', ' ')}</span>
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              {/* Change Password Button */}
-              <div className="mt-6 pt-6 border-t border-gray-200">
+              {/* Action Buttons */}
+              <div className="mt-6 pt-6 border-t border-gray-200 space-y-3">
                 <button
                   onClick={() => setShowPasswordModal(true)}
                   className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors"
                 >
                   Change Password
                 </button>
+                
+                {qrCodeUrl && (
+                  <button
+                    onClick={() => {
+                      const link = document.createElement('a');
+                      link.download = `qr-code-${profile?.first_name}-${profile?.last_name}.png`;
+                      link.href = qrCodeUrl;
+                      link.click();
+                    }}
+                    className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    Download QR Code
+                  </button>
+                )}
               </div>
             </div>
           </div>
