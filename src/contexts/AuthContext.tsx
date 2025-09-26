@@ -1,22 +1,34 @@
-// src/contexts/AuthContext.tsx - Fixed version
-import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
+// src/contexts/AuthContext.tsx - Updated with enhanced validation
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { supabase, signUpUser, signUpVolunteer, signInUser, validateRegistrationData } from "../lib/supabase";
-import { User, Session } from "@supabase/supabase-js";
 
 type AuthContextType = {
-  user: User | null;
+  user: any;
   profile: any;
   loading: boolean;
-  initialized: boolean;
   isAuthenticated: boolean;
-  signUp: (email: string, password: string, profileData: any) => Promise<{ data: any; error: any }>;
-  signUpVolunteer: (email: string, password: string, profileData: any) => Promise<{ data: any; error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any; profile?: any }>;
+  signUp: (
+    email: string,
+    password: string,
+    profileData: any
+  ) => Promise<{ data: any; error: any }>;
+  signUpVolunteer: (
+    email: string,
+    password: string,
+    profileData: any
+  ) => Promise<{ data: any; error: any }>;
+  signIn: (
+    email: string,
+    password: string
+  ) => Promise<{ error: any; profile?: any }>;
   signOut: () => Promise<void>;
   hasRole: (roles: string | string[]) => boolean;
   getRoleBasedRedirect: (role?: string) => string;
-  validateRegistration: (email: string, personalId: string, volunteerId?: string) => Promise<{ isValid: boolean; errors: string[] }>;
-  refetchProfile: () => Promise<void>;
+  validateRegistration: (
+    email: string,
+    personalId: string,
+    volunteerId?: string
+  ) => Promise<{ isValid: boolean; errors: string[] }>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,208 +36,89 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [initialized, setInitialized] = useState(false);
-  
-  const mountedRef = useRef(true);
-  const profileFetchRef = useRef<Promise<any> | null>(null);
 
-  // Enhanced profile fetch with caching and proper error handling
-  const fetchProfile = useCallback(async (userId: string, forceRefresh = false): Promise<any> => {
-    if (!mountedRef.current || !userId) return null;
-
-    // Return existing promise if already fetching
-    if (profileFetchRef.current && !forceRefresh) {
-      return profileFetchRef.current;
-    }
-
-    const fetchPromise = (async () => {
-      try {
-        console.log(`🔄 Fetching profile for user ${userId}`);
-        
-        const { data, error } = await supabase
-          .from("users_profiles")
-          .select("*")
-          .eq("id", userId)
-          .maybeSingle(); // Use maybeSingle to avoid throwing on no rows
-
-        if (!mountedRef.current) return null;
-
-        if (error) {
-          console.error('Profile fetch error:', error);
-          
-          // Don't retry for "not found" errors
-          if (error.code === 'PGRST116') {
-            console.log('Profile not found for user:', userId);
-            return null;
-          }
-          
-          throw error;
-        }
-
-        if (data) {
-          console.log('✅ Profile fetched successfully:', data.role);
-          if (mountedRef.current) {
-            setProfile(data);
-          }
-          return data;
-        }
-        
-        return null;
-      } catch (error) {
-        console.error('Profile fetch exception:', error);
-        throw error;
-      }
-    })();
-
-    profileFetchRef.current = fetchPromise;
-    
-    // Clear the promise reference when done
-    fetchPromise.finally(() => {
-      profileFetchRef.current = null;
-    });
-
-    return fetchPromise;
-  }, []);
-
-  // Manual profile refetch
-  const refetchProfile = useCallback(async () => {
-    if (user?.id) {
-      return fetchProfile(user.id, true);
-    }
-    return null;
-  }, [user?.id, fetchProfile]);
-
-  // Initialize auth state
-  const initializeAuth = useCallback(async () => {
-    if (!mountedRef.current) return;
-
+  // 🔹 Fetch profile from DB
+  const fetchProfile = async (uid: string) => {
     try {
-      console.log('🔄 Initializing authentication...');
-      
-      // Get current session
-      const { data: { session }, error } = await supabase.auth.getSession();
-      
-      if (!mountedRef.current) return;
+      const { data, error } = await supabase
+        .from("users_profiles")
+        .select("*")
+        .eq("id", uid)
+        .single();
 
-      if (error) {
-        console.error('Session fetch error:', error);
-        if (mountedRef.current) {
-          setUser(null);
-          setProfile(null);
-        }
-        return;
-      }
-
-      if (session?.user) {
-        console.log('✅ Existing session found');
-        if (mountedRef.current) {
-          setUser(session.user);
-          // Fetch profile but don't block initialization
-          fetchProfile(session.user.id).catch(error => {
-            console.error('Initial profile fetch error:', error);
-          });
-        }
+      if (!error && data) {
+        setProfile(data);
+        console.log('✅ Profile fetched:', data.role);
       } else {
-        console.log('No existing session');
-        if (mountedRef.current) {
-          setUser(null);
-          setProfile(null);
-        }
-      }
-    } catch (error) {
-      console.error('Auth initialization error:', error);
-      if (mountedRef.current) {
-        setUser(null);
+        console.error('Profile fetch error:', error);
         setProfile(null);
       }
-    } finally {
-      if (mountedRef.current) {
-        setLoading(false);
-        setInitialized(true);
-        console.log('✅ Auth initialization completed');
-      }
+    } catch (error) {
+      console.error('Profile fetch exception:', error);
+      setProfile(null);
     }
-  }, [fetchProfile]);
+  };
 
-  // Initialize on mount
+  // 🔹 Load session & profile on mount
   useEffect(() => {
-    mountedRef.current = true;
-    initializeAuth();
-
-    return () => {
-      mountedRef.current = false;
+    const initAuth = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (!error && data.session?.user) {
+          setUser(data.session.user);
+          await fetchProfile(data.session.user.id);
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+      } finally {
+        setLoading(false);
+      }
     };
-  }, [initializeAuth]);
 
-  // Auth state change listener
-  useEffect(() => {
-    if (!initialized) return;
+    initAuth();
 
-    console.log('Setting up auth state listener...');
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    // 🔹 Listen for auth state changes
+    const { data: subscription } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        if (!mountedRef.current) return;
+        console.log('Auth state change:', event);
         
-        console.log('🔄 Auth state change:', event, session?.user?.id);
+        const u = session?.user ?? null;
+        setUser(u);
         
-        switch (event) {
-          case 'SIGNED_IN':
-          case 'TOKEN_REFRESHED':
-            if (session?.user) {
-              setUser(session.user);
-              // Fetch profile for new sign-in or refresh
-              if (event === 'SIGNED_IN' || !profile || profile.id !== session.user.id) {
-                fetchProfile(session.user.id).catch(console.error);
-              }
-            }
-            break;
-            
-          case 'SIGNED_OUT':
-            setUser(null);
-            setProfile(null);
-            profileFetchRef.current = null;
-            break;
-            
-          case 'USER_UPDATED':
-            // Refresh user data if needed
-            if (session?.user) {
-              setUser(session.user);
-            }
-            break;
+        if (u) {
+          await fetchProfile(u.id);
+        } else {
+          setProfile(null);
         }
       }
     );
 
     return () => {
-      subscription.unsubscribe();
-    };
-  }, [initialized, profile, fetchProfile]);
-
-  // Cleanup
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false;
+      subscription.subscription.unsubscribe();
     };
   }, []);
 
-  // Auth methods
+  // ✅ Enhanced SIGN UP for attendees with pre-validation
   const signUp = async (email: string, password: string, profileData: any) => {
     try {
+      console.log('🔄 Starting attendee registration with validation...');
+      
+      // Use the enhanced signUpUser function which includes validation
       const result = await signUpUser(email, password, profileData);
       
       if (result.error) {
+        console.error('❌ Registration failed:', result.error);
         return result;
       }
 
-      if (result.data?.user && mountedRef.current) {
-        setUser(result.data.user);
-        // Wait for profile to be created
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        fetchProfile(result.data.user.id).catch(console.error);
+      console.log('✅ Registration successful');
+      
+      // Fetch the newly created profile
+      if (result.data?.user) {
+        await fetchProfile(result.data.user.id);
       }
 
       return result;
@@ -238,18 +131,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  // ✅ Enhanced SIGN UP for volunteers with pre-validation
   const signUpVolunteerFunc = async (email: string, password: string, profileData: any) => {
     try {
+      console.log('🔄 Starting volunteer registration with validation...');
+      
+      // Use the imported signUpVolunteer function from lib/supabase
       const result = await signUpVolunteer(email, password, profileData);
       
       if (result.error) {
+        console.error('❌ Volunteer registration failed:', result.error);
         return result;
       }
 
-      if (result.data?.user && mountedRef.current) {
-        setUser(result.data.user);
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        fetchProfile(result.data.user.id).catch(console.error);
+      console.log('✅ Volunteer registration successful');
+      
+      // Fetch the newly created profile
+      if (result.data?.user) {
+        await fetchProfile(result.data.user.id);
       }
 
       return result;
@@ -262,18 +161,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  // ✅ SIGN IN
   const signIn = async (email: string, password: string) => {
     try {
       const { data, error } = await signInUser(email, password);
 
       if (error) {
+        console.error('❌ Sign in failed:', error);
         return { error };
       }
 
-      if (data.user && mountedRef.current) {
+      if (data.user) {
         setUser(data.user);
-        const profileData = await fetchProfile(data.user.id);
-        return { error: null, profile: profileData };
+        await fetchProfile(data.user.id);
+        console.log('✅ Sign in successful');
       }
 
       return { error: null };
@@ -283,21 +184,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
   
+  // ✅ SIGN OUT
   const signOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('Sign out error:', error);
-      }
-      
-      // State will be updated by the auth state listener
-      window.location.href = '/login';
+      await supabase.auth.signOut();
+      setUser(null);
+      setProfile(null);
+      console.log('✅ Signed out successfully');
     } catch (error) {
       console.error('Sign out error:', error);
-      window.location.href = '/login';
     }
   };
 
+  // ✅ VALIDATION HELPER - expose validation function for form validation
   const validateRegistration = async (
     email: string,
     personalId: string,
@@ -306,16 +205,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return await validateRegistrationData(email, personalId, volunteerId);
   };
 
-  // Role helpers
+  // ✅ ROLE HELPERS
   const hasRole = (roles: string | string[]) => {
     if (!profile?.role) return false;
-    const userRole = profile.role;
-    return Array.isArray(roles) ? roles.includes(userRole) : userRole === roles;
+    if (Array.isArray(roles)) {
+      return roles.includes(profile.role);
+    }
+    return profile.role === roles;
   };
 
   const getRoleBasedRedirect = (role?: string) => {
-    const userRole = role || profile?.role;
-    switch (userRole) {
+    const r = role || profile?.role;
+    switch (r) {
       case "admin":
         return "/secure-9821panel";
       case "sadmin":
@@ -337,31 +238,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  const isAuthenticated = !!user && !!profile && initialized;
-
-  const value: AuthContextType = {
-    user,
-    profile,
-    loading,
-    initialized,
-    isAuthenticated,
-    signUp,
-    signUpVolunteer: signUpVolunteerFunc,
-    signIn,
-    signOut,
-    hasRole,
-    getRoleBasedRedirect,
-    validateRegistration,
-    refetchProfile,
-  };
-
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        loading,
+        isAuthenticated: !!user,
+        signUp,
+        signUpVolunteer: signUpVolunteerFunc,
+        signIn,
+        signOut,
+        hasRole,
+        getRoleBasedRedirect,
+        validateRegistration,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 };
 
+// ✅ Hook
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) throw new Error("useAuth must be used within an AuthProvider");
