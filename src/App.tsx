@@ -10,7 +10,7 @@ import { ForgotPasswordForm } from './components/ForgotPasswordForm';
 import { VolunteerRegistration } from './pages/volunteer/VolunteerRegistration';
 
 // Dashboard Components
-import { AttendeeDashboard } from './pages/user/AttendeeDashboard';
+import  AttendeeDashboard  from './pages/user/AttendeeDashboard';
 import { VolunteerDashboard } from './pages/volunteer/VolunteerDashboard';
 import { RegTeamDashboard } from './pages/team/RegTeamDashboard';
 import { BuildTeamDashboard } from './pages/team/BuildTeamDashboard';
