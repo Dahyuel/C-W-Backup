@@ -53,14 +53,18 @@ export const VolunteerRegistration: React.FC = () => {
     { value: 'team_leader', label: 'Team Leader' }
   ];
 
-  // Redirect when authentication is complete after auto-login
-  useEffect(() => {
-    if (isAuthenticated && profile && !authLoading) {
-      console.log('✅ Auth context ready, redirecting to dashboard...');
+// Redirect when authentication is complete after auto-login
+useEffect(() => {
+  if (isAuthenticated && profile && !authLoading) {
+    console.log('✅ Auth context ready, redirecting to dashboard...');
+    // Add a small delay to ensure everything is loaded
+    setTimeout(() => {
       navigate(getRoleBasedRedirect(), { replace: true });
-    }
-  }, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect]);
+    }, 1000);
+  }
+}, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect]);
 
+  
   const updateField = (field: keyof RegistrationData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setErrors(prev => prev.filter(error => error.field !== field));
