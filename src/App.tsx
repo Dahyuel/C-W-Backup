@@ -14,6 +14,7 @@ import { AttendeeDashboard } from './pages/user/AttendeeDashboard';
 import { VolunteerDashboard } from './pages/volunteer/VolunteerDashboard';
 import { RegTeamDashboard } from './pages/team/RegTeamDashboard';
 import { BuildTeamDashboard } from './pages/team/BuildTeamDashboard';
+import { InfoDeskDashboard } from './pages/team/InfoDeskDashboard';
 import { TeamLeaderDashboard } from './pages/team/TeamLeaderDashboard';
 import { AdminPanel } from './pages/admin/AdminPanel';
 import { SuperAdminPanel } from './pages/admin/SuperAdminPanel';
