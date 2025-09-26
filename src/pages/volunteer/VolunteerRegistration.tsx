@@ -127,28 +127,27 @@ export const VolunteerRegistration: React.FC = () => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validate all sections
-    const allErrors = [1, 2, 3].flatMap(section => validateSection(section));
-    if (allErrors.length > 0) {
-      setErrors(allErrors);
-      const firstErrorSection = Math.min(...allErrors.map(error => {
-        if (['firstName', 'lastName', 'email', 'phone', 'personalId', 'faculty'].includes(error.field)) return 1;
-        if (['role'].includes(error.field)) return 2;
-        if (['password', 'confirmPassword'].includes(error.field)) return 3;
-        return 1;
-      }));
-      setCurrentSection(firstErrorSection);
-      return;
-    }
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  // Validate all sections
+  const allErrors = [1, 2, 3].flatMap(section => validateSection(section));
+  if (allErrors.length > 0) {
+    setErrors(allErrors);
+    const firstErrorSection = Math.min(...allErrors.map(error => {
+      if (['firstName', 'lastName', 'email', 'phone', 'personalId', 'faculty'].includes(error.field)) return 1;
+      if (['role'].includes(error.field)) return 2;
+      if (['password', 'confirmPassword'].includes(error.field)) return 3;
+      return 1;
+    }));
+    setCurrentSection(firstErrorSection);
+    return;
+  }
 
-    setLoading(true);
-    setErrors([]);
+  setLoading(true);
+  setErrors([]);
 
-try {
-    // UPDATED: Include role in profile data
+  try {
     const profileData = {
       first_name: formData.firstName.trim(),
       last_name: formData.lastName.trim(),
@@ -158,7 +157,7 @@ try {
       role: formData.role, // ✅ Include the selected role
     };
 
-    // FIXED: Use signUpVolunteer instead of signUp
+    // Use signUpVolunteer for volunteer registration
     const { data, error } = await signUpVolunteer(formData.email, formData.password, profileData);
 
     if (error) {
@@ -166,14 +165,31 @@ try {
       return;
     }
 
-    // ... rest of the function ...
+    console.log("✅ Volunteer registration successful, attempting auto-login...");
+    
+    // Auto-signin after successful registration
+    const { error: signInError } = await signIn(formData.email, formData.password);
+
+    if (signInError) {
+      console.log("⚠️ Auto-login failed, showing success message");
+      setShowSuccess(true);
+    }
+    // If auto-login succeeds, the useEffect will handle the redirect
+    
   } catch (error: any) {
-    // ... error handling ...
+    setErrors([
+      {
+        field: "general",
+        message: error.message || "An unexpected error occurred. Please try again.",
+      },
+    ]);
   } finally {
     setLoading(false);
   }
 };
 
+
+  
   const getFieldError = (field: string) => {
     return errors.find(error => error.field === field)?.message;
   };
