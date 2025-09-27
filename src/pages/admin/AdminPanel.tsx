@@ -1233,28 +1233,34 @@ const clearUserSelection = () => {
             </span>
           </div>
           
-{/* Action Buttons - Fix these in Sessions tab */}
-<div className="flex gap-2 mt-4">
-  <button
-    onClick={() => handleSessionClick(session)} // Fixed
-    className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
-  >
-    <Eye className="h-3 w-3 mr-1 inline" />
-    View
-  </button>
-  <button
-    onClick={() => handleEditSession(session)} // Fixed
-    className="flex-1 bg-blue-500 text-white py-2 px-3 rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
-  >
-    Edit
-  </button>
-</div>
+          {/* Action Buttons with Delete */}
+          <div className="flex gap-2 mt-4">
+            <button
+              onClick={() => handleSessionClick(session)}
+              className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+            >
+              <Eye className="h-3 w-3 mr-1 inline" />
+              View
+            </button>
+            <button
+              onClick={() => handleEditSession(session)}
+              className="flex-1 bg-blue-500 text-white py-2 px-3 rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
+            >
+              Edit
+            </button>
+            <button
+              onClick={() => handleDeleteSession(session)}
+              className="flex-1 bg-red-500 text-white py-2 px-3 rounded-lg hover:bg-red-600 transition-colors text-sm font-medium"
+            >
+              <Trash2 className="h-3 w-3 mr-1 inline" />
+              Delete
+            </button>
+          </div>
         </div>
       ))}
     </div>
   </div>
 )}
-
 
 
         {/* Events Tab */}
