@@ -66,6 +66,7 @@ const AttendeeDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState("overview");
   const [activeDay, setActiveDay] = useState<number>(1);
   const [loading, setLoading] = useState(true);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
   const [showQR, setShowQR] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [qrCodeLoading, setQrCodeLoading] = useState(false);
@@ -84,7 +85,65 @@ const AttendeeDashboard: React.FC = () => {
   // Load dashboard data
   useEffect(() => {
     fetchDashboardData();
+    
+    // Set up realtime subscriptions for sessions
+    const sessionsChannel = supabase
+      .channel('sessions_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'sessions'
+        },
+        (payload) => {
+          console.log('Session change detected:', payload);
+          fetchSessions(); // Refresh sessions data
+        }
+      )
+      .subscribe();
+
+    // Set up realtime subscription for attendances (for booking changes)
+    const attendancesChannel = supabase
+      .channel('attendances_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'attendances',
+          filter: 'scan_type=eq.booking'
+        },
+        (payload) => {
+          console.log('Booking change detected:', payload);
+          fetchSessions(); // Refresh sessions to update booking counts
+          if (profile?.id) {
+            fetchUserBookings(); // Refresh user's bookings
+          }
+        }
+      )
+      .subscribe();
+
+    // Cleanup subscriptions on unmount
+    return () => {
+      supabase.removeChannel(sessionsChannel);
+      supabase.removeChannel(attendancesChannel);
+    };
   }, [profile?.id]);
+
+  // Add periodic refresh as backup for realtime (every 30 seconds)
+  useEffect(() => {
+    if (activeTab === 'sessions') {
+      const interval = setInterval(() => {
+        fetchSessions();
+        if (profile?.id) {
+          fetchUserBookings();
+        }
+      }, 30000); // Refresh every 30 seconds when on sessions tab
+
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, profile?.id]);
 
   const fetchDashboardData = async () => {
     if (!profile?.id) return;
@@ -134,6 +193,7 @@ const AttendeeDashboard: React.FC = () => {
   };
 
   const fetchSessions = async () => {
+    setSessionsLoading(true);
     try {
       const { data, error } = await supabase
         .from("sessions")
@@ -147,6 +207,8 @@ const AttendeeDashboard: React.FC = () => {
       }
     } catch (error) {
       console.error("Error fetching sessions:", error);
+    } finally {
+      setSessionsLoading(false);
     }
   };
 
@@ -433,69 +495,94 @@ const AttendeeDashboard: React.FC = () => {
       {/* Sessions */}
       {activeTab === "sessions" && (
         <div>
-          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
-            <Users className="h-5 w-5 mr-2 text-orange-600" /> Available Sessions
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {sessions.map((session) => {
-              const booked = isSessionBooked(session.id);
-              const full = isSessionFull(session);
-              
-              return (
-                <div
-                  key={session.id}
-                  onClick={() => handleSessionClick(session)}
-                  className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-md cursor-pointer transition-shadow"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">{session.title}</h3>
-                    {booked && (
-                      <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 ml-2" />
-                    )}
-                  </div>
-                  
-                  <p className="text-sm text-gray-600 mb-3 line-clamp-2">{session.description}</p>
-                  
-                  {session.speaker && (
-                    <p className="text-sm font-medium text-gray-900 mb-2">Speaker: {session.speaker}</p>
-                  )}
-                  
-                  <div className="space-y-2 text-xs text-gray-500">
-                    <div className="flex items-center">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {new Date(session.start_time).toLocaleDateString()} {new Date(session.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </div>
-                    <div className="flex items-center">
-                      <MapPin className="h-3 w-3 mr-1" />
-                      {session.location}
-                    </div>
-                    <div className="flex items-center">
-                      <Users className="h-3 w-3 mr-1" />
-                      {session.current_bookings || 0}/{session.max_attendees || 'Unlimited'} booked
-                    </div>
-                  </div>
-                  
-                  <div className="mt-4 pt-3 border-t border-gray-100">
-                    {booked ? (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Booked
-                      </span>
-                    ) : full ? (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                        <XCircle className="h-3 w-3 mr-1" />
-                        Full
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        Available
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-900 flex items-center">
+              <Users className="h-5 w-5 mr-2 text-orange-600" /> Available Sessions
+            </h2>
+            {sessionsLoading && (
+              <div className="flex items-center text-sm text-gray-500">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500 mr-2"></div>
+                Updating...
+              </div>
+            )}
           </div>
+          
+          {sessions.length === 0 && !loading ? (
+            <div className="text-center py-12">
+              <Users className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">No sessions available</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {sessions.map((session) => {
+                const booked = isSessionBooked(session.id);
+                const full = isSessionFull(session);
+                
+                return (
+                  <div
+                    key={session.id}
+                    onClick={() => handleSessionClick(session)}
+                    className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-md cursor-pointer transition-all duration-200 relative"
+                  >
+                    {/* Real-time update indicator */}
+                    {sessionsLoading && (
+                      <div className="absolute top-2 right-2">
+                        <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
+                      </div>
+                    )}
+                    
+                    <div className="flex items-start justify-between mb-3">
+                      <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">{session.title}</h3>
+                      {booked && (
+                        <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 ml-2" />
+                      )}
+                    </div>
+                    
+                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">{session.description}</p>
+                    
+                    {session.speaker && (
+                      <p className="text-sm font-medium text-gray-900 mb-2">Speaker: {session.speaker}</p>
+                    )}
+                    
+                    <div className="space-y-2 text-xs text-gray-500">
+                      <div className="flex items-center">
+                        <Clock className="h-3 w-3 mr-1" />
+                        {new Date(session.start_time).toLocaleDateString()} {new Date(session.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </div>
+                      <div className="flex items-center">
+                        <MapPin className="h-3 w-3 mr-1" />
+                        {session.location}
+                      </div>
+                      <div className="flex items-center">
+                        <Users className="h-3 w-3 mr-1" />
+                        <span className={`transition-colors ${sessionsLoading ? 'text-orange-500' : ''}`}>
+                          {session.current_bookings || 0}/{session.max_attendees || 'Unlimited'} booked
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="mt-4 pt-3 border-t border-gray-100">
+                      {booked ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Booked
+                        </span>
+                      ) : full ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          <XCircle className="h-3 w-3 mr-1" />
+                          Full
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                          Available
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
