@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import QRCode from 'qrcode';
-import Leaderboard from './Leaderboard'; // Fixed import path
+import Leaderboard from './Leaderboard';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -83,6 +83,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
   // Refs for click outside detection
   const profileDropdownRef = useRef<HTMLDivElement>(null);
   const notificationDropdownRef = useRef<HTMLDivElement>(null);
+  const profileModalRef = useRef<HTMLDivElement>(null);
 
   // Fetch notifications and user score on component mount
   useEffect(() => {
@@ -90,20 +91,29 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
     fetchUserScore();
   }, [profile?.id]);
 
-  // Click outside handlers
+  // Click outside handlers for dropdowns and modals
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // Close profile dropdown if clicked outside
       if (profileDropdownRef.current && !profileDropdownRef.current.contains(event.target as Node)) {
         setShowProfileDropdown(false);
       }
+      
+      // Close notification dropdown if clicked outside
       if (notificationDropdownRef.current && !notificationDropdownRef.current.contains(event.target as Node)) {
         setShowNotificationDropdown(false);
+      }
+      
+      // Close profile modal if clicked outside
+      if (showProfileModal && profileModalRef.current && !profileModalRef.current.contains(event.target as Node)) {
+        setShowProfileModal(false);
+        setQrCodeUrl('');
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [showProfileModal]);
 
   // Generate QR Code when profile modal opens
   useEffect(() => {
@@ -112,19 +122,37 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
     }
   }, [showProfileModal, profile?.id]);
 
+  const fetchNotifications = async () => {
+    if (!profile?.id) return;
 
-const fetchNotifications = async () => {
-  if (!profile?.id) return;
+    try {
+      // First get user_notifications for this user
+      const { data: userNotifications, error } = await supabase
+        .from('user_notifications')
+        .select(`
+          notification_id,
+          is_read,
+          read_at
+        `)
+        .eq('user_id', profile.id)
+        .order('read_at', { ascending: false })
+        .limit(10);
 
-  try {
-    const { data, error } = await supabase
-      .from('user_notifications')
-      .select(`
-        id,
-        is_read,
-        read_at,
-        notification_id,
-        notifications (
+      if (error) {
+        console.error('Error fetching user notifications:', error);
+        return;
+      }
+
+      if (!userNotifications || userNotifications.length === 0) {
+        setNotifications([]);
+        return;
+      }
+
+      // Get the actual notification details
+      const notificationIds = userNotifications.map(un => un.notification_id);
+      const { data: notificationsData, error: notificationsError } = await supabase
+        .from('notifications')
+        .select(`
           id,
           title,
           message,
@@ -134,34 +162,36 @@ const fetchNotifications = async () => {
             first_name,
             last_name
           )
-        )
-      `)
-      .eq('user_id', profile.id)
-      .order('notifications(created_at)', { ascending: false })
-      .limit(10);
+        `)
+        .in('id', notificationIds)
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching notifications:', error);
-    } else if (data) {
-      // Transform the data to match your Notification interface
-      const transformedNotifications: Notification[] = data.map(item => ({
-        id: item.notification_id,
-        title: item.notifications?.title || '',
-        message: item.notifications?.message || '',
-        sender: item.notifications?.users_profiles 
-          ? `${item.notifications.users_profiles.first_name} ${item.notifications.users_profiles.last_name}`
-          : 'System',
-        created_at: item.notifications?.created_at || '',
-        is_read: item.is_read || false
-      }));
-      
+      if (notificationsError) {
+        console.error('Error fetching notification details:', notificationsError);
+        return;
+      }
+
+      // Combine the data
+      const transformedNotifications: Notification[] = notificationsData.map(notification => {
+        const userNotification = userNotifications.find(un => un.notification_id === notification.id);
+        return {
+          id: notification.id,
+          title: notification.title || '',
+          message: notification.message || '',
+          sender: notification.users_profiles 
+            ? `${notification.users_profiles.first_name} ${notification.users_profiles.last_name}`
+            : 'System',
+          created_at: notification.created_at || '',
+          is_read: userNotification?.is_read || false
+        };
+      });
+
       setNotifications(transformedNotifications);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
     }
-  } catch (error) {
-    console.error('Error fetching notifications:', error);
-  }
-};
-  
+  };
+
   const fetchUserScore = async () => {
     if (!profile?.id) return;
 
@@ -187,7 +217,6 @@ const fetchNotifications = async () => {
     
     setQrCodeLoading(true);
     try {
-      // Generate QR code with the user's UUID
       const qrCodeDataUrl = await QRCode.toDataURL(profile.id, {
         width: 200,
         margin: 2,
@@ -200,29 +229,24 @@ const fetchNotifications = async () => {
       setQrCodeUrl(qrCodeDataUrl);
     } catch (error) {
       console.error('Error generating QR code:', error);
-      setQrCodeUrl(''); // Reset on error
+      setQrCodeUrl('');
     } finally {
       setQrCodeLoading(false);
     }
   };
 
-  // Enhanced logout function with proper state management
   const handleSignOut = async () => {
-    if (loggingOut) return; // Prevent multiple logout attempts
+    if (loggingOut) return;
     
     setLoggingOut(true);
     setShowProfileDropdown(false);
     
     try {
       console.log('🔄 Initiating logout...');
-      
-      // Call the signOut function from AuthContext
       await signOut();
-      
       console.log('✅ Logout completed');
     } catch (error) {
       console.error('❌ Logout error:', error);
-      // Force logout even if there's an error
       window.location.href = '/login';
     } finally {
       setLoggingOut(false);
@@ -245,38 +269,34 @@ const fetchNotifications = async () => {
     setShowNotificationDropdown(false);
   };
 
-const markNotificationAsRead = async (notificationId: string) => {
-  try {
-    const { error } = await supabase
-      .from('user_notifications')
-      .update({ 
-        is_read: true,
-        read_at: new Date().toISOString()
-      })
-      .eq('notification_id', notificationId)
-      .eq('user_id', profile?.id);
+  const markNotificationAsRead = async (notificationId: string) => {
+    try {
+      const { error } = await supabase
+        .from('user_notifications')
+        .update({ 
+          is_read: true,
+          read_at: new Date().toISOString()
+        })
+        .eq('notification_id', notificationId)
+        .eq('user_id', profile?.id);
 
-    if (!error) {
-      setNotifications(prev => 
-        prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
-      );
-      setShowNotificationModal(false);
-      setSelectedNotification(null);
+      if (!error) {
+        setNotifications(prev => 
+          prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
+        );
+        setShowNotificationModal(false);
+        setSelectedNotification(null);
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
     }
-  } catch (error) {
-    console.error('Error marking notification as read:', error);
-  }
-};
+  };
 
-
-
-  
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
 
-    // Validation
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       setError('New passwords do not match');
       return;
@@ -290,8 +310,6 @@ const markNotificationAsRead = async (notificationId: string) => {
     setLoading(true);
 
     try {
-      // Update password directly without verifying old password first
-      // Supabase will handle the verification internally
       const { error: updateError } = await supabase.auth.updateUser({
         password: passwordData.newPassword
       });
@@ -388,9 +406,9 @@ const markNotificationAsRead = async (notificationId: string) => {
                   )}
                 </button>
 
-                {/* Notification Dropdown */}
+                {/* Notification Dropdown - Fixed mobile positioning */}
                 {showNotificationDropdown && (
-                  <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-y-auto">
+                  <div className="fixed sm:absolute right-0 left-0 sm:left-auto mt-2 mx-4 sm:mx-0 sm:w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-y-auto">
                     <div className="p-4 border-b border-gray-200">
                       <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
                     </div>
@@ -413,7 +431,7 @@ const markNotificationAsRead = async (notificationId: string) => {
                                 </p>
                               </div>
                               {!notification.is_read && (
-                                <div className="w-2 h-2 bg-orange-500 rounded-full ml-2 mt-1"></div>
+                                <div className="w-2 h-2 bg-orange-500 rounded-full ml-2 mt-1 flex-shrink-0"></div>
                               )}
                             </div>
                           </button>
@@ -436,17 +454,14 @@ const markNotificationAsRead = async (notificationId: string) => {
                   className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"
                   aria-label="Profile menu"
                 >
-                  {/* Profile Picture */}
                   <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center">
                     <span className="text-white font-medium text-sm">
                       {profile?.first_name?.charAt(0)}{profile?.last_name?.charAt(0)}
                     </span>
                   </div>
-
                   <ChevronDown className="h-4 w-4 text-gray-400" />
                 </button>
 
-                {/* Profile Dropdown */}
                 {showProfileDropdown && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
                     <div className="p-2">
@@ -483,29 +498,29 @@ const markNotificationAsRead = async (notificationId: string) => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Page Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
           {subtitle && (
             <p className="mt-2 text-gray-600">{subtitle}</p>
           )}
         </div>
-
-        {/* Page Content */}
         {children}
       </main>
 
       {/* Profile Modal */}
       {showProfileModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <div 
+            ref={profileModalRef}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
+          >
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-gray-900">Profile Information</h2>
                 <button
                   onClick={() => {
                     setShowProfileModal(false);
-                    setQrCodeUrl(''); // Clear QR code when closing modal
+                    setQrCodeUrl('');
                   }}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
@@ -633,7 +648,6 @@ const markNotificationAsRead = async (notificationId: string) => {
               </div>
 
               <form onSubmit={handlePasswordChange} className="space-y-4">
-                {/* Error/Success Messages */}
                 {error && (
                   <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
                     <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
@@ -647,7 +661,6 @@ const markNotificationAsRead = async (notificationId: string) => {
                   </div>
                 )}
 
-                {/* New Password - Removed old password field as Supabase handles verification */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     New Password
@@ -671,7 +684,6 @@ const markNotificationAsRead = async (notificationId: string) => {
                   </div>
                 </div>
 
-                {/* Confirm New Password */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Confirm New Password
@@ -695,7 +707,6 @@ const markNotificationAsRead = async (notificationId: string) => {
                   </div>
                 </div>
 
-                {/* Buttons */}
                 <div className="flex space-x-3 pt-4">
                   <button
                     type="button"
@@ -754,7 +765,7 @@ const markNotificationAsRead = async (notificationId: string) => {
                 </div>
               </div>
 
-                            {!selectedNotification.is_read && (
+              {!selectedNotification.is_read && (
                 <div className="mt-6 pt-6 border-t border-gray-200">
                   <button
                     onClick={() => markNotificationAsRead(selectedNotification.id)}
