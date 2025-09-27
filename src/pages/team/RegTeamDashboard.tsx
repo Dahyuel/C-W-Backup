@@ -1,432 +1,631 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { X, CheckCircle, AlertCircle, Scan, Camera, RefreshCw } from 'lucide-react';
-import jsQR from 'jsqr';
+import React, { useState, useEffect } from "react";
+import {
+  UserCheck,
+  Users,
+  Search,
+  QrCode,
+  X,
+  AlertCircle,
+  CheckCircle,
+} from "lucide-react";
+import DashboardLayout from '../../components/shared/DashboardLayout';
+import { QRScanner } from "../../components/shared/QRScanner";
+import { AttendeeCard } from "../../components/shared/AttendeeCard";
+import { useAuth } from "../../contexts/AuthContext";
+import { 
+  processAttendance, 
+  getAttendeeByPersonalId,
+  getAttendeeByUUID,
+  getRegistrationStats,
+  searchAttendeesByPersonalId // New function we'll add
+} from "../../lib/supabase";
 
-interface QRScannerProps {
-  onScan: (data: string) => void;
-  onClose: () => void;
-  isOpen: boolean;
-  title?: string;
-  description?: string;
+interface RegistrationStats {
+  total_registered: number;
+  checked_in_today: number;
+  inside_event: number;
+  total_attendees: number;
 }
 
-export const QRScanner: React.FC<QRScannerProps> = ({
-  onScan,
-  onClose,
-  isOpen,
-  title = "Scan QR Code",
-  description = "Position the QR code within the frame to scan"
-}) => {
-  const [error, setError] = useState<string | null>(null);
-  const [scanSuccess, setScanSuccess] = useState(false);
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const [isScanning, setIsScanning] = useState(false);
-  const [cameraReady, setCameraReady] = useState(false);
-  
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const animationFrameRef = useRef<number>(0);
+interface Attendee {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone?: string;
+  personal_id: string;
+  role: string;
+  university?: string;
+  faculty?: string;
+  current_status?: 'inside' | 'outside';
+  last_scan?: string;
+}
 
-  // Reset all states
-  const resetStates = useCallback(() => {
-    setError(null);
-    setScanSuccess(false);
-    setHasPermission(null);
-    setIsScanning(false);
-    setCameraReady(false);
-  }, []);
+// Helper function to type-cast attendee data
+const castToAttendee = (data: any): Attendee => {
+  return {
+    ...data,
+    current_status: data.current_status === 'inside' ? 'inside' : 'outside'
+  } as Attendee;
+};
 
-  // Stop scanner and cleanup
-  const stopScanner = useCallback(() => {
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = 0;
-    }
-    
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    
-    setIsScanning(false);
-    setCameraReady(false);
-  }, []);
+export const RegTeamDashboard: React.FC = () => {
+  const { profile } = useAuth();
+  const [activeTab, setActiveTab] = useState<"scanner" | "dashboard">("scanner");
 
-  // Handle successful scan
-  const handleScanSuccess = useCallback((data: string) => {
-    console.log('QR Code scanned:', data);
-    setScanSuccess(true);
-    stopScanner();
-    
-    // Provide feedback and close
-    setTimeout(() => {
-      onScan(data);
-      onClose();
-    }, 1000);
-  }, [onScan, onClose, stopScanner]);
+  // Dashboard state
+  const [stats, setStats] = useState<RegistrationStats | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Scan for QR codes
-  const scanQRCode = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current || !isScanning) return;
+  // Scanner state
+  const [showScanner, setShowScanner] = useState(false);
+  const [searchMode, setSearchMode] = useState<"qr" | "manual">("manual");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchLoading, setSearchLoading] = useState(false);
 
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    const context = canvas.getContext('2d');
+  // Dynamic search state
+  const [searchResults, setSearchResults] = useState<Attendee[]>([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
-    if (!context || video.readyState !== video.HAVE_ENOUGH_DATA) {
-      animationFrameRef.current = requestAnimationFrame(scanQRCode);
-      return;
-    }
+  // Attendee card state
+  const [selectedAttendee, setSelectedAttendee] = useState<Attendee | null>(null);
+  const [showAttendeeCard, setShowAttendeeCard] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
-    // Set canvas dimensions to match video
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+  // Feedback state
+  const [feedback, setFeedback] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
 
-    // Draw video frame to canvas
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    // Get image data from canvas
-    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-
-    // Scan for QR code
-    const code = jsQR(imageData.data, imageData.width, imageData.height, {
-      inversionAttempts: 'dontInvert',
-    });
-
-    if (code) {
-      handleScanSuccess(code.data);
-      return;
-    }
-
-    // Continue scanning
-    animationFrameRef.current = requestAnimationFrame(scanQRCode);
-  }, [isScanning, handleScanSuccess]);
-
-  // Start the camera and scanner
-  const startScanner = useCallback(async () => {
-    try {
-      resetStates();
-      setError(null);
-
-      // Check if browser supports media devices
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setError('Camera access is not supported in this browser');
-        return;
-      }
-
-      // Request camera access
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: 'environment', // Prefer back camera
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
-      });
-
-      streamRef.current = stream;
-      setHasPermission(true);
-
-      if (!videoRef.current) {
-        setError('Video element not available');
-        return;
-      }
-
-      // Set up video element
-      videoRef.current.srcObject = stream;
-      
-      // Wait for video to be ready
-      videoRef.current.onloadedmetadata = () => {
-        videoRef.current?.play().then(() => {
-          setCameraReady(true);
-          
-          // Add a small delay before starting scanning to ensure camera is stable
-          setTimeout(() => {
-            setIsScanning(true);
-            // Start scanning loop
-            animationFrameRef.current = requestAnimationFrame(scanQRCode);
-          }, 1000); // 1 second delay for camera to stabilize
-          
-        }).catch(err => {
-          setError('Failed to start video: ' + err.message);
-        });
-      };
-
-      videoRef.current.onerror = () => {
-        setError('Video playback error');
-      };
-
-    } catch (err: any) {
-      console.error('Camera error:', err);
-      
-      if (err.name === 'NotAllowedError') {
-        setError('Camera permission denied. Please allow camera access and try again.');
-        setHasPermission(false);
-      } else if (err.name === 'NotFoundError') {
-        setError('No camera found. Please ensure your device has a camera.');
-      } else if (err.name === 'NotReadableError') {
-        setError('Camera is being used by another application. Please close other apps and try again.');
-      } else if (err.name === 'OverconstrainedError') {
-        // Try with simpler constraints
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: true // Use default constraints
-          });
-          streamRef.current = stream;
-          setHasPermission(true);
-          
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            videoRef.current.onloadedmetadata = () => {
-              videoRef.current?.play().then(() => {
-                setCameraReady(true);
-                setTimeout(() => {
-                  setIsScanning(true);
-                  animationFrameRef.current = requestAnimationFrame(scanQRCode);
-                }, 1000);
-              });
-            };
-          }
-        } catch (retryErr: any) {
-          setError('Unable to access camera. Please check your browser settings.');
-        }
-      } else {
-        setError(`Camera error: ${err.message || 'Failed to access camera'}`);
-      }
-    }
-  }, [resetStates, scanQRCode]);
-
-  // Handle retry button
-  const handleRetry = useCallback(() => {
-    stopScanner();
-    setTimeout(() => {
-      startScanner();
-    }, 300);
-  }, [stopScanner, startScanner]);
-
-  // Handle manual permission request
-  const requestPermissionAndRetry = useCallback(async () => {
-    try {
-      setError(null);
-      // Request camera access directly
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: true 
-      });
-      
-      // Stop the stream immediately after checking
-      stream.getTracks().forEach(track => track.stop());
-      setHasPermission(true);
-      setError(null);
-      
-      // Retry scanner after permission granted
-      setTimeout(() => {
-        handleRetry();
-      }, 500);
-      
-    } catch (err: any) {
-      if (err.name === 'NotAllowedError') {
-        setError('Permission denied. Please allow camera access in your browser settings and refresh the page.');
-      } else {
-        setError('Failed to access camera. Please try again.');
-      }
-      setHasPermission(false);
-    }
-  }, [handleRetry]);
-
-  // Initialize when modal opens
   useEffect(() => {
-    if (isOpen) {
-      console.log('QR Scanner modal opening...');
-      // Small delay to ensure DOM is ready
-      const timer = setTimeout(() => {
-        startScanner();
-      }, 100);
+    if (activeTab === "dashboard") {
+      fetchDashboardData();
+    }
+  }, [activeTab]);
 
-      return () => {
-        clearTimeout(timer);
-      };
+  // Dynamic search effect
+  useEffect(() => {
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    if (searchTerm.trim().length >= 2) {
+      const timeout = setTimeout(() => {
+        performDynamicSearch(searchTerm.trim());
+      }, 300); // 300ms debounce
+
+      setSearchTimeout(timeout);
     } else {
-      console.log('QR Scanner modal closing...');
-      stopScanner();
-      resetStates();
+      setSearchResults([]);
+      setShowSearchResults(false);
     }
-  }, [isOpen, startScanner, stopScanner, resetStates]);
 
-  // Cleanup on unmount
-  useEffect(() => {
     return () => {
-      stopScanner();
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
     };
-  }, [stopScanner]);
+  }, [searchTerm]);
 
-  // Get status message and indicator color
-  const getStatusInfo = () => {
-    if (!cameraReady) {
-      return {
-        message: 'Starting camera...',
-        color: 'bg-yellow-500',
-        animate: false
-      };
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await getRegistrationStats();
+      
+      if (error) {
+        console.error("Error fetching stats:", error);
+        showFeedback('error', 'Failed to load dashboard statistics');
+      } else if (data) {
+        setStats(data);
+      }
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+      showFeedback('error', 'An unexpected error occurred');
+    } finally {
+      setLoading(false);
     }
-    if (!isScanning) {
-      return {
-        message: 'Camera ready...',
-        color: 'bg-blue-500',
-        animate: false
-      };
-    }
-    return {
-      message: 'Scanning for QR codes...',
-      color: 'bg-green-500',
-      animate: true
-    };
   };
 
-  const statusInfo = getStatusInfo();
+  const performDynamicSearch = async (query: string) => {
+    try {
+      setSearchLoading(true);
+      const { data, error } = await searchAttendeesByPersonalId(query);
+      
+      if (error) {
+        console.error("Search error:", error);
+        setSearchResults([]);
+      } else {
+        const attendees = (data || []).map(item => castToAttendee(item));
+        setSearchResults(attendees);
+        setShowSearchResults(true);
+      }
+    } catch (error) {
+      console.error("Search exception:", error);
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
 
-  if (!isOpen) return null;
+  const showFeedback = (type: 'success' | 'error', message: string) => {
+    setFeedback({ type, message });
+    setTimeout(() => setFeedback(null), 5000);
+  };
+
+  // Check if a string is a UUID format
+  const isUUID = (str: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(str);
+  };
+
+  const handleSearchByPersonalId = async () => {
+    if (!searchTerm.trim()) {
+      showFeedback('error', 'Please enter a Personal ID');
+      return;
+    }
+
+    try {
+      setSearchLoading(true);
+      const { data, error } = await getAttendeeByPersonalId(searchTerm.trim());
+
+      if (error || !data) {
+        showFeedback('error', 'Personal ID not found');
+      } else if (data.role !== 'attendee') {
+        showFeedback('error', 'Only attendees can be processed through this system');
+      } else {
+        setSelectedAttendee(castToAttendee(data));
+        setShowAttendeeCard(true);
+        setSearchTerm("");
+        setShowSearchResults(false);
+      }
+    } catch (error) {
+      console.error("Search exception:", error);
+      showFeedback('error', 'Search failed. Please try again.');
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleSelectSearchResult = (attendee: Attendee) => {
+    setSelectedAttendee(attendee);
+    setShowAttendeeCard(true);
+    setSearchTerm("");
+    setShowSearchResults(false);
+    setSearchResults([]);
+  };
+
+  const handleQRScan = async (qrData: string) => {
+    try {
+      console.log('Processing QR data:', qrData);
+      
+      let attendeeData: Attendee | null = null;
+      let error;
+
+      // Check if QR data is UUID or Personal ID
+      if (isUUID(qrData)) {
+        console.log('Detected UUID format, searching by UUID...');
+        const result = await getAttendeeByUUID(qrData);
+        attendeeData = result.data ? castToAttendee(result.data) : null;
+        error = result.error;
+      } else {
+        console.log('Detected Personal ID format, searching by Personal ID...');
+        const result = await getAttendeeByPersonalId(qrData);
+        attendeeData = result.data ? castToAttendee(result.data) : null;
+        error = result.error;
+      }
+      
+      if (error || !attendeeData) {
+        const errorMsg = isUUID(qrData) 
+          ? 'Invalid QR code: UUID not found in system'
+          : 'Invalid QR code: Personal ID not found';
+        showFeedback('error', errorMsg);
+        return;
+      }
+
+      // Check if the person is an attendee
+      if (attendeeData.role !== 'attendee') {
+        showFeedback('error', 'Only attendees can be processed through this system');
+        return;
+      }
+
+      setSelectedAttendee(attendeeData);
+      setShowAttendeeCard(true);
+      setShowScanner(false);
+    } catch (error) {
+      console.error("QR scan error:", error);
+      showFeedback('error', 'Failed to process QR code');
+    }
+  };
+
+  const handleAttendanceAction = async (action: 'enter' | 'exit') => {
+    if (!selectedAttendee) return;
+
+    try {
+      setActionLoading(true);
+      const { data, error } = await processAttendance(selectedAttendee.personal_id, action);
+
+      if (error) {
+        showFeedback('error', error.message || `Failed to process ${action}`);
+        return;
+      }
+
+      showFeedback('success', data.message || `${action.toUpperCase()} scan successful!`);
+      
+      // Update attendee status
+      const newStatus = action === 'enter' ? 'inside' : 'outside';
+      setSelectedAttendee(prev => prev ? {
+        ...prev,
+        current_status: newStatus,
+        last_scan: new Date().toISOString()
+      } : null);
+
+      // Refresh dashboard stats if on dashboard tab
+      if (activeTab === "dashboard") {
+        fetchDashboardData();
+      }
+
+      // Close attendee card after successful action
+      setTimeout(() => {
+        setShowAttendeeCard(false);
+        setSelectedAttendee(null);
+      }, 2000);
+
+    } catch (error) {
+      console.error("Attendance action error:", error);
+      showFeedback('error', `Failed to process ${action}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const clearSearch = () => {
+    setSearchTerm("");
+    setSearchResults([]);
+    setShowSearchResults(false);
+  };
+
+  // Close search results when clicking outside
+  const handleSearchInputBlur = () => {
+    // Delay hiding to allow clicks on search results
+    setTimeout(() => {
+      setShowSearchResults(false);
+    }, 200);
+  };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Scan className="h-6 w-6 text-white" />
-            <h2 className="text-xl font-bold text-white">{title}</h2>
-          </div>
+    <DashboardLayout
+      title="Registration Team Dashboard"
+      subtitle="Manage attendee registrations and check-ins"
+    >
+      {/* Feedback Toast */}
+      {feedback && (
+        <div className={`fixed top-4 right-4 z-50 flex items-center space-x-2 px-4 py-3 rounded-lg shadow-lg ${
+          feedback.type === 'success' 
+            ? 'bg-green-500 text-white' 
+            : 'bg-red-500 text-white'
+        }`}>
+          {feedback.type === 'success' ? (
+            <CheckCircle className="h-5 w-5" />
+          ) : (
+            <AlertCircle className="h-5 w-5" />
+          )}
+          <span className="font-medium">{feedback.message}</span>
           <button
-            onClick={onClose}
-            className="text-white hover:text-orange-200 transition-colors"
-            aria-label="Close scanner"
+            onClick={() => setFeedback(null)}
+            className="ml-2 hover:bg-black hover:bg-opacity-20 rounded p-1"
           >
-            <X className="h-6 w-6" />
+            <X className="h-4 w-4" />
           </button>
         </div>
+      )}
 
-        {/* Content */}
-        <div className="p-6">
-          {scanSuccess ? (
-            /* Success State */
-            <div className="text-center space-y-4">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                <CheckCircle className="w-8 h-8 text-green-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">QR Code Scanned!</h3>
-                <p className="text-gray-600">Processing information...</p>
-              </div>
-            </div>
-          ) : error ? (
-            /* Error State */
-            <div className="text-center space-y-4">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
-                <AlertCircle className="w-8 h-8 text-red-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Scanner Error</h3>
-                <p className="text-gray-600 mb-4 text-sm leading-relaxed">{error}</p>
-                
-                {hasPermission === false ? (
-                  <div className="space-y-3">
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                      <p className="text-xs text-yellow-800 mb-3">
-                        Camera access is required to scan QR codes. Please allow camera permissions.
-                      </p>
-                      <button
-                        onClick={requestPermissionAndRetry}
-                        className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center justify-center space-x-2"
-                      >
-                        <Camera className="h-4 w-4" />
-                        <span>Allow Camera Access</span>
-                      </button>
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200 mb-6">
+        <button
+          className={`px-4 py-2 font-medium transition-colors ${
+            activeTab === "scanner"
+              ? "text-orange-600 border-b-2 border-orange-600"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+          onClick={() => setActiveTab("scanner")}
+        >
+          Scanner & Search
+        </button>
+        <button
+          className={`px-4 py-2 font-medium transition-colors ${
+            activeTab === "dashboard"
+              ? "text-orange-600 border-b-2 border-orange-600"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+          onClick={() => setActiveTab("dashboard")}
+        >
+          Live Dashboard
+        </button>
+      </div>
+
+      {/* Scanner Tab */}
+      {activeTab === "scanner" && (
+        <div className="space-y-6">
+          {/* Mode Switch */}
+          <div className="flex space-x-4">
+            <button
+              onClick={() => {
+                setSearchMode("manual");
+                clearSearch();
+              }}
+              className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+                searchMode === "manual"
+                  ? "bg-orange-500 text-white shadow-md"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              <Search className="h-4 w-4 inline mr-2" />
+              Search by Personal ID
+            </button>
+            <button
+              onClick={() => {
+                setSearchMode("qr");
+                clearSearch();
+              }}
+              className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+                searchMode === "qr"
+                  ? "bg-orange-500 text-white shadow-md"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              <QrCode className="h-4 w-4 inline mr-2" />
+              QR Scanner
+            </button>
+          </div>
+
+          {/* Manual Search - Personal ID Only */}
+          {searchMode === "manual" && (
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Search Attendees by Personal ID
+                  </label>
+                  <div className="flex items-center space-x-3 relative">
+                    <div className="flex-1 relative">
+                      <input
+                        type="text"
+                        placeholder="Start typing Personal ID (e.g., 123456...)"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleSearchByPersonalId()}
+                        onBlur={handleSearchInputBlur}
+                        onFocus={() => searchResults.length > 0 && setShowSearchResults(true)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-colors"
+                      />
+                      {searchTerm && (
+                        <button
+                          onClick={clearSearch}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="h-5 w-5" />
+                        </button>
+                      )}
+
+                      {/* Dynamic Search Results Dropdown */}
+                      {showSearchResults && searchResults.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                          {searchResults.map((attendee) => (
+                            <button
+                              key={attendee.id}
+                              onClick={() => handleSelectSearchResult(attendee)}
+                              className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:bg-orange-50 focus:outline-none"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-medium text-gray-900">
+                                    {attendee.first_name} {attendee.last_name}
+                                  </p>
+                                  <p className="text-sm text-gray-600">
+                                    ID: {attendee.personal_id}
+                                  </p>
+                                  {attendee.university && (
+                                    <p className="text-xs text-gray-500">
+                                      {attendee.university}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="text-right">
+                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                    attendee.current_status === 'inside'
+                                      ? 'bg-green-100 text-green-800'
+                                      : 'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {attendee.current_status === 'inside' ? 'Inside' : 'Outside'}
+                                  </span>
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* No Results Message */}
+                      {showSearchResults && searchResults.length === 0 && searchTerm.trim().length >= 2 && !searchLoading && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 px-4 py-3">
+                          <p className="text-gray-600 text-sm">No attendees found matching "{searchTerm}"</p>
+                        </div>
+                      )}
+
+                      {/* Loading State */}
+                      {searchLoading && searchTerm.trim().length >= 2 && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 px-4 py-3">
+                          <div className="flex items-center space-x-2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500"></div>
+                            <p className="text-gray-600 text-sm">Searching attendees...</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <button
-                      onClick={onClose}
-                      className="w-full bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors font-medium"
+                      onClick={handleSearchByPersonalId}
+                      disabled={searchLoading || !searchTerm.trim()}
+                      className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
                     >
-                      Close Scanner
+                      {searchLoading ? (
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      ) : (
+                        <>
+                          <Search className="h-5 w-5" />
+                          <span>Search</span>
+                        </>
+                      )}
                     </button>
                   </div>
-                ) : (
-                  <button
-                    onClick={handleRetry}
-                    className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center justify-center space-x-2"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    <span>Try Again</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          ) : (
-            /* Scanner View */
-            <div className="space-y-4">
-              <p className="text-center text-gray-600 text-sm">{description}</p>
-              
-              {/* Camera View */}
-              <div className="relative bg-gray-900 rounded-lg overflow-hidden aspect-square flex items-center justify-center">
-                <video
-                  ref={videoRef}
-                  className="w-full h-full object-cover"
-                  playsInline
-                  muted
-                  autoPlay
-                />
-                
-                {/* Hidden canvas for QR scanning */}
-                <canvas 
-                  ref={canvasRef} 
-                  className="hidden" 
-                />
-                
-                {/* Scanning frame overlay */}
-                <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                  <div className="border-2 border-white border-dashed rounded-lg w-64 h-64 flex items-center justify-center">
-                    <div className="w-full h-full relative">
-                      {/* Corner markers */}
-                      <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-white"></div>
-                      <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-white"></div>
-                      <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-white"></div>
-                      <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-white"></div>
-                    </div>
-                  </div>
                 </div>
-                
-                {/* Status indicator */}
-                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
-                  <div className="bg-black bg-opacity-50 text-white px-3 py-2 rounded-full text-sm flex items-center space-x-2">
-                    <div className={`w-2 h-2 rounded-full ${statusInfo.color} ${statusInfo.animate ? 'animate-pulse' : ''}`}></div>
-                    <span>{statusInfo.message}</span>
-                  </div>
-                </div>
-              </div>
 
-              {/* Instructions */}
-              <div className="text-center">
-                <p className="text-xs text-gray-500 leading-relaxed mb-2">
-                  Hold your device steady and position the QR code within the frame.
-                </p>
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <p className="text-xs text-blue-800 font-medium">
-                    Tips for best results:
-                  </p>
-                  <ul className="text-xs text-blue-700 mt-1 space-y-1">
-                    <li>• Ensure good lighting</li>
-                    <li>• Keep the QR code flat and unfolded</li>
-                    <li>• Maintain steady hands</li>
-                    <li>• Clean your camera lens if needed</li>
+                <div className="text-sm text-gray-600 bg-blue-50 p-4 rounded-lg">
+                  <p className="font-medium mb-1">Search Tips:</p>
+                  <ul className="list-disc list-inside space-y-1 text-xs">
+                    <li>Start typing to see dynamic suggestions (minimum 2 characters)</li>
+                    <li>Only attendees will appear in search results</li>
+                    <li>Click on a suggestion to select that attendee</li>
+                    <li>Use QR Scanner for faster lookup</li>
                   </ul>
                 </div>
               </div>
             </div>
           )}
+
+          {/* QR Scanner */}
+          {searchMode === "qr" && (
+            <div className="bg-white rounded-xl shadow-sm p-6 text-center">
+              <QrCode className="h-16 w-16 text-orange-500 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                QR Code Scanner
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Scan the attendee's QR code to instantly load their information and process entry/exit
+              </p>
+              <button
+                onClick={() => setShowScanner(true)}
+                className="px-8 py-4 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center space-x-2 mx-auto"
+              >
+                <QrCode className="h-5 w-5" />
+                <span>Open QR Scanner</span>
+              </button>
+              
+              <div className="mt-6 text-sm text-gray-600 bg-green-50 p-4 rounded-lg">
+                <p className="font-medium mb-1">QR Scanner supports:</p>
+                <ul className="list-disc list-inside space-y-1 text-xs">
+                  <li>UUID format (from QR codes)</li>
+                  <li>Personal ID format (fallback)</li>
+                  <li>Automatic attendee role verification</li>
+                </ul>
+              </div>
+            </div>
+          )}
         </div>
-      </div>
-    </div>
+      )}
+
+      {/* Live Dashboard Tab */}
+      {activeTab === "dashboard" && (
+        <div className="space-y-8">
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+              <span className="ml-3 text-gray-600">Loading dashboard...</span>
+            </div>
+          ) : (
+            <>
+              {/* Stats Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-orange-500">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600 mb-1">Total Registered</p>
+                      <p className="text-3xl font-bold text-orange-600">
+                        {stats?.total_registered || 0}
+                      </p>
+                    </div>
+                    <Users className="h-8 w-8 text-orange-500" />
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-green-500">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600 mb-1">Checked In Today</p>
+                      <p className="text-3xl font-bold text-green-600">
+                        {stats?.checked_in_today || 0}
+                      </p>
+                    </div>
+                    <UserCheck className="h-8 w-8 text-green-500" />
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-500">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600 mb-1">Currently Inside</p>
+                      <p className="text-3xl font-bold text-blue-600">
+                        {stats?.inside_event || 0}
+                      </p>
+                    </div>
+                    <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                      <span className="text-blue-600 font-bold">🏢</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-purple-500">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-600 mb-1">Total Attendees</p>
+                      <p className="text-3xl font-bold text-purple-600">
+                        {stats?.total_attendees || 0}
+                      </p>
+                    </div>
+                    <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
+                      <span className="text-purple-600 font-bold">👥</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Refresh Button */}
+              <div className="flex justify-end">
+                <button
+                  onClick={fetchDashboardData}
+                  disabled={loading}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:cursor-not-allowed flex items-center space-x-2"
+                >
+                  <div className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`}>🔄</div>
+                  <span>Refresh</span>
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* QR Scanner Modal */}
+      <QRScanner
+        isOpen={showScanner}
+        onClose={() => setShowScanner(false)}
+        onScan={handleQRScan}
+        title="Scan Attendee QR Code"
+        description="Point your camera at the attendee's QR code"
+      />
+
+      {/* Attendee Card Modal */}
+      <AttendeeCard
+        isOpen={showAttendeeCard}
+        onClose={() => {
+          setShowAttendeeCard(false);
+          setSelectedAttendee(null);
+        }}
+        attendee={selectedAttendee}
+        onAction={handleAttendanceAction}
+        loading={actionLoading}
+      />
+    </DashboardLayout>
   );
 };
