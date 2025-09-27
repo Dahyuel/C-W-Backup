@@ -270,25 +270,6 @@ const handleEventClick = (event) => {
   setEventDetailModal(true);
 };
 
-export const deleteCompany = async (companyId) => {
-  try {
-    const { data, error } = await supabase
-      .from('companies')
-      .delete()
-      .eq('id', companyId)
-      .select();
-
-    if (error) {
-      console.error('Error deleting company:', error);
-      return { data: null, error };
-    }
-
-    return { data, error: null };
-  } catch (error) {
-    console.error('Delete company exception:', error);
-    return { data: null, error: { message: error.message } };
-  }
-};
   
 // Handle session update
 const handleSessionUpdate = async () => {
