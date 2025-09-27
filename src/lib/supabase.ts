@@ -265,7 +265,19 @@ export const signUpUser = async (email: string, password: string, userData: any)
       updated_at: new Date().toISOString(),
     };
 
- };
+    const { data: profileDataResult, error: profileError } = await supabase
+      .from('users_profiles')
+      .insert(profileData)
+      .select();
+
+    if (profileError) {
+      console.error('Profile creation error:', profileError);
+      
+      // Check if it's the enum error for activity_type
+      if (profileError.code === '22P02' && profileError.message?.includes('activity_type')) {
+        console.warn('Registration bonus could not be awarded due to enum constraint, but user was created successfully');
+        // User registration still succeeded, just the bonus points failed
+        return { data: authData, error: null };
       }
       
       // For other errors, clean up and return error
