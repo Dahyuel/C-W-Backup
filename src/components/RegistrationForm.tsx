@@ -169,19 +169,19 @@ export const RegistrationForm: React.FC = () => {
       }
     }
   
-    if (section === 3) {
-      if (!formData.howDidYouHear) validationErrors.push({ field: 'howDidYouHear', message: 'This field is required' });
-      
-      // File upload validation
-      if (!fileUploads.universityId) validationErrors.push({ field: 'universityId', message: 'University ID is required' });
-      if (!fileUploads.resume) validationErrors.push({ field: 'resume', message: 'CV/Resume is required' });
+if (section === 3) {
+  if (!formData.howDidYouHear) validationErrors.push({ field: 'howDidYouHear', message: 'This field is required' });
   
-      // Volunteer ID validation (if provided)
-      if (formData.volunteerId && formData.volunteerId.trim()) {
-        const volunteerIdError = validateVolunteerId(formData.volunteerId);
-        if (volunteerIdError) validationErrors.push({ field: 'volunteerId', message: volunteerIdError });
-      }
-    }
+  // File upload validation
+  if (!fileUploads.universityId) validationErrors.push({ field: 'universityId', message: 'University ID is required' });
+  if (!fileUploads.resume) validationErrors.push({ field: 'resume', message: 'CV/Resume is required' });
+
+  // Volunteer ID validation (if provided)
+  if (formData.volunteerId && formData.volunteerId.trim()) {
+    const volunteerIdError = await validateVolunteerId(formData.volunteerId); // Make this async if it's not already
+    if (volunteerIdError) validationErrors.push({ field: 'volunteerId', message: volunteerIdError });
+  }
+}
   
     if (section === 4) {
       const passwordError = validatePassword(formData.password);
