@@ -88,6 +88,7 @@ export const checkEmailUnique = async (email: string): Promise<ValidationResult>
 };
 
 // Check if volunteer ID exists and is actually a volunteer
+
 export const checkVolunteerIdExists = async (volunteerId: string): Promise<ValidationResult> => {
   if (!volunteerId || !volunteerId.trim()) {
     return { isValid: true, error: null };
@@ -96,8 +97,8 @@ export const checkVolunteerIdExists = async (volunteerId: string): Promise<Valid
   try {
     const { data, error } = await supabase
       .from('users_profiles')
-      .select('personal_id, role')
-      .eq('personal_id', volunteerId.trim())
+      .select('id, volunteer_id, role')
+      .eq('volunteer_id', volunteerId.trim()) // Changed from personal_id to volunteer_id
       .limit(1);
     
     if (error) {
