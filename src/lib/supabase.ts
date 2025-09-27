@@ -1530,6 +1530,19 @@ export const deleteFile = async (bucket: string, filePath: string) => {
 
 export const deleteCompany = async (companyId) => {
   try {
+    // First, get the company data to find the logo path
+    const { data: company, error: fetchError } = await supabase
+      .from('companies')
+      .select('logo_url')
+      .eq('id', companyId)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching company for deletion:', fetchError);
+      return { data: null, error: fetchError };
+    }
+
+    // Delete the company from database first
     const { data, error } = await supabase
       .from('companies')
       .delete()
@@ -1541,13 +1554,38 @@ export const deleteCompany = async (companyId) => {
       return { data: null, error };
     }
 
+    // If company had a logo stored in our Assets bucket, delete it
+    if (company?.logo_url && company.logo_url.includes('supabase.co/storage/v1/object/public/Assets/')) {
+      try {
+        // Extract the file path from the URL
+        const urlParts = company.logo_url.split('/Assets/');
+        if (urlParts.length > 1) {
+          const filePath = urlParts[1];
+          
+          // Delete the logo file from storage
+          const { error: deleteFileError } = await supabase.storage
+            .from('Assets')
+            .remove([filePath]);
+
+          if (deleteFileError) {
+            console.warn('Failed to delete logo file:', deleteFileError);
+            // Don't fail the entire operation if logo deletion fails
+          } else {
+            console.log('Logo file deleted successfully:', filePath);
+          }
+        }
+      } catch (logoError) {
+        console.warn('Error processing logo deletion:', logoError);
+        // Don't fail the entire operation if logo deletion fails
+      }
+    }
+
     return { data, error: null };
   } catch (error) {
     console.error('Delete company exception:', error);
     return { data: null, error: { message: error.message } };
   }
 };
-
 
 
 
