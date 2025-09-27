@@ -32,6 +32,7 @@ export function AdminPanel() {
   const [events, setEvents] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [activeDay, setActiveDay] = useState(1);
+  const [mapImages, setMapImages] = useState([]);
   
   // Tab state
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -609,22 +610,6 @@ export function AdminPanel() {
               </div>
             </div>
 
-            {/* Refresh Button for Debugging */}
-            <div className="flex justify-end">
-              <button
-                onClick={() => fetchDashboardData()}
-                disabled={loadingData}
-                className="flex items-center px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50"
-              >
-                {loadingData ? (
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                ) : (
-                  <Activity className="h-4 w-4 mr-2" />
-                )}
-                Refresh Data
-              </button>
-            </div>
-
             {/* Quick Actions */}
             <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 text-center">
               <h1 className="text-3xl font-bold text-black-800 flex items-center justify-center gap-2 mb-6">
@@ -772,37 +757,39 @@ export function AdminPanel() {
         {/* Events Tab */}
         {activeTab === "events" && (
           <div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center mb-4 sm:mb-0">
+            <div className="mb-6">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center mb-4">
                 <Calendar className="h-5 w-5 mr-2 text-orange-600" /> Events Management
               </h2>
-              <div className="flex items-center space-x-4">
-                <div className="flex space-x-2">
-                  {[1, 2, 3, 4, 5].map((day) => (
-                    <button
-                      key={day}
-                      onClick={() => setActiveDay(day)}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        activeDay === day 
-                          ? "bg-orange-500 text-white" 
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                      }`}
-                    >
-                      Day {day}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  onClick={() => setEventModal(true)}
-                  className="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Event
-                </button>
+              
+              {/* Day selection */}
+              <div className="flex space-x-2 mb-4">
+                {[1, 2, 3, 4, 5].map((day) => (
+                  <button
+                    key={day}
+                    onClick={() => setActiveDay(day)}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      activeDay === day 
+                        ? "bg-orange-500 text-white" 
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    Day {day}
+                  </button>
+                ))}
               </div>
+              
+              {/* Add Event button - positioned below days on mobile */}
+              <button
+                onClick={() => setEventModal(true)}
+                className="w-full sm:w-auto flex items-center justify-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Event
+              </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {events.map((event) => (
                 <div key={event.id} className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{event.title}</h3>
@@ -829,32 +816,34 @@ export function AdminPanel() {
         {/* Maps Tab */}
         {activeTab === "maps" && (
           <div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4 sm:mb-0">Event Maps</h2>
-              <div className="flex items-center space-x-4">
-                <div className="flex space-x-2">
-                  {[1, 2, 3, 4, 5].map((day) => (
-                    <button
-                      key={day}
-                      onClick={() => setActiveDay(day)}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        activeDay === day 
-                          ? "bg-orange-500 text-white" 
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                      }`}
-                    >
-                      Day {day}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  onClick={() => setMapModal(true)}
-                  className="flex items-center px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors"
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Modify Map
-                </button>
+            <div className="mb-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Event Maps</h2>
+              
+              {/* Day selection */}
+              <div className="flex space-x-2 mb-4">
+                {[1, 2, 3, 4, 5].map((day) => (
+                  <button
+                    key={day}
+                    onClick={() => setActiveDay(day)}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      activeDay === day 
+                        ? "bg-orange-500 text-white" 
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    Day {day}
+                  </button>
+                ))}
               </div>
+              
+              {/* Modify Map button - positioned below days on mobile */}
+              <button
+                onClick={() => setMapModal(true)}
+                className="w-full sm:w-auto flex items-center justify-center px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Modify Map
+              </button>
             </div>
             
             <div className="bg-white rounded-xl shadow-sm border p-4 flex justify-center items-center min-h-[400px]">
@@ -1330,6 +1319,69 @@ export function AdminPanel() {
           </div>
         )}
 
+        {/* Announcement Modal */}
+        {announcementModal && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative">
+              <button
+                onClick={() => setAnnouncementModal(false)}
+                className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+              >
+                <X className="h-6 w-6" />
+              </button>
+
+              <h2 className="text-lg font-semibold text-black mb-4 text-center">
+                Send Announcement
+              </h2>
+
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  value={announcementTitle}
+                  onChange={(e) => setAnnouncementTitle(e.target.value)}
+                  placeholder="Message Title"
+                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                />
+
+                <textarea
+                  value={announcementDescription}
+                  onChange={(e) => setAnnouncementDescription(e.target.value)}
+                  placeholder="Message Description"
+                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  rows={3}
+                />
+
+                <select
+                  value={announcementRole}
+                  onChange={(e) => setAnnouncementRole(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                >
+                  <option value="">Select Role</option>
+                  <option value="volunteer">Volunteer</option>
+                  <option value="team_leader">Team Leader</option>
+                  <option value="admin">Admin</option>
+                  <option value="attendee">Attendee</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => setAnnouncementModal(false)}
+                  className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAnnouncementSubmit}
+                  className="px-4 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600"
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Session Detail Modal */}
         {sessionDetailModal && selectedSessionDetail && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -1488,67 +1540,9 @@ export function AdminPanel() {
             </div>
           </div>
         )}
-          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4">
-            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative">
-              <button
-                onClick={() => setAnnouncementModal(false)}
-                className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
-              >
-                <X className="h-6 w-6" />
-              </button>
-
-              <h2 className="text-lg font-semibold text-black mb-4 text-center">
-                Send Announcement
-              </h2>
-
-              <div className="space-y-4">
-                <input
-                  type="text"
-                  value={announcementTitle}
-                  onChange={(e) => setAnnouncementTitle(e.target.value)}
-                  placeholder="Message Title"
-                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                />
-
-                <textarea
-                  value={announcementDescription}
-                  onChange={(e) => setAnnouncementDescription(e.target.value)}
-                  placeholder="Message Description"
-                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  rows={3}
-                />
-
-                <select
-                  value={announcementRole}
-                  onChange={(e) => setAnnouncementRole(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                >
-                  <option value="">Select Role</option>
-                  <option value="volunteer">Volunteer</option>
-                  <option value="team_leader">Team Leader</option>
-                  <option value="admin">Admin</option>
-                  <option value="attendee">Attendee</option>
-                </select>
-              </div>
-
-              <div className="flex justify-end gap-3 mt-6">
-                <button
-                  onClick={() => setAnnouncementModal(false)}
-                  className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAnnouncementSubmit}
-                  className="px-4 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600"
-                >
-                  Send
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </DashboardLayout>
   );
 }
+
+export default AdminPanel;
