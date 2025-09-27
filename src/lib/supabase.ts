@@ -1075,6 +1075,7 @@ export const addScheduleItem = async (eventData) => {
   }
 };
 
+// Enhanced volunteer ID generation that handles the constraint
 const generateVolunteerId = async (role: string): Promise<string> => {
   try {
     // Define role prefixes
@@ -1088,31 +1089,50 @@ const generateVolunteerId = async (role: string): Promise<string> => {
     
     const prefix = rolePrefixes[role] || 'VOL';
     
-    // Count existing volunteers with this role
-    const { count, error } = await supabase
+    // Get the highest current counter for this role by parsing existing volunteer_ids
+    const { data: volunteers, error } = await supabase
       .from('users_profiles')
-      .select('*', { count: 'exact', head: true })
+      .select('volunteer_id')
       .eq('role', role)
-      .not('volunteer_id', 'is', null);
-    
+      .not('volunteer_id', 'is', null)
+      .order('volunteer_id', { ascending: false });
+
     if (error) {
-      console.error('Error counting volunteers:', error);
-      // Fallback: use timestamp
-      return `${prefix}${Date.now().toString().slice(-4)}`;
+      console.error('Error fetching volunteers:', error);
+      // Fallback: use timestamp with prefix
+      return `${prefix}${Date.now().toString().slice(-6)}`;
+    }
+
+    let counter = 1;
+    
+    if (volunteers && volunteers.length > 0) {
+      // Find the highest number for this prefix
+      const numbers = volunteers
+        .map(v => {
+          if (v.volunteer_id && v.volunteer_id.startsWith(prefix)) {
+            const numPart = v.volunteer_id.replace(prefix, '');
+            const num = parseInt(numPart);
+            return isNaN(num) ? 0 : num;
+          }
+          return 0;
+        })
+        .filter(n => n > 0);
+      
+      if (numbers.length > 0) {
+        counter = Math.max(...numbers) + 1;
+      }
     }
     
-    const counter = (count || 0) + 1;
     const paddedCounter = counter.toString().padStart(2, '0');
-    
     return `${prefix}${paddedCounter}`;
+    
   } catch (error) {
     console.error('Error generating volunteer ID:', error);
-    // Fallback: use timestamp
+    // Fallback: use timestamp with prefix
     const prefix = rolePrefixes[role] || 'VOL';
-    return `${prefix}${Date.now().toString().slice(-4)}`;
+    return `${prefix}${Date.now().toString().slice(-6)}`;
   }
 };
-
 // Add Company
 export const addCompany = async (companyData) => {
   try {
