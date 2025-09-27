@@ -879,13 +879,13 @@ const handleSubmit = async (e: React.FormEvent) => {
 
             {currentSection < 4 ? (
               <button
-                type="button"
-                onClick={nextSection}
-                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 transform hover:scale-105 flex items-center"
-              >
-                Next
-                <ChevronRight className="w-4 h-4 ml-2" />
-              </button>
+  type="button"
+  onClick={() => nextSection()}
+  className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 transform hover:scale-105 flex items-center"
+>
+  Next
+  <ChevronRight className="w-4 h-4 ml-2" />
+</button>
             ) : (
               <button
                 type="submit"
