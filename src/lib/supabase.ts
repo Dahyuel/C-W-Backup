@@ -1527,7 +1527,8 @@ export const deleteFile = async (bucket: string, filePath: string) => {
     return { success: false, error: { message: error.message } };
   }
 };
-export const deleteCompany = async (companyId: string) => {
+
+export const deleteCompany = async (companyId) => {
   try {
     const { data, error } = await supabase
       .from('companies')
@@ -1541,7 +1542,7 @@ export const deleteCompany = async (companyId: string) => {
     }
 
     return { data, error: null };
-  } catch (error: any) {
+  } catch (error) {
     console.error('Delete company exception:', error);
     return { data: null, error: { message: error.message } };
   }
