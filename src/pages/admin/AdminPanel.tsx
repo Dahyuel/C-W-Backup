@@ -707,20 +707,71 @@ const handleCompanyUpdate = async () => {
     }
   };
 
-  // Handle Announcement Submit
-  const handleAnnouncementSubmit = () => {
-    if (!announcementTitle || !announcementDescription || !announcementRole) {
-      showNotification("Please fill all required fields!", "error");
+// Update the announcement submit handler
+const handleAnnouncementSubmit = async () => {
+  if (!announcementTitle || !announcementDescription || !announcementRole) {
+    showNotification("Please fill all required fields!", "error");
+    return;
+  }
+
+  if (announcementRole === "custom" && selectedUsers.length === 0) {
+    showNotification("Please select at least one user for custom notifications!", "error");
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session?.user?.id) {
+      showNotification("User not authenticated", "error");
+      setLoading(false);
       return;
     }
 
-    showNotification("Announcement sent successfully!", "success");
-    setAnnouncementTitle("");
-    setAnnouncementDescription("");
-    setAnnouncementRole("");
-    setAnnouncementModal(false);
-  };
+    let notificationData = {
+      title: announcementTitle,
+      message: announcementDescription,
+      created_by: session.user.id
+    };
 
+    if (announcementRole === "custom") {
+      // For custom selection, send to specific users
+      notificationData.target_type = 'custom';
+      notificationData.target_user_ids = selectedUsers.map(user => user.id);
+    } else if (announcementRole === "all") {
+      // For all users
+      notificationData.target_type = 'all';
+      notificationData.target_role = null;
+    } else {
+      // For specific roles
+      notificationData.target_type = 'role';
+      notificationData.target_role = announcementRole;
+    }
+
+    const { error } = await supabase
+      .from('notifications')
+      .insert([notificationData]);
+
+    if (error) {
+      console.error('Notification error:', error);
+      showNotification("Failed to send announcement", "error");
+    } else {
+      showNotification("Announcement sent successfully!", "success");
+      setAnnouncementTitle("");
+      setAnnouncementDescription("");
+      setAnnouncementRole("");
+      clearUserSelection();
+      setAnnouncementModal(false);
+    }
+  } catch (err) {
+    console.error('Send announcement error:', err);
+    showNotification("Failed to send announcement", "error");
+  } finally {
+    setLoading(false);
+  }
+};
+  
   // Handle click functions
   const handleSessionClick = (session) => {
     setSelectedSessionDetail(session);
