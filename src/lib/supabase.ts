@@ -1527,6 +1527,26 @@ export const deleteFile = async (bucket: string, filePath: string) => {
     return { success: false, error: { message: error.message } };
   }
 };
+export const deleteCompany = async (companyId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('companies')
+      .delete()
+      .eq('id', companyId)
+      .select();
+
+    if (error) {
+      console.error('Error deleting company:', error);
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  } catch (error: any) {
+    console.error('Delete company exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
 export const getFileInfo = async (bucket: string, filePath: string) => {
   try {
     const { data, error } = await supabase.storage
