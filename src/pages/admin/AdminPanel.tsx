@@ -2702,7 +2702,6 @@ const clearUserSelection = () => {
           {loading ? 'Deleting...' : 'Delete Event'}
         </button>
       </div>
-      </div>
     </DashboardLayout>
   );
 }
