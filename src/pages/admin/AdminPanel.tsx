@@ -498,6 +498,56 @@ const handleCompanyUpdate = async () => {
     }
   };
 
+const confirmDeleteSession = async () => {
+  if (!selectedSessionDelete) return;
+  
+  setLoading(true);
+  try {
+    const { error } = await supabase
+      .from("sessions")
+      .delete()
+      .eq('id', selectedSessionDelete.id);
+
+    if (error) {
+      showNotification("Failed to delete session", "error");
+    } else {
+      setDeleteSessionModal(false);
+      setSelectedSessionDelete(null);
+      showNotification("Session deleted successfully!", "success");
+      await fetchSessions();
+    }
+  } catch (err) {
+    showNotification("Failed to delete session", "error");
+  } finally {
+    setLoading(false);
+  }
+};
+
+const confirmDeleteEvent = async () => {
+  if (!selectedEventDelete) return;
+  
+  setLoading(true);
+  try {
+    const { error } = await supabase
+      .from("schedule_items")
+      .delete()
+      .eq('id', selectedEventDelete.id);
+
+    if (error) {
+      showNotification("Failed to delete event", "error");
+    } else {
+      setDeleteEventModal(false);
+      setSelectedEventDelete(null);
+      showNotification("Event deleted successfully!", "success");
+      await fetchEventsByDay(activeDay);
+    }
+  } catch (err) {
+    showNotification("Failed to delete event", "error");
+  } finally {
+    setLoading(false);
+  }
+};
+  
   const fetchSessions = async () => {
     try {
       const { data, error } = await supabase
