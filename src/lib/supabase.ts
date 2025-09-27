@@ -418,37 +418,146 @@ export const resetPasswordWithPersonalId = async (personalId: string, email: str
 
 export const uploadFile = async (bucket: string, userId: string, file: File) => {
   try {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-    const filePath = `${userId}/${fileName}`;
-
-    console.log(`Uploading file to ${bucket}/${filePath}`);
-
-    const { data, error } = await supabase.storage
-      .from(bucket)
-      .upload(filePath, file);
-
-    if (error) {
-      console.error('File upload error:', error);
-      return { data: null, error };
+    // Validate inputs
+    if (!file) {
+      return { data: null, error: { message: 'No file provided' } };
     }
 
-    const { data: urlData } = supabase.storage
-      .from(bucket)
-      .getPublicUrl(filePath);
+    if (!bucket || !userId) {
+      return { data: null, error: { message: 'Missing bucket or userId parameter' } };
+    }
 
-    console.log('File uploaded successfully:', urlData.publicUrl);
+    // Check file size (10MB limit)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      return { data: null, error: { message: 'File size exceeds 10MB limit' } };
+    }
 
-    return { 
-      data: { 
-        path: filePath, 
-        url: urlData.publicUrl 
-      }, 
-      error: null 
+    // Validate file type based on bucket
+    const bucketFileTypes = {
+      'Assets': ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
+      'cvs': ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+      'university-ids': ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf']
     };
+
+    const allowedTypes = bucketFileTypes[bucket] || ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    
+    if (!allowedTypes.includes(file.type)) {
+      return { 
+        data: null, 
+        error: { 
+          message: `File type ${file.type} not allowed for ${bucket} bucket. Allowed types: ${allowedTypes.join(', ')}` 
+        } 
+      };
+    }
+
+    // Generate secure filename
+    const fileExt = file.name.split('.').pop()?.toLowerCase();
+    if (!fileExt) {
+      return { data: null, error: { message: 'File must have a valid extension' } };
+    }
+
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(2, 15);
+    const fileName = `${timestamp}-${randomStr}.${fileExt}`;
+    const filePath = `${userId}/${fileName}`;
+
+    console.log(`Uploading ${file.name} (${(file.size / 1024).toFixed(2)}KB) to ${bucket}/${filePath}`);
+
+    // Upload with retry logic
+    let uploadAttempt = 0;
+    const maxRetries = 3;
+    
+    while (uploadAttempt < maxRetries) {
+      try {
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from(bucket)
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false // Don't overwrite existing files
+          });
+
+        if (uploadError) {
+          console.error(`Upload attempt ${uploadAttempt + 1} failed:`, uploadError);
+          
+          if (uploadError.message?.includes('already exists') || uploadError.statusCode === '409') {
+            // File already exists, try with new filename
+            const newFileName = `${timestamp}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+            const newFilePath = `${userId}/${newFileName}`;
+            
+            const { data: retryData, error: retryError } = await supabase.storage
+              .from(bucket)
+              .upload(newFilePath, file, {
+                cacheControl: '3600',
+                upsert: false
+              });
+
+            if (retryError) {
+              throw retryError;
+            }
+
+            // Get public URL for successful retry upload
+            const { data: urlData } = supabase.storage
+              .from(bucket)
+              .getPublicUrl(newFilePath);
+
+            return { 
+              data: { 
+                path: newFilePath, 
+                url: urlData.publicUrl,
+                fileName: newFileName
+              }, 
+              error: null 
+            };
+          }
+          
+          throw uploadError;
+        }
+
+        // Successful upload - get public URL
+        const { data: urlData } = supabase.storage
+          .from(bucket)
+          .getPublicUrl(filePath);
+
+        console.log('File uploaded successfully:', urlData.publicUrl);
+
+        return { 
+          data: { 
+            path: filePath, 
+            url: urlData.publicUrl,
+            fileName: fileName
+          }, 
+          error: null 
+        };
+
+      } catch (attemptError) {
+        uploadAttempt++;
+        console.error(`Upload attempt ${uploadAttempt} failed:`, attemptError);
+        
+        if (uploadAttempt >= maxRetries) {
+          return { 
+            data: null, 
+            error: { 
+              message: `Upload failed after ${maxRetries} attempts: ${attemptError.message}`,
+              originalError: attemptError
+            } 
+          };
+        }
+        
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 1000 * uploadAttempt));
+      }
+    }
+
   } catch (error: any) {
-    console.error('Upload error:', error);
-    return { data: null, error: { message: error.message } };
+    console.error('Upload function error:', error);
+    return { 
+      data: null, 
+      error: { 
+        message: `Upload failed: ${error.message}`,
+        originalError: error
+      } 
+    };
   }
 };
 
