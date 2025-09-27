@@ -144,6 +144,7 @@ export const validateRegistrationData = async (
 };
 
 // Updated signUpUser function using the same successful approach as volunteer registration
+// Updated signUpUser function using the same successful approach as volunteer registration
 export const signUpUser = async (email: string, password: string, userData: any) => {
   try {
     console.log('Starting attendee registration...');
@@ -205,7 +206,7 @@ export const signUpUser = async (email: string, password: string, userData: any)
         }
       }
 
-      // Prepare profile data (same as volunteer pattern but for attendee)
+      // Prepare profile data with proper type handling
       let profileDataToInsert = {
         id: authData.user.id,
         email: email.trim().toLowerCase(),
@@ -216,7 +217,7 @@ export const signUpUser = async (email: string, password: string, userData: any)
         faculty: userData.faculty?.trim() || '',
         personal_id: userData.personal_id?.trim(),
         reg_id: referrerId,
-        role: 'attendee',
+        // Don't set role here - let database use default or handle it separately
         score: 0,
         building_entry: false,
         event_entry: false,
