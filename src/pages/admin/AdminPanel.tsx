@@ -19,6 +19,10 @@ import {
 } from "lucide-react";
 import DashboardLayout from "../../components/shared/DashboardLayout";
 import { supabase, uploadFile, getDynamicBuildingStats } from "../../lib/supabase";
+// Add these states
+const [deleteCompanyModal, setDeleteCompanyModal] = useState(false);
+const [selectedCompanyDelete, setSelectedCompanyDelete] = useState(null);
+
 
 export function AdminPanel() {
   // Stats and data states
