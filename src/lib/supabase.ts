@@ -1071,6 +1071,44 @@ export const addScheduleItem = async (eventData) => {
   }
 };
 
+const generateVolunteerId = async (role: string): Promise<string> => {
+  try {
+    // Define role prefixes
+    const rolePrefixes: { [key: string]: string } = {
+      'registration': 'REG',
+      'building': 'BLD',
+      'info_desk': 'INFDSK',
+      'volunteer': 'VOL',
+      'team_leader': 'TLDR'
+    };
+    
+    const prefix = rolePrefixes[role] || 'VOL';
+    
+    // Count existing volunteers with this role
+    const { count, error } = await supabase
+      .from('users_profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', role)
+      .not('volunteer_id', 'is', null);
+    
+    if (error) {
+      console.error('Error counting volunteers:', error);
+      // Fallback: use timestamp
+      return `${prefix}${Date.now().toString().slice(-4)}`;
+    }
+    
+    const counter = (count || 0) + 1;
+    const paddedCounter = counter.toString().padStart(2, '0');
+    
+    return `${prefix}${paddedCounter}`;
+  } catch (error) {
+    console.error('Error generating volunteer ID:', error);
+    // Fallback: use timestamp
+    const prefix = rolePrefixes[role] || 'VOL';
+    return `${prefix}${Date.now().toString().slice(-4)}`;
+  }
+};
+
 // Add Company
 export const addCompany = async (companyData) => {
   try {
