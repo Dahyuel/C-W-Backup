@@ -1,402 +1,362 @@
-import React, { useState, useEffect } from 'react';
-import { Building, Users, MapPin, AlertTriangle, QrCode, Activity, Clock, Shield } from 'lucide-react';
-import DashboardLayout from '../../components/shared/DashboardLayout';
-import { QRScanner } from '../../components/shared/QRScanner';
-import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
+// src/pages/team/BuildTeamDashboard.tsx
+import React, { useState, useEffect } from "react";
+import {
+  Calendar,
+  Users,
+  QrCode,
+  Search,
+  PlusCircle,
+  MinusCircle,
+  Clock,
+  User,
+  Building2,
+} from "lucide-react";
+import DashboardLayout from "../../components/shared/DashboardLayout";
+import { QRScanner } from "../../components/shared/QRScanner";
+import { useAuth } from "../../contexts/AuthContext";
+import { supabase } from "../../lib/supabase";
 
-interface BuildingStats {
-  current_occupancy: number;
-  max_capacity: number;
-  entries_today: number;
-  exits_today: number;
-  emergency_alerts: number;
-}
-
-interface LocationData {
+interface Session {
   id: string;
-  name: string;
-  current_count: number;
-  max_capacity: number;
-  status: 'normal' | 'crowded' | 'full' | 'emergency';
-  last_updated: string;
-}
-
-interface RecentActivity {
-  id: string;
-  user_name: string;
-  action: 'entry' | 'exit';
-  location: string;
-  timestamp: string;
-  scanner_name: string;
+  title: string;
+  description: string;
+  start_time: string;
+  end_time: string;
+  current_attendees: number;
+  max_attendees: number;
+  instructor: string;
 }
 
 export const BuildTeamDashboard: React.FC = () => {
   const { profile } = useAuth();
-  const [stats, setStats] = useState<BuildingStats | null>(null);
-  const [locations, setLocations] = useState<LocationData[]>([]);
-  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showScanner, setShowScanner] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState('Main Entrance');
-  const [scanType, setScanType] = useState<'entry' | 'exit'>('entry');
+
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+  const [mode, setMode] = useState<"add" | "remove" | null>(null);
+  const [searchMode, setSearchMode] = useState<"qr" | "manual" | null>(null);
+  const [searchId, setSearchId] = useState("");
+  const [activeTab, setActiveTab] = useState<"session" | "building">("session");
 
   useEffect(() => {
-    fetchDashboardData();
-    // Set up real-time updates
-    const interval = setInterval(fetchDashboardData, 30000); // Update every 30 seconds
-    return () => clearInterval(interval);
+    // Mock sessions for testing
+    const mock: Session[] = [
+      {
+        id: "1",
+        title: "AI & Machine Learning",
+        description: "Exploring AI trends in 2025",
+        start_time: "10:00",
+        end_time: "11:30",
+        current_attendees: 30,
+        max_attendees: 60,
+        instructor: "Dr. Sarah Johnson",
+      },
+      {
+        id: "2",
+        title: "Cybersecurity Workshop",
+        description: "Hands-on with modern attacks",
+        start_time: "12:00",
+        end_time: "13:30",
+        current_attendees: 45,
+        max_attendees: 80,
+        instructor: "Eng. Ahmed Hassan",
+      },
+      {
+        id: "3",
+        title: "Web Development in 2025",
+        description: "Modern frameworks & tools",
+        start_time: "14:00",
+        end_time: "15:30",
+        current_attendees: 25,
+        max_attendees: 50,
+        instructor: "Prof. Emily Davis",
+      },
+    ];
+    setSessions(mock);
   }, []);
 
-  const fetchDashboardData = async () => {
+  const handleQRScan = async (qrData: string) => {
     try {
-      // Fetch building stats
-      const { data: statsData } = await supabase
-        .rpc('get_building_stats');
-
-      if (statsData) {
-        setStats(statsData);
-      }
-
-      // Fetch location data
-      const { data: locationsData } = await supabase
-        .from('locations')
-        .select('*')
-        .order('name');
-
-      if (locationsData) {
-        const locationsWithStatus = locationsData.map(location => ({
-          ...location,
-          status: getLocationStatus(location.current_count, location.max_capacity)
-        }));
-        setLocations(locationsWithStatus);
-      }
-
-      // Fetch recent activity
-      const { data: activityData } = await supabase
-        .from('attendances')
-        .select(`
-          id,
-          scan_type,
-          location,
-          scanned_at,
-          users_profiles!attendances_user_id_fkey (
-            first_name,
-            last_name
-          ),
-          scanner:users_profiles!attendances_scanned_by_fkey (
-            first_name,
-            last_name
-          )
-        `)
-        .in('scan_type', ['building_entry', 'building_exit'])
-        .order('scanned_at', { ascending: false })
-        .limit(20);
-
-      if (activityData) {
-        const formattedActivity = activityData.map(activity => ({
-          id: activity.id,
-          user_name: `${activity.users_profiles?.first_name} ${activity.users_profiles?.last_name}`,
-          action: activity.scan_type === 'building_entry' ? 'entry' : 'exit' as 'entry' | 'exit',
-          location: activity.location || 'Unknown',
-          timestamp: activity.scanned_at,
-          scanner_name: `${activity.scanner?.first_name} ${activity.scanner?.last_name}`
-        }));
-        setRecentActivity(formattedActivity);
-      }
-
-    } catch (error) {
-      console.error('Error fetching dashboard data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getLocationStatus = (current: number, max: number): 'normal' | 'crowded' | 'full' | 'emergency' => {
-    const percentage = (current / max) * 100;
-    if (percentage >= 100) return 'full';
-    if (percentage >= 80) return 'crowded';
-    return 'normal';
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'normal':
-        return 'bg-green-100 text-green-800';
-      case 'crowded':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'full':
-        return 'bg-red-100 text-red-800';
-      case 'emergency':
-        return 'bg-red-100 text-red-800 animate-pulse';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const handleScan = async (qrData: string) => {
-    try {
-      // Process building entry/exit scan
-      const { data, error } = await supabase
-        .rpc('process_building_scan', {
-          scanner_id: profile?.id,
-          qr_data: qrData,
-          scan_type: scanType === 'entry' ? 'building_entry' : 'building_exit',
-          location: selectedLocation
-        });
+      const { error } = await supabase.rpc("process_session_attendance", {
+        session_id: selectedSession?.id,
+        user_id: qrData,
+        action_type: mode,
+      });
 
       if (error) {
         alert(`Error: ${error.message}`);
       } else {
-        alert(`${scanType === 'entry' ? 'Entry' : 'Exit'} scan successful!`);
-        fetchDashboardData(); // Refresh data
+        alert(`${mode === "add" ? "Added" : "Removed"} successfully!`);
       }
-    } catch (error) {
-      alert('Failed to process scan');
+    } catch {
+      alert("Failed to process scan");
     }
   };
 
-  const triggerEmergencyAlert = async () => {
-    if (confirm('Are you sure you want to trigger an emergency alert? This will notify all relevant personnel.')) {
-      try {
-        const { error } = await supabase
-          .rpc('trigger_emergency_alert', {
-            triggered_by: profile?.id,
-            location: selectedLocation,
-            alert_type: 'evacuation'
-          });
+  const handleManualSearch = async () => {
+    if (!searchId) return;
+    try {
+      const { error } = await supabase.rpc("process_session_attendance", {
+        session_id: selectedSession?.id,
+        user_id: searchId,
+        action_type: mode,
+      });
 
-        if (error) {
-          alert(`Error triggering alert: ${error.message}`);
-        } else {
-          alert('Emergency alert triggered successfully!');
-        }
-      } catch (error) {
-        alert('Failed to trigger emergency alert');
+      if (error) {
+        alert(`Error: ${error.message}`);
+      } else {
+        alert(`${mode === "add" ? "Added" : "Removed"} successfully!`);
       }
+    } catch {
+      alert("Failed to process manual action");
     }
   };
-
-  if (loading) {
-    return (
-      <DashboardLayout title="Building Team Dashboard" subtitle="Monitor building access and capacity">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
-        </div>
-      </DashboardLayout>
-    );
-  }
 
   return (
-    <DashboardLayout 
-      title="Building Team Dashboard" 
-      subtitle="Monitor building access, capacity, and security"
+    <DashboardLayout
+      title="Build Team Dashboard"
+      subtitle="Manage session and building attendance"
     >
-      <div className="space-y-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Current Occupancy</p>
-                <p className="text-3xl font-bold text-orange-600">
-                  {stats?.current_occupancy || 0}
-                </p>
-                <p className="text-xs text-gray-500">
-                  of {stats?.max_capacity || 0} capacity
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Users className="h-6 w-6 text-orange-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Entries Today</p>
-                <p className="text-3xl font-bold text-green-600">{stats?.entries_today || 0}</p>
-              </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <Activity className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Exits Today</p>
-                <p className="text-3xl font-bold text-blue-600">{stats?.exits_today || 0}</p>
-              </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Activity className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Emergency Alerts</p>
-                <p className="text-3xl font-bold text-red-600">{stats?.emergency_alerts || 0}</p>
-              </div>
-              <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                <AlertTriangle className="h-6 w-6 text-red-600" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div className="flex space-x-2">
-              <select
-                value={selectedLocation}
-                onChange={(e) => setSelectedLocation(e.target.value)}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-              >
-                <option value="Main Entrance">Main Entrance</option>
-                <option value="Side Entrance">Side Entrance</option>
-                <option value="Emergency Exit">Emergency Exit</option>
-                <option value="Conference Hall">Conference Hall</option>
-                <option value="Exhibition Area">Exhibition Area</option>
-              </select>
-              <select
-                value={scanType}
-                onChange={(e) => setScanType(e.target.value as 'entry' | 'exit')}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-              >
-                <option value="entry">Entry</option>
-                <option value="exit">Exit</option>
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <button
-              onClick={() => setShowScanner(true)}
-              className="flex items-center justify-center p-4 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-            >
-              <QrCode className="h-5 w-5 mr-2" />
-              Scan {scanType === 'entry' ? 'Entry' : 'Exit'}
-            </button>
-            <button className="flex items-center justify-center p-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-              <MapPin className="h-5 w-5 mr-2" />
-              View Floor Plan
-            </button>
-            <button className="flex items-center justify-center p-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
-              <Shield className="h-5 w-5 mr-2" />
-              Security Check
-            </button>
-            <button
-              onClick={triggerEmergencyAlert}
-              className="flex items-center justify-center p-4 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-            >
-              <AlertTriangle className="h-5 w-5 mr-2" />
-              Emergency Alert
-            </button>
-          </div>
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Location Status */}
-          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Location Status</h2>
-            <div className="space-y-4">
-              {locations.map((location) => (
-                <div key={location.id} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-semibold text-gray-900">{location.name}</h3>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(location.status)}`}>
-                      {location.status}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-gray-600">
-                      {location.current_count} / {location.max_capacity} people
-                    </span>
-                    <span className="text-sm text-gray-500">
-                      {Math.round((location.current_count / location.max_capacity) * 100)}% full
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        location.status === 'full' ? 'bg-red-500' :
-                        location.status === 'crowded' ? 'bg-yellow-500' :
-                        'bg-green-500'
-                      }`}
-                      style={{ width: `${Math.min((location.current_count / location.max_capacity) * 100, 100)}%` }}
-                    />
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Last updated: {new Date(location.last_updated).toLocaleTimeString()}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Recent Activity */}
-          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Recent Activity</h2>
-            <div className="space-y-4">
-              {recentActivity.length > 0 ? (
-                recentActivity.map((activity) => (
-                  <div key={activity.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                        activity.action === 'entry' ? 'bg-green-100' : 'bg-blue-100'
-                      }`}>
-                        <Activity className={`h-4 w-4 ${
-                          activity.action === 'entry' ? 'text-green-600' : 'text-blue-600'
-                        }`} />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{activity.user_name}</p>
-                        <p className="text-sm text-gray-600">
-                          {activity.action === 'entry' ? 'Entered' : 'Exited'} {activity.location}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          Scanned by {activity.scanner_name}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-gray-600">
-                        {new Date(activity.timestamp).toLocaleTimeString()}
-                      </p>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        activity.action === 'entry' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {activity.action}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Activity className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p>No recent activity</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+      {/* Tabs */}
+      <div className="flex space-x-6 mb-8 border-b border-gray-200">
+        <button
+          onClick={() => setActiveTab("session")}
+          className={`pb-2 px-2 text-sm font-medium ${
+            activeTab === "session"
+              ? "text-orange-600 border-b-2 border-orange-600"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          Sessions
+        </button>
+        <button
+          onClick={() => setActiveTab("building")}
+          className={`pb-2 px-2 text-sm font-medium ${
+            activeTab === "building"
+              ? "text-orange-600 border-b-2 border-orange-600"
+              : "text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          Building
+        </button>
       </div>
 
-      {/* QR Scanner Modal */}
-      <QRScanner
-        isOpen={showScanner}
-        onClose={() => setShowScanner(false)}
-        onScan={handleScan}
-        title={`Building ${scanType === 'entry' ? 'Entry' : 'Exit'} Scan`}
-        description={`Scan attendee QR code for ${scanType} at ${selectedLocation}`}
-      />
+      <div className="space-y-8">
+        {/* SESSION TAB */}
+        {activeTab === "session" && (
+          <>
+            {/* Session List */}
+            {!selectedSession && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {sessions.map((session) => (
+                  <div
+                    key={session.id}
+                    className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 cursor-pointer hover:shadow-md transition"
+                    onClick={() => setSelectedSession(session)}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {session.title}
+                      </h3>
+                      <Calendar className="h-5 w-5 text-orange-500" />
+                    </div>
+                    <p className="text-sm text-gray-600 mb-2">
+                      {session.description}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      <Clock className="inline-block h-4 w-4 mr-1" />
+                      {session.start_time} - {session.end_time}
+                    </p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      <User className="inline-block h-4 w-4 mr-1" />
+                      Instructor: {session.instructor}
+                    </p>
+                    <p className="mt-2 text-sm font-medium text-gray-700">
+                      <Users className="inline-block h-4 w-4 mr-1" />
+                      {session.current_attendees}/{session.max_attendees} attendees
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Session Selected */}
+            {selectedSession && !mode && (
+              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 space-y-4">
+                <h2 className="text-xl font-bold text-gray-900">
+                  {selectedSession.title}
+                </h2>
+                <p className="text-gray-600">{selectedSession.description}</p>
+                <p className="text-gray-700">
+                  <Clock className="inline-block h-4 w-4 mr-1" />
+                  {selectedSession.start_time} - {selectedSession.end_time}
+                </p>
+                <p className="text-gray-700">
+                  <User className="inline-block h-4 w-4 mr-1" />
+                  Instructor: {selectedSession.instructor}
+                </p>
+                <p className="text-gray-700">
+                  <Users className="inline-block h-4 w-4 mr-1" />
+                  {selectedSession.current_attendees}/
+                  {selectedSession.max_attendees} attendees
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <button
+                    onClick={() => setMode("add")}
+                    className="flex items-center justify-center p-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                  >
+                    <PlusCircle className="h-5 w-5 mr-2" />
+                    Add Attendee
+                  </button>
+                  <button
+                    onClick={() => setMode("remove")}
+                    className="flex items-center justify-center p-4 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                  >
+                    <MinusCircle className="h-5 w-5 mr-2" />
+                    Remove Attendee
+                  </button>
+                </div>
+                <button
+                  onClick={() => setSelectedSession(null)}
+                  className="text-sm text-gray-500 underline"
+                >
+                  Back to sessions
+                </button>
+              </div>
+            )}
+
+            {/* Add/Remove Options */}
+            {selectedSession && mode && !searchMode && (
+              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 space-y-6">
+                <h2 className="text-xl font-bold text-gray-900">
+                  {mode === "add" ? "Add" : "Remove"} Attendee
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <button
+                    onClick={() => setSearchMode("qr")}
+                    className="flex items-center justify-center p-4 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                  >
+                    <QrCode className="h-5 w-5 mr-2" />
+                    QR Code
+                  </button>
+                  <button
+                    onClick={() => setSearchMode("manual")}
+                    className="flex items-center justify-center p-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  >
+                    <Search className="h-5 w-5 mr-2" />
+                    Search by ID
+                  </button>
+                </div>
+                <button
+                  onClick={() => setMode(null)}
+                  className="text-sm text-gray-500 underline"
+                >
+                  Back
+                </button>
+              </div>
+            )}
+
+            {/* QR Scanner */}
+            {selectedSession && mode && searchMode === "qr" && (
+              <QRScanner
+                isOpen={true}
+                onClose={() => setSearchMode(null)}
+                onScan={handleQRScan}
+                title={`${mode === "add" ? "Add" : "Remove"} Attendee`}
+                description={`Scan attendee QR code to ${mode} them from this session`}
+              />
+            )}
+
+            {/* Manual Search */}
+            {selectedSession && mode && searchMode === "manual" && (
+              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 space-y-4">
+                <h2 className="text-xl font-bold text-gray-900">
+                  {mode === "add" ? "Add" : "Remove"} Attendee (Manual)
+                </h2>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    placeholder="Enter personal ID..."
+                    value={searchId}
+                    onChange={(e) => setSearchId(e.target.value)}
+                    className="px-4 py-2 border rounded-lg flex-1"
+                  />
+                  <button
+                    onClick={handleManualSearch}
+                    className="px-4 py-2 bg-orange-500 text-white rounded-lg"
+                  >
+                    Confirm
+                  </button>
+                </div>
+                <button
+                  onClick={() => setSearchMode(null)}
+                  className="text-sm text-gray-500 underline"
+                >
+                  Back
+                </button>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* BUILDING TAB */}
+        {activeTab === "building" && (
+          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-8 space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900 text-center flex items-center justify-center gap-2">
+              <Building2 className="h-6 w-6 text-orange-500" />
+              Building Attendance
+            </h2>
+            <p className="text-gray-600 text-center">
+              Manage entry and exit for attendees using QR code scanning
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+              {/* Scan In Button */}
+              <button
+                onClick={() => {
+                  setMode("add");
+                  setSearchMode("qr");
+                }}
+                className="flex flex-col items-center justify-center p-8 rounded-2xl shadow-md bg-green-500 text-white hover:bg-green-600 transition"
+              >
+                <QrCode className="h-12 w-12 mb-3" />
+                <span className="text-lg font-semibold">Scan In</span>
+                <span className="text-sm opacity-80 mt-1">
+                  For people entering
+                </span>
+              </button>
+
+              {/* Scan Out Button */}
+              <button
+                onClick={() => {
+                  setMode("remove");
+                  setSearchMode("qr");
+                }}
+                className="flex flex-col items-center justify-center p-8 rounded-2xl shadow-md bg-red-500 text-white hover:bg-red-600 transition"
+              >
+                <QrCode className="h-12 w-12 mb-3" />
+                <span className="text-lg font-semibold">Scan Out</span>
+                <span className="text-sm opacity-80 mt-1">
+                  For people leaving
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* BUILDING QR Scanner */}
+        {activeTab === "building" && searchMode === "qr" && (
+          <QRScanner
+            isOpen={true}
+            onClose={() => setSearchMode(null)}
+            onScan={handleQRScan}
+            title={mode === "add" ? "Scan In" : "Scan Out"}
+            description={`Scan attendee QR code to mark ${
+              mode === "add" ? "entry" : "exit"
+            } from the building`}
+          />
+        )}
+      </div>
     </DashboardLayout>
   );
 };
