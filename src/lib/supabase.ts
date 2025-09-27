@@ -1510,6 +1510,23 @@ export async function getDynamicBuildingStats() {
     return { data: null, error };
   }
 }
+export const deleteFile = async (bucket: string, filePath: string) => {
+  try {
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .remove([filePath]);
+
+    if (error) {
+      console.error('Delete file error:', error);
+      return { success: false, error };
+    }
+
+    return { success: true, error: null };
+  } catch (error: any) {
+    console.error('Delete file exception:', error);
+    return { success: false, error: { message: error.message } };
+  }
+};
 
 export const checkFileExists = async (bucket: string, filePath: string) => {
   try {
