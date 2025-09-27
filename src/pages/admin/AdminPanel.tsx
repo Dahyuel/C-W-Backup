@@ -830,6 +830,7 @@ const handleDeleteEvent = async (event) => {
   
 
 // Update the announcement submit handler
+// Update the handleAnnouncementSubmit function
 const handleAnnouncementSubmit = async () => {
   if (!announcementTitle || !announcementDescription || !announcementRole) {
     showNotification("Please fill all required fields!", "error");
@@ -857,18 +858,27 @@ const handleAnnouncementSubmit = async () => {
       created_by: session.user.id
     };
 
-    if (announcementRole === "custom") {
-      // For custom selection, send to specific users
-      notificationData.target_type = 'custom';
-      notificationData.target_user_ids = selectedUsers.map(user => user.id);
-    } else if (announcementRole === "all") {
-      // For all users
+    // Determine target type and role based on selection
+    if (announcementRole === "all") {
+      // Send to all users
       notificationData.target_type = 'all';
       notificationData.target_role = null;
-    } else {
-      // For specific roles
+      notificationData.target_user_ids = null;
+    } 
+    else if (announcementRole === "custom") {
+      // Send to custom selected users
+      notificationData.target_type = 'specific_users';
+      notificationData.target_role = null;
+      notificationData.target_user_ids = selectedUsers.map(user => user.id);
+    }
+    else {
+      // For role-based targeting
       notificationData.target_type = 'role';
+      
+      // Map the selected role to the appropriate target_role
+      // This handles volunteers, admins, team_leader, attendees
       notificationData.target_role = announcementRole;
+      notificationData.target_user_ids = null;
     }
 
     const { error } = await supabase
@@ -894,6 +904,8 @@ const handleAnnouncementSubmit = async () => {
   }
 };
 
+
+  
 const searchUsersByPersonalId = async (searchTerm) => {
   if (!searchTerm || searchTerm.trim().length < 2) {
     setSearchResults([]);
