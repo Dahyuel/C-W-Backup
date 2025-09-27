@@ -23,8 +23,7 @@ import {
   getAttendeeByPersonalId,
   getAttendeeByUUID,
   getAllSessions,
-  searchAttendeesByPersonalId,
-  getBuildingStats
+  searchAttendeesByPersonalId
 } from "../../lib/supabase";
 
 interface Session {
@@ -39,13 +38,6 @@ interface Session {
   current_attendees: number;
   session_type: string;
   created_at: string;
-}
-
-interface BuildingStats {
-  total_attendees: number;
-  inside_building: number;
-  today_entries: number;
-  session_attendances: number;
 }
 
 interface Attendee {
@@ -72,31 +64,30 @@ const castToAttendee = (data: any): Attendee => {
 export const BuildTeamDashboard: React.FC = () => {
   const { profile } = useAuth();
 
-  // Tab and mode state
+  // Tab state
   const [activeTab, setActiveTab] = useState<"building" | "session">("building");
-  const [mode, setMode] = useState<"building_entry" | "building_exit" | "session_entry" | null>(null);
-  const [searchMode, setSearchMode] = useState<"qr" | "manual" | null>(null);
 
-  // Session state
+  // Building tab state
+  const [buildingSearchMode, setBuildingSearchMode] = useState<"qr" | "manual" | null>(null);
+  const [buildingSearchTerm, setBuildingSearchTerm] = useState("");
+  const [buildingSearchLoading, setBuildingSearchLoading] = useState(false);
+  const [buildingSearchResults, setBuildingSearchResults] = useState<Attendee[]>([]);
+  const [showBuildingSearchResults, setShowBuildingSearchResults] = useState(false);
+  const [buildingSearchTimeout, setBuildingSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  // Session tab state
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [sessionsLoading, setSessionsLoading] = useState(true);
+  const [sessionMode, setSessionMode] = useState<"session_entry" | null>(null);
+  const [sessionSearchMode, setSessionSearchMode] = useState<"qr" | "manual" | null>(null);
+  const [sessionSearchTerm, setSessionSearchTerm] = useState("");
+  const [sessionSearchLoading, setSessionSearchLoading] = useState(false);
+  const [sessionSearchResults, setSessionSearchResults] = useState<Attendee[]>([]);
+  const [showSessionSearchResults, setShowSessionSearchResults] = useState(false);
+  const [sessionSearchTimeout, setSessionSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
-  // Building stats state
-  const [buildingStats, setBuildingStats] = useState<BuildingStats | null>(null);
-  const [statsLoading, setStatsLoading] = useState(false);
-
-  // Search state
-  const [searchTerm, setSearchTerm] = useState("");
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [searchResults, setSearchResults] = useState<Attendee[]>([]);
-  const [showSearchResults, setShowSearchResults] = useState(false);
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
-
-  // QR Scanner state
-  const [showScanner, setShowScanner] = useState(false);
-
-  // Attendee card state
+  // Shared attendee card state
   const [selectedAttendee, setSelectedAttendee] = useState<Attendee | null>(null);
   const [showAttendeeCard, setShowAttendeeCard] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -107,36 +98,58 @@ export const BuildTeamDashboard: React.FC = () => {
     message: string;
   } | null>(null);
 
-  // Load sessions on mount
+  // Load sessions when session tab is active
   useEffect(() => {
-    fetchSessions();
-    if (activeTab === "building") {
-      fetchBuildingStats();
+    if (activeTab === "session") {
+      fetchSessions();
     }
   }, [activeTab]);
 
-  // Dynamic search effect
+  // Building tab dynamic search effect
   useEffect(() => {
-    if (searchTimeout) {
-      clearTimeout(searchTimeout);
+    if (buildingSearchTimeout) {
+      clearTimeout(buildingSearchTimeout);
     }
 
-    if (searchTerm.trim().length >= 2) {
+    if (activeTab === "building" && buildingSearchTerm.trim().length >= 2) {
       const timeout = setTimeout(() => {
-        performDynamicSearch(searchTerm.trim());
+        performBuildingDynamicSearch(buildingSearchTerm.trim());
       }, 300);
-      setSearchTimeout(timeout);
+      setBuildingSearchTimeout(timeout);
     } else {
-      setSearchResults([]);
-      setShowSearchResults(false);
+      setBuildingSearchResults([]);
+      setShowBuildingSearchResults(false);
     }
 
     return () => {
-      if (searchTimeout) {
-        clearTimeout(searchTimeout);
+      if (buildingSearchTimeout) {
+        clearTimeout(buildingSearchTimeout);
       }
     };
-  }, [searchTerm]);
+  }, [buildingSearchTerm, activeTab]);
+
+  // Session tab dynamic search effect
+  useEffect(() => {
+    if (sessionSearchTimeout) {
+      clearTimeout(sessionSearchTimeout);
+    }
+
+    if (activeTab === "session" && sessionSearchTerm.trim().length >= 2) {
+      const timeout = setTimeout(() => {
+        performSessionDynamicSearch(sessionSearchTerm.trim());
+      }, 300);
+      setSessionSearchTimeout(timeout);
+    } else {
+      setSessionSearchResults([]);
+      setShowSessionSearchResults(false);
+    }
+
+    return () => {
+      if (sessionSearchTimeout) {
+        clearTimeout(sessionSearchTimeout);
+      }
+    };
+  }, [sessionSearchTerm, activeTab]);
 
   const fetchSessions = async () => {
     try {
@@ -157,43 +170,45 @@ export const BuildTeamDashboard: React.FC = () => {
     }
   };
 
-  const fetchBuildingStats = async () => {
+  const performBuildingDynamicSearch = async (query: string) => {
     try {
-      setStatsLoading(true);
-      const { data, error } = await getBuildingStats();
-      
-      if (error) {
-        console.error("Error fetching building stats:", error);
-        showFeedback('error', 'Failed to load building statistics');
-      } else {
-        setBuildingStats(data);
-      }
-    } catch (error) {
-      console.error("Error fetching building stats:", error);
-      showFeedback('error', 'An unexpected error occurred');
-    } finally {
-      setStatsLoading(false);
-    }
-  };
-
-  const performDynamicSearch = async (query: string) => {
-    try {
-      setSearchLoading(true);
+      setBuildingSearchLoading(true);
       const { data, error } = await searchAttendeesByPersonalId(query);
       
       if (error) {
-        console.error("Search error:", error);
-        setSearchResults([]);
+        console.error("Building search error:", error);
+        setBuildingSearchResults([]);
       } else {
         const attendees = (data || []).map(item => castToAttendee(item));
-        setSearchResults(attendees);
-        setShowSearchResults(true);
+        setBuildingSearchResults(attendees);
+        setShowBuildingSearchResults(true);
       }
     } catch (error) {
-      console.error("Search exception:", error);
-      setSearchResults([]);
+      console.error("Building search exception:", error);
+      setBuildingSearchResults([]);
     } finally {
-      setSearchLoading(false);
+      setBuildingSearchLoading(false);
+    }
+  };
+
+  const performSessionDynamicSearch = async (query: string) => {
+    try {
+      setSessionSearchLoading(true);
+      const { data, error } = await searchAttendeesByPersonalId(query);
+      
+      if (error) {
+        console.error("Session search error:", error);
+        setSessionSearchResults([]);
+      } else {
+        const attendees = (data || []).map(item => castToAttendee(item));
+        setSessionSearchResults(attendees);
+        setShowSessionSearchResults(true);
+      }
+    } catch (error) {
+      console.error("Session search exception:", error);
+      setSessionSearchResults([]);
+    } finally {
+      setSessionSearchLoading(false);
     }
   };
 
@@ -207,15 +222,15 @@ export const BuildTeamDashboard: React.FC = () => {
     return uuidRegex.test(str);
   };
 
-  const handleSearchByPersonalId = async () => {
-    if (!searchTerm.trim()) {
+  const handleBuildingSearchByPersonalId = async () => {
+    if (!buildingSearchTerm.trim()) {
       showFeedback('error', 'Please enter a Personal ID');
       return;
     }
 
     try {
-      setSearchLoading(true);
-      const { data, error } = await getAttendeeByPersonalId(searchTerm.trim());
+      setBuildingSearchLoading(true);
+      const { data, error } = await getAttendeeByPersonalId(buildingSearchTerm.trim());
 
       if (error || !data) {
         showFeedback('error', 'Personal ID not found');
@@ -224,30 +239,68 @@ export const BuildTeamDashboard: React.FC = () => {
       } else {
         setSelectedAttendee(castToAttendee(data));
         setShowAttendeeCard(true);
-        setSearchTerm("");
-        setShowSearchResults(false);
-        setSearchMode(null);
+        setBuildingSearchTerm("");
+        setShowBuildingSearchResults(false);
+        setBuildingSearchMode(null);
       }
     } catch (error) {
-      console.error("Search exception:", error);
+      console.error("Building search exception:", error);
       showFeedback('error', 'Search failed. Please try again.');
     } finally {
-      setSearchLoading(false);
+      setBuildingSearchLoading(false);
     }
   };
 
-  const handleSelectSearchResult = (attendee: Attendee) => {
-    setSelectedAttendee(attendee);
-    setShowAttendeeCard(true);
-    setSearchTerm("");
-    setShowSearchResults(false);
-    setSearchResults([]);
-    setSearchMode(null);
+  const handleSessionSearchByPersonalId = async () => {
+    if (!sessionSearchTerm.trim()) {
+      showFeedback('error', 'Please enter a Personal ID');
+      return;
+    }
+
+    try {
+      setSessionSearchLoading(true);
+      const { data, error } = await getAttendeeByPersonalId(sessionSearchTerm.trim());
+
+      if (error || !data) {
+        showFeedback('error', 'Personal ID not found');
+      } else if (data.role !== 'attendee') {
+        showFeedback('error', 'Only attendees can be processed through this system');
+      } else {
+        setSelectedAttendee(castToAttendee(data));
+        setShowAttendeeCard(true);
+        setSessionSearchTerm("");
+        setShowSessionSearchResults(false);
+        setSessionSearchMode(null);
+      }
+    } catch (error) {
+      console.error("Session search exception:", error);
+      showFeedback('error', 'Search failed. Please try again.');
+    } finally {
+      setSessionSearchLoading(false);
+    }
   };
 
-  const handleQRScan = async (qrData: string) => {
+  const handleBuildingSelectSearchResult = (attendee: Attendee) => {
+    setSelectedAttendee(attendee);
+    setShowAttendeeCard(true);
+    setBuildingSearchTerm("");
+    setShowBuildingSearchResults(false);
+    setBuildingSearchResults([]);
+    setBuildingSearchMode(null);
+  };
+
+  const handleSessionSelectSearchResult = (attendee: Attendee) => {
+    setSelectedAttendee(attendee);
+    setShowAttendeeCard(true);
+    setSessionSearchTerm("");
+    setShowSessionSearchResults(false);
+    setSessionSearchResults([]);
+    setSessionSearchMode(null);
+  };
+
+  const handleBuildingQRScan = async (qrData: string) => {
     try {
-      console.log('Processing QR data:', qrData);
+      console.log('Processing Building QR data:', qrData);
       
       let attendeeData: Attendee | null = null;
       let error;
@@ -279,10 +332,50 @@ export const BuildTeamDashboard: React.FC = () => {
 
       setSelectedAttendee(attendeeData);
       setShowAttendeeCard(true);
-      setShowScanner(false);
-      setSearchMode(null);
+      setBuildingSearchMode(null);
     } catch (error) {
-      console.error("QR scan error:", error);
+      console.error("Building QR scan error:", error);
+      showFeedback('error', 'Failed to process QR code');
+    }
+  };
+
+  const handleSessionQRScan = async (qrData: string) => {
+    try {
+      console.log('Processing Session QR data:', qrData);
+      
+      let attendeeData: Attendee | null = null;
+      let error;
+
+      if (isUUID(qrData)) {
+        console.log('Detected UUID format, searching by UUID...');
+        const result = await getAttendeeByUUID(qrData);
+        attendeeData = result.data ? castToAttendee(result.data) : null;
+        error = result.error;
+      } else {
+        console.log('Detected Personal ID format, searching by Personal ID...');
+        const result = await getAttendeeByPersonalId(qrData);
+        attendeeData = result.data ? castToAttendee(result.data) : null;
+        error = result.error;
+      }
+      
+      if (error || !attendeeData) {
+        const errorMsg = isUUID(qrData) 
+          ? 'Invalid QR code: UUID not found in system'
+          : 'Invalid QR code: Personal ID not found';
+        showFeedback('error', errorMsg);
+        return;
+      }
+
+      if (attendeeData.role !== 'attendee') {
+        showFeedback('error', 'Only attendees can be processed through this system');
+        return;
+      }
+
+      setSelectedAttendee(attendeeData);
+      setShowAttendeeCard(true);
+      setSessionSearchMode(null);
+    } catch (error) {
+      console.error("Session QR scan error:", error);
       showFeedback('error', 'Failed to process QR code');
     }
   };
@@ -311,16 +404,10 @@ export const BuildTeamDashboard: React.FC = () => {
         last_scan: new Date().toISOString()
       } : null);
 
-      // Refresh building stats
-      if (activeTab === "building") {
-        fetchBuildingStats();
-      }
-
       // Close attendee card after successful action
       setTimeout(() => {
         setShowAttendeeCard(false);
         setSelectedAttendee(null);
-        setMode(null);
       }, 2000);
 
     } catch (error) {
@@ -357,7 +444,7 @@ export const BuildTeamDashboard: React.FC = () => {
       setTimeout(() => {
         setShowAttendeeCard(false);
         setSelectedAttendee(null);
-        setMode(null);
+        setSessionMode(null);
       }, 2000);
 
     } catch (error) {
@@ -368,20 +455,32 @@ export const BuildTeamDashboard: React.FC = () => {
     }
   };
 
-  const clearSearch = () => {
-    setSearchTerm("");
-    setSearchResults([]);
-    setShowSearchResults(false);
+  const clearBuildingSearch = () => {
+    setBuildingSearchTerm("");
+    setBuildingSearchResults([]);
+    setShowBuildingSearchResults(false);
   };
 
-  const resetToMainView = () => {
-    setMode(null);
-    setSearchMode(null);
+  const clearSessionSearch = () => {
+    setSessionSearchTerm("");
+    setSessionSearchResults([]);
+    setShowSessionSearchResults(false);
+  };
+
+  const resetBuildingTab = () => {
+    setBuildingSearchMode(null);
+    setSelectedAttendee(null);
+    setShowAttendeeCard(false);
+    clearBuildingSearch();
+  };
+
+  const resetSessionTab = () => {
+    setSessionMode(null);
+    setSessionSearchMode(null);
     setSelectedSession(null);
     setSelectedAttendee(null);
     setShowAttendeeCard(false);
-    setShowScanner(false);
-    clearSearch();
+    clearSessionSearch();
   };
 
   const formatTime = (timeString: string) => {
@@ -434,7 +533,7 @@ export const BuildTeamDashboard: React.FC = () => {
         <button
           onClick={() => {
             setActiveTab("building");
-            resetToMainView();
+            resetSessionTab();
           }}
           className={`pb-2 px-2 text-sm font-medium ${
             activeTab === "building"
@@ -447,7 +546,7 @@ export const BuildTeamDashboard: React.FC = () => {
         <button
           onClick={() => {
             setActiveTab("session");
-            resetToMainView();
+            resetBuildingTab();
           }}
           className={`pb-2 px-2 text-sm font-medium ${
             activeTab === "session"
@@ -463,65 +562,8 @@ export const BuildTeamDashboard: React.FC = () => {
         {/* BUILDING TAB */}
         {activeTab === "building" && (
           <>
-            {/* Building Stats */}
-            {!mode && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-orange-500">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 mb-1">Total Attendees</p>
-                      <p className="text-3xl font-bold text-orange-600">
-                        {buildingStats?.total_attendees || 0}
-                      </p>
-                    </div>
-                    <Users className="h-8 w-8 text-orange-500" />
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-green-500">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 mb-1">Inside Building</p>
-                      <p className="text-3xl font-bold text-green-600">
-                        {buildingStats?.inside_building || 0}
-                      </p>
-                    </div>
-                    <Building2 className="h-8 w-8 text-green-500" />
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-500">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 mb-1">Today's Entries</p>
-                      <p className="text-3xl font-bold text-blue-600">
-                        {buildingStats?.today_entries || 0}
-                      </p>
-                    </div>
-                    <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                      <span className="text-blue-600 font-bold">📅</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-purple-500">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 mb-1">Session Attendances</p>
-                      <p className="text-3xl font-bold text-purple-600">
-                        {buildingStats?.session_attendances || 0}
-                      </p>
-                    </div>
-                    <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
-                      <span className="text-purple-600 font-bold">🎯</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* Building Main View */}
-            {!mode && (
+            {!buildingSearchMode && (
               <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-8 space-y-6">
                 <h2 className="text-2xl font-bold text-gray-900 text-center flex items-center justify-center gap-2">
                   <Building2 className="h-6 w-6 text-orange-500" />
@@ -533,72 +575,143 @@ export const BuildTeamDashboard: React.FC = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                   <button
-                    onClick={() => setMode("building_entry")}
-                    className="flex flex-col items-center justify-center p-8 rounded-2xl shadow-md bg-green-500 text-white hover:bg-green-600 transition"
-                  >
-                    <UserPlus className="h-12 w-12 mb-3" />
-                    <span className="text-lg font-semibold">Building Entry</span>
-                    <span className="text-sm opacity-80 mt-1">
-                      For people entering the building
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={() => setMode("building_exit")}
-                    className="flex flex-col items-center justify-center p-8 rounded-2xl shadow-md bg-red-500 text-white hover:bg-red-600 transition"
-                  >
-                    <UserPlus className="h-12 w-12 mb-3" />
-                    <span className="text-lg font-semibold">Building Exit</span>
-                    <span className="text-sm opacity-80 mt-1">
-                      For people leaving the building
-                    </span>
-                  </button>
-                </div>
-
-                <div className="flex justify-end">
-                  <button
-                    onClick={fetchBuildingStats}
-                    disabled={statsLoading}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:cursor-not-allowed flex items-center space-x-2"
-                  >
-                    <div className={`h-4 w-4 ${statsLoading ? 'animate-spin' : ''}`}>🔄</div>
-                    <span>Refresh Stats</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Building Action Selection */}
-            {(mode === "building_entry" || mode === "building_exit") && !searchMode && (
-              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 space-y-6">
-                <h2 className="text-xl font-bold text-gray-900">
-                  {mode === "building_entry" ? "Building Entry" : "Building Exit"}
-                </h2>
-                <p className="text-gray-600">
-                  Choose how you want to identify the attendee
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <button
-                    onClick={() => setSearchMode("qr")}
+                    onClick={() => setBuildingSearchMode("qr")}
                     className="flex items-center justify-center p-4 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
                   >
                     <QrCode className="h-5 w-5 mr-2" />
                     QR Code Scanner
                   </button>
                   <button
-                    onClick={() => setSearchMode("manual")}
+                    onClick={() => setBuildingSearchMode("manual")}
                     className="flex items-center justify-center p-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
                   >
                     <Search className="h-5 w-5 mr-2" />
                     Search by Personal ID
                   </button>
                 </div>
-                <button
-                  onClick={() => setMode(null)}
-                  className="text-sm text-gray-500 underline"
-                >
-                  ← Back to main menu
-                </button>
+              </div>
+            )}
+
+            {/* Building Manual Search */}
+            {buildingSearchMode === "manual" && (
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Search Attendees by Personal ID
+                    </label>
+                    <div className="flex items-center space-x-3 relative">
+                      <div className="flex-1 relative">
+                        <input
+                          type="text"
+                          placeholder="Start typing Personal ID (e.g., 123456...)"
+                          value={buildingSearchTerm}
+                          onChange={(e) => setBuildingSearchTerm(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleBuildingSearchByPersonalId()}
+                          onBlur={() => {
+                            setTimeout(() => setShowBuildingSearchResults(false), 200);
+                          }}
+                          onFocus={() => buildingSearchResults.length > 0 && setShowBuildingSearchResults(true)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-colors"
+                        />
+                        {buildingSearchTerm && (
+                          <button
+                            onClick={clearBuildingSearch}
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          >
+                            <X className="h-5 w-5" />
+                          </button>
+                        )}
+
+                        {/* Dynamic Search Results Dropdown */}
+                        {showBuildingSearchResults && buildingSearchResults.length > 0 && (
+                          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                            {buildingSearchResults.map((attendee) => (
+                              <button
+                                key={attendee.id}
+                                onClick={() => handleBuildingSelectSearchResult(attendee)}
+                                className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:bg-orange-50 focus:outline-none"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <p className="font-medium text-gray-900">
+                                      {attendee.first_name} {attendee.last_name}
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                      ID: {attendee.personal_id}
+                                    </p>
+                                    {attendee.university && (
+                                      <p className="text-xs text-gray-500">
+                                        {attendee.university}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="text-right">
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                      attendee.current_status === 'inside'
+                                        ? 'bg-green-100 text-green-800'
+                                        : 'bg-gray-100 text-gray-800'
+                                    }`}>
+                                      {attendee.current_status === 'inside' ? 'Inside' : 'Outside'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* No Results Message */}
+                        {showBuildingSearchResults && buildingSearchResults.length === 0 && buildingSearchTerm.trim().length >= 2 && !buildingSearchLoading && (
+                          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 px-4 py-3">
+                            <p className="text-gray-600 text-sm">No attendees found matching "{buildingSearchTerm}"</p>
+                          </div>
+                        )}
+
+                        {/* Loading State */}
+                        {buildingSearchLoading && buildingSearchTerm.trim().length >= 2 && (
+                          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 px-4 py-3">
+                            <div className="flex items-center space-x-2">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500"></div>
+                              <p className="text-gray-600 text-sm">Searching attendees...</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        onClick={handleBuildingSearchByPersonalId}
+                        disabled={buildingSearchLoading || !buildingSearchTerm.trim()}
+                        className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+                      >
+                        {buildingSearchLoading ? (
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        ) : (
+                          <>
+                            <Search className="h-5 w-5" />
+                            <span>Search</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="text-sm text-gray-600 bg-blue-50 p-4 rounded-lg">
+                    <p className="font-medium mb-1">Search Tips:</p>
+                    <ul className="list-disc list-inside space-y-1 text-xs">
+                      <li>Start typing to see dynamic suggestions (minimum 2 characters)</li>
+                      <li>Only attendees will appear in search results</li>
+                      <li>Click on a suggestion to select that attendee</li>
+                      <li>Use QR Scanner for faster lookup</li>
+                    </ul>
+                  </div>
+
+                  <button
+                    onClick={() => setBuildingSearchMode(null)}
+                    className="text-sm text-gray-500 underline"
+                  >
+                    ← Back to options
+                  </button>
+                </div>
               </div>
             )}
           </>
@@ -677,7 +790,7 @@ export const BuildTeamDashboard: React.FC = () => {
             )}
 
             {/* Session Selected */}
-            {selectedSession && !mode && (
+            {selectedSession && !sessionMode && (
               <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-bold text-gray-900">
@@ -727,7 +840,7 @@ export const BuildTeamDashboard: React.FC = () => {
 
                 <div className="pt-4">
                   <button
-                    onClick={() => setMode("session_entry")}
+                    onClick={() => setSessionMode("session_entry")}
                     disabled={selectedSession.capacity && selectedSession.current_attendees >= selectedSession.capacity}
                     className="w-full flex items-center justify-center p-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
                   >
@@ -742,7 +855,7 @@ export const BuildTeamDashboard: React.FC = () => {
             )}
 
             {/* Session Action Selection */}
-            {mode === "session_entry" && !searchMode && (
+            {sessionMode === "session_entry" && !sessionSearchMode && (
               <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 space-y-6">
                 <h2 className="text-xl font-bold text-gray-900">
                   Add Attendee to: {selectedSession?.title}
@@ -752,14 +865,14 @@ export const BuildTeamDashboard: React.FC = () => {
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <button
-                    onClick={() => setSearchMode("qr")}
+                    onClick={() => setSessionSearchMode("qr")}
                     className="flex items-center justify-center p-4 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
                   >
                     <QrCode className="h-5 w-5 mr-2" />
                     QR Code Scanner
                   </button>
                   <button
-                    onClick={() => setSearchMode("manual")}
+                    onClick={() => setSessionSearchMode("manual")}
                     className="flex items-center justify-center p-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
                   >
                     <Search className="h-5 w-5 mr-2" />
@@ -767,151 +880,157 @@ export const BuildTeamDashboard: React.FC = () => {
                   </button>
                 </div>
                 <button
-                  onClick={() => setMode(null)}
+                  onClick={() => setSessionMode(null)}
                   className="text-sm text-gray-500 underline"
                 >
                   ← Back to session details
                 </button>
               </div>
             )}
-          </>
-        )}
 
-        {/* Manual Search (shared between building and session modes) */}
-        {searchMode === "manual" && (
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Search Attendees by Personal ID
-                </label>
-                <div className="flex items-center space-x-3 relative">
-                  <div className="flex-1 relative">
-                    <input
-                      type="text"
-                      placeholder="Start typing Personal ID (e.g., 123456...)"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSearchByPersonalId()}
-                      onBlur={() => {
-                        setTimeout(() => setShowSearchResults(false), 200);
-                      }}
-                      onFocus={() => searchResults.length > 0 && setShowSearchResults(true)}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-colors"
-                    />
-                    {searchTerm && (
-                      <button
-                        onClick={clearSearch}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
-                        <X className="h-5 w-5" />
-                      </button>
-                    )}
-
-                    {/* Dynamic Search Results Dropdown */}
-                    {showSearchResults && searchResults.length > 0 && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                        {searchResults.map((attendee) => (
+            {/* Session Manual Search */}
+            {sessionSearchMode === "manual" && (
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Search Attendees by Personal ID
+                    </label>
+                    <div className="flex items-center space-x-3 relative">
+                      <div className="flex-1 relative">
+                        <input
+                          type="text"
+                          placeholder="Start typing Personal ID (e.g., 123456...)"
+                          value={sessionSearchTerm}
+                          onChange={(e) => setSessionSearchTerm(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleSessionSearchByPersonalId()}
+                          onBlur={() => {
+                            setTimeout(() => setShowSessionSearchResults(false), 200);
+                          }}
+                          onFocus={() => sessionSearchResults.length > 0 && setShowSessionSearchResults(true)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-colors"
+                        />
+                        {sessionSearchTerm && (
                           <button
-                            key={attendee.id}
-                            onClick={() => handleSelectSearchResult(attendee)}
-                            className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:bg-orange-50 focus:outline-none"
+                            onClick={clearSessionSearch}
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
                           >
-                            <div className="flex items-center justify-between">
-                              <div>
-                                <p className="font-medium text-gray-900">
-                                  {attendee.first_name} {attendee.last_name}
-                                </p>
-                                <p className="text-sm text-gray-600">
-                                  ID: {attendee.personal_id}
-                                </p>
-                                {attendee.university && (
-                                  <p className="text-xs text-gray-500">
-                                    {attendee.university}
-                                  </p>
-                                )}
-                              </div>
-                              <div className="text-right">
-                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                  attendee.current_status === 'inside'
-                                    ? 'bg-green-100 text-green-800'
-                                    : 'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {attendee.current_status === 'inside' ? 'Inside' : 'Outside'}
-                                </span>
-                              </div>
-                            </div>
+                            <X className="h-5 w-5" />
                           </button>
-                        ))}
-                      </div>
-                    )}
+                        )}
 
-                    {/* No Results Message */}
-                    {showSearchResults && searchResults.length === 0 && searchTerm.trim().length >= 2 && !searchLoading && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 px-4 py-3">
-                        <p className="text-gray-600 text-sm">No attendees found matching "{searchTerm}"</p>
-                      </div>
-                    )}
+                        {/* Dynamic Search Results Dropdown */}
+                        {showSessionSearchResults && sessionSearchResults.length > 0 && (
+                          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                            {sessionSearchResults.map((attendee) => (
+                              <button
+                                key={attendee.id}
+                                onClick={() => handleSessionSelectSearchResult(attendee)}
+                                className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:bg-orange-50 focus:outline-none"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <p className="font-medium text-gray-900">
+                                      {attendee.first_name} {attendee.last_name}
+                                    </p>
+                                    <p className="text-sm text-gray-600">
+                                      ID: {attendee.personal_id}
+                                    </p>
+                                    {attendee.university && (
+                                      <p className="text-xs text-gray-500">
+                                        {attendee.university}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="text-right">
+                                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                      attendee.current_status === 'inside'
+                                        ? 'bg-green-100 text-green-800'
+                                        : 'bg-gray-100 text-gray-800'
+                                    }`}>
+                                      {attendee.current_status === 'inside' ? 'Inside' : 'Outside'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
 
-                    {/* Loading State */}
-                    {searchLoading && searchTerm.trim().length >= 2 && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 px-4 py-3">
-                        <div className="flex items-center space-x-2">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500"></div>
-                          <p className="text-gray-600 text-sm">Searching attendees...</p>
-                        </div>
+                        {/* No Results Message */}
+                        {showSessionSearchResults && sessionSearchResults.length === 0 && sessionSearchTerm.trim().length >= 2 && !sessionSearchLoading && (
+                          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 px-4 py-3">
+                            <p className="text-gray-600 text-sm">No attendees found matching "{sessionSearchTerm}"</p>
+                          </div>
+                        )}
+
+                        {/* Loading State */}
+                        {sessionSearchLoading && sessionSearchTerm.trim().length >= 2 && (
+                          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 px-4 py-3">
+                            <div className="flex items-center space-x-2">
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500"></div>
+                              <p className="text-gray-600 text-sm">Searching attendees...</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    )}
+                      <button
+                        onClick={handleSessionSearchByPersonalId}
+                        disabled={sessionSearchLoading || !sessionSearchTerm.trim()}
+                        className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+                      >
+                        {sessionSearchLoading ? (
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        ) : (
+                          <>
+                            <Search className="h-5 w-5" />
+                            <span>Search</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
                   </div>
+
+                  <div className="text-sm text-gray-600 bg-blue-50 p-4 rounded-lg">
+                    <p className="font-medium mb-1">Search Tips:</p>
+                    <ul className="list-disc list-inside space-y-1 text-xs">
+                      <li>Start typing to see dynamic suggestions (minimum 2 characters)</li>
+                      <li>Only attendees will appear in search results</li>
+                      <li>Click on a suggestion to select that attendee</li>
+                      <li>Use QR Scanner for faster lookup</li>
+                    </ul>
+                  </div>
+
                   <button
-                    onClick={handleSearchByPersonalId}
-                    disabled={searchLoading || !searchTerm.trim()}
-                    className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+                    onClick={() => setSessionSearchMode(null)}
+                    className="text-sm text-gray-500 underline"
                   >
-                    {searchLoading ? (
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    ) : (
-                      <>
-                        <Search className="h-5 w-5" />
-                        <span>Search</span>
-                      </>
-                    )}
+                    ← Back to options
                   </button>
                 </div>
               </div>
-
-              <div className="text-sm text-gray-600 bg-blue-50 p-4 rounded-lg">
-                <p className="font-medium mb-1">Search Tips:</p>
-                <ul className="list-disc list-inside space-y-1 text-xs">
-                  <li>Start typing to see dynamic suggestions (minimum 2 characters)</li>
-                  <li>Only attendees will appear in search results</li>
-                  <li>Click on a suggestion to select that attendee</li>
-                  <li>Use QR Scanner for faster lookup</li>
-                </ul>
-              </div>
-
-              <button
-                onClick={() => setSearchMode(null)}
-                className="text-sm text-gray-500 underline"
-              >
-                ← Back to options
-              </button>
-            </div>
-          </div>
+            )}
+          </>
         )}
 
-        {/* QR Scanner triggers for different modes */}
-        {searchMode === "qr" && (
+        {/* QR Scanner for Building */}
+        {activeTab === "building" && buildingSearchMode === "qr" && (
           <QRScanner
             isOpen={true}
-            onClose={() => setSearchMode(null)}
-            onScan={handleQRScan}
-            title={
-              mode === "building_entry" ? "Building Entry Scanner" :
-              mode === "building_exit" ? "Building Exit Scanner" :
-              mode === "session_entry" ? "Session Entry Scanner" :
-              "Scan Attendee QR Code"
-            }
+            onClose={() => setBuildingSearchMode(null)}
+            onScan={handleBuildingQRScan}
+            title="Building Entry Scanner"
+            description="Point your camera at the attendee's QR code"
+          />
+        )}
+
+        {/* QR Scanner for Session */}
+        {activeTab === "session" && sessionSearchMode === "qr" && (
+          <QRScanner
+            isOpen={true}
+            onClose={() => setSessionSearchMode(null)}
+            onScan={handleSessionQRScan}
+            title="Session Entry Scanner"
             description="Point your camera at the attendee's QR code"
           />
         )}
@@ -925,13 +1044,13 @@ export const BuildTeamDashboard: React.FC = () => {
           }}
           attendee={selectedAttendee}
           onAction={
-            mode === "session_entry" 
+            activeTab === "session" && sessionMode === "session_entry" 
               ? handleSessionAttendanceAction 
               : handleBuildingAttendanceAction
           }
           loading={actionLoading}
-          mode={mode === "session_entry" ? "session" : "building"}
-          sessionTitle={mode === "session_entry" ? selectedSession?.title : undefined}
+          mode={activeTab === "session" && sessionMode === "session_entry" ? "session" : "building"}
+          sessionTitle={activeTab === "session" && sessionMode === "session_entry" ? selectedSession?.title : undefined}
         />
       </div>
     </DashboardLayout>
