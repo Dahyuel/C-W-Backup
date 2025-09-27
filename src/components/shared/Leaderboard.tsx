@@ -36,19 +36,25 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId }) =>
         .select('id, first_name, last_name, role, score')
         .order('score', { ascending: false });
 
-      // Determine which data to fetch based on user role
+      // Determine which data to fetch based on user role and active tab
       if (userRole === 'admin') {
-        // Admin can see both - controlled by activeTab
-        query = query.eq('role', activeTab === 'attendees' ? 'attendee' : activeTab);
-        if (activeTab === 'volunteers') {
-          query = query.in('role', ['volunteer', 'registration', 'building', 'team_leader', 'info_desk']);
+        // Admin can see both tabs
+        if (activeTab === 'attendees') {
+          // Show only attendees
+          query = query.eq('role', 'attendee');
+        } else {
+          // Show volunteers tab: all roles except admin, attendee, and team_leader
+          query = query.in('role', ['volunteer', 'registration', 'building', 'info_desk']);
         }
       } else if (userRole === 'attendee') {
         // Attendees only see other attendees
         query = query.eq('role', 'attendee');
+      } else if (userRole === 'team_leader') {
+        // Team leaders see only other team leaders
+        query = query.eq('role', 'team_leader');
       } else {
-        // Other roles see all non-attendees and non-admins
-        query = query.not('role', 'in', '("attendee","admin")');
+        // Other roles (volunteer, registration, building, info_desk) see all non-attendees and non-admins, but exclude team_leader
+        query = query.in('role', ['volunteer', 'registration', 'building', 'info_desk']);
       }
 
       const { data, error } = await query;
@@ -145,6 +151,18 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId }) =>
     }
   };
 
+  const getTabTitle = () => {
+    if (userRole === 'admin') {
+      return activeTab === 'attendees' ? 'Top Attendees' : 'Top Volunteers';
+    } else if (userRole === 'attendee') {
+      return 'Top Attendees';
+    } else if (userRole === 'team_leader') {
+      return 'Top Team Leaders';
+    } else {
+      return 'Top Performers';
+    }
+  };
+
   const currentUserData = leaderboardData.find(user => user.id === currentUserId);
 
   if (loading) {
@@ -235,10 +253,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId }) =>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center">
             <Trophy className="h-5 w-5 mr-2 text-orange-600" />
-            {userRole === 'admin' ? 
-              (activeTab === 'attendees' ? 'Top Attendees' : 'Top Volunteers') : 
-              userRole === 'attendee' ? 'Top Attendees' : 'Top Performers'
-            }
+            {getTabTitle()}
           </h3>
           <p className="text-sm text-gray-500">{leaderboardData.length} participants</p>
         </div>
