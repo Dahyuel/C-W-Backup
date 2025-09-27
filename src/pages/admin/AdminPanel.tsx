@@ -771,6 +771,58 @@ const handleAnnouncementSubmit = async () => {
     setLoading(false);
   }
 };
+
+const searchUsersByPersonalId = async (searchTerm) => {
+  if (!searchTerm || searchTerm.trim().length < 2) {
+    setSearchResults([]);
+    return;
+  }
+
+  setSearchLoading(true);
+  try {
+    const { data, error } = await supabase
+      .from('users_profiles')
+      .select('id, first_name, last_name, personal_id, role, email')
+      .ilike('personal_id', `%${searchTerm.trim()}%`)
+      .order('personal_id')
+      .limit(10);
+
+    if (error) {
+      console.error('Search error:', error);
+      setSearchResults([]);
+    } else {
+      // Filter out already selected users
+      const filteredResults = (data || []).filter(user => 
+        !selectedUsers.some(selected => selected.id === user.id)
+      );
+      setSearchResults(filteredResults);
+    }
+  } catch (error) {
+    console.error('Search exception:', error);
+    setSearchResults([]);
+  } finally {
+    setSearchLoading(false);
+  }
+};
+
+// Add user to selected list
+const addUserToSelection = (user) => {
+  setSelectedUsers(prev => [...prev, user]);
+  setSearchResults(prev => prev.filter(result => result.id !== user.id));
+  setUserSearch("");
+};
+
+// Remove user from selected list
+const removeUserFromSelection = (userId) => {
+  setSelectedUsers(prev => prev.filter(user => user.id !== userId));
+};
+
+// Clear all selections
+const clearUserSelection = () => {
+  setSelectedUsers([]);
+  setUserSearch("");
+  setSearchResults([]);
+};
   
   // Handle click functions
   const handleSessionClick = (session) => {
