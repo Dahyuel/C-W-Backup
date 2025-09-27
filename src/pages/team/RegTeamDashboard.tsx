@@ -442,6 +442,16 @@ export const RegTeamDashboard: React.FC = () => {
                     </button>
                   </div>
                 </div>
+
+                <div className="text-sm text-gray-600 bg-blue-50 p-4 rounded-lg">
+                  <p className="font-medium mb-1">Search Tips:</p>
+                  <ul className="list-disc list-inside space-y-1 text-xs">
+                    <li>Start typing to see dynamic suggestions (minimum 2 characters)</li>
+                    <li>Only attendees will appear in search results</li>
+                    <li>Click on a suggestion to select that attendee</li>
+                    <li>Use QR Scanner for faster lookup</li>
+                  </ul>
+                </div>
               </div>
             </div>
           )}
@@ -463,6 +473,15 @@ export const RegTeamDashboard: React.FC = () => {
                 <QrCode className="h-5 w-5" />
                 <span>Open QR Scanner</span>
               </button>
+              
+              <div className="mt-6 text-sm text-gray-600 bg-green-50 p-4 rounded-lg">
+                <p className="font-medium mb-1">QR Scanner supports:</p>
+                <ul className="list-disc list-inside space-y-1 text-xs">
+                  <li>UUID format (from QR codes)</li>
+                  <li>Personal ID format (fallback)</li>
+                  <li>Automatic attendee role verification</li>
+                </ul>
+              </div>
             </div>
           )}
         </div>
