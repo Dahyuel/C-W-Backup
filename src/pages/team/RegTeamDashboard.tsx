@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   UserCheck,
   Users,
@@ -232,11 +232,19 @@ export const RegTeamDashboard: React.FC = () => {
 
       setSelectedAttendee(attendeeData);
       setShowAttendeeCard(true);
-      setShowScanner(false);
+      
+      // DON'T close scanner immediately - let QRScanner handle it
+      // The QRScanner component will close itself after showing success feedback
     } catch (error) {
       console.error("QR scan error:", error);
       showFeedback('error', 'Failed to process QR code');
     }
+  };
+
+  // Handle scanner close - this ensures camera stops properly
+  const handleScannerClose = () => {
+    console.log('Scanner closing from parent...');
+    setShowScanner(false);
   };
 
   const handleAttendanceAction = async (action: 'enter' | 'exit') => {
@@ -609,7 +617,7 @@ export const RegTeamDashboard: React.FC = () => {
       {/* QR Scanner Modal */}
       <QRScanner
         isOpen={showScanner}
-        onClose={() => setShowScanner(false)}
+        onClose={handleScannerClose}
         onScan={handleQRScan}
         title="Scan Attendee QR Code"
         description="Point your camera at the attendee's QR code"
