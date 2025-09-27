@@ -39,20 +39,31 @@ export const QRScanner: React.FC<QRScannerProps> = ({
 
   // Stop scanner and cleanup
   const stopScanner = useCallback(() => {
+    console.log('Stopping QR scanner and camera...');
+    
+    // Cancel any ongoing animation frame
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = 0;
     }
     
+    // Stop all media tracks (this stops the camera)
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current.getTracks().forEach(track => {
+        console.log('Stopping camera track:', track.kind);
+        track.stop();
+      });
       streamRef.current = null;
     }
     
+    // Clear video element
     if (videoRef.current) {
+      videoRef.current.pause();
       videoRef.current.srcObject = null;
+      videoRef.current.load(); // Force reload to clear any cached stream
     }
     
+    // Reset states
     setIsScanning(false);
     setCameraReady(false);
   }, []);
@@ -251,6 +262,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
       };
     } else {
       console.log('QR Scanner modal closing...');
+      // Immediately stop scanner and camera when closing
       stopScanner();
       resetStates();
     }
@@ -300,7 +312,11 @@ export const QRScanner: React.FC<QRScannerProps> = ({
             <h2 className="text-xl font-bold text-white">{title}</h2>
           </div>
           <button
-            onClick={onClose}
+            onClick={() => {
+              console.log('QR Scanner close button clicked');
+              stopScanner(); // Ensure camera stops immediately
+              onClose();
+            }}
             className="text-white hover:text-orange-200 transition-colors"
             aria-label="Close scanner"
           >
@@ -346,7 +362,11 @@ export const QRScanner: React.FC<QRScannerProps> = ({
                       </button>
                     </div>
                     <button
-                      onClick={onClose}
+                      onClick={() => {
+                        console.log('Close Scanner button clicked');
+                        stopScanner(); // Ensure camera stops immediately
+                        onClose();
+                      }}
                       className="w-full bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors font-medium"
                     >
                       Close Scanner
