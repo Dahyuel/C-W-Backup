@@ -1037,23 +1037,23 @@ export const BuildTeamDashboard: React.FC = () => {
           />
         )}
 
-        {/* Attendee Card Modal with dynamic action handlers */}
-        <AttendeeCard
-          isOpen={showAttendeeCard}
-          onClose={() => {
-            setShowAttendeeCard(false);
-            setSelectedAttendee(null);
-          }}
-          attendee={selectedAttendee}
-          onAction={
-            activeTab === "session" && sessionMode === "session_entry" 
-              ? handleSessionAttendanceAction 
-              : handleBuildingAttendanceAction
-          }
-          loading={actionLoading}
-          mode={activeTab === "session" && sessionMode === "session_entry" ? "session" : "building"}
-          sessionTitle={activeTab === "session" && sessionMode === "session_entry" ? selectedSession?.title : undefined}
-        />
+{/* Attendee Card Modal with dynamic action handlers */}
+<AttendeeCard
+  isOpen={showAttendeeCard}
+  onClose={() => {
+    setShowAttendeeCard(false);
+    setSelectedAttendee(null);
+  }}
+  attendee={selectedAttendee}
+  onAction={
+    activeTab === "session" && sessionMode === "session_entry" 
+      ? handleSessionAttendanceAction 
+      : handleBuildingAttendanceAction
+  }
+  loading={actionLoading}
+  mode={activeTab === "session" && sessionMode === "session_entry" ? "session" : "building"}
+  sessionTitle={activeTab === "session" && sessionMode === "session_entry" ? selectedSession?.title : undefined}
+/>
       </div>
     </DashboardLayout>
   );
