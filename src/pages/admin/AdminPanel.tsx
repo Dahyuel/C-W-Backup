@@ -189,6 +189,146 @@ const [editEvent, setEditEvent] = useState({
     }
   };
 
+// Handle edit session
+const handleEditSession = (session) => {
+  setSelectedSessionEdit(session);
+  const startTime = new Date(session.start_time);
+  setEditSession({
+    id: session.id,
+    title: session.title || "",
+    description: session.description || "",
+    speaker: session.speaker || "",
+    capacity: session.max_attendees || "",
+    type: session.session_type || "session",
+    date: startTime.toISOString().split('T')[0],
+    hour: startTime.toTimeString().slice(0, 5),
+    location: session.location || "",
+  });
+  setEditSessionModal(true);
+};
+
+// Handle edit event
+const handleEditEvent = (event) => {
+  setSelectedEventEdit(event);
+  const startTime = new Date(event.start_time);
+  const endTime = event.end_time ? new Date(event.end_time) : null;
+  
+  setEditEvent({
+    id: event.id,
+    title: event.title || "",
+    description: event.description || "",
+    startDate: startTime.toISOString().split('T')[0],
+    startTime: startTime.toTimeString().slice(0, 5),
+    endDate: endTime ? endTime.toISOString().split('T')[0] : "",
+    endTime: endTime ? endTime.toTimeString().slice(0, 5) : "",
+    location: event.location || "",
+    type: event.item_type || "general",
+  });
+  setEditEventModal(true);
+};
+
+// Add an event click handler for view details
+const handleEventClick = (event) => {
+  // You can implement a detail modal similar to sessions if needed
+  console.log("Event details:", event);
+};
+
+// Handle session update
+const handleSessionUpdate = async () => {
+  if (!editSession.title || !editSession.date || !editSession.speaker) {
+    showNotification("Please fill all required fields!", "error");
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const startDateTime = new Date(`${editSession.date}T${editSession.hour}`);
+    const endDateTime = new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000);
+
+    const { error } = await supabase.from("sessions").update({
+      title: editSession.title,
+      description: editSession.description,
+      speaker: editSession.speaker,
+      start_time: startDateTime.toISOString(),
+      end_time: endDateTime.toISOString(),
+      location: editSession.location,
+      max_attendees: parseInt(editSession.capacity) || null,
+      session_type: editSession.type,
+    }).eq('id', editSession.id);
+
+    if (error) {
+      showNotification("Failed to update session", "error");
+    } else {
+      setEditSessionModal(false);
+      setEditSession({
+        id: "",
+        title: "",
+        date: "",
+        speaker: "",
+        capacity: "",
+        type: "session",
+        hour: "",
+        location: "",
+        description: "",
+      });
+      showNotification("Session updated successfully!", "success");
+      await fetchSessions();
+    }
+  } catch (err) {
+    showNotification("Failed to update session", "error");
+  } finally {
+    setLoading(false);
+  }
+};
+
+// Handle event update
+const handleEventUpdate = async () => {
+  if (!editEvent.title || !editEvent.startDate || !editEvent.startTime) {
+    showNotification("Please fill all required fields!", "error");
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const startDateTime = new Date(`${editEvent.startDate}T${editEvent.startTime}`);
+    const endDateTime = editEvent.endDate && editEvent.endTime 
+      ? new Date(`${editEvent.endDate}T${editEvent.endTime}`)
+      : new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000);
+
+    const { error } = await supabase.from("schedule_items").update({
+      title: editEvent.title,
+      description: editEvent.description,
+      start_time: startDateTime.toISOString(),
+      end_time: endDateTime.toISOString(),
+      location: editEvent.location,
+      item_type: editEvent.type,
+    }).eq('id', editEvent.id);
+
+    if (error) {
+      showNotification("Failed to update event", "error");
+    } else {
+      setEditEventModal(false);
+      setEditEvent({
+        id: "",
+        title: "",
+        description: "",
+        startDate: "",
+        endDate: "",
+        startTime: "",
+        endTime: "",
+        location: "",
+        type: "general",
+      });
+      showNotification("Event updated successfully!", "success");
+      await fetchEventsByDay(activeDay);
+    }
+  } catch (err) {
+    showNotification("Failed to update event", "error");
+  } finally {
+    setLoading(false);
+  }
+};
+  
   const fetchBuildingStats = async () => {
     try {
       // Use the getDynamicBuildingStats function from supabase.js
