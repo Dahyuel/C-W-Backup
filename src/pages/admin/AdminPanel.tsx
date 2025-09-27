@@ -2106,11 +2106,11 @@ const clearUserSelection = () => {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Capacity</label>
-                    <p className="text-gray-900">
-                      {selectedSessionDetail.current_bookings || 0} / {selectedSessionDetail.max_attendees || 'Unlimited'} booked
-                    </p>
-                  </div>
+  <label className="block text-sm font-medium text-gray-700">Capacity</label>
+  <p className="text-gray-900">
+    {selectedSessionDetail.current_bookings || 0} / {selectedSessionDetail.capacity || 'Unlimited'} booked
+  </p>
+</div>
 
                   <div className="pt-4 border-t border-gray-200">
                     <button
