@@ -19,7 +19,7 @@ import {
   Trash2
 } from "lucide-react";
 import DashboardLayout from "../../components/shared/DashboardLayout";
-import { supabase, uploadFile } from "../../lib/supabase";
+import { supabase, uploadFile, getDynamicBuildingStats } from "../../lib/supabase";
 
 export function AdminPanel() {
   // Stats and data states
@@ -121,21 +121,23 @@ export function AdminPanel() {
   const fetchDashboardData = async () => {
     setLoadingData(true);
     try {
-      // Fetch basic stats
-      const { data: usersData } = await supabase
+      // Fetch basic stats using correct count syntax
+      const { count: totalUsers } = await supabase
         .from("users_profiles")
-        .select("id", { count: "exact", head: true });
+        .select("*", { count: "exact", head: true });
       
-      const { data: sessionsData } = await supabase
+      const { count: totalSessions } = await supabase
         .from("sessions")
-        .select("id", { count: "exact", head: true });
+        .select("*", { count: "exact", head: true });
+
+      console.log("Fetched stats:", { totalUsers, totalSessions }); // Debug log
 
       setStats({
-        total_users: usersData?.length || 0,
-        total_sessions: sessionsData?.length || 0,
+        total_users: totalUsers || 0,
+        total_sessions: totalSessions || 0,
       });
 
-      // Fetch building stats
+      // Fetch building stats using the helper function
       await fetchBuildingStats();
       
       // Fetch initial data based on tab
@@ -150,45 +152,37 @@ export function AdminPanel() {
 
   const fetchBuildingStats = async () => {
     try {
-      // Get current building status
-      const { data: attendances } = await supabase
-        .from("attendances")
-        .select("user_id, scan_type, scanned_at")
-        .in("scan_type", ["building_entry", "building_exit", "entry", "exit"])
-        .order("scanned_at", { ascending: false });
+      // Use the getDynamicBuildingStats function from supabase.js
+      const { data: dynamicStats, error } = await getDynamicBuildingStats();
+      
+      if (error) {
+        console.error("Error fetching dynamic building stats:", error);
+        // Fallback to basic stats
+        const { count: totalAttendees } = await supabase
+          .from("users_profiles")
+          .select("*", { count: "exact", head: true })
+          .eq("role", "attendee");
 
-      // Calculate inside building (last scan was entry)
-      const userLastScans = new Map();
-      attendances?.forEach(scan => {
-        if (!userLastScans.has(scan.user_id)) {
-          userLastScans.set(scan.user_id, scan.scan_type);
-        }
-      });
-
-      const insideBuilding = Array.from(userLastScans.values())
-        .filter(scanType => scanType === "building_entry" || scanType === "entry").length;
-
-      // Get total attendees
-      const { data: totalAttendeesData } = await supabase
-        .from("users_profiles")
-        .select("id", { count: "exact", head: true })
-        .eq("role", "attendee");
-
-      // Today's attendance for "inside event"
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const { data: todayAttendance } = await supabase
-        .from("attendances")
-        .select("user_id", { count: "exact", head: true })
-        .gte("scanned_at", today.toISOString());
-
-      setBuildingStats({
-        inside_building: insideBuilding,
-        inside_event: Math.min(todayAttendance?.length || 0, 5), // Mock data
-        total_attendees: totalAttendeesData?.length || 0
-      });
+        setBuildingStats({
+          inside_building: 0,
+          inside_event: 0,
+          total_attendees: totalAttendees || 0
+        });
+      } else if (dynamicStats) {
+        setBuildingStats({
+          inside_building: dynamicStats.inside_building,
+          inside_event: dynamicStats.inside_event,
+          total_attendees: dynamicStats.total_attendees
+        });
+      }
     } catch (error) {
       console.error("Error fetching building stats:", error);
+      // Set fallback values
+      setBuildingStats({
+        inside_building: 0,
+        inside_event: 0,
+        total_attendees: 0
+      });
     }
   };
 
@@ -257,25 +251,44 @@ export function AdminPanel() {
       return;
     }
 
+    // Validate logo input based on type
+    if (newCompany.logoType === "link" && !newCompany.logoUrl) {
+      showNotification("Please provide a logo URL!", "error");
+      return;
+    }
+
+    if (newCompany.logoType === "upload" && !newCompany.logo) {
+      showNotification("Please select a logo file to upload!", "error");
+      return;
+    }
+
     setLoading(true);
     try {
       let logoUrl = newCompany.logoUrl;
 
       // Handle file upload if upload option is selected
       if (newCompany.logoType === "upload" && newCompany.logo) {
-        const { data: uploadData, error: uploadError } = await uploadFile(
-          "company-logos",
-          "admin",
-          newCompany.logo
-        );
+        const fileExt = newCompany.logo.name.split('.').pop();
+        const fileName = `${Date.now()}-${newCompany.name.replace(/[^a-zA-Z0-9]/g, '_')}.${fileExt}`;
+        const filePath = `company-logos/${fileName}`;
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from("Assets")
+          .upload(filePath, newCompany.logo);
 
         if (uploadError) {
+          console.error("Upload error:", uploadError);
           showNotification("Failed to upload logo", "error");
           setLoading(false);
           return;
         }
 
-        logoUrl = uploadData.url;
+        // Get the public URL
+        const { data: urlData } = supabase.storage
+          .from("Assets")
+          .getPublicUrl(filePath);
+
+        logoUrl = urlData.publicUrl;
       }
 
       // Insert company
@@ -419,6 +432,26 @@ export function AdminPanel() {
     setAnnouncementModal(false);
   };
 
+  // Map images and functions
+  const [mapImages, setMapImages] = useState([]);
+
+  // Initialize map images from Supabase Assets/Maps
+  const initializeMapImages = () => {
+    const mapUrls = [];
+    for (let day = 1; day <= 5; day++) {
+      const { data: urlData } = supabase.storage
+        .from("Assets")
+        .getPublicUrl(`Maps/day${day}.png`);
+      mapUrls.push(urlData.publicUrl);
+    }
+    setMapImages(mapUrls);
+  };
+
+  // Initialize map images on component mount
+  useEffect(() => {
+    initializeMapImages();
+  }, []);
+
   // Handle Map Upload
   const handleMapUpload = async () => {
     if (!mapForm.image) {
@@ -428,12 +461,27 @@ export function AdminPanel() {
 
     setLoading(true);
     try {
-      // In a real application, you would upload to a maps bucket and update the file
-      // For now, we'll just show success
-      showNotification(`Day ${mapForm.day} map updated successfully!`, "success");
-      setMapModal(false);
-      setMapForm({ day: 1, image: null });
+      const filePath = `Maps/day${mapForm.day}.png`;
+      
+      // Upload to Assets/Maps folder with upsert to replace existing file
+      const { data, error } = await supabase.storage
+        .from("Assets")
+        .upload(filePath, mapForm.image, {
+          upsert: true // This replaces the existing file
+        });
+
+      if (error) {
+        console.error("Map upload error:", error);
+        showNotification("Failed to upload map image", "error");
+      } else {
+        showNotification(`Day ${mapForm.day} map updated successfully!`, "success");
+        // Refresh map images after upload
+        initializeMapImages();
+        setMapModal(false);
+        setMapForm({ day: 1, image: null });
+      }
     } catch (err) {
+      console.error("Map upload exception:", err);
       showNotification("Failed to update map", "error");
     } finally {
       setLoading(false);
@@ -446,14 +494,6 @@ export function AdminPanel() {
     { key: "events", label: "Events" },
     { key: "maps", label: "Maps" },
     { key: "employers", label: "Employers" },
-  ];
-
-  const mapImages = [
-    "/src/Assets/day1.png",
-    "/src/Assets/day2.png",
-    "/src/Assets/day3.png",
-    "/src/Assets/day4.png",
-    "/src/Assets/day5.png",
   ];
 
   if (loadingData) {
@@ -539,6 +579,22 @@ export function AdminPanel() {
               </div>
             </div>
 
+            {/* Refresh Button for Debugging */}
+            <div className="flex justify-end">
+              <button
+                onClick={() => fetchDashboardData()}
+                disabled={loadingData}
+                className="flex items-center px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors disabled:opacity-50"
+              >
+                {loadingData ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                ) : (
+                  <Activity className="h-4 w-4 mr-2" />
+                )}
+                Refresh Data
+              </button>
+            </div>
+
             {/* Quick Actions */}
             <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 text-center">
               <h1 className="text-3xl font-bold text-black-800 flex items-center justify-center gap-2 mb-6">
@@ -611,17 +667,17 @@ export function AdminPanel() {
                       <tr className="border-t">
                         <td className="px-4 py-3">Building</td>
                         <td className="px-4 py-3 text-red-600">500</td>
-                        <td className="px-4 py-3">{Math.round((buildingStats.inside_building / 500) * 100)}%</td>
+                        <td className="px-4 py-3">{buildingStats.inside_building > 0 ? Math.round((buildingStats.inside_building / 500) * 100) : 0}%</td>
                       </tr>
                       <tr className="border-t">
                         <td className="px-4 py-3">Event</td>
                         <td className="px-4 py-3 text-red-600">4000</td>
-                        <td className="px-4 py-3">{Math.round((buildingStats.inside_event / 4000) * 100)}%</td>
+                        <td className="px-4 py-3">{buildingStats.inside_event > 0 ? Math.round((buildingStats.inside_event / 4000) * 100) : 0}%</td>
                       </tr>
                       <tr className="border-t">
                         <td className="px-4 py-3">Total</td>
                         <td className="px-4 py-3 text-red-600">4500</td>
-                        <td className="px-4 py-3">{Math.round(((buildingStats.inside_building + buildingStats.inside_event) / 4500) * 100)}%</td>
+                        <td className="px-4 py-3">{(buildingStats.inside_building + buildingStats.inside_event) > 0 ? Math.round(((buildingStats.inside_building + buildingStats.inside_event) / 4500) * 100) : 0}%</td>
                       </tr>
                     </tbody>
                   </table>
@@ -772,6 +828,9 @@ export function AdminPanel() {
                 src={mapImages[activeDay - 1]}
                 alt={`Day ${activeDay} Map`}
                 className="max-w-full h-auto rounded-lg"
+                onError={(e) => {
+                  e.target.src = "/src/Assets/placeholder-map.png"; // Fallback image
+                }}
               />
             </div>
           </div>
@@ -800,7 +859,10 @@ export function AdminPanel() {
                     <img 
                       src={company.logo_url} 
                       alt={`${company.name} logo`} 
-                      className="h-16 w-auto mx-auto mb-4 object-contain" 
+                      className="h-16 w-auto mx-auto mb-4 object-contain"
+                      onError={(e) => {
+                        e.target.src = "https://via.placeholder.com/64x64/orange/white?text=Logo";
+                      }}
                     />
                     <h3 className="text-lg font-bold text-gray-900 mb-2">{company.name}</h3>
                     <p className="text-sm text-gray-600 mb-3 line-clamp-3">{company.description}</p>
@@ -1193,6 +1255,21 @@ export function AdminPanel() {
                     }
                     className="w-full border rounded-lg p-2"
                   />
+                  
+                  {/* Preview selected image */}
+                  {mapForm.image && (
+                    <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                      <p className="text-sm text-gray-600 mb-2">Preview:</p>
+                      <img 
+                        src={URL.createObjectURL(mapForm.image)} 
+                        alt="Map preview" 
+                        className="max-w-full h-32 object-contain mx-auto rounded"
+                      />
+                      <p className="text-xs text-gray-500 mt-1 text-center">
+                        {mapForm.image.name} ({Math.round(mapForm.image.size / 1024)}KB)
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -1205,7 +1282,7 @@ export function AdminPanel() {
                 </button>
                 <button
                   onClick={handleMapUpload}
-                  disabled={loading}
+                  disabled={loading || !mapForm.image}
                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
                 >
                   {loading ? 'Uploading...' : 'Update Map'}
