@@ -2644,7 +2644,66 @@ const clearUserSelection = () => {
     </div>
   </div>
 )}
-        
+        {/* Delete Session Confirmation Modal */}
+{deleteSessionModal && selectedSessionDelete && (
+  <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+      <h3 className="text-xl font-bold mb-4 text-red-600">Delete Session</h3>
+      <p className="text-gray-700 mb-6">
+        Are you sure you want to delete the session <strong>"{selectedSessionDelete.title}"</strong>? 
+        This action cannot be undone.
+      </p>
+      <div className="flex justify-end space-x-3">
+        <button
+          onClick={() => {
+            setDeleteSessionModal(false);
+            setSelectedSessionDelete(null);
+          }}
+          className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={confirmDeleteSession}
+          disabled={loading}
+          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+        >
+          {loading ? 'Deleting...' : 'Delete Session'}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+{/* Delete Event Confirmation Modal */}
+{deleteEventModal && selectedEventDelete && (
+  <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+      <h3 className="text-xl font-bold mb-4 text-red-600">Delete Event</h3>
+      <p className="text-gray-700 mb-6">
+        Are you sure you want to delete the event <strong>"{selectedEventDelete.title}"</strong>? 
+        This action cannot be undone.
+      </p>
+      <div className="flex justify-end space-x-3">
+        <button
+          onClick={() => {
+            setDeleteEventModal(false);
+            setSelectedEventDelete(null);
+          }}
+          className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={confirmDeleteEvent}
+          disabled={loading}
+          className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+        >
+          {loading ? 'Deleting...' : 'Delete Event'}
+        </button>
+      </div>
+    </div>
+  </div>
       </div>
     </DashboardLayout>
   );
