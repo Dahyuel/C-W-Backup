@@ -280,11 +280,13 @@ export const signUpUser = async (email: string, password: string, userData: any)
         return { data: authData, error: null };
       }
       
-      // For other errors, clean up and return error
+      // For other errors, attempt cleanup but don't fail if cleanup fails
       try {
         await supabase.auth.admin.deleteUser(authData.user.id);
+        console.log('Auth user cleaned up successfully');
       } catch (cleanupError) {
-        console.error('Failed to cleanup auth user:', cleanupError);
+        console.warn('Could not cleanup auth user (insufficient permissions):', cleanupError.message);
+        // Continue with error return - the main error is more important than cleanup failure
       }
       
       return { data: null, error: profileError };
