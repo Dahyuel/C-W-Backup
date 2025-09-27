@@ -166,7 +166,6 @@ export const validateRegistrationData = async (
   }
 };
 
-// Enhanced sign up function with proper user existence check
 export const signUpUser = async (email: string, password: string, userData: any) => {
   try {
     console.log('Starting attendee registration...');
@@ -201,23 +200,13 @@ export const signUpUser = async (email: string, password: string, userData: any)
         .eq('volunteer_id', userData.volunteer_id.trim())
         .single();
 
-      if (volunteerError) {
+      if (volunteerError || !volunteerData) {
         console.error('Volunteer lookup error:', volunteerError);
         return { 
           data: null, 
           error: { 
             message: 'Invalid volunteer ID. Please check the ID and try again.',
             validationErrors: ['Invalid volunteer ID']
-          }
-        };
-      }
-
-      if (!volunteerData) {
-        return { 
-          data: null, 
-          error: { 
-            message: 'Volunteer ID not found. Please check the ID and try again.',
-            validationErrors: ['Volunteer ID not found']
           }
         };
       }
@@ -257,11 +246,14 @@ export const signUpUser = async (email: string, password: string, userData: any)
     console.log('Auth user created, creating profile...');
 
     // STEP 3: Create profile with email and referrer ID (if applicable)
+    // IMPORTANT: Remove volunteer_id from userData since attendees shouldn't have it
+    const { volunteer_id, ...cleanUserData } = userData;
+    
     const profileData = {
       id: authData.user.id,
-      email: email.trim().toLowerCase(), // Add email to profile
-      ...userData,
-      reg_id: referrerId, // Set the referrer's UUID
+      email: email.trim().toLowerCase(),
+      ...cleanUserData, // This no longer contains volunteer_id
+      reg_id: referrerId, // Set the referrer's UUID here
       role: 'attendee',
       score: 0,
       building_entry: false,
@@ -300,7 +292,6 @@ export const signUpUser = async (email: string, password: string, userData: any)
     return { data: null, error: { message: error.message || 'Registration failed' } };
   }
 };
-
 // Enhanced volunteer sign up with better error handling
 
 // Enhanced volunteer sign up with better error handling
