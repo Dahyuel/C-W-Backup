@@ -245,25 +245,32 @@ const fetchNotifications = async () => {
     setShowNotificationDropdown(false);
   };
 
-  const markNotificationAsRead = async (notificationId: string) => {
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ is_read: true })
-        .eq('id', notificationId);
+const markNotificationAsRead = async (notificationId: string) => {
+  try {
+    const { error } = await supabase
+      .from('user_notifications')
+      .update({ 
+        is_read: true,
+        read_at: new Date().toISOString()
+      })
+      .eq('notification_id', notificationId)
+      .eq('user_id', profile?.id);
 
-      if (!error) {
-        setNotifications(prev => 
-          prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
-        );
-        setShowNotificationModal(false);
-        setSelectedNotification(null);
-      }
-    } catch (error) {
-      console.error('Error marking notification as read:', error);
+    if (!error) {
+      setNotifications(prev => 
+        prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
+      );
+      setShowNotificationModal(false);
+      setSelectedNotification(null);
     }
-  };
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+  }
+};
 
+
+
+  
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
