@@ -260,8 +260,8 @@ const handleEditEvent = (event) => {
 
 // Add an event click handler for view details
 const handleEventClick = (event) => {
-  // You can implement a detail modal similar to sessions if needed
-  console.log("Event details:", event);
+  setSelectedEventDetail(event);
+  setEventDetailModal(true);
 };
 
 // Handle session update
