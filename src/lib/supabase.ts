@@ -538,6 +538,8 @@ export const uploadMapImage = async (dayNumber: number, imageFile: File, userId:
   }
 };
 
+
+
 export const uploadFile = async (bucket: string, userId: string, file: File) => {
   try {
     // Validate inputs
@@ -1509,38 +1511,6 @@ export async function getDynamicBuildingStats() {
   }
 }
 
-// Upload Map Image
-export const uploadMapImage = async (dayNumber, imageFile, userId) => {
-  try {
-    const fileName = `day-${dayNumber}-map.${imageFile.name.split('.').pop()}`;
-    
-    const { data, error } = await supabase.storage
-      .from('event-maps')
-      .upload(fileName, imageFile, {
-        upsert: true // Replace existing file
-      });
-
-    if (error) {
-      console.error('Map upload error:', error);
-      return { data: null, error };
-    }
-
-    const { data: urlData } = supabase.storage
-      .from('event-maps')
-      .getPublicUrl(fileName);
-
-    return { 
-      data: { 
-        path: fileName, 
-        url: urlData.publicUrl 
-      }, 
-      error: null 
-    };
-  } catch (error) {
-    console.error('Map upload exception:', error);
-    return { data: null, error: { message: error.message } };
-  }
-};
 
 export const getUserRankingAndScore = async (userId: string) => {
   try {
