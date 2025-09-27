@@ -15,6 +15,8 @@ interface AttendeeCardProps {
     university?: string;
     faculty?: string;
     current_status?: 'inside' | 'outside';
+    building_entry?: boolean;
+    event_entry?: boolean;
     last_scan?: string;
   } | null;
   onAction: (action: 'enter' | 'exit') => Promise<void>;
@@ -74,6 +76,19 @@ export const AttendeeCard: React.FC<AttendeeCardProps> = ({
 
   if (!isOpen || !attendee) return null;
 
+  // Determine current status based on mode and attendee data
+  const getCurrentStatus = () => {
+    if (mode === 'session') {
+      // For session mode, check if attendee is already in the event
+      return attendee.event_entry ? 'inside_event' : 'outside_event';
+    } else {
+      // For building mode, check if attendee is inside the building
+      return attendee.building_entry ? 'inside_building' : 'outside_building';
+    }
+  };
+
+  const currentStatus = getCurrentStatus();
+
   const handleAction = async (action: 'enter' | 'exit') => {
     setActionLoading(action);
     try {
@@ -96,17 +111,35 @@ export const AttendeeCard: React.FC<AttendeeCardProps> = ({
     return 'Attendee Details';
   };
 
+  const getStatusDisplay = () => {
+    if (mode === 'session') {
+      return currentStatus === 'inside_event' 
+        ? { text: 'Inside Event', color: 'bg-green-100 text-green-800', icon: '🟢' }
+        : { text: 'Outside Event', color: 'bg-red-100 text-red-800', icon: '🔴' };
+    } else {
+      return currentStatus === 'inside_building'
+        ? { text: 'Inside Building', color: 'bg-green-100 text-green-800', icon: '🟢' }
+        : { text: 'Outside Building', color: 'bg-red-100 text-red-800', icon: '🔴' };
+    }
+  };
+
+  const statusDisplay = getStatusDisplay();
+
   const getActionButtons = () => {
     if (mode === 'session') {
-      // Session mode: only show "Add to Session" button
+      // Session mode: only show "Add to Session" button, disabled if already in event
+      const isAlreadyInEvent = currentStatus === 'inside_event';
+      
       return (
         <div className="pt-4">
           <button
             onClick={() => handleAction('enter')}
-            disabled={loading || actionLoading !== null}
+            disabled={loading || actionLoading !== null || isAlreadyInEvent}
             className={`w-full flex items-center justify-center space-x-2 py-3 px-4 rounded-lg font-medium transition-colors ${
               actionLoading === 'enter' 
                 ? 'bg-green-100 text-green-700 cursor-not-allowed' 
+                : isAlreadyInEvent
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 : 'bg-green-500 hover:bg-green-600 text-white'
             }`}
           >
@@ -115,28 +148,33 @@ export const AttendeeCard: React.FC<AttendeeCardProps> = ({
             ) : (
               <>
                 <UserPlus className="h-5 w-5" />
-                <span>Add to Session</span>
+                <span>{isAlreadyInEvent ? 'Already in Event' : 'Add to Session'}</span>
               </>
             )}
           </button>
           {sessionTitle && (
             <p className="text-sm text-gray-600 text-center mt-2">
-              Adding to: <span className="font-medium">{sessionTitle}</span>
+              {isAlreadyInEvent ? 'Already registered for sessions' : `Adding to: ${sessionTitle}`}
             </p>
           )}
         </div>
       );
     }
 
-    // Building mode: show both Enter and Exit buttons
+    // Building mode: show both Enter and Exit buttons with proper disabling
+    const isInsideBuilding = currentStatus === 'inside_building';
+    const isOutsideBuilding = currentStatus === 'outside_building';
+
     return (
       <div className="flex space-x-3 pt-4">
         <button
           onClick={() => handleAction('enter')}
-          disabled={loading || actionLoading !== null}
+          disabled={loading || actionLoading !== null || isInsideBuilding}
           className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-lg font-medium transition-colors ${
             actionLoading === 'enter' 
               ? 'bg-green-100 text-green-700 cursor-not-allowed' 
+              : isInsideBuilding
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
               : 'bg-green-500 hover:bg-green-600 text-white'
           }`}
         >
@@ -145,17 +183,19 @@ export const AttendeeCard: React.FC<AttendeeCardProps> = ({
           ) : (
             <>
               <UserCheck className="h-5 w-5" />
-              <span>Enter</span>
+              <span>{isInsideBuilding ? 'Already Inside' : 'Enter'}</span>
             </>
           )}
         </button>
 
         <button
           onClick={() => handleAction('exit')}
-          disabled={loading || actionLoading !== null}
+          disabled={loading || actionLoading !== null || isOutsideBuilding}
           className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-lg font-medium transition-colors ${
             actionLoading === 'exit' 
               ? 'bg-red-100 text-red-700 cursor-not-allowed' 
+              : isOutsideBuilding
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
               : 'bg-red-500 hover:bg-red-600 text-white'
           }`}
         >
@@ -164,7 +204,7 @@ export const AttendeeCard: React.FC<AttendeeCardProps> = ({
           ) : (
             <>
               <UserX className="h-5 w-5" />
-              <span>Exit</span>
+              <span>{isOutsideBuilding ? 'Already Outside' : 'Exit'}</span>
             </>
           )}
         </button>
@@ -202,15 +242,9 @@ export const AttendeeCard: React.FC<AttendeeCardProps> = ({
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor(attendee.role)}`}>
                   {formatRole(attendee.role)}
                 </span>
-                {attendee.current_status && mode === 'building' && (
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    attendee.current_status === 'inside' 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-red-100 text-red-800'
-                  }`}>
-                    {attendee.current_status === 'inside' ? '🟢 Inside' : '🔴 Outside'}
-                  </span>
-                )}
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusDisplay.color}`}>
+                  {statusDisplay.icon} {statusDisplay.text}
+                </span>
               </div>
             </div>
           </div>
@@ -248,7 +282,7 @@ export const AttendeeCard: React.FC<AttendeeCardProps> = ({
               </div>
             )}
 
-            {attendee.last_scan && mode === 'building' && (
+            {attendee.last_scan && (
               <div className="flex items-center space-x-3 text-gray-600">
                 <Clock className="h-4 w-4 flex-shrink-0" />
                 <div className="text-sm">
