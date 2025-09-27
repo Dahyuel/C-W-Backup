@@ -63,7 +63,10 @@ const [selectedEventEdit, setSelectedEventEdit] = useState(null);
   const [announcementDescription, setAnnouncementDescription] = useState("");
   const [announcementRole, setAnnouncementRole] = useState("");
 
-
+const [selectedUsers, setSelectedUsers] = useState([]);
+const [userSearch, setUserSearch] = useState("");
+const [searchResults, setSearchResults] = useState([]);
+const [searchLoading, setSearchLoading] = useState(false);
   const [editCompanyModal, setEditCompanyModal] = useState(false);
 const [selectedCompanyEdit, setSelectedCompanyEdit] = useState(null);
 
