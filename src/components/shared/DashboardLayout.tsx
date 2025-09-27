@@ -112,27 +112,56 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
     }
   }, [showProfileModal, profile?.id]);
 
-  const fetchNotifications = async () => {
-    if (!profile?.id) return;
 
-    try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', profile.id)
-        .order('created_at', { ascending: false })
-        .limit(10);
+const fetchNotifications = async () => {
+  if (!profile?.id) return;
 
-      if (error) {
-        console.error('Error fetching notifications:', error);
-      } else if (data) {
-        setNotifications(data);
-      }
-    } catch (error) {
+  try {
+    const { data, error } = await supabase
+      .from('user_notifications')
+      .select(`
+        id,
+        is_read,
+        read_at,
+        notification_id,
+        notifications (
+          id,
+          title,
+          message,
+          created_by,
+          created_at,
+          users_profiles!notifications_created_by_fkey (
+            first_name,
+            last_name
+          )
+        )
+      `)
+      .eq('user_id', profile.id)
+      .order('notifications(created_at)', { ascending: false })
+      .limit(10);
+
+    if (error) {
       console.error('Error fetching notifications:', error);
+    } else if (data) {
+      // Transform the data to match your Notification interface
+      const transformedNotifications: Notification[] = data.map(item => ({
+        id: item.notification_id,
+        title: item.notifications?.title || '',
+        message: item.notifications?.message || '',
+        sender: item.notifications?.users_profiles 
+          ? `${item.notifications.users_profiles.first_name} ${item.notifications.users_profiles.last_name}`
+          : 'System',
+        created_at: item.notifications?.created_at || '',
+        is_read: item.is_read || false
+      }));
+      
+      setNotifications(transformedNotifications);
     }
-  };
-
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+  }
+};
+  
   const fetchUserScore = async () => {
     if (!profile?.id) return;
 
