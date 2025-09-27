@@ -1349,59 +1349,51 @@ const clearUserSelection = () => {
 )}
 
         {/* Maps Tab */}
-        {activeTab === "maps" && (
-          <div>
-            <div className="mb-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Event Maps</h2>
-              
-              {/* Day selection */}
-              <div className="flex space-x-2 mb-4">
-                {[1, 2, 3, 4, 5].map((day) => (
-                  <button
-                    key={day}
-                    onClick={() => setActiveDay(day)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      activeDay === day 
-                        ? "bg-orange-500 text-white" 
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    Day {day}
-                  </button>
-                ))}
-              </div>
-              
-              {/* Modify Map button - positioned below days on mobile */}
-              <button
-                onClick={() => setMapModal(true)}
-                className="w-full sm:w-auto flex items-center justify-center px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors"
-              >
-                <Upload className="h-4 w-4 mr-2" />
-                Modify Map
-              </button>
-            </div>
-            
-            <div className="bg-white rounded-xl shadow-sm border p-4 flex justify-center items-center min-h-[400px]">
-              {mapLoading && (
-                <div className="flex flex-col items-center justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mb-2"></div>
-                  <p className="text-gray-500 text-sm">Loading map...</p>
-                </div>
-              )}
-              <img
-                src={mapImages[activeDay - 1]}
-                alt={`Day ${activeDay} Map`}
-                className={`max-w-full h-auto rounded-lg transition-opacity duration-200 ${mapLoading ? 'opacity-0 absolute' : 'opacity-100'}`}
-                onLoad={handleMapLoad}
-                onError={(e) => {
-                  handleMapError();
-                  e.target.src = "/src/Assets/placeholder-map.png"; // Fallback image
-                }}
-              />
-            </div>
-          </div>
-        )}
-
+       {activeTab === "maps" && (
+  <div>
+    <div className="mb-6">
+      <h2 className="text-xl font-bold text-gray-900 mb-4">Event Maps</h2>
+      
+      {/* Day selection */}
+      <div className="flex space-x-2 mb-4">
+        {[1, 2, 3, 4, 5].map((day) => (
+          <button
+            key={day}
+            onClick={() => setActiveDay(day)}
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeDay === day 
+                ? "bg-orange-500 text-white" 
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            Day {day}
+          </button>
+        ))}
+      </div>
+      
+      {/* Removed the Modify Map button */}
+    </div>
+    
+    <div className="bg-white rounded-xl shadow-sm border p-4 flex justify-center items-center min-h-[400px]">
+      {mapLoading && (
+        <div className="flex flex-col items-center justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mb-2"></div>
+          <p className="text-gray-500 text-sm">Loading map...</p>
+        </div>
+      )}
+      <img
+        src={mapImages[activeDay - 1]}
+        alt={`Day ${activeDay} Map`}
+        className={`max-w-full h-auto rounded-lg transition-opacity duration-200 ${mapLoading ? 'opacity-0 absolute' : 'opacity-100'}`}
+        onLoad={handleMapLoad}
+        onError={(e) => {
+          handleMapError();
+          e.target.src = "/src/Assets/placeholder-map.png"; // Fallback image
+        }}
+      />
+    </div>
+  </div>
+)}
         {/* Employers Tab */}
 {activeTab === "employers" && (
   <div>
