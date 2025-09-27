@@ -18,10 +18,12 @@ import {
   Eye,
   EyeOff,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Trophy
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import QRCode from 'qrcode';
+import Leaderboard from '../shared/Leaderboard';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -53,6 +55,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   
   // QR Code state
@@ -61,6 +64,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
   
   // Data state
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [userScore, setUserScore] = useState<number>(0);
   const [passwordData, setPasswordData] = useState<PasswordChangeData>({
     oldPassword: '',
     newPassword: '',
@@ -80,9 +84,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
   const profileDropdownRef = useRef<HTMLDivElement>(null);
   const notificationDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Fetch notifications on component mount
+  // Fetch notifications and user score on component mount
   useEffect(() => {
     fetchNotifications();
+    fetchUserScore();
   }, [profile?.id]);
 
   // Click outside handlers
@@ -125,6 +130,26 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
       }
     } catch (error) {
       console.error('Error fetching notifications:', error);
+    }
+  };
+
+  const fetchUserScore = async () => {
+    if (!profile?.id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('users_profiles')
+        .select('score')
+        .eq('id', profile.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user score:', error);
+      } else if (data) {
+        setUserScore(data.score || 0);
+      }
+    } catch (error) {
+      console.error('Error fetching user score:', error);
     }
   };
 
@@ -177,6 +202,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
 
   const handleProfileClick = () => {
     setShowProfileModal(true);
+    setShowProfileDropdown(false);
+  };
+
+  const handleLeaderboardClick = () => {
+    setShowLeaderboard(true);
     setShowProfileDropdown(false);
   };
 
@@ -370,17 +400,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                   className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"
                   aria-label="Profile menu"
                 >
-                  {/* Show user info on all screen sizes - Fixed */}
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900 truncate max-w-32">
-                      {profile?.first_name} {profile?.last_name}
-                    </p>
-                    {/* Show email - Fixed visibility */}
-                    <p className="text-xs text-gray-500 truncate max-w-32">
-                      {profile?.email || 'No email'}
-                    </p>
-                  </div>
-                  
                   {/* Profile Picture */}
                   <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center">
                     <span className="text-white font-medium text-sm">
@@ -401,6 +420,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                       >
                         <User className="h-4 w-4 mr-3" />
                         Profile
+                      </button>
+                      <button
+                        onClick={handleLeaderboardClick}
+                        className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                      >
+                        <Trophy className="h-4 w-4 mr-3" />
+                        Leaderboard
                       </button>
                       <button
                         onClick={handleSignOut}
@@ -478,6 +504,15 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                     ID: {profile.id}
                   </p>
                 )}
+              </div>
+
+              {/* Score Display */}
+              <div className="bg-orange-50 rounded-lg p-4 mb-6 text-center">
+                <div className="flex items-center justify-center mb-2">
+                  <Trophy className="h-6 w-6 text-orange-600 mr-2" />
+                  <span className="text-lg font-semibold text-orange-900">Your Score</span>
+                </div>
+                <div className="text-3xl font-bold text-orange-600">{userScore}</div>
               </div>
 
               {/* Profile Information */}
