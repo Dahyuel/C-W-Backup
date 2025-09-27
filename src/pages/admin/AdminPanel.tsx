@@ -1962,6 +1962,144 @@ const handleEventUpdate = async () => {
     </div>
   </div>
 )}
+
+        {/* Edit Company Modal */}
+{editCompanyModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <h3 className="text-2xl font-bold mb-4">Edit Company</h3>
+      <div className="space-y-4">
+        <input
+          type="text"
+          value={editCompany.name}
+          onChange={(e) =>
+            setEditCompany({ ...editCompany, name: e.target.value })
+          }
+          className="w-full border rounded-lg p-2"
+          placeholder="Company Name *"
+        />
+        
+        {/* Logo Type Selection */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Logo *</label>
+          <div className="flex space-x-4 mb-3">
+            <button
+              type="button"
+              onClick={() => setEditCompany({ ...editCompany, logoType: "link" })}
+              className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium ${
+                editCompany.logoType === "link" 
+                  ? "bg-blue-500 text-white" 
+                  : "bg-gray-100 text-gray-700"
+              }`}
+            >
+              <Link className="h-4 w-4 mr-2" />
+              URL
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditCompany({ ...editCompany, logoType: "upload" })}
+              className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium ${
+                editCompany.logoType === "upload" 
+                  ? "bg-blue-500 text-white" 
+                  : "bg-gray-100 text-gray-700"
+              }`}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Upload New
+            </button>
+          </div>
+          
+          {editCompany.logoType === "link" ? (
+            <input
+              type="url"
+              value={editCompany.logoUrl}
+              onChange={(e) =>
+                setEditCompany({ ...editCompany, logoUrl: e.target.value })
+              }
+              className="w-full border rounded-lg p-2"
+              placeholder="Logo URL *"
+            />
+          ) : (
+            <div>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) =>
+                  setEditCompany({
+                    ...editCompany,
+                    logo: e.target.files?.[0] || null,
+                  })
+                }
+                className="w-full border rounded-lg p-2"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Leave empty to keep current logo
+              </p>
+            </div>
+          )}
+          
+          {/* Current logo preview */}
+          {editCompany.logoUrl && (
+            <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-600 mb-2">Current Logo:</p>
+              <img 
+                src={editCompany.logoUrl} 
+                alt="Current logo" 
+                className="h-16 w-auto object-contain"
+                onError={(e) => {
+                  e.target.src = "https://via.placeholder.com/64x64/orange/white?text=Logo";
+                }}
+              />
+            </div>
+          )}
+        </div>
+        
+        <textarea
+          value={editCompany.description}
+          onChange={(e) =>
+            setEditCompany({ ...editCompany, description: e.target.value })
+          }
+          className="w-full border rounded-lg p-2"
+          placeholder="Description"
+          rows={3}
+        />
+        <input
+          type="url"
+          value={editCompany.website}
+          onChange={(e) =>
+            setEditCompany({ ...editCompany, website: e.target.value })
+          }
+          className="w-full border rounded-lg p-2"
+          placeholder="Website *"
+        />
+        <input
+          type="text"
+          value={editCompany.boothNumber}
+          onChange={(e) =>
+            setEditCompany({ ...editCompany, boothNumber: e.target.value })
+          }
+          className="w-full border rounded-lg p-2"
+          placeholder="Booth Number *"
+        />
+      </div>
+      <div className="flex justify-end space-x-3 mt-6">
+        <button
+          onClick={() => setEditCompanyModal(false)}
+          className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleCompanyUpdate}
+          disabled={loading}
+          className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50"
+        >
+          {loading ? 'Updating...' : 'Update Company'}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       </div>
     </DashboardLayout>
   );
