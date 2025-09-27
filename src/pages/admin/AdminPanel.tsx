@@ -680,6 +680,29 @@ const handleCompanyUpdate = async () => {
     }
   };
 
+
+const handleDeleteCompany = async () => {
+  if (!selectedCompanyDelete) return;
+  
+  setLoading(true);
+  try {
+    const { error } = await deleteCompany(selectedCompanyDelete.id);
+    
+    if (error) {
+      showNotification("Failed to delete company", "error");
+    } else {
+      setDeleteCompanyModal(false);
+      setSelectedCompanyDelete(null);
+      showNotification("Company deleted successfully!", "success");
+      await fetchCompanies();
+    }
+  } catch (err) {
+    showNotification("Failed to delete company", "error");
+  } finally {
+    setLoading(false);
+  }
+};
+  
   // Handle Event Submit
   const handleEventSubmit = async () => {
     if (!newEvent.title || !newEvent.startDate || !newEvent.startTime) {
