@@ -238,9 +238,6 @@ const handleSubmit = async (e: React.FormEvent) => {
     }
   };
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-
   // Validate all sections
   const allErrors = [1, 2, 3, 4].flatMap(section => validateSection(section));
   if (allErrors.length > 0) {
