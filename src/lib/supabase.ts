@@ -87,7 +87,6 @@ export const checkEmailUnique = async (email: string): Promise<ValidationResult>
   }
 };
 
-// Check if volunteer ID exists and is actually a volunteer
 export const checkVolunteerIdExists = async (volunteerId: string): Promise<ValidationResult> => {
   if (!volunteerId || !volunteerId.trim()) {
     return { isValid: true, error: null }; // Empty volunteer ID is valid (optional)
@@ -129,6 +128,7 @@ export const checkVolunteerIdExists = async (volunteerId: string): Promise<Valid
     return { isValid: false, error: 'Failed to validate Volunteer ID' };
   }
 };
+
 // Enhanced registration validation
 export const validateRegistrationData = async (
   email: string,
