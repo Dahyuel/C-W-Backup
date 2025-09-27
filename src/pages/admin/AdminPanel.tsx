@@ -1,3 +1,4 @@
+"use client";
 
 import { useState, useEffect } from "react";
 import {
@@ -43,6 +44,15 @@ export function AdminPanel() {
   const [eventModal, setEventModal] = useState(false);
   const [mapModal, setMapModal] = useState(false);
   const [announcementModal, setAnnouncementModal] = useState(false);
+  
+  // Detail modal states
+  const [sessionDetailModal, setSessionDetailModal] = useState(false);
+  const [companyDetailModal, setCompanyDetailModal] = useState(false);
+  const [selectedSessionDetail, setSelectedSessionDetail] = useState(null);
+  const [selectedCompanyDetail, setSelectedCompanyDetail] = useState(null);
+  
+  // Map loading state
+  const [mapLoading, setMapLoading] = useState(true);
 
   // Form states
   const [announcementTitle, setAnnouncementTitle] = useState("");
@@ -432,8 +442,30 @@ export function AdminPanel() {
     setAnnouncementModal(false);
   };
 
-  // Map images and functions
-  const [mapImages, setMapImages] = useState([]);
+  // Handle click functions
+  const handleSessionClick = (session) => {
+    setSelectedSessionDetail(session);
+    setSessionDetailModal(true);
+  };
+
+  const handleCompanyClick = (company) => {
+    setSelectedCompanyDetail(company);
+    setCompanyDetailModal(true);
+  };
+
+  // Map loading handler
+  const handleMapLoad = () => {
+    setMapLoading(false);
+  };
+
+  const handleMapError = () => {
+    setMapLoading(false);
+  };
+
+  // Reset map loading when day changes
+  useEffect(() => {
+    setMapLoading(true);
+  }, [activeDay]);
 
   // Initialize map images from Supabase Assets/Maps
   const initializeMapImages = () => {
@@ -705,9 +737,13 @@ export function AdminPanel() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {sessions.map((session) => (
-                <div key={session.id} className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+                <div 
+                  key={session.id} 
+                  onClick={() => handleSessionClick(session)}
+                  className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-md cursor-pointer transition-all duration-200"
+                >
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{session.title}</h3>
-                  <p className="text-sm text-gray-600 mb-3">{session.description}</p>
+                  <p className="text-sm text-gray-600 mb-3 line-clamp-2">{session.description}</p>
                   {session.speaker && (
                     <p className="text-sm font-medium text-gray-900 mb-2">Speaker: {session.speaker}</p>
                   )}
@@ -823,12 +859,20 @@ export function AdminPanel() {
               </div>
             </div>
             
-            <div className="bg-white rounded-xl shadow-sm border p-4 flex justify-center">
+            <div className="bg-white rounded-xl shadow-sm border p-4 flex justify-center items-center min-h-[400px]">
+              {mapLoading && (
+                <div className="flex flex-col items-center justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mb-2"></div>
+                  <p className="text-gray-500 text-sm">Loading map...</p>
+                </div>
+              )}
               <img
                 src={mapImages[activeDay - 1]}
                 alt={`Day ${activeDay} Map`}
-                className="max-w-full h-auto rounded-lg"
+                className={`max-w-full h-auto rounded-lg transition-opacity duration-200 ${mapLoading ? 'opacity-0 absolute' : 'opacity-100'}`}
+                onLoad={handleMapLoad}
                 onError={(e) => {
+                  handleMapError();
                   e.target.src = "/src/Assets/placeholder-map.png"; // Fallback image
                 }}
               />
@@ -854,7 +898,11 @@ export function AdminPanel() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {companies.map((company) => (
-                <div key={company.id} className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+                <div 
+                  key={company.id} 
+                  onClick={() => handleCompanyClick(company)}
+                  className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-md cursor-pointer transition-all duration-200"
+                >
                   <div className="text-center">
                     <img 
                       src={company.logo_url} 
@@ -874,15 +922,7 @@ export function AdminPanel() {
                     )}
                     
                     <div className="flex justify-center mt-4">
-                      <a 
-                        href={company.website} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-orange-500 hover:text-orange-700 text-sm"
-                      >
-                        <Eye className="h-4 w-4 inline mr-1" />
-                        View Website
-                      </a>
+                      <Eye className="h-4 w-4 text-orange-500" />
                     </div>
                   </div>
                 </div>
@@ -1292,8 +1332,164 @@ export function AdminPanel() {
           </div>
         )}
 
-        {/* Announcement Modal */}
-        {announcementModal && (
+        {/* Session Detail Modal */}
+        {sessionDetailModal && selectedSessionDetail && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold text-gray-900">Session Details</h2>
+                  <button
+                    onClick={() => {
+                      setSessionDetailModal(false);
+                      setSelectedSessionDetail(null);
+                    }}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">{selectedSessionDetail.title}</h3>
+                    <p className="text-gray-600 mt-2">{selectedSessionDetail.description}</p>
+                  </div>
+
+                  {selectedSessionDetail.speaker && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Speaker</label>
+                      <p className="text-gray-900">{selectedSessionDetail.speaker}</p>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Date & Time</label>
+                    <p className="text-gray-900">
+                      {new Date(selectedSessionDetail.start_time).toLocaleDateString()} at{' '}
+                      {new Date(selectedSessionDetail.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                    {selectedSessionDetail.end_time && (
+                      <p className="text-gray-500 text-sm">
+                        Ends at {new Date(selectedSessionDetail.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Location</label>
+                    <p className="text-gray-900">{selectedSessionDetail.location}</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Type</label>
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                      {selectedSessionDetail.session_type}
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Capacity</label>
+                    <p className="text-gray-900">
+                      {selectedSessionDetail.current_bookings || 0} / {selectedSessionDetail.max_attendees || 'Unlimited'} booked
+                    </p>
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-200">
+                    <button
+                      onClick={() => setSessionDetailModal(false)}
+                      className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+                    >
+                      Close Details
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Company Detail Modal */}
+        {companyDetailModal && selectedCompanyDetail && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold text-gray-900">Company Details</h2>
+                  <button
+                    onClick={() => {
+                      setCompanyDetailModal(false);
+                      setSelectedCompanyDetail(null);
+                    }}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Company Logo and Name */}
+                  <div className="text-center">
+                    <img 
+                      src={selectedCompanyDetail.logo_url} 
+                      alt={`${selectedCompanyDetail.name} logo`} 
+                      className="h-24 w-auto mx-auto mb-4 object-contain"
+                      onError={(e) => {
+                        e.target.src = "https://via.placeholder.com/96x96/orange/white?text=Logo";
+                      }}
+                    />
+                    <h3 className="text-2xl font-bold text-gray-900">{selectedCompanyDetail.name}</h3>
+                    {selectedCompanyDetail.booth_number && (
+                      <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800 mt-2">
+                        <MapPin className="h-4 w-4 mr-1" />
+                        Booth {selectedCompanyDetail.booth_number}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Company Description */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">About Company</label>
+                    <p className="text-gray-700 leading-relaxed">{selectedCompanyDetail.description}</p>
+                  </div>
+
+                  {/* Website */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Website</label>
+                    <a 
+                      href={selectedCompanyDetail.website} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-orange-600 hover:text-orange-700 break-all"
+                    >
+                      {selectedCompanyDetail.website}
+                    </a>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="pt-4 space-y-3">
+                    <button
+                      onClick={() => window.open(selectedCompanyDetail.website, "_blank")}
+                      className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+                    >
+                      Visit Career Page
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        setCompanyDetailModal(false);
+                        setSelectedCompanyDetail(null);
+                      }}
+                      className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
           <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4">
             <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative">
               <button
