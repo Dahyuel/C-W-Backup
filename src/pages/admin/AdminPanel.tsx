@@ -2704,6 +2704,7 @@ const clearUserSelection = () => {
       </div>
             </div>
           </div>
+  )}
     </DashboardLayout>
   );
 }
