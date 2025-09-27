@@ -63,6 +63,31 @@ const [selectedEventEdit, setSelectedEventEdit] = useState(null);
   const [announcementDescription, setAnnouncementDescription] = useState("");
   const [announcementRole, setAnnouncementRole] = useState("");
 
+// Edit form states
+const [editSession, setEditSession] = useState({
+  id: "",
+  title: "",
+  date: "",
+  speaker: "",
+  capacity: "",
+  type: "session",
+  hour: "",
+  location: "",
+  description: "",
+});
+
+const [editEvent, setEditEvent] = useState({
+  id: "",
+  title: "",
+  description: "",
+  startDate: "",
+  endDate: "",
+  startTime: "",
+  endTime: "",
+  location: "",
+  type: "general",
+});
+  
   // Company form state
   const [newCompany, setNewCompany] = useState({
     name: "",
