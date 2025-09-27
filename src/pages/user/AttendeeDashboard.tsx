@@ -600,7 +600,6 @@ const AttendeeDashboard: React.FC = () => {
                 <Activity className="h-8 w-8 text-gray-300 mx-auto mb-2" />
                 <p className="text-xs text-gray-500">No recent activities</p>
               </div>
-            )}
 
       
 
