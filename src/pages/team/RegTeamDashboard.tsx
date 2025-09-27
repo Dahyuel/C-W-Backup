@@ -616,14 +616,14 @@ const handleScannerClose = () => {
         </div>
       )}
 
-      {/* QR Scanner Modal */}
-      <QRScanner
-        isOpen={showScanner}
-        onClose={() => setShowScanner(false)}
-        onScan={handleQRScan}
-        title="Scan Attendee QR Code"
-        description="Point your camera at the attendee's QR code"
-      />
+{/* QR Scanner Modal */}
+<QRScanner
+  isOpen={showScanner}
+  onClose={handleScannerClose}
+  onScan={handleQRScan}
+  title="Scan Attendee QR Code"
+  description="Point your camera at the attendee's QR code"
+/>
 
       {/* Attendee Card Modal */}
       <AttendeeCard
