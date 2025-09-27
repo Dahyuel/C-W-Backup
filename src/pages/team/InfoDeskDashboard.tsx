@@ -308,7 +308,7 @@ export const InfoDeskDashboard: React.FC = () => {
         .insert({
           user_id: selectedAttendee.id,
           session_id: selectedSession.id,
-          scan_type: 'session',
+          scan_type: 'session_entry',
           scanned_by: profile?.id
         })
         .select()
