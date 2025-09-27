@@ -18,7 +18,7 @@ import {
   Trash2
 } from "lucide-react";
 import DashboardLayout from "../../components/shared/DashboardLayout";
-import { supabase, uploadFile, getDynamicBuildingStats } from "../../lib/supabase";
+import { supabase, uploadFile, getDynamicBuildingStats,deleteCompany } from "../../lib/supabase";
 // Add these states
 
 
