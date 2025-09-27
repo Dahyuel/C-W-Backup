@@ -1527,6 +1527,38 @@ export const deleteFile = async (bucket: string, filePath: string) => {
     return { success: false, error: { message: error.message } };
   }
 };
+export const getFileInfo = async (bucket: string, filePath: string) => {
+  try {
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .list(filePath.split('/').slice(0, -1).join('/'), {
+        search: filePath.split('/').pop()
+      });
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    if (!data || data.length === 0) {
+      return { data: null, error: { message: 'File not found' } };
+    }
+
+    const fileInfo = data[0];
+    const { data: urlData } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(filePath);
+
+    return { 
+      data: {
+        ...fileInfo,
+        publicUrl: urlData.publicUrl
+      }, 
+      error: null 
+    };
+  } catch (error: any) {
+    return { data: null, error: { message: error.message } };
+  }
+};
 
 export const checkFileExists = async (bucket: string, filePath: string) => {
   try {
