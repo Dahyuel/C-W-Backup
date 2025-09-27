@@ -833,30 +833,9 @@ const handleDeleteSession = async (session) => {
 };
 
 const handleDeleteEvent = async (event) => {
-  if (!window.confirm(`Are you sure you want to delete the event "${event.title}"?`)) {
-    return;
-  }
-
-  setLoading(true);
-  try {
-    const { error } = await supabase
-      .from("schedule_items")
-      .delete()
-      .eq('id', event.id);
-
-    if (error) {
-      showNotification("Failed to delete event", "error");
-    } else {
-      showNotification("Event deleted successfully!", "success");
-      await fetchEventsByDay(activeDay);
-    }
-  } catch (err) {
-    showNotification("Failed to delete event", "error");
-  } finally {
-    setLoading(false);
-  }
+  setSelectedEventDelete(event);
+  setDeleteEventModal(true);
 };
-
   
 
 // Update the announcement submit handler
