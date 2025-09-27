@@ -143,17 +143,22 @@ export const validateRegistrationData = async (
   }
 };
 
+// Enhanced signUpUser function with better error handling and logging
 export const signUpUser = async (email: string, password: string, userData: any) => {
   try {
     console.log('Starting attendee registration with validation first...');
+    console.log('User data:', { ...userData, password: '[REDACTED]' }); // Log data without password
     
     // STEP 1: Validate all data first WITHOUT creating anything
+    console.log('Step 1: Validating registration data...');
     const validation = await validateRegistrationData(
       email, 
       userData.personal_id, 
       userData.volunteer_id, 
       userData.phone
     );
+
+    console.log('Validation result:', validation);
 
     if (!validation.isValid) {
       console.error('Validation failed:', validation.errors);
@@ -166,12 +171,18 @@ export const signUpUser = async (email: string, password: string, userData: any)
       };
     }
 
-    console.log('Validation passed. Creating auth user...');
+    console.log('Step 2: Creating auth user...');
 
     // STEP 2: Create the auth user first through Supabase Auth API
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
       password: password,
+    });
+
+    console.log('Auth creation result:', { 
+      success: !!authData.user, 
+      userId: authData.user?.id, 
+      error: authError 
     });
 
     if (authError) {
@@ -186,19 +197,22 @@ export const signUpUser = async (email: string, password: string, userData: any)
       };
     }
 
-    console.log('Auth user created successfully:', authData.user.id);
+    console.log('Step 3: Creating user profile...');
 
     // STEP 3: Now create the user profile using a simpler direct insert
     try {
       // Process referrer ID if provided
       let referrerId = null;
       if (userData.volunteer_id && userData.volunteer_id.trim()) {
+        console.log('Looking up volunteer referrer:', userData.volunteer_id.trim());
         const { data: referrer, error: referrerError } = await supabase
           .from('users_profiles')
           .select('id')
           .eq('volunteer_id', userData.volunteer_id.trim())
           .neq('role', 'attendee')
           .single();
+        
+        console.log('Referrer lookup result:', { referrer, error: referrerError });
         
         if (!referrerError && referrer) {
           referrerId = referrer.id;
@@ -232,23 +246,29 @@ export const signUpUser = async (email: string, password: string, userData: any)
       if (userData.gender && userData.gender.trim() && 
           ['male', 'female', 'other', 'prefer_not_to_say'].includes(userData.gender.trim())) {
         profileInsert.gender = userData.gender.trim();
+        console.log('Adding gender:', userData.gender.trim());
       }
 
       if (userData.degree_level && userData.degree_level.trim() && 
           ['student', 'graduate'].includes(userData.degree_level.trim())) {
         profileInsert.degree_level = userData.degree_level.trim();
+        console.log('Adding degree_level:', userData.degree_level.trim());
       }
 
       if (userData.class && userData.class.trim() && 
           ['1', '2', '3', '4', '5'].includes(userData.class.trim())) {
         profileInsert.class = userData.class.trim();
+        console.log('Adding class:', userData.class.trim());
       }
 
       if (userData.how_did_hear_about_event && userData.how_did_hear_about_event.trim() && 
           ['linkedin', 'facebook', 'instagram', 'friends', 'banners_in_street', 
            'information_session_at_faculty', 'campus_marketing', 'other'].includes(userData.how_did_hear_about_event.trim())) {
         profileInsert.how_did_hear_about_event = userData.how_did_hear_about_event.trim();
+        console.log('Adding how_did_hear_about_event:', userData.how_did_hear_about_event.trim());
       }
+
+      console.log('Profile insert data:', profileInsert);
 
       const { data: profileData, error: profileError } = await supabase
         .from('users_profiles')
@@ -256,8 +276,19 @@ export const signUpUser = async (email: string, password: string, userData: any)
         .select()
         .single();
 
+      console.log('Profile creation result:', { 
+        success: !!profileData, 
+        profileId: profileData?.id, 
+        error: profileError 
+      });
+
       if (profileError) {
-        console.error('Profile creation error:', profileError);
+        console.error('Profile creation error details:', {
+          message: profileError.message,
+          details: profileError.details,
+          hint: profileError.hint,
+          code: profileError.code
+        });
         
         // Clean up the auth user if profile creation fails
         try {
@@ -267,10 +298,28 @@ export const signUpUser = async (email: string, password: string, userData: any)
           console.error('Failed to cleanup auth user:', cleanupError);
         }
 
+        // Return more specific error messages based on the error
+        let errorMessage = 'Failed to create user profile. ';
+        if (profileError.code === '23505') { // Unique constraint violation
+          if (profileError.message.includes('personal_id')) {
+            errorMessage += 'This Personal ID is already registered.';
+          } else if (profileError.message.includes('email')) {
+            errorMessage += 'This email address is already registered.';
+          } else {
+            errorMessage += 'Some information is already in use.';
+          }
+        } else if (profileError.code === '23503') { // Foreign key violation
+          errorMessage += 'Invalid reference data provided.';
+        } else if (profileError.code === '23514') { // Check constraint violation
+          errorMessage += 'Invalid data format provided.';
+        } else {
+          errorMessage += profileError.message || 'Unknown error occurred.';
+        }
+
         return {
           data: null,
           error: {
-            message: 'Failed to create user profile: ' + (profileError.message || 'Unknown error'),
+            message: errorMessage,
             originalError: profileError
           }
         };
@@ -317,7 +366,6 @@ export const signUpUser = async (email: string, password: string, userData: any)
     };
   }
 };
-
 // Enhanced volunteer sign up with better error handling
 
 
