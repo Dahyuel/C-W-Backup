@@ -769,64 +769,86 @@ export function AdminPanel() {
     </div>
   </div>
 )}
-        {/* Events Tab */}
-        {activeTab === "events" && (
-          <div>
-            <div className="mb-6">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center mb-4">
-                <Calendar className="h-5 w-5 mr-2 text-orange-600" /> Events Management
-              </h2>
-              
-              {/* Day selection */}
-              <div className="flex space-x-2 mb-4">
-                {[1, 2, 3, 4, 5].map((day) => (
-                  <button
-                    key={day}
-                    onClick={() => setActiveDay(day)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      activeDay === day 
-                        ? "bg-orange-500 text-white" 
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    Day {day}
-                  </button>
-                ))}
-              </div>
-              
-              {/* Add Event button - positioned below days on mobile */}
-              <button
-                onClick={() => setEventModal(true)}
-                className="w-full sm:w-auto flex items-center justify-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Event
-              </button>
-            </div>
 
-<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {events.map((event) => (
-                <div key={event.id} className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{event.title}</h3>
-                  <p className="text-sm text-gray-600 mb-3">{event.description}</p>
-                  <div className="space-y-1 text-xs text-gray-500 mb-4">
-                    <div className="flex items-center">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {new Date(event.start_time).toLocaleDateString()} {new Date(event.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </div>
-                    <div className="flex items-center">
-                      <MapPin className="h-3 w-3 mr-1" />
-                      {event.location}
-                    </div>
-                  </div>
-                  <span className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded-full">
-                    {event.item_type}
-                  </span>
-                </div>
-              ))}
+
+
+        {/* Events Tab */}
+{activeTab === "events" && (
+  <div>
+    <div className="mb-6">
+      <h2 className="text-xl font-bold text-gray-900 flex items-center mb-4">
+        <Calendar className="h-5 w-5 mr-2 text-orange-600" /> Events Management
+      </h2>
+      
+      {/* Day selection */}
+      <div className="flex space-x-2 mb-4">
+        {[1, 2, 3, 4, 5].map((day) => (
+          <button
+            key={day}
+            onClick={() => setActiveDay(day)}
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeDay === day 
+                ? "bg-orange-500 text-white" 
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            Day {day}
+          </button>
+        ))}
+      </div>
+      
+      {/* Add Event button - positioned below days on mobile */}
+      <button
+        onClick={() => setEventModal(true)}
+        className="w-full sm:w-auto flex items-center justify-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+      >
+        <Plus className="h-4 w-4 mr-2" />
+        Add Event
+      </button>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {events.map((event) => (
+        <div key={event.id} className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{event.title}</h3>
+          <p className="text-sm text-gray-600 mb-3">{event.description}</p>
+          <div className="space-y-1 text-xs text-gray-500 mb-4">
+            <div className="flex items-center">
+              <Clock className="h-3 w-3 mr-1" />
+              {new Date(event.start_time).toLocaleDateString()} {new Date(event.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </div>
+            <div className="flex items-center">
+              <MapPin className="h-3 w-3 mr-1" />
+              {event.location}
             </div>
           </div>
-        )}
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded-full">
+              {event.item_type}
+            </span>
+          </div>
+          
+          {/* Action Buttons */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleEventClick(event)}
+              className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+            >
+              <Eye className="h-3 w-3 mr-1 inline" />
+              View
+            </button>
+            <button
+              onClick={() => handleEditEvent(event)}
+              className="flex-1 bg-green-500 text-white py-2 px-3 rounded-lg hover:bg-green-600 transition-colors text-sm font-medium"
+            >
+              Edit
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
 
         {/* Maps Tab */}
         {activeTab === "maps" && (
