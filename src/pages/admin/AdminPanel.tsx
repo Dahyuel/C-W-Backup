@@ -328,6 +328,101 @@ const handleEventUpdate = async () => {
     setLoading(false);
   }
 };
+
+const handleEditCompany = (company) => {
+  setSelectedCompanyEdit(company);
+  setEditCompany({
+    id: company.id,
+    name: company.name || "",
+    logo: null,
+    logoUrl: company.logo_url || "",
+    logoType: "link", // Default to link since we're editing existing
+    description: company.description || "",
+    website: company.website || "",
+    boothNumber: company.booth_number || "",
+  });
+  setEditCompanyModal(true);
+};
+
+// Handle company update
+const handleCompanyUpdate = async () => {
+  if (!editCompany.name || !editCompany.website || !editCompany.boothNumber) {
+    showNotification("Please fill all required fields!", "error");
+    return;
+  }
+
+  // Validate logo input based on type
+  if (editCompany.logoType === "link" && !editCompany.logoUrl) {
+    showNotification("Please provide a logo URL!", "error");
+    return;
+  }
+
+  if (editCompany.logoType === "upload" && !editCompany.logo) {
+    showNotification("Please select a logo file to upload!", "error");
+    return;
+  }
+
+  setLoading(true);
+  try {
+    let logoUrl = editCompany.logoUrl;
+
+    // Handle file upload if upload option is selected
+    if (editCompany.logoType === "upload" && editCompany.logo) {
+      const fileExt = editCompany.logo.name.split('.').pop();
+      const fileName = `${Date.now()}-${editCompany.name.replace(/[^a-zA-Z0-9]/g, '_')}.${fileExt}`;
+      const filePath = `company-logos/${fileName}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("Assets")
+        .upload(filePath, editCompany.logo);
+
+      if (uploadError) {
+        console.error("Upload error:", uploadError);
+        showNotification("Failed to upload logo", "error");
+        setLoading(false);
+        return;
+      }
+
+      // Get the public URL
+      const { data: urlData } = supabase.storage
+        .from("Assets")
+        .getPublicUrl(filePath);
+
+      logoUrl = urlData.publicUrl;
+    }
+
+    // Update company
+    const { error } = await supabase.from("companies").update({
+      name: editCompany.name,
+      logo_url: logoUrl,
+      description: editCompany.description,
+      website: editCompany.website,
+      booth_number: editCompany.boothNumber,
+    }).eq('id', editCompany.id);
+
+    if (error) {
+      showNotification("Failed to update company", "error");
+    } else {
+      setEditCompanyModal(false);
+      setEditCompany({
+        id: "",
+        name: "",
+        logo: null,
+        logoUrl: "",
+        logoType: "link",
+        description: "",
+        website: "",
+        boothNumber: "",
+      });
+      showNotification("Company updated successfully!", "success");
+      await fetchCompanies();
+    }
+  } catch (err) {
+    showNotification("Failed to update company", "error");
+  } finally {
+    setLoading(false);
+  }
+};
   
   const fetchBuildingStats = async () => {
     try {
