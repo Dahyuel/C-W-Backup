@@ -275,7 +275,7 @@ const handleEventClick = (event) => {
 
   
 // Handle session update
-const handleSessionUpdate = async () => {
+ const handleSessionUpdate = async () => {
   if (!editSession.title || !editSession.date || !editSession.speaker) {
     showNotification("Please fill all required fields!", "error");
     return;
@@ -286,6 +286,9 @@ const handleSessionUpdate = async () => {
     const startDateTime = new Date(`${editSession.date}T${editSession.hour}`);
     const endDateTime = new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000);
 
+    // Set both capacity and max_attendees to the same value
+    const capacityValue = parseInt(editSession.capacity) || null;
+
     const { error } = await supabase.from("sessions").update({
       title: editSession.title,
       description: editSession.description,
@@ -293,7 +296,8 @@ const handleSessionUpdate = async () => {
       start_time: startDateTime.toISOString(),
       end_time: endDateTime.toISOString(),
       location: editSession.location,
-      max_attendees: parseInt(editSession.capacity) || null,
+      capacity: capacityValue, // Set capacity
+      max_attendees: capacityValue, // Set max_attendees to same value
       session_type: editSession.type,
     }).eq('id', editSession.id);
 
@@ -321,7 +325,7 @@ const handleSessionUpdate = async () => {
     setLoading(false);
   }
 };
-
+  
 // Handle event update
 const handleEventUpdate = async () => {
   if (!editEvent.title || !editEvent.startDate || !editEvent.startTime) {
