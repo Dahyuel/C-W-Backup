@@ -171,140 +171,77 @@ export const validateRegistrationData = async (
 
 export const signUpUser = async (email: string, password: string, userData: any) => {
   try {
-    console.log('Starting attendee registration...');
+    console.log('Starting attendee registration with server-side processing...');
     
-    // STEP 1: Check if user already exists
-    const userExists = await checkUserExists(userData.personal_id, email);
-    if (userExists.exists) {
-      const errors: string[] = [];
-      if (userExists.byPersonalId) {
-        errors.push('Personal ID already registered');
-      }
-      if (userExists.byEmail) {
-        errors.push('Email already registered');
-      }
+    // Call the server-side registration function
+    const { data, error } = await supabase.rpc('register_attendee', {
+      p_email: email.trim().toLowerCase(),
+      p_password: password,
+      p_first_name: userData.first_name,
+      p_last_name: userData.last_name,
+      p_phone: userData.phone,
+      p_university: userData.university,
+      p_faculty: userData.faculty,
+      p_personal_id: userData.personal_id,
+      p_volunteer_id: userData.volunteer_id || null,
+      p_gender: userData.gender || null,
+      p_nationality: userData.nationality || null,
+      p_degree_level: userData.degree_level || null,
+      p_program: userData.program || null,
+      p_class: userData.class || null,
+      p_how_did_hear: userData.how_did_hear_about_event || null,
+      p_university_id_path: userData.university_id_path || null,
+      p_cv_path: userData.cv_path || null
+    });
+
+    if (error) {
+      console.error('Registration RPC error:', error);
       return { 
         data: null, 
         error: { 
-          message: errors.join('. '),
-          validationErrors: errors
+          message: 'Registration failed. Please try again.',
+          originalError: error
+        } 
+      };
+    }
+
+    // Check if the server-side function succeeded
+    if (!data.success) {
+      console.error('Registration failed:', data.error);
+      return {
+        data: null,
+        error: {
+          message: data.error,
+          errorCode: data.error_code,
+          validationErrors: [data.error]
         }
       };
     }
 
-    // STEP 1.5: If volunteer_id is provided, look up the referrer's UUID
-    let referrerId = null;
-    if (userData.volunteer_id && userData.volunteer_id.trim()) {
-      console.log('Looking up volunteer referrer:', userData.volunteer_id);
-      
-      const { data: volunteerData, error: volunteerError } = await supabase
-        .from('users_profiles')
-        .select('id, volunteer_id, role')
-        .eq('volunteer_id', userData.volunteer_id.trim())
-        .single();
-
-      if (volunteerError || !volunteerData) {
-        console.error('Volunteer lookup error:', volunteerError);
-        return { 
-          data: null, 
-          error: { 
-            message: 'Invalid volunteer ID. Please check the ID and try again.',
-            validationErrors: ['Invalid volunteer ID']
-          }
-        };
-      }
-
-      // Verify the found user is actually a volunteer (not attendee)
-      if (volunteerData.role === 'attendee') {
-        return { 
-          data: null, 
-          error: { 
-            message: 'The provided ID belongs to an attendee, not a volunteer.',
-            validationErrors: ['Invalid volunteer role']
-          }
-        };
-      }
-
-      referrerId = volunteerData.id;
-      console.log('Found referrer UUID:', referrerId);
-    }
-
-    console.log('User does not exist, creating auth user...');
+    console.log('Registration completed successfully:', data.message);
     
-    // STEP 2: Create auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: email.trim().toLowerCase(),
-      password,
-    });
-
-    if (authError) {
-      console.error('Auth signup error:', authError);
-      return { data: null, error: authError };
-    }
-
-    if (!authData.user) {
-      return { data: null, error: { message: 'Failed to create user account' } };
-    }
-
-    console.log('Auth user created, creating profile...');
-
-    // STEP 3: Create profile with email and referrer ID (if applicable)
-    // IMPORTANT: Remove volunteer_id from userData since attendees shouldn't have it
-    const { volunteer_id, ...cleanUserData } = userData;
-    
-    const profileData = {
-      id: authData.user.id,
-      email: email.trim().toLowerCase(),
-      ...cleanUserData, // This no longer contains volunteer_id
-      reg_id: referrerId, // Set the referrer's UUID here
-      // Don't set role here - let the database default handle it or use RPC function
-      score: 0,
-      building_entry: false,
-      event_entry: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+    // Return success with user data
+    return {
+      data: {
+        user: {
+          id: data.data.user_id,
+          email: data.data.email
+        },
+        session: null // Session will be created when user signs in
+      },
+      error: null
     };
 
-    const { data: profileDataResult, error: profileError } = await supabase
-      .from('users_profiles')
-      .insert(profileData)
-      .select();
-
-    if (profileError) {
-      console.error('Profile creation error:', profileError);
-      
-      // Check if it's the enum error for activity_type
-      if (profileError.code === '22P02' && profileError.message?.includes('activity_type')) {
-        console.warn('Registration bonus could not be awarded due to enum constraint, but user was created successfully');
-        // User registration still succeeded, just the bonus points failed
-        return { data: authData, error: null };
-      }
-      
-      // For other errors, attempt cleanup but don't fail if cleanup fails
-      try {
-        await supabase.auth.admin.deleteUser(authData.user.id);
-        console.log('Auth user cleaned up successfully');
-      } catch (cleanupError) {
-        console.warn('Could not cleanup auth user (insufficient permissions):', cleanupError.message);
-        // Continue with error return - the main error is more important than cleanup failure
-      }
-      
-      return { data: null, error: profileError };
-    }
-
-    console.log('Attendee registration completed successfully');
-    if (referrerId) {
-      console.log('Referral bonus will be automatically awarded via database trigger');
-    }
-
-    return { data: authData, error: null };
-
   } catch (error: any) {
-    console.error('Registration error:', error);
-    return { data: null, error: { message: error.message || 'Registration failed' } };
+    console.error('Registration exception:', error);
+    return { 
+      data: null, 
+      error: { 
+        message: error.message || 'Registration failed due to an unexpected error'
+      } 
+    };
   }
 };
-
 
 // Enhanced volunteer sign up with better error handling
 
