@@ -808,30 +808,9 @@ const handleDeleteCompany = async () => {
 
 
 const handleDeleteSession = async (session) => {
-  if (!window.confirm(`Are you sure you want to delete the session "${session.title}"?`)) {
-    return;
-  }
-
-  setLoading(true);
-  try {
-    const { error } = await supabase
-      .from("sessions")
-      .delete()
-      .eq('id', session.id);
-
-    if (error) {
-      showNotification("Failed to delete session", "error");
-    } else {
-      showNotification("Session deleted successfully!", "success");
-      await fetchSessions();
-    }
-  } catch (err) {
-    showNotification("Failed to delete session", "error");
-  } finally {
-    setLoading(false);
-  }
+  setSelectedSessionDelete(session);
+  setDeleteSessionModal(true);
 };
-
 const handleDeleteEvent = async (event) => {
   setSelectedEventDelete(event);
   setDeleteEventModal(true);
