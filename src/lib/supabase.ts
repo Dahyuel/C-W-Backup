@@ -107,42 +107,38 @@ export const checkVolunteerIdExists = async (volunteerId: string): Promise<Valid
     return { isValid: false, error: 'Failed to validate Volunteer ID' };
   }
 };
-// Enhanced registration validation
 export const validateRegistrationData = async (
   email: string,
   personalId: string,
-  volunteerId?: string
-): Promise<{ isValid: boolean; errors: string[] }> => {
-  const errors: string[] = [];
-  
+  volunteerId?: string,
+  phone?: string
+): Promise<{ isValid: boolean; errors: string[]; volunteerInfo?: any }> => {
   try {
-    // Check if user already exists
-    const userExists = await checkUserExists(personalId, email);
-    if (userExists.exists) {
-      if (userExists.byPersonalId) {
-        errors.push('This Personal ID is already registered');
-      }
-      if (userExists.byEmail) {
-        errors.push('This email is already registered');
-      }
+    const { data, error } = await supabase.rpc('validate_registration_data', {
+      p_email: email.trim().toLowerCase(),
+      p_personal_id: personalId.trim(),
+      p_volunteer_id: volunteerId?.trim() || null,
+      p_phone: phone?.trim() || null
+    });
+
+    if (error) {
+      console.error('Validation error:', error);
+      return {
+        isValid: false,
+        errors: ['Validation failed. Please try again.']
+      };
     }
 
-    // Only validate volunteer ID if provided
-    if (volunteerId && volunteerId.trim()) {
-      const volunteerIdCheck = await checkVolunteerIdExists(volunteerId);
-      if (!volunteerIdCheck.isValid && volunteerIdCheck.error) {
-        errors.push(volunteerIdCheck.error);
-      }
-    }
-    
     return {
-      isValid: errors.length === 0,
-      errors
+      isValid: data.is_valid,
+      errors: data.errors || [],
+      volunteerInfo: data.volunteer_info
     };
   } catch (error: any) {
+    console.error('Validation exception:', error);
     return {
       isValid: false,
-      errors: ['An unexpected error occurred during validation. Please try again.']
+      errors: ['An unexpected error occurred during validation.']
     };
   }
 };
