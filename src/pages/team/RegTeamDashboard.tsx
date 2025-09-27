@@ -198,48 +198,56 @@ export const RegTeamDashboard: React.FC = () => {
 
   const qrScannerRef = useRef<{ stopCamera: () => void } | null>(null);
   
-  const handleQRScan = async (qrData: string) => {
-    try {
-      console.log('Processing QR data:', qrData);
-      
-      let attendeeData: Attendee | null = null;
-      let error;
+ const handleQRScan = async (qrData: string) => {
+  try {
+    console.log('Processing QR data:', qrData);
+    
+    let attendeeData: Attendee | null = null;
+    let error;
 
-      // Check if QR data is UUID or Personal ID
-      if (isUUID(qrData)) {
-        console.log('Detected UUID format, searching by UUID...');
-        const result = await getAttendeeByUUID(qrData);
-        attendeeData = result.data ? castToAttendee(result.data) : null;
-        error = result.error;
-      } else {
-        console.log('Detected Personal ID format, searching by Personal ID...');
-        const result = await getAttendeeByPersonalId(qrData);
-        attendeeData = result.data ? castToAttendee(result.data) : null;
-        error = result.error;
-      }
-      
-      if (error || !attendeeData) {
-        const errorMsg = isUUID(qrData) 
-          ? 'Invalid QR code: UUID not found in system'
-          : 'Invalid QR code: Personal ID not found';
-        showFeedback('error', errorMsg);
-        return;
-      }
-
-      // Check if the person is an attendee
-      if (attendeeData.role !== 'attendee') {
-        showFeedback('error', 'Only attendees can be processed through this system');
-        return;
-      }
-
-      setSelectedAttendee(attendeeData);
-      setShowAttendeeCard(true);
-      setShowScanner(false);
-    } catch (error) {
-      console.error("QR scan error:", error);
-      showFeedback('error', 'Failed to process QR code');
+    // Check if QR data is UUID or Personal ID
+    if (isUUID(qrData)) {
+      console.log('Detected UUID format, searching by UUID...');
+      const result = await getAttendeeByUUID(qrData);
+      attendeeData = result.data ? castToAttendee(result.data) : null;
+      error = result.error;
+    } else {
+      console.log('Detected Personal ID format, searching by Personal ID...');
+      const result = await getAttendeeByPersonalId(qrData);
+      attendeeData = result.data ? castToAttendee(result.data) : null;
+      error = result.error;
     }
-  };
+    
+    if (error || !attendeeData) {
+      const errorMsg = isUUID(qrData) 
+        ? 'Invalid QR code: UUID not found in system'
+        : 'Invalid QR code: Personal ID not found';
+      showFeedback('error', errorMsg);
+      return;
+    }
+
+    // Check if the person is an attendee
+    if (attendeeData.role !== 'attendee') {
+      showFeedback('error', 'Only attendees can be processed through this system');
+      return;
+    }
+
+    setSelectedAttendee(attendeeData);
+    setShowAttendeeCard(true);
+    
+    // DON'T close scanner immediately - let QRScanner handle it
+    // setShowScanner(false);
+  } catch (error) {
+    console.error("QR scan error:", error);
+    showFeedback('error', 'Failed to process QR code');
+  }
+};
+
+// Add a separate function to handle scanner close
+const handleScannerClose = () => {
+  console.log('Scanner closing from parent...');
+  setShowScanner(false);
+};
 
   const handleAttendanceAction = async (action: 'enter' | 'exit') => {
     if (!selectedAttendee) return;
