@@ -2442,6 +2442,69 @@ const clearUserSelection = () => {
     </div>
   </div>
 )}
+
+        {/* Event Detail Modal */}
+{eventDetailModal && selectedEventDetail && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold text-gray-900">Event Details</h2>
+          <button
+            onClick={() => {
+              setEventDetailModal(false);
+              setSelectedEventDetail(null);
+            }}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        <div className="space-y-6">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">{selectedEventDetail.title}</h3>
+            <p className="text-gray-600 mt-2">{selectedEventDetail.description}</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Date & Time</label>
+            <p className="text-gray-900">
+              {new Date(selectedEventDetail.start_time).toLocaleDateString()} at{' '}
+              {new Date(selectedEventDetail.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </p>
+            {selectedEventDetail.end_time && (
+              <p className="text-gray-500 text-sm">
+                Ends at {new Date(selectedEventDetail.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Location</label>
+            <p className="text-gray-900">{selectedEventDetail.location || 'Not specified'}</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Type</label>
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
+              {selectedEventDetail.item_type}
+            </span>
+          </div>
+
+          <div className="pt-4 border-t border-gray-200">
+            <button
+              onClick={() => setEventDetailModal(false)}
+              className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 transition-colors font-medium"
+            >
+              Close Details
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
       </div>
     </DashboardLayout>
   );
