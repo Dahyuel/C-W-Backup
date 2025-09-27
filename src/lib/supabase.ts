@@ -1047,6 +1047,126 @@ export const cancelSessionBookingDirect = async (userId: string, sessionId: stri
   }
 };
 
+export const getUserRankingAndScore = async (userId: string) => {
+  try {
+    const { data: userProfile, error: profileError } = await supabase
+      .from('users_profiles')
+      .select('score, role')
+      .eq('id', userId)
+      .single();
+
+    if (profileError) {
+      console.error('Error fetching user profile:', profileError);
+      return { data: null, error: profileError };
+    }
+
+    // Get ranking based on role
+    let query = supabase
+      .from('users_profiles')
+      .select('id, score')
+      .order('score', { ascending: false });
+
+    if (userProfile.role === 'attendee') {
+      query = query.eq('role', 'attendee');
+    } else if (userProfile.role !== 'admin') {
+      query = query.not('role', 'in', '("attendee","admin")');
+    }
+
+    const { data: allUsers, error: rankError } = await query;
+
+    if (rankError) {
+      console.error('Error fetching ranking:', rankError);
+      return { data: null, error: rankError };
+    }
+
+    const userRank = allUsers?.findIndex(user => user.id === userId) + 1 || 0;
+    const totalUsers = allUsers?.length || 0;
+
+    return {
+      data: {
+        score: userProfile.score || 0,
+        rank: userRank,
+        total_users: totalUsers
+      },
+      error: null
+    };
+  } catch (error: any) {
+    console.error('Get user ranking exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
+// Get recent activities for a user
+export const getRecentActivities = async (userId: string, limit: number = 5) => {
+  try {
+    const { data, error } = await supabase
+      .from('user_scores')
+      .select(`
+        id,
+        points,
+        activity_type,
+        activity_description,
+        awarded_at
+      `)
+      .eq('user_id', userId)
+      .order('awarded_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('Error fetching recent activities:', error);
+      return { data: [], error };
+    }
+
+    return { data: data || [], error: null };
+  } catch (error: any) {
+    console.error('Get recent activities exception:', error);
+    return { data: [], error: { message: error.message } };
+  }
+};
+
+// Get leaderboard data based on role
+export const getLeaderboardData = async (userRole: string, leaderboardType?: 'attendees' | 'volunteers') => {
+  try {
+    let query = supabase
+      .from('users_profiles')
+      .select('id, first_name, last_name, role, score')
+      .order('score', { ascending: false });
+
+    if (userRole === 'admin') {
+      // Admin can see both - controlled by leaderboardType
+      if (leaderboardType === 'attendees') {
+        query = query.eq('role', 'attendee');
+      } else if (leaderboardType === 'volunteers') {
+        query = query.in('role', ['volunteer', 'registration', 'building', 'team_leader', 'info_desk']);
+      }
+    } else if (userRole === 'attendee') {
+      // Attendees only see other attendees
+      query = query.eq('role', 'attendee');
+    } else {
+      // Other roles see all non-attendees and non-admins
+      query = query.not('role', 'in', '("attendee","admin")');
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching leaderboard:', error);
+      return { data: [], error };
+    }
+
+    // Add ranking to the data
+    const rankedData = (data || []).map((user, index) => ({
+      ...user,
+      rank: index + 1
+    }));
+
+    return { data: rankedData, error: null };
+  } catch (error: any) {
+    console.error('Get leaderboard exception:', error);
+    return { data: [], error: { message: error.message } };
+  }
+};
+
 // Get building attendance statistics
 export const getBuildingStats = async () => {
   try {
