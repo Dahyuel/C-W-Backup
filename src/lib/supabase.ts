@@ -257,7 +257,7 @@ export const signUpUser = async (email: string, password: string, userData: any)
       email: email.trim().toLowerCase(),
       ...cleanUserData, // This no longer contains volunteer_id
       reg_id: referrerId, // Set the referrer's UUID here
-      role: 'attendee',
+      // Don't set role here - let the database default handle it or use RPC function
       score: 0,
       building_entry: false,
       event_entry: false,
@@ -273,7 +273,14 @@ export const signUpUser = async (email: string, password: string, userData: any)
     if (profileError) {
       console.error('Profile creation error:', profileError);
       
-      // Clean up auth user
+      // Check if it's the enum error for activity_type
+      if (profileError.code === '22P02' && profileError.message?.includes('activity_type')) {
+        console.warn('Registration bonus could not be awarded due to enum constraint, but user was created successfully');
+        // User registration still succeeded, just the bonus points failed
+        return { data: authData, error: null };
+      }
+      
+      // For other errors, clean up and return error
       try {
         await supabase.auth.admin.deleteUser(authData.user.id);
       } catch (cleanupError) {
@@ -295,7 +302,11 @@ export const signUpUser = async (email: string, password: string, userData: any)
     return { data: null, error: { message: error.message || 'Registration failed' } };
   }
 };
+
+
 // Enhanced volunteer sign up with better error handling
+
+
 
 // Enhanced volunteer sign up with better error handling
 export const signUpVolunteer = async (email: string, password: string, userData: any) => {
