@@ -70,6 +70,16 @@ const [searchLoading, setSearchLoading] = useState(false);
   const [editCompanyModal, setEditCompanyModal] = useState(false);
 const [selectedCompanyEdit, setSelectedCompanyEdit] = useState(null);
 
+const announcementRoleOptions = [
+  { value: "", label: "Select Target" },
+  { value: "all", label: "All Users" },
+  { value: "volunteer", label: "Volunteers" },
+  { value: "team_leader", label: "Team Leaders" },
+  { value: "admin", label: "Admins" },
+  { value: "attendee", label: "Attendees" },
+  { value: "custom", label: "Custom Selection" }
+];
+  
 // Edit company form state
 const [editCompany, setEditCompany] = useState({
   id: "",
