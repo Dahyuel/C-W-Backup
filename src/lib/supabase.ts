@@ -703,7 +703,6 @@ export const processBuildingAttendance = async (personalId: string, action: 'bui
   }
 };
 
-// Get all sessions from the database
 export const getAllSessions = async () => {
   try {
     const { data, error } = await supabase
@@ -718,6 +717,8 @@ export const getAllSessions = async () => {
         location,
         capacity,
         current_attendees,
+        max_attendees,
+        current_bookings,
         session_type,
         created_at
       `)
@@ -735,7 +736,7 @@ export const getAllSessions = async () => {
   }
 };
 
-// Get session by ID
+// Updated getSessionById to include new columns
 export const getSessionById = async (sessionId: string) => {
   try {
     const { data, error } = await supabase
@@ -750,6 +751,8 @@ export const getSessionById = async (sessionId: string) => {
         location,
         capacity,
         current_attendees,
+        max_attendees,
+        current_bookings,
         session_type,
         created_at
       `)
@@ -767,6 +770,9 @@ export const getSessionById = async (sessionId: string) => {
     return { data: null, error: { message: error.message } };
   }
 };
+
+
+
 
 // Get building attendance statistics
 export const getBuildingStats = async () => {
