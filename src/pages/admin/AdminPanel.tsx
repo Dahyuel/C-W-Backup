@@ -63,7 +63,22 @@ const [selectedEventEdit, setSelectedEventEdit] = useState(null);
   const [announcementDescription, setAnnouncementDescription] = useState("");
   const [announcementRole, setAnnouncementRole] = useState("");
 
-// Edit form states
+
+  const [editCompanyModal, setEditCompanyModal] = useState(false);
+const [selectedCompanyEdit, setSelectedCompanyEdit] = useState(null);
+
+// Edit company form state
+const [editCompany, setEditCompany] = useState({
+  id: "",
+  name: "",
+  logo: null,
+  logoUrl: "",
+  logoType: "link",
+  description: "",
+  website: "",
+  boothNumber: "",
+});
+  // Edit form states
 const [editSession, setEditSession] = useState({
   id: "",
   title: "",
