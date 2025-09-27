@@ -57,9 +57,8 @@ interface Attendee {
 const castToAttendee = (data: any): Attendee => {
   return {
     ...data,
-    // Map the boolean flags properly
-    current_status: data.building_entry ? 'inside' : 'outside',
-    building_status: data.building_entry ? 'inside' : 'outside'
+    // For building dashboard, current_status should reflect building entry
+    current_status: data.building_entry ? 'inside' : 'outside'
   } as Attendee;
 };
 
