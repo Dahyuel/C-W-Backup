@@ -70,6 +70,9 @@ const [searchLoading, setSearchLoading] = useState(false);
   const [editCompanyModal, setEditCompanyModal] = useState(false);
 const [selectedCompanyEdit, setSelectedCompanyEdit] = useState(null);
 
+const [eventDetailModal, setEventDetailModal] = useState(false);
+const [selectedEventDetail, setSelectedEventDetail] = useState(null);
+  
 const announcementRoleOptions = [
   { value: "", label: "Select Target" },
   { value: "all", label: "All Users" },
