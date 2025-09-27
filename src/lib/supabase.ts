@@ -873,7 +873,6 @@ export const getScheduleItemById = async (itemId: string) => {
     return { data: null, error: { message: error.message } };
   }
 };
-
 // Get all companies from the database
 export const getAllCompanies = async () => {
   try {
