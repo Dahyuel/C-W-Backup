@@ -718,7 +718,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                 </div>
               </div>
 
-              {!selectedNotification.is_read && (
+                            {!selectedNotification.is_read && (
                 <div className="mt-6 pt-6 border-t border-gray-200">
                   <button
                     onClick={() => markNotificationAsRead(selectedNotification.id)}
@@ -726,7 +726,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                   >
                     Mark as Read
                   </button>
-                        {/* Leaderboard Modal */}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Leaderboard Modal */}
       {showLeaderboard && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
