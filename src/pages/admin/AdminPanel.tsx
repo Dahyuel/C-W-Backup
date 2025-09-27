@@ -2703,7 +2703,6 @@ const clearUserSelection = () => {
         </button>
       </div>
             </div>
-          </div>
   )}
     </DashboardLayout>
   );
