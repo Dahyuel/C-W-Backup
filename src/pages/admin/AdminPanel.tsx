@@ -702,58 +702,73 @@ export function AdminPanel() {
           </div>
         )}
 
-        {/* Sessions Tab */}
-        {activeTab === "sessions" && (
-          <div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center mb-4 sm:mb-0">
-                <Calendar className="h-5 w-5 mr-2 text-orange-600" /> Sessions Management
-              </h2>
-              <button
-                onClick={() => setSessionModal(true)}
-                className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Session
-              </button>
-            </div>
+      {/* Sessions Tab */}
+{activeTab === "sessions" && (
+  <div>
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
+      <h2 className="text-xl font-bold text-gray-900 flex items-center mb-4 sm:mb-0">
+        <Calendar className="h-5 w-5 mr-2 text-orange-600" /> Sessions Management
+      </h2>
+      <button
+        onClick={() => setSessionModal(true)}
+        className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+      >
+        <Plus className="h-4 w-4 mr-2" />
+        Add Session
+      </button>
+    </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {sessions.map((session) => (
-                <div 
-                  key={session.id} 
-                  onClick={() => handleSessionClick(session)}
-                  className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-md cursor-pointer transition-all duration-200"
-                >
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{session.title}</h3>
-                  <p className="text-sm text-gray-600 mb-3 line-clamp-2">{session.description}</p>
-                  {session.speaker && (
-                    <p className="text-sm font-medium text-gray-900 mb-2">Speaker: {session.speaker}</p>
-                  )}
-                  <div className="space-y-1 text-xs text-gray-500 mb-4">
-                    <div className="flex items-center">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {new Date(session.start_time).toLocaleDateString()} {new Date(session.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </div>
-                    <div className="flex items-center">
-                      <MapPin className="h-3 w-3 mr-1" />
-                      {session.location}
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
-                      {session.session_type}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {session.current_bookings || 0}/{session.max_attendees || 'Unlimited'}
-                    </span>
-                  </div>
-                </div>
-              ))}
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {sessions.map((session) => (
+        <div 
+          key={session.id} 
+          className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-md transition-all duration-200"
+        >
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">{session.title}</h3>
+          <p className="text-sm text-gray-600 mb-3 line-clamp-2">{session.description}</p>
+          {session.speaker && (
+            <p className="text-sm font-medium text-gray-900 mb-2">Speaker: {session.speaker}</p>
+          )}
+          <div className="space-y-1 text-xs text-gray-500 mb-4">
+            <div className="flex items-center">
+              <Clock className="h-3 w-3 mr-1" />
+              {new Date(session.start_time).toLocaleDateString()} {new Date(session.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </div>
+            <div className="flex items-center">
+              <MapPin className="h-3 w-3 mr-1" />
+              {session.location}
             </div>
           </div>
-        )}
-
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+              {session.session_type}
+            </span>
+            <span className="text-xs text-gray-500">
+              {session.current_bookings || 0}/{session.max_attendees || 'Unlimited'}
+            </span>
+          </div>
+          
+          {/* Action Buttons */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleSessionClick(session)}
+              className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+            >
+              <Eye className="h-3 w-3 mr-1 inline" />
+              View
+            </button>
+            <button
+              onClick={() => handleEditSession(session)}
+              className="flex-1 bg-blue-500 text-white py-2 px-3 rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
+            >
+              Edit
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
         {/* Events Tab */}
         {activeTab === "events" && (
           <div>
