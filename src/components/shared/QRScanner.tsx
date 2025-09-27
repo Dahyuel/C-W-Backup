@@ -22,9 +22,11 @@ export const QRScanner: React.FC<QRScannerProps> = ({
   const [scanSuccess, setScanSuccess] = useState(false);
   const [cameraStarted, setCameraStarted] = useState(false);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [isInitializing, setIsInitializing] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const qrScannerRef = useRef<QrScanner | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Reset all states
   const resetStates = useCallback(() => {
@@ -33,16 +35,23 @@ export const QRScanner: React.FC<QRScannerProps> = ({
     setScanSuccess(false);
     setCameraStarted(false);
     setHasPermission(null);
+    setIsInitializing(false);
   }, []);
 
   // Stop scanner and cleanup
   const stopScanner = useCallback(() => {
     console.log('Stopping QR scanner...');
     if (qrScannerRef.current) {
-      qrScannerRef.current.stop();
-      qrScannerRef.current.destroy();
+      try {
+        qrScannerRef.current.stop();
+        qrScannerRef.current.destroy();
+      } catch (err) {
+        console.warn('Error during scanner cleanup:', err);
+      }
       qrScannerRef.current = null;
     }
+    setCameraStarted(false);
+    setIsScanning(false);
   }, []);
 
   // Handle successful scan
@@ -75,13 +84,37 @@ export const QRScanner: React.FC<QRScannerProps> = ({
   const handleScanError = useCallback((err: string | Error) => {
     console.log('Scan error (this is normal - just means no QR code found):', err);
     // Don't show error for normal "no QR code found" situations
-    // QR scanner will keep trying automatically
+  }, []);
+
+  // Check if video element is ready
+  const isVideoElementReady = useCallback(() => {
+    if (!videoRef.current) {
+      console.error('Video element reference is null');
+      return false;
+    }
+    
+    if (!containerRef.current) {
+      console.error('Container element reference is null');
+      return false;
+    }
+    
+    // Check if video element is in DOM
+    if (!document.body.contains(videoRef.current)) {
+      console.error('Video element is not in DOM');
+      return false;
+    }
+    
+    return true;
   }, []);
 
   // Start the QR scanner
   const startScanner = useCallback(async () => {
-    if (!videoRef.current) {
-      setError('Video element not available');
+    setIsInitializing(true);
+    
+    // Check if video element is ready
+    if (!isVideoElementReady()) {
+      setError('Camera view not ready. Please try again.');
+      setIsInitializing(false);
       return;
     }
 
@@ -93,19 +126,27 @@ export const QRScanner: React.FC<QRScannerProps> = ({
       const hasCamera = await QrScanner.hasCamera();
       if (!hasCamera) {
         setError('No camera found on this device');
+        setIsInitializing(false);
         return;
+      }
+
+      // Ensure video element is properly reset
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+        videoRef.current.load();
       }
 
       // Create QR scanner instance
       const qrScanner = new QrScanner(
-        videoRef.current,
+        videoRef.current!,
         handleScanResult,
         {
           onDecodeError: handleScanError,
-          preferredCamera: 'environment', // Use back camera if available
+          preferredCamera: 'environment',
           highlightScanRegion: true,
           highlightCodeOutline: true,
-          maxScansPerSecond: 5, // Reasonable scan rate
+          maxScansPerSecond: 5,
+          returnDetailedScanResult: true,
         }
       );
 
@@ -118,11 +159,13 @@ export const QRScanner: React.FC<QRScannerProps> = ({
       setCameraStarted(true);
       setIsScanning(true);
       setHasPermission(true);
+      setIsInitializing(false);
       
       console.log('QR scanner started successfully');
 
     } catch (err: any) {
       console.error('Failed to start QR scanner:', err);
+      setIsInitializing(false);
       
       if (err.name === 'NotAllowedError') {
         setError('Camera permission denied. Please allow camera access and try again.');
@@ -134,19 +177,29 @@ export const QRScanner: React.FC<QRScannerProps> = ({
       } else if (err.name === 'OverconstrainedError') {
         setError('Camera constraints not supported. Trying again with different settings...');
         // Retry with different camera
-        retryWithFrontCamera();
+        setTimeout(() => retryWithFrontCamera(), 500);
+      } else if (err.message?.includes('video element')) {
+        setError('Camera view not available. Please try closing and reopening the scanner.');
       } else {
         setError(`Camera error: ${err.message || 'Failed to access camera'}`);
       }
     }
-  }, [handleScanResult, handleScanError]);
+  }, [handleScanResult, handleScanError, isVideoElementReady]);
 
   // Retry with front camera if back camera fails
   const retryWithFrontCamera = useCallback(async () => {
-    if (!videoRef.current || !qrScannerRef.current) return;
+    if (!videoRef.current || !qrScannerRef.current) {
+      setError('Scanner not ready for retry');
+      return;
+    }
 
     try {
       console.log('Retrying with front camera...');
+      setError(null);
+      setIsInitializing(true);
+      
+      // Stop current scanner
+      qrScannerRef.current.stop();
       
       // Try to switch to front camera
       const cameras = await QrScanner.listCameras(true);
@@ -157,18 +210,19 @@ export const QRScanner: React.FC<QRScannerProps> = ({
 
       if (frontCamera) {
         await qrScannerRef.current.setCamera(frontCamera.id);
-        setError(null);
-        setCameraStarted(true);
-        setIsScanning(true);
+        await qrScannerRef.current.start();
       } else {
         // Just try with default camera
         await qrScannerRef.current.start();
-        setError(null);
-        setCameraStarted(true);
-        setIsScanning(true);
       }
+      
+      setError(null);
+      setCameraStarted(true);
+      setIsScanning(true);
+      setIsInitializing(false);
     } catch (retryErr: any) {
       console.error('Retry failed:', retryErr);
+      setIsInitializing(false);
       setError('Unable to access any camera. Please check your browser settings.');
     }
   }, []);
@@ -177,9 +231,10 @@ export const QRScanner: React.FC<QRScannerProps> = ({
   const handleRetry = useCallback(() => {
     stopScanner();
     resetStates();
+    // Small delay to ensure cleanup is complete
     setTimeout(() => {
       startScanner();
-    }, 500);
+    }, 300);
   }, [stopScanner, resetStates, startScanner]);
 
   // Initialize when modal opens
@@ -188,10 +243,24 @@ export const QRScanner: React.FC<QRScannerProps> = ({
       console.log('QR Scanner modal opening...');
       resetStates();
       
+      // Wait for DOM to be ready and modal to be fully rendered
+      const initializeScanner = () => {
+        if (isVideoElementReady()) {
+          startScanner();
+        } else {
+          // Retry after a short delay if video element isn't ready
+          setTimeout(() => {
+            if (isVideoElementReady()) {
+              startScanner();
+            } else {
+              setError('Camera view failed to initialize. Please try again.');
+            }
+          }, 200);
+        }
+      };
+
       // Small delay to ensure DOM is ready
-      const timeoutId = setTimeout(() => {
-        startScanner();
-      }, 100);
+      const timeoutId = setTimeout(initializeScanner, 100);
 
       return () => {
         clearTimeout(timeoutId);
@@ -201,7 +270,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
       stopScanner();
       resetStates();
     }
-  }, [isOpen, resetStates, startScanner, stopScanner]);
+  }, [isOpen, resetStates, startScanner, stopScanner, isVideoElementReady]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -214,7 +283,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+      <div ref={containerRef} className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -260,25 +329,34 @@ export const QRScanner: React.FC<QRScannerProps> = ({
                         Camera access is required. Please enable camera permissions in your browser settings and refresh the page.
                       </p>
                     </div>
+                    <button
+                      onClick={onClose}
+                      className="w-full bg-gray-500 text-white py-3 px-4 rounded-lg hover:bg-gray-600 transition-colors font-medium"
+                    >
+                      Close
+                    </button>
                   </div>
                 ) : (
                   <button
                     onClick={handleRetry}
-                    className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center justify-center space-x-2"
+                    disabled={isInitializing}
+                    className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 disabled:bg-orange-300 transition-colors font-medium flex items-center justify-center space-x-2"
                   >
-                    <RefreshCw className="h-4 w-4" />
-                    <span>Try Again</span>
+                    <RefreshCw className={`h-4 w-4 ${isInitializing ? 'animate-spin' : ''}`} />
+                    <span>{isInitializing ? 'Retrying...' : 'Try Again'}</span>
                   </button>
                 )}
               </div>
             </div>
-          ) : !cameraStarted ? (
+          ) : isInitializing || !cameraStarted ? (
             /* Loading State */
             <div className="text-center space-y-4">
               <div className="animate-pulse">
                 <Camera className="h-12 w-12 text-orange-500 mx-auto mb-3" />
               </div>
-              <p className="text-gray-600 font-medium">Starting camera...</p>
+              <p className="text-gray-600 font-medium">
+                {isInitializing ? 'Initializing camera...' : 'Starting camera...'}
+              </p>
               <p className="text-xs text-gray-500">
                 Please allow camera access when prompted
               </p>
@@ -300,6 +378,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
                   className="w-full h-full object-cover"
                   playsInline
                   muted
+                  autoPlay
                 />
                 
                 {/* Scanning overlay will be added by qr-scanner library */}
@@ -307,8 +386,8 @@ export const QRScanner: React.FC<QRScannerProps> = ({
                 {/* Status indicator */}
                 <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
                   <div className="bg-black bg-opacity-50 text-white px-3 py-2 rounded-full text-sm flex items-center space-x-2">
-                    <div className={`w-2 h-2 rounded-full ${isScanning ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`}></div>
-                    <span>{isScanning ? 'Scanning for QR codes...' : 'Initializing...'}</span>
+                    <div className={`w-2 h-2 rounded-full ${isScanning ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></div>
+                    <span>{isScanning ? 'Scanning...' : 'Camera ready'}</span>
                   </div>
                 </div>
               </div>
