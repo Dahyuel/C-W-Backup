@@ -21,6 +21,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
   const [scanSuccess, setScanSuccess] = useState(false);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [isScanning, setIsScanning] = useState(false);
+  const [cameraReady, setCameraReady] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -33,6 +34,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
     setScanSuccess(false);
     setHasPermission(null);
     setIsScanning(false);
+    setCameraReady(false);
   }, []);
 
   // Stop scanner and cleanup
@@ -52,6 +54,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
     }
     
     setIsScanning(false);
+    setCameraReady(false);
   }, []);
 
   // Handle successful scan
@@ -139,9 +142,15 @@ export const QRScanner: React.FC<QRScannerProps> = ({
       // Wait for video to be ready
       videoRef.current.onloadedmetadata = () => {
         videoRef.current?.play().then(() => {
-          setIsScanning(true);
-          // Start scanning loop
-          animationFrameRef.current = requestAnimationFrame(scanQRCode);
+          setCameraReady(true);
+          
+          // Add a small delay before starting scanning to ensure camera is stable
+          setTimeout(() => {
+            setIsScanning(true);
+            // Start scanning loop
+            animationFrameRef.current = requestAnimationFrame(scanQRCode);
+          }, 1000); // 1 second delay for camera to stabilize
+          
         }).catch(err => {
           setError('Failed to start video: ' + err.message);
         });
@@ -174,8 +183,11 @@ export const QRScanner: React.FC<QRScannerProps> = ({
             videoRef.current.srcObject = stream;
             videoRef.current.onloadedmetadata = () => {
               videoRef.current?.play().then(() => {
-                setIsScanning(true);
-                animationFrameRef.current = requestAnimationFrame(scanQRCode);
+                setCameraReady(true);
+                setTimeout(() => {
+                  setIsScanning(true);
+                  animationFrameRef.current = requestAnimationFrame(scanQRCode);
+                }, 1000);
               });
             };
           }
@@ -250,6 +262,31 @@ export const QRScanner: React.FC<QRScannerProps> = ({
       stopScanner();
     };
   }, [stopScanner]);
+
+  // Get status message and indicator color
+  const getStatusInfo = () => {
+    if (!cameraReady) {
+      return {
+        message: 'Starting camera...',
+        color: 'bg-yellow-500',
+        animate: false
+      };
+    }
+    if (!isScanning) {
+      return {
+        message: 'Camera ready...',
+        color: 'bg-blue-500',
+        animate: false
+      };
+    }
+    return {
+      message: 'Scanning for QR codes...',
+      color: 'bg-green-500',
+      animate: true
+    };
+  };
+
+  const statusInfo = getStatusInfo();
 
   if (!isOpen) return null;
 
@@ -363,8 +400,8 @@ export const QRScanner: React.FC<QRScannerProps> = ({
                 {/* Status indicator */}
                 <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
                   <div className="bg-black bg-opacity-50 text-white px-3 py-2 rounded-full text-sm flex items-center space-x-2">
-                    <div className={`w-2 h-2 rounded-full ${isScanning ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></div>
-                    <span>{isScanning ? 'Scanning...' : 'Starting camera...'}</span>
+                    <div className={`w-2 h-2 rounded-full ${statusInfo.color} ${statusInfo.animate ? 'animate-pulse' : ''}`}></div>
+                    <span>{statusInfo.message}</span>
                   </div>
                 </div>
               </div>
