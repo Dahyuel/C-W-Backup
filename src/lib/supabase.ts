@@ -217,6 +217,8 @@ export const signUpUser = async (email: string, password: string, userData: any)
         ...userData,
         role: 'attendee',
         score: 0,
+        building_entry: false,
+        event_entry: false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -296,6 +298,8 @@ export const signUpVolunteer = async (email: string, password: string, userData:
         ...userData,
         role: userData.role || 'volunteer',
         score: 0,
+        building_entry: false,
+        event_entry: false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -455,7 +459,7 @@ export const processAttendance = async (personalId: string, action: 'enter' | 'e
   }
 };
 
-// Get attendee by personal ID (only attendees)
+// Get attendee by personal ID (only attendees) - UPDATED for boolean fields
 export const getAttendeeByPersonalId = async (personalId: string) => {
   try {
     const { data, error } = await supabase
@@ -470,6 +474,8 @@ export const getAttendeeByPersonalId = async (personalId: string) => {
         role,
         university,
         faculty,
+        building_entry,
+        event_entry,
         created_at
       `)
       .eq('personal_id', personalId.trim())
@@ -481,20 +487,11 @@ export const getAttendeeByPersonalId = async (personalId: string) => {
       return { data: null, error };
     }
 
-    // Get last attendance record to determine current status
-    const { data: lastAttendance } = await supabase
-      .from('attendances')
-      .select('scan_type, scanned_at')
-      .eq('user_id', data.id)
-      .order('scanned_at', { ascending: false })
-      .limit(1)
-      .single();
-
     return { 
       data: {
         ...data,
-        current_status: lastAttendance?.scan_type === 'entry' ? 'inside' : 'outside',
-        last_scan: lastAttendance?.scanned_at || null
+        current_status: data.event_entry ? 'inside_event' : 'outside_event',
+        building_status: data.building_entry ? 'inside_building' : 'outside_building'
       }, 
       error: null 
     };
@@ -504,7 +501,7 @@ export const getAttendeeByPersonalId = async (personalId: string) => {
   }
 };
 
-// Get attendee by UUID (for QR code scans) - only attendees
+// Get attendee by UUID (for QR code scans) - only attendees - UPDATED for boolean fields
 export const getAttendeeByUUID = async (uuid: string) => {
   try {
     const { data, error } = await supabase
@@ -519,6 +516,8 @@ export const getAttendeeByUUID = async (uuid: string) => {
         role,
         university,
         faculty,
+        building_entry,
+        event_entry,
         created_at
       `)
       .eq('id', uuid.trim())
@@ -530,20 +529,11 @@ export const getAttendeeByUUID = async (uuid: string) => {
       return { data: null, error };
     }
 
-    // Get last attendance record to determine current status
-    const { data: lastAttendance } = await supabase
-      .from('attendances')
-      .select('scan_type, scanned_at')
-      .eq('user_id', data.id)
-      .order('scanned_at', { ascending: false })
-      .limit(1)
-      .single();
-
     return { 
       data: {
         ...data,
-        current_status: lastAttendance?.scan_type === 'entry' ? 'inside' : 'outside',
-        last_scan: lastAttendance?.scanned_at || null
+        current_status: data.event_entry ? 'inside_event' : 'outside_event',
+        building_status: data.building_entry ? 'inside_building' : 'outside_building'
       }, 
       error: null 
     };
@@ -553,7 +543,7 @@ export const getAttendeeByUUID = async (uuid: string) => {
   }
 };
 
-// NEW: Dynamic search for attendees by partial Personal ID
+// Dynamic search for attendees by partial Personal ID - UPDATED for boolean fields
 export const searchAttendeesByPersonalId = async (partialPersonalId: string) => {
   try {
     if (!partialPersonalId || partialPersonalId.trim().length < 2) {
@@ -572,6 +562,8 @@ export const searchAttendeesByPersonalId = async (partialPersonalId: string) => 
         role,
         university,
         faculty,
+        building_entry,
+        event_entry,
         created_at
       `)
       .eq('role', 'attendee') // Only search attendees
@@ -584,24 +576,12 @@ export const searchAttendeesByPersonalId = async (partialPersonalId: string) => 
       return { data: [], error };
     }
 
-    // Get attendance status for each attendee
-    const attendeesWithStatus = await Promise.all(
-      data.map(async (attendee) => {
-        const { data: lastAttendance } = await supabase
-          .from('attendances')
-          .select('scan_type, scanned_at')
-          .eq('user_id', attendee.id)
-          .order('scanned_at', { ascending: false })
-          .limit(1)
-          .single();
-
-        return {
-          ...attendee,
-          current_status: lastAttendance?.scan_type === 'entry' ? 'inside' : 'outside',
-          last_scan: lastAttendance?.scanned_at || null
-        };
-      })
-    );
+    // Add status fields based on the boolean flags
+    const attendeesWithStatus = (data || []).map(attendee => ({
+      ...attendee,
+      current_status: attendee.event_entry ? 'inside_event' : 'outside_event',
+      building_status: attendee.building_entry ? 'inside_building' : 'outside_building'
+    }));
 
     return { data: attendeesWithStatus, error: null };
   } catch (error: any) {
@@ -610,7 +590,7 @@ export const searchAttendeesByPersonalId = async (partialPersonalId: string) => 
   }
 };
 
-// Get registration statistics
+// UPDATED: Get registration statistics using new boolean fields
 export const getRegistrationStats = async () => {
   try {
     // Total registered users
@@ -618,44 +598,32 @@ export const getRegistrationStats = async () => {
       .from('users_profiles')
       .select('*', { count: 'exact', head: true });
 
-    // Checked in today (entry scans today)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const { count: checkedInToday } = await supabase
-      .from('attendances')
-      .select('*', { count: 'exact', head: true })
-      .eq('scan_type', 'entry')
-      .gte('scanned_at', today.toISOString());
-
-    // Currently inside (users whose last scan was entry)
-    const { data: lastScans } = await supabase
-      .from('attendances')
-      .select('user_id, scan_type')
-      .order('scanned_at', { ascending: false });
-
-    // Group by user_id and get the last scan for each user
-    const userLastScans = new Map();
-    lastScans?.forEach(scan => {
-      if (!userLastScans.has(scan.user_id)) {
-        userLastScans.set(scan.user_id, scan.scan_type);
-      }
-    });
-
-    const insideEvent = Array.from(userLastScans.values())
-      .filter(scanType => scanType === 'entry').length;
-
     // Total attendees (only attendee role)
     const { count: totalAttendees } = await supabase
       .from('users_profiles')
       .select('*', { count: 'exact', head: true })
       .eq('role', 'attendee');
 
+    // Count users currently inside event (event_entry = true)
+    const { count: insideEvent } = await supabase
+      .from('users_profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('event_entry', true)
+      .eq('role', 'attendee');
+
+    // Count users currently inside building (building_entry = true)
+    const { count: insideBuilding } = await supabase
+      .from('users_profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('building_entry', true)
+      .eq('role', 'attendee');
+
     return {
       data: {
         total_registered: totalRegistered || 0,
-        checked_in_today: checkedInToday || 0,
+        total_attendees: totalAttendees || 0,
         inside_event: insideEvent || 0,
-        total_attendees: totalAttendees || 0
+        inside_building: insideBuilding || 0
       },
       error: null
     };
@@ -704,7 +672,7 @@ export const processBuildingAttendance = async (personalId: string, action: 'bui
   }
 };
 
-// Get all sessions from the database (Updated with new columns)
+// Get all sessions from the database
 export const getAllSessions = async () => {
   try {
     const { data, error } = await supabase
@@ -738,7 +706,7 @@ export const getAllSessions = async () => {
   }
 };
 
-// Get session by ID (Updated with new columns)
+// Get session by ID
 export const getSessionById = async (sessionId: string) => {
   try {
     const { data, error } = await supabase
@@ -776,7 +744,6 @@ export const getSessionById = async (sessionId: string) => {
 export const getScheduleByDay = async (day: number) => {
   try {
     // Calculate the date for the specific day
-    // Assuming the event starts on a specific date - adjust as needed
     const eventStartDate = new Date('2024-03-18'); // Adjust this start date
     const targetDate = new Date(eventStartDate);
     targetDate.setDate(eventStartDate.getDate() + (day - 1));
@@ -844,7 +811,6 @@ export const getAllScheduleItems = async () => {
   }
 };
 
-
 // Get schedule item by ID
 export const getScheduleItemById = async (itemId: string) => {
   try {
@@ -874,6 +840,7 @@ export const getScheduleItemById = async (itemId: string) => {
     return { data: null, error: { message: error.message } };
   }
 };
+
 // Get all companies from the database
 export const getAllCompanies = async () => {
   try {
@@ -1047,7 +1014,6 @@ export const cancelSessionBookingDirect = async (userId: string, sessionId: stri
   }
 };
 
-
 export const addSession = async (sessionData) => {
   try {
     const { data, error } = await supabase
@@ -1169,55 +1135,31 @@ export const sendAnnouncement = async (announcementData) => {
   }
 };
 
-
+// UPDATED: Simplified dynamic building stats using new boolean fields
 export async function getDynamicBuildingStats() {
   try {
-    // Get current date in UTC and set to start of day
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
-    
-    // Fix the query parameters - the issue is likely with parameter names
-    const { data: sessionEntries, error: sessionError } = await supabase
-      .from("attendances")
-      .select("user_id")
-      .eq("scan_type", "session_entry")
-      .gte("scanned_at", today.toISOString());
-
-    if (sessionError) {
-      console.error("Error fetching session entries:", sessionError);
-      return { data: null, error: sessionError };
-    }
-
-    const { data: buildingEntries, error: buildingError } = await supabase
-      .from("attendances")
-      .select("user_id")
-      .eq("scan_type", "building_entry")
-      .gte("scanned_at", today.toISOString());
-
-    if (buildingError) {
-      console.error("Error fetching building entries:", buildingError);
-      return { data: null, error: buildingError };
-    }
-
-    // Get total attendees count
-    const { count: totalAttendees, error: countError } = await supabase
+    // Get counts directly from users_profiles using the boolean fields
+    const { count: totalAttendees } = await supabase
       .from("users_profiles")
       .select("*", { count: "exact", head: true })
       .eq("role", "attendee");
 
-    if (countError) {
-      console.error("Error fetching total attendees:", countError);
-      return { data: null, error: countError };
-    }
+    const { count: insideBuilding } = await supabase
+      .from("users_profiles")
+      .select("*", { count: "exact", head: true })
+      .eq("building_entry", true)
+      .eq("role", "attendee");
 
-    // Use Sets to get unique user counts
-    const uniqueSessionUsers = new Set(sessionEntries?.map(entry => entry.user_id) || []);
-    const uniqueBuildingUsers = new Set(buildingEntries?.map(entry => entry.user_id) || []);
+    const { count: insideEvent } = await supabase
+      .from("users_profiles")
+      .select("*", { count: "exact", head: true })
+      .eq("event_entry", true)
+      .eq("role", "attendee");
 
     return {
       data: {
-        inside_building: uniqueBuildingUsers.size,
-        inside_event: uniqueSessionUsers.size,
+        inside_building: insideBuilding || 0,
+        inside_event: insideEvent || 0,
         total_attendees: totalAttendees || 0
       },
       error: null
@@ -1229,8 +1171,7 @@ export async function getDynamicBuildingStats() {
   }
 }
 
-
-// Upload Map Image (if you want to implement this)
+// Upload Map Image
 export const uploadMapImage = async (dayNumber, imageFile, userId) => {
   try {
     const fileName = `day-${dayNumber}-map.${imageFile.name.split('.').pop()}`;
@@ -1383,7 +1324,7 @@ export const getLeaderboardData = async (userRole: string, leaderboardType?: 'at
   }
 };
 
-// Get building attendance statistics
+// UPDATED: Get building attendance statistics using new boolean fields
 export const getBuildingStats = async () => {
   try {
     // Total attendees
@@ -1392,46 +1333,43 @@ export const getBuildingStats = async () => {
       .select('*', { count: 'exact', head: true })
       .eq('role', 'attendee');
 
-    // Get current building status (users whose last building scan was entry)
-    const { data: lastBuildingScans } = await supabase
-      .from('attendances')
-      .select('user_id, scan_type, scanned_at')
-      .in('scan_type', ['building_entry', 'building_exit'])
-      .order('scanned_at', { ascending: false });
+    // Count users currently inside building (building_entry = true)
+    const { count: insideBuilding } = await supabase
+      .from('users_profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('building_entry', true)
+      .eq('role', 'attendee');
 
-    // Group by user_id and get the last building scan for each user
-    const userLastBuildingScans = new Map();
-    lastBuildingScans?.forEach(scan => {
-      if (!userLastBuildingScans.has(scan.user_id)) {
-        userLastBuildingScans.set(scan.user_id, scan.scan_type);
-      }
-    });
+    // Count users currently inside event (event_entry = true)
+    const { count: insideEvent } = await supabase
+      .from('users_profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('event_entry', true)
+      .eq('role', 'attendee');
 
-    const insideBuilding = Array.from(userLastBuildingScans.values())
-      .filter(scanType => scanType === 'building_entry').length;
-
-    // Today's building entries
+    // Today's building entries (count building_entry scans today)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const { count: todayEntries } = await supabase
+    const { count: todayBuildingEntries } = await supabase
       .from('attendances')
       .select('*', { count: 'exact', head: true })
       .eq('scan_type', 'building_entry')
       .gte('scanned_at', today.toISOString());
 
-    // Total session attendances today
-    const { count: sessionAttendances } = await supabase
+    // Today's event entries (count entry scans today)
+    const { count: todayEventEntries } = await supabase
       .from('attendances')
       .select('*', { count: 'exact', head: true })
-      .eq('scan_type', 'session_entry')
+      .eq('scan_type', 'entry')
       .gte('scanned_at', today.toISOString());
 
     return {
       data: {
         total_attendees: totalAttendees || 0,
         inside_building: insideBuilding || 0,
-        today_entries: todayEntries || 0,
-        session_attendances: sessionAttendances || 0
+        inside_event: insideEvent || 0,
+        today_building_entries: todayBuildingEntries || 0,
+        today_event_entries: todayEventEntries || 0
       },
       error: null
     };
@@ -1440,3 +1378,117 @@ export const getBuildingStats = async () => {
     return { data: null, error: { message: error.message } };
   }
 };
+
+// NEW: Function to get user's current status by ID
+export const getUserCurrentStatus = async (userId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('users_profiles')
+      .select('building_entry, event_entry')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('Get user status error:', error);
+      return { data: null, error };
+    }
+
+    return {
+      data: {
+        building_status: data.building_entry ? 'inside_building' : 'outside_building',
+        event_status: data.event_entry ? 'inside_event' : 'outside_event'
+      },
+      error: null
+    };
+  } catch (error: any) {
+    console.error('Get user status exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
+// NEW: Function to get all users with their current status
+export const getAllUsersWithStatus = async (roleFilter?: string) => {
+  try {
+    let query = supabase
+      .from('users_profiles')
+      .select(`
+        id,
+        first_name,
+        last_name,
+        email,
+        personal_id,
+        role,
+        building_entry,
+        event_entry,
+        created_at
+      `)
+      .order('created_at', { ascending: false });
+
+    if (roleFilter && roleFilter !== 'all') {
+      query = query.eq('role', roleFilter);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Get all users with status error:', error);
+      return { data: [], error };
+    }
+
+    // Add status fields based on the boolean flags
+    const usersWithStatus = (data || []).map(user => ({
+      ...user,
+      building_status: user.building_entry ? 'inside_building' : 'outside_building',
+      event_status: user.event_entry ? 'inside_event' : 'outside_event'
+    }));
+
+    return { data: usersWithStatus, error: null };
+  } catch (error: any) {
+    console.error('Get all users with status exception:', error);
+    return { data: [], error: { message: error.message } };
+  }
+};
+
+// NEW: Function to get real-time status updates
+export const subscribeToStatusChanges = (callback: (payload: any) => void) => {
+  const subscription = supabase
+    .channel('users_profiles_changes')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'users_profiles'
+      },
+      callback
+    )
+    .subscribe();
+
+  return subscription;
+};
+
+// NEW: Function to manually update user status (for testing/emergency)
+export const updateUserStatus = async (userId: string, updates: { building_entry?: boolean, event_entry?: boolean }) => {
+  try {
+    const { data, error } = await supabase
+      .from('users_profiles')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId)
+      .select();
+
+    if (error) {
+      console.error('Update user status error:', error);
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  } catch (error: any) {
+    console.error('Update user status exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
+export default supabase;
