@@ -1248,9 +1248,9 @@ const clearUserSelection = () => {
             <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
               {session.session_type}
             </span>
-            <span className="text-xs text-gray-500">
-              {session.current_bookings || 0}/{session.max_attendees || 'Unlimited'}
-            </span>
+<span className="text-xs text-gray-500">
+  {session.current_bookings || 0}/{session.capacity || 'Unlimited'}
+</span>
           </div>
           
           {/* Action Buttons with Delete */}
