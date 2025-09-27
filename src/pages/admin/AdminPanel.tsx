@@ -28,6 +28,11 @@ export function AdminPanel() {
     inside_event: 0,
     total_attendees: 0
   });
+
+  const [editSessionModal, setEditSessionModal] = useState(false);
+const [editEventModal, setEditEventModal] = useState(false);
+const [selectedSessionEdit, setSelectedSessionEdit] = useState(null);
+const [selectedEventEdit, setSelectedEventEdit] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [events, setEvents] = useState([]);
   const [companies, setCompanies] = useState([]);
