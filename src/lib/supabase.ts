@@ -89,46 +89,28 @@ export const checkEmailUnique = async (email: string): Promise<ValidationResult>
 
 export const checkVolunteerIdExists = async (volunteerId: string): Promise<ValidationResult> => {
   if (!volunteerId || !volunteerId.trim()) {
-    return { isValid: true, error: null }; // Empty volunteer ID is valid (optional)
-  }
-  
-  try {
-    const { data, error } = await supabase
-      .from('users_profiles')
-      .select('id, volunteer_id, role')
-      .eq('volunteer_id', volunteerId.trim())
-      .single();
-    
-    if (error) {
-      console.error('Volunteer lookup error:', error);
-      return { 
-        isValid: false, 
-        error: 'Volunteer ID not found. Please check the ID and try again.' 
-      };
-    }
-    
-    if (!data) {
-      return { 
-        isValid: false, 
-        error: 'Volunteer ID not found. Please check the ID and try again.' 
-      };
-    }
-    
-    // Verify the found user is actually a volunteer (not attendee)
-    if (data.role === 'attendee') {
-      return { 
-        isValid: false, 
-        error: 'The provided ID belongs to an attendee, not a volunteer.' 
-      };
-    }
-    
     return { isValid: true, error: null };
+  }
+
+  try {
+    const { data, error } = await supabase.rpc('validate_volunteer_id', {
+      p_volunteer_id: volunteerId.trim()
+    });
+
+    if (error) {
+      console.error('Volunteer ID check error:', error);
+      return { isValid: false, error: 'Failed to validate Volunteer ID' };
+    }
+
+    return {
+      isValid: data.is_valid,
+      error: data.error
+    };
   } catch (error: any) {
-    console.error('Volunteer ID validation error:', error);
+    console.error('Volunteer ID check exception:', error);
     return { isValid: false, error: 'Failed to validate Volunteer ID' };
   }
 };
-
 // Enhanced registration validation
 export const validateRegistrationData = async (
   email: string,
