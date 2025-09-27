@@ -196,6 +196,8 @@ export const RegTeamDashboard: React.FC = () => {
     setSearchResults([]);
   };
 
+  const qrScannerRef = useRef<{ stopCamera: () => void } | null>(null);
+  
   const handleQRScan = async (qrData: string) => {
     try {
       console.log('Processing QR data:', qrData);
