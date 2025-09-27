@@ -1,4 +1,4 @@
-// lib/supabase.ts - Enhanced with UUID search support and dynamic attendee search
+// lib/supabase.ts - Enhanced with UUID search support, dynamic attendee search, and session booking
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = 'https://ypiwfedtvgmazqcwolac.supabase.co';
@@ -664,6 +664,7 @@ export const getRegistrationStats = async () => {
     return { data: null, error: { message: error.message } };
   }
 };
+
 export const processBuildingAttendance = async (personalId: string, action: 'building_entry' | 'building_exit' | 'session_entry', sessionId?: string) => {
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -703,6 +704,7 @@ export const processBuildingAttendance = async (personalId: string, action: 'bui
   }
 };
 
+// Get all sessions from the database (Updated with new columns)
 export const getAllSessions = async () => {
   try {
     const { data, error } = await supabase
@@ -736,7 +738,7 @@ export const getAllSessions = async () => {
   }
 };
 
-// Updated getSessionById to include new columns
+// Get session by ID (Updated with new columns)
 export const getSessionById = async (sessionId: string) => {
   try {
     const { data, error } = await supabase
@@ -771,8 +773,178 @@ export const getSessionById = async (sessionId: string) => {
   }
 };
 
+// Get all companies from the database
+export const getAllCompanies = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('companies')
+      .select(`
+        id,
+        name,
+        logo_url,
+        description,
+        website,
+        booth_number,
+        created_at
+      `)
+      .order('name', { ascending: true });
 
+    if (error) {
+      console.error('Get companies error:', error);
+      return { data: [], error };
+    }
 
+    return { data: data || [], error: null };
+  } catch (error: any) {
+    console.error('Get companies exception:', error);
+    return { data: [], error: { message: error.message } };
+  }
+};
+
+// Get company by ID
+export const getCompanyById = async (companyId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('companies')
+      .select(`
+        id,
+        name,
+        logo_url,
+        description,
+        website,
+        booth_number,
+        created_at
+      `)
+      .eq('id', companyId)
+      .single();
+
+    if (error) {
+      console.error('Get company by ID error:', error);
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  } catch (error: any) {
+    console.error('Get company by ID exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
+// Get user's session bookings
+export const getUserBookings = async (userId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('attendances')
+      .select(`
+        session_id,
+        scanned_at,
+        sessions (
+          id,
+          title,
+          description,
+          speaker,
+          start_time,
+          end_time,
+          location
+        )
+      `)
+      .eq('user_id', userId)
+      .eq('scan_type', 'booking')
+      .order('scanned_at', { ascending: false });
+
+    if (error) {
+      console.error('Get user bookings error:', error);
+      return { data: [], error };
+    }
+
+    return { data: data || [], error: null };
+  } catch (error: any) {
+    console.error('Get user bookings exception:', error);
+    return { data: [], error: { message: error.message } };
+  }
+};
+
+// Book a session (alternative direct approach if RPC doesn't work)
+export const bookSessionDirect = async (userId: string, sessionId: string, scannedBy?: string) => {
+  try {
+    // First check if already booked
+    const { data: existingBooking, error: checkError } = await supabase
+      .from('attendances')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('session_id', sessionId)
+      .eq('scan_type', 'booking')
+      .single();
+
+    if (existingBooking) {
+      return { data: null, error: { message: 'Session already booked' } };
+    }
+
+    // Check session capacity
+    const { data: session, error: sessionError } = await supabase
+      .from('sessions')
+      .select('max_attendees, current_bookings')
+      .eq('id', sessionId)
+      .single();
+
+    if (sessionError) {
+      return { data: null, error: { message: 'Session not found' } };
+    }
+
+    if (session.max_attendees && session.current_bookings >= session.max_attendees) {
+      return { data: null, error: { message: 'Session is full' } };
+    }
+
+    // Create booking
+    const { data, error } = await supabase
+      .from('attendances')
+      .insert({
+        user_id: userId,
+        session_id: sessionId,
+        scan_type: 'booking',
+        scanned_by: scannedBy || userId
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Book session error:', error);
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  } catch (error: any) {
+    console.error('Book session exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
+// Cancel a session booking (alternative direct approach if RPC doesn't work)
+export const cancelSessionBookingDirect = async (userId: string, sessionId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('attendances')
+      .delete()
+      .eq('user_id', userId)
+      .eq('session_id', sessionId)
+      .eq('scan_type', 'booking')
+      .select();
+
+    if (error) {
+      console.error('Cancel booking error:', error);
+      return { data: null, error };
+    }
+
+    if (!data || data.length === 0) {
+      return { data: null, error: { message: 'Booking not found' } };
+    }
+
+    return { data, error: null };
+  } catch (error: any) {
+    console.error('Cancel booking exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
 
 // Get building attendance statistics
 export const getBuildingStats = async () => {
