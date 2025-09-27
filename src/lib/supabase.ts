@@ -664,3 +664,164 @@ export const getRegistrationStats = async () => {
     return { data: null, error: { message: error.message } };
   }
 };
+export const processBuildingAttendance = async (personalId: string, action: 'building_entry' | 'building_exit' | 'session_entry', sessionId?: string) => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session?.access_token) {
+      throw new Error('No authentication token found');
+    }
+
+    const requestBody: any = {
+      personal_id: personalId,
+      action: action
+    };
+
+    if (action === 'session_entry' && sessionId) {
+      requestBody.session_id = sessionId;
+    }
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/process-building-attendance`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to process attendance');
+    }
+
+    return { data, error: null };
+  } catch (error: any) {
+    console.error('Process building attendance error:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
+// Get all sessions from the database
+export const getAllSessions = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('sessions')
+      .select(`
+        id,
+        title,
+        description,
+        speaker,
+        start_time,
+        end_time,
+        location,
+        capacity,
+        current_attendees,
+        session_type,
+        created_at
+      `)
+      .order('start_time', { ascending: true });
+
+    if (error) {
+      console.error('Get sessions error:', error);
+      return { data: [], error };
+    }
+
+    return { data: data || [], error: null };
+  } catch (error: any) {
+    console.error('Get sessions exception:', error);
+    return { data: [], error: { message: error.message } };
+  }
+};
+
+// Get session by ID
+export const getSessionById = async (sessionId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('sessions')
+      .select(`
+        id,
+        title,
+        description,
+        speaker,
+        start_time,
+        end_time,
+        location,
+        capacity,
+        current_attendees,
+        session_type,
+        created_at
+      `)
+      .eq('id', sessionId)
+      .single();
+
+    if (error) {
+      console.error('Get session by ID error:', error);
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  } catch (error: any) {
+    console.error('Get session by ID exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
+// Get building attendance statistics
+export const getBuildingStats = async () => {
+  try {
+    // Total attendees
+    const { count: totalAttendees } = await supabase
+      .from('users_profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'attendee');
+
+    // Get current building status (users whose last building scan was entry)
+    const { data: lastBuildingScans } = await supabase
+      .from('attendances')
+      .select('user_id, scan_type, scanned_at')
+      .in('scan_type', ['building_entry', 'building_exit'])
+      .order('scanned_at', { ascending: false });
+
+    // Group by user_id and get the last building scan for each user
+    const userLastBuildingScans = new Map();
+    lastBuildingScans?.forEach(scan => {
+      if (!userLastBuildingScans.has(scan.user_id)) {
+        userLastBuildingScans.set(scan.user_id, scan.scan_type);
+      }
+    });
+
+    const insideBuilding = Array.from(userLastBuildingScans.values())
+      .filter(scanType => scanType === 'building_entry').length;
+
+    // Today's building entries
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const { count: todayEntries } = await supabase
+      .from('attendances')
+      .select('*', { count: 'exact', head: true })
+      .eq('scan_type', 'building_entry')
+      .gte('scanned_at', today.toISOString());
+
+    // Total session attendances today
+    const { count: sessionAttendances } = await supabase
+      .from('attendances')
+      .select('*', { count: 'exact', head: true })
+      .eq('scan_type', 'session_entry')
+      .gte('scanned_at', today.toISOString());
+
+    return {
+      data: {
+        total_attendees: totalAttendees || 0,
+        inside_building: insideBuilding || 0,
+        today_entries: todayEntries || 0,
+        session_attendances: sessionAttendances || 0
+      },
+      error: null
+    };
+  } catch (error: any) {
+    console.error('Get building stats error:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
