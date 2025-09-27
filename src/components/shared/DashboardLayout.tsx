@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import QRCode from 'qrcode';
-import Leaderboard from '../Leaderboard';
+import Leaderboard from 'Leaderboard';
 
 interface DashboardLayoutProps {
   children: ReactNode;
