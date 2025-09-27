@@ -171,7 +171,7 @@ export const InfoDeskDashboard: React.FC = () => {
         .select('id, scanned_at')
         .eq('user_id', userId)
         .eq('session_id', sessionId)
-        .eq('scan_type', 'session_entry')
+        .eq('scan_type', 'booking')
         .single();
 
       if (error && error.code !== 'PGRST116') { // PGRST116 is "not found" error
