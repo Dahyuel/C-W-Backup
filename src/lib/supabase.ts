@@ -1548,6 +1548,9 @@ export const deleteCompany = async (companyId) => {
   }
 };
 
+
+
+
 export const getFileInfo = async (bucket: string, filePath: string) => {
   try {
     const { data, error } = await supabase.storage
