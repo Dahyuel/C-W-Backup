@@ -776,10 +776,10 @@ export const getSessionById = async (sessionId: string) => {
 export const getScheduleByDay = async (day: number) => {
   try {
     // Calculate the date for the specific day
-    // Assuming the event starts on March 18, 2024 (adjust dates as needed)
-    const startDate = new Date('2024-03-18');
-    const targetDate = new Date(startDate);
-    targetDate.setDate(startDate.getDate() + (day - 1));
+    // Assuming the event starts on a specific date - adjust as needed
+    const eventStartDate = new Date('2024-03-18'); // Adjust this start date
+    const targetDate = new Date(eventStartDate);
+    targetDate.setDate(eventStartDate.getDate() + (day - 1));
     
     const startOfDay = new Date(targetDate);
     startOfDay.setHours(0, 0, 0, 0);
@@ -843,6 +843,7 @@ export const getAllScheduleItems = async () => {
     return { data: [], error: { message: error.message } };
   }
 };
+
 
 // Get schedule item by ID
 export const getScheduleItemById = async (itemId: string) => {
