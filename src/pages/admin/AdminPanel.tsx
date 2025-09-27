@@ -1,230 +1,144 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Shield, 
-  Users, 
-  BarChart3, 
-  Settings, 
-  Database, 
-  FileText, 
-  AlertTriangle,
+
+
+"use client";
+
+import { useState } from "react";
+import {
+  Users,
   Activity,
+  Building,
   Calendar,
-  Building
-} from 'lucide-react';
-import DashboardLayout from '../../components/shared/DashboardLayout';
-import { useAuth } from '../../contexts/AuthContext';
-import { supabase } from '../../lib/supabase';
+  Megaphone,
+  XCircle,
+  CheckCircle2,
+ Sparkles,
+} from "lucide-react";
+import DashboardLayout from "../../components/shared/DashboardLayout";
 
-interface AdminStats {
-  total_users: number;
-  total_attendees: number;
-  total_volunteers: number;
-  total_sessions: number;
-  total_scans_today: number;
-  system_health: number;
-}
+const fakeStats = {
+  total_users: 120,
+  total_sessions: 35,
+};
 
-interface SystemLog {
-  id: string;
-  action: string;
-  user_name: string;
-  timestamp: string;
-  details: string;
-  severity: 'info' | 'warning' | 'error';
-}
+export  function AdminPanel() {
+  const [stats] = useState(fakeStats);
 
-interface UserManagement {
-  id: string;
-  first_name: string;
-  last_name: string;
-  email: string;
-  role: string;
-  created_at: string;
-  last_active: string;
-  status: 'active' | 'inactive' | 'suspended';
-}
+  // Modals
+  const [companyModal, setCompanyModal] = useState(false);
+  const [sessionModal, setSessionModal] = useState(false);
+ 
+    //announcment
+   const [announcementModal, setAnnouncementModal] = useState(false);
+    const [announcementTitle, setAnnouncementTitle] = useState("");
+    const [announcementDescription, setAnnouncementDescription] = useState("");
+    const [announcementRole, setAnnouncementRole] = useState("");
+  
+  
 
-export const AdminPanel: React.FC = () => {
-  const { profile } = useAuth();
-  const [stats, setStats] = useState<AdminStats | null>(null);
-  const [systemLogs, setSystemLogs] = useState<SystemLog[]>([]);
-  const [users, setUsers] = useState<UserManagement[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'system' | 'reports' | 'settings'>('overview');
+  // Notification
+  const [announcement, setAnnouncement] = useState<{
+    message: string;
+    type: "success" | "error" | null;
+  }>({ message: "", type: null });
 
-  useEffect(() => {
-    fetchAdminData();
-  }, []);
+  const showNotification = (message: string, type: "success" | "error") => {
+    setAnnouncement({ message, type });
+    setTimeout(() => {
+      setAnnouncement({ message: "", type: null });
+    }, 4000);
+  };
 
-  const fetchAdminData = async () => {
+  // Add Company state
+  const [newCompany, setNewCompany] = useState({
+    name: "",
+    logo: null as File | null,
+    description: "",
+    website: "",
+    boothNumber: "",
+  });
+
+  const handleCompanySubmit = async () => {
+    if (!newCompany.name || !newCompany.website || !newCompany.boothNumber) {
+      showNotification(" Please fill all required fields!", "error");
+      return;
+    }
+
     try {
-      // Fetch admin stats
-      const { data: statsData } = await supabase
-        .rpc('get_admin_stats');
-
-      if (statsData) {
-        setStats(statsData);
-      }
-
-      // Fetch system logs
-      const { data: logsData } = await supabase
-        .from('system_logs')
-        .select(`
-          id,
-          action,
-          details,
-          timestamp,
-          severity,
-          users_profiles!system_logs_user_id_fkey (
-            first_name,
-            last_name
-          )
-        `)
-        .order('timestamp', { ascending: false })
-        .limit(50);
-
-      if (logsData) {
-        const formattedLogs = logsData.map(log => ({
-          ...log,
-          user_name: `${log.users_profiles?.first_name} ${log.users_profiles?.last_name}`
-        }));
-        setSystemLogs(formattedLogs);
-      }
-
-      // Fetch users for management
-      const { data: usersData } = await supabase
-        .from('users_profiles')
-        .select(`
-          id,
-          first_name,
-          last_name,
-          email,
-          role,
-          created_at,
-          last_active
-        `)
-        .order('created_at', { ascending: false });
-
-      if (usersData) {
-        const usersWithStatus = usersData.map(user => ({
-          ...user,
-          status: getUserStatus(user.last_active)
-        }));
-        setUsers(usersWithStatus);
-      }
-
-    } catch (error) {
-      console.error('Error fetching admin data:', error);
-    } finally {
-      setLoading(false);
+      // Simulate success
+      setCompanyModal(false);
+      setNewCompany({
+        name: "",
+        logo: null,
+        description: "",
+        website: "",
+        boothNumber: "",
+      });
+      showNotification(" Company added successfully!", "success");
+    } catch (err) {
+      showNotification("Failed to add company", "error");
     }
   };
 
-  const getUserStatus = (lastActive: string): 'active' | 'inactive' | 'suspended' => {
-    if (!lastActive) return 'inactive';
-    const now = new Date();
-    const lastActiveDate = new Date(lastActive);
-    const diffDays = (now.getTime() - lastActiveDate.getTime()) / (1000 * 60 * 60 * 24);
-    
-    return diffDays < 7 ? 'active' : 'inactive';
-  };
+  // Add Session state
+  const [newSession, setNewSession] = useState({
+    title: "",
+  date: "",
+  speaker: "",
+  capacity: "",
+  type: "",
+  hour: "",
+  location: "",
+  });
 
-  const updateUserRole = async (userId: string, newRole: string) => {
+  const handleSessionSubmit = async () => {
+    if (!newSession.title || !newSession.date || !newSession.speaker) {
+      showNotification(" Please fill all required fields!", "error");
+      return;
+    }
+
     try {
-      const { error } = await supabase
-        .from('users_profiles')
-        .update({ role: newRole })
-        .eq('id', userId);
-
-      if (error) {
-        alert(`Error updating role: ${error.message}`);
-      } else {
-        alert('User role updated successfully!');
-        fetchAdminData();
-      }
-    } catch (error) {
-      alert('Failed to update user role');
+      // Simulate success
+      setSessionModal(false);
+      setNewSession({ title: "", date: "", speaker: "", capacity:"", type: "", hour: "", location:"" });
+      showNotification(" Session added successfully!", "success");
+    } catch (err) {
+      showNotification(" Failed to add session", "error");
     }
   };
-
-  const suspendUser = async (userId: string) => {
-    if (confirm('Are you sure you want to suspend this user?')) {
-      try {
-        const { error } = await supabase
-          .from('users_profiles')
-          .update({ status: 'suspended' })
-          .eq('id', userId);
-
-        if (error) {
-          alert(`Error suspending user: ${error.message}`);
-        } else {
-          alert('User suspended successfully!');
-          fetchAdminData();
-        }
-      } catch (error) {
-        alert('Failed to suspend user');
-      }
-    }
-  };
-
-  const exportSystemData = async () => {
-    try {
-      // This would typically generate a comprehensive system report
-      alert('System data export initiated. You will receive an email when ready.');
-    } catch (error) {
-      alert('Failed to export system data');
-    }
-  };
-
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'error':
-        return 'bg-red-100 text-red-800';
-      case 'warning':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'info':
-        return 'bg-blue-100 text-blue-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'inactive':
-        return 'bg-gray-100 text-gray-800';
-      case 'suspended':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  if (loading) {
-    return (
-      <DashboardLayout title="Admin Panel" subtitle="System administration and management">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
-        </div>
-      </DashboardLayout>
-    );
-  }
 
   return (
-    <DashboardLayout 
-      title="Admin Panel" 
+    <DashboardLayout
+      title="Admin Panel"
       subtitle="System administration, user management, and analytics"
     >
       <div className="space-y-8">
+        {/* Notification */}
+        {/* Notification */}
+{announcement.type && (
+  <div
+    className={`fixed top-4 right-4 z-[9999] flex items-center gap-2 p-4 rounded-lg shadow-lg text-white ${
+      announcement.type === "success" ? "bg-green-600" : "bg-red-600"
+    }`}
+  >
+    {announcement.type === "success" ? (
+      <CheckCircle2 className="h-5 w-5" />
+    ) : (
+      <XCircle className="h-5 w-5" />
+    )}
+    <span>{announcement.message}</span>
+  </div>
+)}
+
+
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Total Users</p>
-                <p className="text-3xl font-bold text-orange-600">{stats?.total_users || 0}</p>
+                <p className="text-3xl font-bold text-orange-600">
+                  {stats?.total_users || 0}
+                </p>
               </div>
               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                 <Users className="h-6 w-6 text-orange-600" />
@@ -235,378 +149,379 @@ export const AdminPanel: React.FC = () => {
           <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Active Sessions</p>
-                <p className="text-3xl font-bold text-blue-600">{stats?.total_sessions || 0}</p>
+                <p className="text-sm font-medium text-gray-600">
+                  Active Sessions
+                </p>
+                <p className="text-3xl font-bold text-blue-600">
+                  {stats?.total_sessions || 0}
+                </p>
               </div>
               <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                 <Activity className="h-6 w-6 text-blue-600" />
               </div>
             </div>
           </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Scans Today</p>
-                <p className="text-3xl font-bold text-green-600">{stats?.total_scans_today || 0}</p>
-              </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <BarChart3 className="h-6 w-6 text-green-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">System Health</p>
-                <p className="text-3xl font-bold text-purple-600">{stats?.system_health || 0}%</p>
-              </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Shield className="h-6 w-6 text-purple-600" />
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 text-center">
+  <h1 className="text-3xl font-bold text-black-800 flex items-center justify-center gap-2 mb-6">
+    <Sparkles className="h-7 w-7 text-orange-500" />
+    Quick Actions
+  </h1>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <button
-              onClick={exportSystemData}
-              className="flex items-center justify-center p-4 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+              onClick={() => setCompanyModal(true)}
+              className="flex flex-col items-center justify-center py-6 px-4 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors"
             >
-              <FileText className="h-5 w-5 mr-2" />
-              Export Data
+              <Building className="h-8 w-8 mb-2" />
+              <span className="text-base font-medium">Add Company</span>
             </button>
-            <button className="flex items-center justify-center p-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-              <Database className="h-5 w-5 mr-2" />
-              Database Backup
+
+            <button
+              onClick={() => setSessionModal(true)}
+              className="flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
+            >
+              <Calendar className="h-8 w-8 mb-2" />
+              <span className="text-base font-medium">Add Session</span>
             </button>
-            <button className="flex items-center justify-center p-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
-              <Calendar className="h-5 w-5 mr-2" />
-              Schedule Event
-            </button>
-            <button className="flex items-center justify-center p-4 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
-              <AlertTriangle className="h-5 w-5 mr-2" />
-              System Alert
+
+            <button
+              onClick={() => setAnnouncementModal(true)}
+              className="flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-700 transition-colors"
+            >
+              <Megaphone className="h-8 w-8 mb-2" />
+              <span className="text-base font-medium">Send Announcement</span>
             </button>
           </div>
         </div>
 
-        {/* Tab Navigation */}
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100">
-          <div className="border-b border-gray-200">
-            <nav className="flex space-x-8 px-6">
-              {[
-                { id: 'overview', label: 'Overview', icon: BarChart3 },
-                { id: 'users', label: 'User Management', icon: Users },
-                { id: 'system', label: 'System Logs', icon: Activity },
-                { id: 'reports', label: 'Reports', icon: FileText },
-                { id: 'settings', label: 'Settings', icon: Settings }
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm ${
-                    activeTab === tab.id
-                      ? 'border-orange-500 text-orange-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <tab.icon className="h-4 w-4 mr-2" />
-                  {tab.label}
-                </button>
-              ))}
-            </nav>
+        {/* Flow Dashboard Widget */}
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+            <h2 className="text-3xl font-bold text-black-800 flex items-center gap-2 mx-auto">
+              <Building className="h-7 w-7 text-orange-500" />
+              Flow Dashboard
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4 px-6 py-6 text-center">
+            <div className="bg-green-100 p-4 rounded-lg shadow-sm">
+              <p className="text-2xl font-bold text-green-900">12</p>
+              <p className="text-lg font-bold text-gray-700">Inside Building</p>
+            </div>
+            <div className="bg-teal-100 p-4 rounded-lg shadow-sm">
+              <p className="text-2xl font-bold text-teal-900">5</p>
+              <p className="text-lg font-bold text-gray-700">Inside Event</p>
+            </div>
+            <div className="bg-blue-100 p-4 rounded-lg shadow-sm">
+              <p className="text-2xl font-bold text-blue-900">3</p>
+              <p className="text-lg font-bold text-gray-700">
+                Total Attendees Today
+              </p>
+            </div>
           </div>
 
           <div className="p-6">
-            {activeTab === 'overview' && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* System Overview */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900">System Overview</h3>
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <span className="text-gray-700">Database Status</span>
-                      <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm">Healthy</span>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <span className="text-gray-700">API Response Time</span>
-                      <span className="text-gray-900 font-medium">120ms</span>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <span className="text-gray-700">Active Connections</span>
-                      <span className="text-gray-900 font-medium">1,247</span>
-                    </div>
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                      <span className="text-gray-700">Storage Used</span>
-                      <span className="text-gray-900 font-medium">2.4 GB / 10 GB</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Recent Activity */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Recent Activity</h3>
-                  <div className="space-y-3">
-                    {systemLogs.slice(0, 5).map((log) => (
-                      <div key={log.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
-                        <div className={`w-2 h-2 rounded-full mt-2 ${
-                          log.severity === 'error' ? 'bg-red-500' :
-                          log.severity === 'warning' ? 'bg-yellow-500' :
-                          'bg-blue-500'
-                        }`} />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-900">{log.action}</p>
-                          <p className="text-xs text-gray-600">{log.user_name}</p>
-                          <p className="text-xs text-gray-500">
-                            {new Date(log.timestamp).toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'users' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900">User Management</h3>
-                  <div className="flex space-x-2">
-                    <button className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors">
-                      Add User
-                    </button>
-                    <button className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition-colors">
-                      Bulk Actions
-                    </button>
-                  </div>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-3 px-4 font-semibold text-gray-900">User</th>
-                        <th className="text-left py-3 px-4 font-semibold text-gray-900">Role</th>
-                        <th className="text-left py-3 px-4 font-semibold text-gray-900">Status</th>
-                        <th className="text-left py-3 px-4 font-semibold text-gray-900">Last Active</th>
-                        <th className="text-left py-3 px-4 font-semibold text-gray-900">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users.slice(0, 20).map((user) => (
-                        <tr key={user.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="py-3 px-4">
-                            <div>
-                              <p className="font-medium text-gray-900">
-                                {user.first_name} {user.last_name}
-                              </p>
-                              <p className="text-sm text-gray-600">{user.email}</p>
-                            </div>
-                          </td>
-                          <td className="py-3 px-4">
-                            <select
-                              value={user.role}
-                              onChange={(e) => updateUserRole(user.id, e.target.value)}
-                              className="px-2 py-1 border border-gray-300 rounded text-sm"
-                            >
-                              <option value="attendee">Attendee</option>
-                              <option value="volunteer">Volunteer</option>
-                              <option value="registration">Registration</option>
-                              <option value="building">Building</option>
-                              <option value="team_leader">Team Leader</option>
-                              <option value="admin">Admin</option>
-                            </select>
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(user.status)}`}>
-                              {user.status}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4 text-gray-600">
-                            {user.last_active 
-                              ? new Date(user.last_active).toLocaleDateString()
-                              : 'Never'
-                            }
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex space-x-2">
-                              <button className="text-orange-600 hover:text-orange-700 text-sm font-medium">
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => suspendUser(user.id)}
-                                className="text-red-600 hover:text-red-700 text-sm font-medium"
-                              >
-                                Suspend
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'system' && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-900">System Logs</h3>
-                <div className="space-y-3">
-                  {systemLogs.map((log) => (
-                    <div key={log.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <h4 className="font-semibold text-gray-900">{log.action}</h4>
-                          <p className="text-sm text-gray-600 mt-1">{log.details}</p>
-                          <p className="text-sm text-gray-500 mt-2">
-                            By: {log.user_name} • {new Date(log.timestamp).toLocaleString()}
-                          </p>
-                        </div>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSeverityColor(log.severity)}`}>
-                          {log.severity}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'reports' && (
-              <div className="space-y-6">
-                <h3 className="text-lg font-semibold text-gray-900">System Reports</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="border border-gray-200 rounded-lg p-6">
-                    <h4 className="font-semibold text-gray-900 mb-4">User Analytics</h4>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Total Registrations</span>
-                        <span className="font-medium">{stats?.total_users || 0}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Active Users (7 days)</span>
-                        <span className="font-medium">{Math.round((stats?.total_users || 0) * 0.7)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Conversion Rate</span>
-                        <span className="font-medium">85%</span>
-                      </div>
-                    </div>
-                    <button className="w-full mt-4 bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors">
-                      Generate Full Report
-                    </button>
-                  </div>
-
-                  <div className="border border-gray-200 rounded-lg p-6">
-                    <h4 className="font-semibold text-gray-900 mb-4">Event Analytics</h4>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Total Sessions</span>
-                        <span className="font-medium">{stats?.total_sessions || 0}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Attendance Rate</span>
-                        <span className="font-medium">92%</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Avg. Session Duration</span>
-                        <span className="font-medium">45 min</span>
-                      </div>
-                    </div>
-                    <button className="w-full mt-4 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-colors">
-                      View Event Details
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'settings' && (
-              <div className="space-y-6">
-                <h3 className="text-lg font-semibold text-gray-900">System Settings</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-4">
-                    <h4 className="font-medium text-gray-900">General Settings</h4>
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Event Name
-                        </label>
-                        <input
-                          type="text"
-                          defaultValue="ASU Career Week 2025"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Max Capacity
-                        </label>
-                        <input
-                          type="number"
-                          defaultValue="5000"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Registration Status
-                        </label>
-                        <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500">
-                          <option value="open">Open</option>
-                          <option value="closed">Closed</option>
-                          <option value="waitlist">Waitlist Only</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <h4 className="font-medium text-gray-900">Security Settings</h4>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-700">Two-Factor Authentication</span>
-                        <button className="bg-green-500 text-white px-3 py-1 rounded text-sm">
-                          Enabled
-                        </button>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-700">Session Timeout</span>
-                        <select className="px-2 py-1 border border-gray-300 rounded text-sm">
-                          <option value="30">30 minutes</option>
-                          <option value="60">1 hour</option>
-                          <option value="120">2 hours</option>
-                        </select>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-700">API Rate Limiting</span>
-                        <button className="bg-green-500 text-white px-3 py-1 rounded text-sm">
-                          Active
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-gray-200">
-                  <button className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors mr-3">
-                    Save Changes
-                  </button>
-                  <button className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition-colors">
-                    Reset to Defaults
-                  </button>
-                </div>
-              </div>
-            )}
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-lg font-bold text-left border border-gray-200 rounded-lg overflow-hidden">
+                <thead className="bg-gray-100 text-gray-800 text-xl font-extrabold">
+                  <tr>
+                    <th className="px-4 py-3">Site</th>
+                    <th className="px-4 py-3">Maximum Capacity</th>
+                    <th className="px-4 py-3">Current Capacity</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-t">
+                    <td className="px-4 py-3">Building</td>
+                    <td className="px-4 py-3 text-red-600">500</td>
+                    <td className="px-4 py-3">80%</td>
+                  </tr>
+                  <tr className="border-t">
+                    <td className="px-4 py-3">Event</td>
+                    <td className="px-4 py-3 text-red-600">4000</td>
+                    <td className="px-4 py-3">40%</td>
+                  </tr>
+                  <tr className="border-t">
+                    <td className="px-4 py-3">Total</td>
+                    <td className="px-4 py-3 text-red-600">4500</td>
+                    <td className="px-4 py-3">15%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Add Company Modal */}
+      {companyModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-lg">
+            <h3 className="text-2xl font-bold mb-4">Add New Company</h3>
+            <div className="space-y-4">
+              <input
+                type="text"
+                value={newCompany.name}
+                onChange={(e) =>
+                  setNewCompany({ ...newCompany, name: e.target.value })
+                }
+                className="w-full border rounded-lg p-2"
+                placeholder="Company Name *"
+              />
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) =>
+                  setNewCompany({
+                    ...newCompany,
+                    logo: e.target.files?.[0] || null,
+                  })
+                }
+                className="w-full border rounded-lg p-2"
+              />
+              <textarea
+                value={newCompany.description}
+                onChange={(e) =>
+                  setNewCompany({ ...newCompany, description: e.target.value })
+                }
+                className="w-full border rounded-lg p-2"
+                placeholder="Description"
+                rows={3}
+              />
+              <input
+                type="url"
+                value={newCompany.website}
+                onChange={(e) =>
+                  setNewCompany({ ...newCompany, website: e.target.value })
+                }
+                className="w-full border rounded-lg p-2"
+                placeholder="Website *"
+              />
+              <input
+                type="text"
+                value={newCompany.boothNumber}
+                onChange={(e) =>
+                  setNewCompany({ ...newCompany, boothNumber: e.target.value })
+                }
+                className="w-full border rounded-lg p-2"
+                placeholder="Booth Number *"
+              />
+            </div>
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={() => setCompanyModal(false)}
+                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCompanySubmit}
+                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+              >
+                Save Company
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+{/* Add Session Modal */}
+{sessionModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+    <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+      <h3 className="text-2xl font-bold mb-4">Add Session</h3>
+      <div className="space-y-4">
+        {/* Session Title */}
+        <input
+          type="text"
+          value={newSession.title}
+          onChange={(e) =>
+            setNewSession({ ...newSession, title: e.target.value })
+          }
+          className="w-full border rounded-lg p-2"
+          placeholder="Session Title *"
+        />
+
+        
+        {/* Session Type */}
+        <input
+          type="text"
+          value={newSession.type || ""}
+          onChange={(e) =>
+            setNewSession({ ...newSession, type: e.target.value })
+          }
+          className="w-full border rounded-lg p-2"
+          placeholder="Session Type *"
+        />
+
+        
+        {/* Session Hour */}
+        <input
+          type="time"
+          value={newSession.hour || ""}
+          onChange={(e) =>
+            setNewSession({ ...newSession, hour: e.target.value })
+          }
+          className="w-full border rounded-lg p-2"
+          placeholder="Session Hour *"
+        />
+
+        {/* Date with dd/mm/yyyy placeholder hack */}
+        <div className="relative">
+          <input
+            type="date"
+            value={newSession.date}
+            onChange={(e) =>
+              setNewSession({ ...newSession, date: e.target.value })
+            }
+            className="w-full border rounded-lg p-2 text-gray-900"
+          />
+          {!newSession.date && (
+            <span className="absolute left-3 top-2 text-gray-400 pointer-events-none">
+           
+            </span>
+          )}
+        </div>
+
+        {/* Speaker */}
+        <input
+          type="text"
+          value={newSession.speaker}
+          onChange={(e) =>
+            setNewSession({ ...newSession, speaker: e.target.value })
+          }
+          className="w-full border rounded-lg p-2"
+          placeholder="Speaker *"
+        />
+
+        {/* Capacity */}
+        <input
+          type="number"
+          value={newSession.capacity || ""}
+          onChange={(e) =>
+            setNewSession({ ...newSession, capacity: e.target.value })
+          }
+          className="w-full border rounded-lg p-2"
+          placeholder="Capacity *"
+        />
+
+
+        {/* Session Location */}
+        <input
+          type="text"
+          value={newSession.location || ""}
+          onChange={(e) =>
+            setNewSession({ ...newSession, location: e.target.value })
+          }
+          className="w-full border rounded-lg p-2"
+          placeholder="Session Location *"
+        />
+      </div>
+
+      {/* Buttons */}
+      <div className="flex justify-end space-x-3 mt-6">
+        <button
+          onClick={() => setSessionModal(false)}
+          className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSessionSubmit}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          Save Session
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+
+      
+     {/* ✅ Announcement Modal */}
+      {announcementModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-96 relative">
+            {/* Close Button */}
+            <button
+              onClick={() => setAnnouncementModal(false)}
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+            >
+              ✕
+            </button>
+
+            <h2 className="text-lg font-semibold text-black mb-4 text-center">
+              Send Announcement
+            </h2>
+
+            {/* Title */}
+            <input
+              type="text"
+              value={announcementTitle}
+              onChange={(e) => setAnnouncementTitle(e.target.value)}
+              placeholder="Message Title"
+              className="w-full border rounded-lg px-3 py-2 mb-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            />
+
+            {/* Description */}
+            <textarea
+              value={announcementDescription}
+              onChange={(e) => setAnnouncementDescription(e.target.value)}
+              placeholder="Message Description"
+              className="w-full border rounded-lg px-3 py-2 mb-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              rows={3}
+            />
+
+            {/* Role */}
+            <select
+              value={announcementRole}
+              onChange={(e) => setAnnouncementRole(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 mb-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            >
+             <option value="select_role">Select Role</option>
+              <option value="volunteer">Volunteer</option>
+              <option value="team_leader">Team Leader</option>
+              <option value="admin">Admin</option>
+            </select>
+
+            {/* Actions */}
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                onClick={() => setAnnouncementModal(false)}
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+             <button
+  onClick={() => {
+    if (!announcementTitle || !announcementDescription || !announcementRole) {
+      showNotification(" Please fill all required fields!", "error");
+      return;
+    }
+
+    showNotification(" Announcement sent successfully!", "success");
+
+    // reset form & close modal
+    setAnnouncementTitle("");
+    setAnnouncementDescription("");
+    setAnnouncementRole("");
+    setAnnouncementModal(false);
+  }}
+  className="px-4 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600"
+>
+  Send
+</button>
+
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
-};
+}
+
+
+
