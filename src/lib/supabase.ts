@@ -1131,7 +1131,6 @@ export const addCompany = async (companyData) => {
   }
 };
 
-// Send Notification/Announcement
 export const sendAnnouncement = async (announcementData) => {
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -1140,15 +1139,22 @@ export const sendAnnouncement = async (announcementData) => {
       throw new Error('User not authenticated');
     }
 
+    let insertData = {
+      title: announcementData.title,
+      message: announcementData.message,
+      target_type: announcementData.target_type,
+      created_by: session.user.id
+    };
+
+    if (announcementData.target_type === 'role') {
+      insertData.target_role = announcementData.target_role;
+    } else if (announcementData.target_type === 'custom') {
+      insertData.target_user_ids = announcementData.target_user_ids;
+    }
+
     const { data, error } = await supabase
       .from('notifications')
-      .insert([{
-        title: announcementData.title,
-        message: announcementData.message,
-        target_type: 'role',
-        target_role: announcementData.target_role,
-        created_by: session.user.id
-      }])
+      .insert([insertData])
       .select();
 
     if (error) {
@@ -1162,6 +1168,7 @@ export const sendAnnouncement = async (announcementData) => {
     return { data: null, error: { message: error.message } };
   }
 };
+
 
 // Get Dynamic Building Statistics
 export const getDynamicBuildingStats = async () => {
