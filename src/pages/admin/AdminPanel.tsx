@@ -34,7 +34,10 @@ const [selectedCompanyDelete, setSelectedCompanyDelete] = useState(null);
     inside_event: 0,
     total_attendees: 0
   });
-
+const [deleteSessionModal, setDeleteSessionModal] = useState(false);
+const [deleteEventModal, setDeleteEventModal] = useState(false);
+const [selectedSessionDelete, setSelectedSessionDelete] = useState(null);
+const [selectedEventDelete, setSelectedEventDelete] = useState(null);
   const [editSessionModal, setEditSessionModal] = useState(false);
 const [editEventModal, setEditEventModal] = useState(false);
 const [selectedSessionEdit, setSelectedSessionEdit] = useState(null);
