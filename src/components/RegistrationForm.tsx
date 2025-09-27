@@ -195,19 +195,43 @@ const validateSection = async (section: number): Promise<ValidationError[]> => {
 };
 
   
-  const nextSection = () => {
-    const sectionErrors = validateSection(currentSection);
-    if (sectionErrors.length > 0) {
-      setErrors(sectionErrors);
-      return;
-    }
-    
-    setErrors([]);
-    if (currentSection < 4) {
-      setCurrentSection(currentSection + 1);
-    }
-  };
+const nextSection = async () => {
+  const sectionErrors = await validateSection(currentSection);
+  if (sectionErrors.length > 0) {
+    setErrors(sectionErrors);
+    return;
+  }
+  
+  setErrors([]);
+  if (currentSection < 4) {
+    setCurrentSection(currentSection + 1);
+  }
+};
 
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  // Validate all sections
+  const allErrors = await Promise.all([1, 2, 3, 4].map(section => validateSection(section)))
+    .then(errorArrays => errorArrays.flat());
+    
+  if (allErrors.length > 0) {
+    setErrors(allErrors);
+    const sectionMap: Record<string, number> = {
+      firstName: 1, lastName: 1, gender: 1, nationality: 1,
+      email: 1, phone: 1, personalId: 1,
+      university: 2, faculty: 2, degreeLevel: 2,
+      program: 2, classYear: 2,
+      howDidYouHear: 3, universityId: 3, resume: 3, volunteerId: 3,
+      password: 4, confirmPassword: 4,
+    };
+
+    const firstErrorSection = Math.min(
+      ...allErrors.map(error => sectionMap[error.field] ?? 1)
+    );
+    setCurrentSection(firstErrorSection);
+    return;
+  }
   const prevSection = () => {
     if (currentSection > 1) {
       setCurrentSection(currentSection - 1);
