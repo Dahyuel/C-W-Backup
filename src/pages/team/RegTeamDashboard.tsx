@@ -36,7 +36,7 @@ interface Attendee {
 const castToAttendee = (data: any): Attendee => {
   return {
     ...data,
-    // For reg dashboard, use event_entry for current_status
+    // For registration dashboard, current_status should reflect event entry
     current_status: data.event_entry ? 'inside' : 'outside'
   } as Attendee;
 };
