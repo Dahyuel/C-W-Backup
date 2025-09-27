@@ -454,16 +454,17 @@ export const RegTeamDashboard: React.FC = () => {
       />
 
       {/* Attendee Card Modal */}
-      <AttendeeCard
-        isOpen={showAttendeeCard}
-        onClose={() => {
-          setShowAttendeeCard(false);
-          setSelectedAttendee(null);
-        }}
-        attendee={selectedAttendee}
-        onAction={handleAttendanceAction}
-        loading={actionLoading}
-      />
+<AttendeeCard
+  isOpen={showAttendeeCard}
+  onClose={() => {
+    setShowAttendeeCard(false);
+    setSelectedAttendee(null);
+  }}
+  attendee={selectedAttendee}
+  onAction={handleAttendanceAction}
+  loading={actionLoading}
+  mode="registration" // This will show event entry/exit status
+/>
     </DashboardLayout>
   );
 };
