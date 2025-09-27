@@ -44,6 +44,16 @@ interface SessionBooking {
   booked_at: string;
 }
 
+interface Company {
+  id: string;
+  name: string;
+  logo_url: string;
+  description: string;
+  website: string;
+  booth_number: string;
+  created_at: string;
+}
+
 const AttendeeDashboard: React.FC = () => {
   const { profile } = useAuth();
   const navigate = useNavigate();
@@ -51,6 +61,7 @@ const AttendeeDashboard: React.FC = () => {
   const [userScore, setUserScore] = useState<UserScore | null>(null);
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [userBookings, setUserBookings] = useState<SessionBooking[]>([]);
   const [activeTab, setActiveTab] = useState("overview");
   const [activeDay, setActiveDay] = useState<number>(1);
@@ -65,6 +76,10 @@ const AttendeeDashboard: React.FC = () => {
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [bookingSuccess, setBookingSuccess] = useState<string | null>(null);
+
+  // Company modal states
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [showCompanyModal, setShowCompanyModal] = useState(false);
 
   // Load dashboard data
   useEffect(() => {
@@ -107,6 +122,9 @@ const AttendeeDashboard: React.FC = () => {
       // Sessions
       await fetchSessions();
       await fetchUserBookings();
+      
+      // Companies
+      await fetchCompanies();
 
     } catch (err) {
       console.error(err);
@@ -155,6 +173,23 @@ const AttendeeDashboard: React.FC = () => {
     }
   };
 
+  const fetchCompanies = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("companies")
+        .select("*")
+        .order("name", { ascending: true });
+
+      if (error) {
+        console.error("Error fetching companies:", error);
+      } else if (data) {
+        setCompanies(data);
+      }
+    } catch (error) {
+      console.error("Error fetching companies:", error);
+    }
+  };
+
   const generateQRCode = async () => {
     if (!profile?.id) return;
     
@@ -188,6 +223,11 @@ const AttendeeDashboard: React.FC = () => {
     setShowSessionModal(true);
     setBookingError(null);
     setBookingSuccess(null);
+  };
+
+  const handleCompanyClick = (company: Company) => {
+    setSelectedCompany(company);
+    setShowCompanyModal(true);
   };
 
   const isSessionBooked = (sessionId: string): boolean => {
@@ -290,29 +330,7 @@ const AttendeeDashboard: React.FC = () => {
     "/src/Assets/day5.png",
   ];
 
-  // Employers
-  const employers = [
-    {
-      name: "Google",
-      logo: "https://upload.wikimedia.org/wikipedia/commons/2/2f/Google_2015_logo.svg",
-      description: "Leading global technology company offering cloud, software, and AI roles.",
-      url: "https://careers.google.com/",
-    },
-    {
-      name: "Microsoft",
-      logo: "https://upload.wikimedia.org/wikipedia/commons/4/44/Microsoft_logo.svg",
-      description: "Enterprise software giant with roles in cloud, security, and engineering.",
-      url: "https://careers.microsoft.com/",
-    },
-    {
-      name: "Cyshield",
-      logo: "https://www.cyshield.com/images/logo.png",
-      description: "Cybersecurity solutions provider offering internships and security engineer positions.",
-      url: "https://www.cyshield.com/",
-    },
-  ];
-
-  const handleEmployerClick = (url: string) => {
+  const handleEmployerWebsiteClick = (url: string) => {
     window.open(url, "_blank");
   };
 
@@ -509,19 +527,34 @@ const AttendeeDashboard: React.FC = () => {
       {/* Employers */}
       {activeTab === "employers" && (
         <div>
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Participating Employers</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {employers.map((employer) => (
+          <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+            <Building className="h-5 w-5 mr-2 text-orange-600" /> Participating Companies
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {companies.map((company) => (
               <div
-                key={employer.name}
-                onClick={() => handleEmployerClick(employer.url)}
-                className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-md cursor-pointer transition"
+                key={company.id}
+                onClick={() => handleCompanyClick(company)}
+                className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-md cursor-pointer transition-shadow"
               >
-                <img src={employer.logo} alt={employer.name} className="h-16 mx-auto mb-4" />
-                <h3 className="text-lg font-bold text-center mb-2">{employer.name}</h3>
-                <p className="text-sm text-gray-600 text-center">{employer.description}</p>
-                <div className="flex justify-center mt-4">
-                  <Building className="h-5 w-5 text-orange-500" />
+                <div className="text-center">
+                  <img 
+                    src={company.logo_url} 
+                    alt={`${company.name} logo`} 
+                    className="h-16 w-auto mx-auto mb-4 object-contain" 
+                  />
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">{company.name}</h3>
+                  <p className="text-sm text-gray-600 mb-3 line-clamp-3">{company.description}</p>
+                  
+                  {company.booth_number && (
+                    <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 mb-2">
+                      Booth {company.booth_number}
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-center mt-4">
+                    <Building className="h-5 w-5 text-orange-500" />
+                  </div>
                 </div>
               </div>
             ))}
@@ -680,6 +713,84 @@ const AttendeeDashboard: React.FC = () => {
                       {bookingLoading ? 'Booking...' : isSessionFull(selectedSession) ? 'Session Full' : 'Book Now'}
                     </button>
                   )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Company Details Modal */}
+      {showCompanyModal && selectedCompany && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Company Details</h2>
+                <button
+                  onClick={() => {
+                    setShowCompanyModal(false);
+                    setSelectedCompany(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Company Logo and Name */}
+                <div className="text-center">
+                  <img 
+                    src={selectedCompany.logo_url} 
+                    alt={`${selectedCompany.name} logo`} 
+                    className="h-24 w-auto mx-auto mb-4 object-contain" 
+                  />
+                  <h3 className="text-2xl font-bold text-gray-900">{selectedCompany.name}</h3>
+                  {selectedCompany.booth_number && (
+                    <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800 mt-2">
+                      <MapPin className="h-4 w-4 mr-1" />
+                      Booth {selectedCompany.booth_number}
+                    </div>
+                  )}
+                </div>
+
+                {/* Company Description */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">About Company</label>
+                  <p className="text-gray-700 leading-relaxed">{selectedCompany.description}</p>
+                </div>
+
+                {/* Website */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Website</label>
+                  <a 
+                    href={selectedCompany.website} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-orange-600 hover:text-orange-700 break-all"
+                  >
+                    {selectedCompany.website}
+                  </a>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="pt-4 space-y-3">
+                  <button
+                    onClick={() => handleEmployerWebsiteClick(selectedCompany.website)}
+                    className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+                  >
+                    Visit Career Page
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      setShowCompanyModal(false);
+                      setSelectedCompany(null);
+                    }}
+                    className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                  >
+                    Close
+                  </button>
                 </div>
               </div>
             </div>
