@@ -416,6 +416,66 @@ export const resetPasswordWithPersonalId = async (personalId: string, email: str
   }
 };
 
+export const uploadCompanyLogo = async (userId: string, file: File, companyName: string) => {
+  try {
+    if (!file) {
+      return { data: null, error: { message: 'No logo file provided' } };
+    }
+
+    // Validate image file
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      return { 
+        data: null, 
+        error: { message: 'Logo must be an image file (JPEG, PNG, GIF, or WebP)' } 
+      };
+    }
+
+    // Check file size (5MB limit for logos)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      return { data: null, error: { message: 'Logo file size must be less than 5MB' } };
+    }
+
+    const fileExt = file.name.split('.').pop()?.toLowerCase();
+    const sanitizedCompanyName = companyName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+    const fileName = `${Date.now()}-${sanitizedCompanyName}.${fileExt}`;
+    const filePath = `company-logos/${fileName}`;
+
+    console.log(`Uploading company logo to Assets/${filePath}`);
+
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from("Assets")
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
+
+    if (uploadError) {
+      console.error('Company logo upload error:', uploadError);
+      return { data: null, error: uploadError };
+    }
+
+    // Get the public URL
+    const { data: urlData } = supabase.storage
+      .from("Assets")
+      .getPublicUrl(filePath);
+
+    return { 
+      data: { 
+        path: filePath, 
+        url: urlData.publicUrl,
+        fileName: fileName
+      }, 
+      error: null 
+    };
+
+  } catch (error: any) {
+    console.error('Company logo upload exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
 export const uploadFile = async (bucket: string, userId: string, file: File) => {
   try {
     // Validate inputs
