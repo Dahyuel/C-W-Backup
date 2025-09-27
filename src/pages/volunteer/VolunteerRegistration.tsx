@@ -127,38 +127,38 @@ const validateSection = (section: number): ValidationError[] => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validate all sections
-    const allErrors = [1, 2, 3].flatMap(section => validateSection(section));
-    if (allErrors.length > 0) {
-      setErrors(allErrors);
-      const firstErrorSection = Math.min(...allErrors.map(error => {
-        if (['firstName', 'lastName', 'email', 'phone', 'personalId', 'faculty'].includes(error.field)) return 1;
-        if (['role'].includes(error.field)) return 2;
-        if (['password', 'confirmPassword'].includes(error.field)) return 3;
-        return 1;
-      }));
-      setCurrentSection(firstErrorSection);
-      return;
-    }
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  // Validate all sections
+  const allErrors = [1, 2, 3].flatMap(section => validateSection(section));
+  if (allErrors.length > 0) {
+    setErrors(allErrors);
+    const firstErrorSection = Math.min(...allErrors.map(error => {
+      if (['firstName', 'lastName', 'email', 'phone', 'personalId', 'faculty'].includes(error.field)) return 1;
+      if (['role'].includes(error.field)) return 2;
+      if (['password', 'confirmPassword'].includes(error.field)) return 3;
+      return 1;
+    }));
+    setCurrentSection(firstErrorSection);
+    return;
+  }
 
-    setLoading(true);
-    setErrors([]);
+  setLoading(true);
+  setErrors([]);
 
-try {
-    // UPDATED: Include role in profile data
+  try {
+    // Include role in profile data
     const profileData = {
       first_name: formData.firstName.trim(),
       last_name: formData.lastName.trim(),
       phone: formData.phone.trim(),
       personal_id: formData.personalId.trim(),
       faculty: formData.faculty,
-      role: formData.role, // ✅ Include the selected role
+      role: formData.role,
     };
 
-    // FIXED: Use signUpVolunteer instead of signUp
+    // Use signUpVolunteer which now generates volunteer ID
     const { data, error } = await signUpVolunteer(formData.email, formData.password, profileData);
 
     if (error) {
@@ -166,14 +166,24 @@ try {
       return;
     }
 
-    // ... rest of the function ...
+    // Store the volunteer ID for display
+    const volunteerId = (data as any)?.volunteerId;
+    
+    // Show success message with volunteer ID
+    setShowSuccess(true);
+    
+    // Optional: Store volunteer ID in local storage for display
+    if (volunteerId) {
+      localStorage.setItem('newVolunteerId', volunteerId);
+    }
+
   } catch (error: any) {
-    // ... error handling ...
+    console.error('Registration error:', error);
+    setErrors([{ field: "general", message: error.message || 'An unexpected error occurred' }]);
   } finally {
     setLoading(false);
   }
 };
-
   const getFieldError = (field: string) => {
     return errors.find(error => error.field === field)?.message;
   };
