@@ -1170,61 +1170,65 @@ export const sendAnnouncement = async (announcementData) => {
 };
 
 
-// Get Dynamic Building Statistics
-export const getDynamicBuildingStats = async () => {
+export async function getDynamicBuildingStats() {
   try {
-    // Get all attendance records with latest first
-    const { data: attendances } = await supabase
-      .from('attendances')
-      .select('user_id, scan_type, scanned_at')
-      .in('scan_type', ['building_entry', 'building_exit', 'entry', 'exit'])
-      .order('scanned_at', { ascending: false });
-
-    // Calculate users currently inside building
-    const userLastScans = new Map();
-    attendances?.forEach(scan => {
-      if (!userLastScans.has(scan.user_id)) {
-        userLastScans.set(scan.user_id, scan.scan_type);
-      }
-    });
-
-    const insideBuilding = Array.from(userLastScans.values())
-      .filter(scanType => scanType === 'building_entry' || scanType === 'entry').length;
-
-    // Get event attendance today
+    // Get current date in UTC and set to start of day
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const { data: eventAttendances } = await supabase
-      .from('attendances')
-      .select('user_id')
-      .eq('scan_type', 'session_entry')
-      .gte('scanned_at', today.toISOString());
+    today.setUTCHours(0, 0, 0, 0);
+    
+    // Fix the query parameters - the issue is likely with parameter names
+    const { data: sessionEntries, error: sessionError } = await supabase
+      .from("attendances")
+      .select("user_id")
+      .eq("scan_type", "session_entry")
+      .gte("scanned_at", today.toISOString());
 
-    const uniqueEventAttendees = new Set(eventAttendances?.map(a => a.user_id)).size;
+    if (sessionError) {
+      console.error("Error fetching session entries:", sessionError);
+      return { data: null, error: sessionError };
+    }
 
-    // Get total attendees registered
-    const { count: totalAttendees } = await supabase
-      .from('users_profiles')
-      .select('*', { count: 'exact', head: true })
-      .eq('role', 'attendee');
+    const { data: buildingEntries, error: buildingError } = await supabase
+      .from("attendances")
+      .select("user_id")
+      .eq("scan_type", "building_entry")
+      .gte("scanned_at", today.toISOString());
+
+    if (buildingError) {
+      console.error("Error fetching building entries:", buildingError);
+      return { data: null, error: buildingError };
+    }
+
+    // Get total attendees count
+    const { count: totalAttendees, error: countError } = await supabase
+      .from("users_profiles")
+      .select("*", { count: "exact", head: true })
+      .eq("role", "attendee");
+
+    if (countError) {
+      console.error("Error fetching total attendees:", countError);
+      return { data: null, error: countError };
+    }
+
+    // Use Sets to get unique user counts
+    const uniqueSessionUsers = new Set(sessionEntries?.map(entry => entry.user_id) || []);
+    const uniqueBuildingUsers = new Set(buildingEntries?.map(entry => entry.user_id) || []);
 
     return {
       data: {
-        inside_building: insideBuilding,
-        inside_event: uniqueEventAttendees,
-        total_attendees_today: Math.max(insideBuilding, uniqueEventAttendees), // Use the higher number
-        total_attendees: totalAttendees || 0,
-        building_capacity_percentage: Math.round((insideBuilding / 500) * 100),
-        event_capacity_percentage: Math.round((uniqueEventAttendees / 4000) * 100),
-        total_capacity_percentage: Math.round(((insideBuilding + uniqueEventAttendees) / 4500) * 100)
+        inside_building: uniqueBuildingUsers.size,
+        inside_event: uniqueSessionUsers.size,
+        total_attendees: totalAttendees || 0
       },
       error: null
     };
+
   } catch (error) {
-    console.error('Get dynamic building stats error:', error);
-    return { data: null, error: { message: error.message } };
+    console.error("Error in getDynamicBuildingStats:", error);
+    return { data: null, error };
   }
-};
+}
+
 
 // Upload Map Image (if you want to implement this)
 export const uploadMapImage = async (dayNumber, imageFile, userId) => {
