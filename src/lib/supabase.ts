@@ -1047,6 +1047,211 @@ export const cancelSessionBookingDirect = async (userId: string, sessionId: stri
   }
 };
 
+
+export const addSession = async (sessionData) => {
+  try {
+    const { data, error } = await supabase
+      .from('sessions')
+      .insert([{
+        title: sessionData.title,
+        description: sessionData.description || null,
+        speaker: sessionData.speaker,
+        start_time: sessionData.start_time,
+        end_time: sessionData.end_time,
+        location: sessionData.location,
+        max_attendees: sessionData.max_attendees || null,
+        session_type: sessionData.session_type || 'session',
+        current_attendees: 0,
+        current_bookings: 0
+      }])
+      .select();
+
+    if (error) {
+      console.error('Error adding session:', error);
+      return { data: null, error };
+    }
+
+    return { data: data[0], error: null };
+  } catch (error) {
+    console.error('Add session exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
+// Add Event/Schedule Item
+export const addScheduleItem = async (eventData) => {
+  try {
+    const { data, error } = await supabase
+      .from('schedule_items')
+      .insert([{
+        title: eventData.title,
+        description: eventData.description || null,
+        start_time: eventData.start_time,
+        end_time: eventData.end_time,
+        location: eventData.location || null,
+        item_type: eventData.item_type || 'general'
+      }])
+      .select();
+
+    if (error) {
+      console.error('Error adding schedule item:', error);
+      return { data: null, error };
+    }
+
+    return { data: data[0], error: null };
+  } catch (error) {
+    console.error('Add schedule item exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
+// Add Company
+export const addCompany = async (companyData) => {
+  try {
+    const { data, error } = await supabase
+      .from('companies')
+      .insert([{
+        name: companyData.name,
+        logo_url: companyData.logo_url || null,
+        description: companyData.description || null,
+        website: companyData.website,
+        booth_number: companyData.booth_number
+      }])
+      .select();
+
+    if (error) {
+      console.error('Error adding company:', error);
+      return { data: null, error };
+    }
+
+    return { data: data[0], error: null };
+  } catch (error) {
+    console.error('Add company exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
+// Send Notification/Announcement
+export const sendAnnouncement = async (announcementData) => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session?.user?.id) {
+      throw new Error('User not authenticated');
+    }
+
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert([{
+        title: announcementData.title,
+        message: announcementData.message,
+        target_type: 'role',
+        target_role: announcementData.target_role,
+        created_by: session.user.id
+      }])
+      .select();
+
+    if (error) {
+      console.error('Error sending announcement:', error);
+      return { data: null, error };
+    }
+
+    return { data: data[0], error: null };
+  } catch (error) {
+    console.error('Send announcement exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
+// Get Dynamic Building Statistics
+export const getDynamicBuildingStats = async () => {
+  try {
+    // Get all attendance records with latest first
+    const { data: attendances } = await supabase
+      .from('attendances')
+      .select('user_id, scan_type, scanned_at')
+      .in('scan_type', ['building_entry', 'building_exit', 'entry', 'exit'])
+      .order('scanned_at', { ascending: false });
+
+    // Calculate users currently inside building
+    const userLastScans = new Map();
+    attendances?.forEach(scan => {
+      if (!userLastScans.has(scan.user_id)) {
+        userLastScans.set(scan.user_id, scan.scan_type);
+      }
+    });
+
+    const insideBuilding = Array.from(userLastScans.values())
+      .filter(scanType => scanType === 'building_entry' || scanType === 'entry').length;
+
+    // Get event attendance today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const { data: eventAttendances } = await supabase
+      .from('attendances')
+      .select('user_id')
+      .eq('scan_type', 'session_entry')
+      .gte('scanned_at', today.toISOString());
+
+    const uniqueEventAttendees = new Set(eventAttendances?.map(a => a.user_id)).size;
+
+    // Get total attendees registered
+    const { count: totalAttendees } = await supabase
+      .from('users_profiles')
+      .select('*', { count: 'exact', head: true })
+      .eq('role', 'attendee');
+
+    return {
+      data: {
+        inside_building: insideBuilding,
+        inside_event: uniqueEventAttendees,
+        total_attendees_today: Math.max(insideBuilding, uniqueEventAttendees), // Use the higher number
+        total_attendees: totalAttendees || 0,
+        building_capacity_percentage: Math.round((insideBuilding / 500) * 100),
+        event_capacity_percentage: Math.round((uniqueEventAttendees / 4000) * 100),
+        total_capacity_percentage: Math.round(((insideBuilding + uniqueEventAttendees) / 4500) * 100)
+      },
+      error: null
+    };
+  } catch (error) {
+    console.error('Get dynamic building stats error:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
+// Upload Map Image (if you want to implement this)
+export const uploadMapImage = async (dayNumber, imageFile, userId) => {
+  try {
+    const fileName = `day-${dayNumber}-map.${imageFile.name.split('.').pop()}`;
+    
+    const { data, error } = await supabase.storage
+      .from('event-maps')
+      .upload(fileName, imageFile, {
+        upsert: true // Replace existing file
+      });
+
+    if (error) {
+      console.error('Map upload error:', error);
+      return { data: null, error };
+    }
+
+    const { data: urlData } = supabase.storage
+      .from('event-maps')
+      .getPublicUrl(fileName);
+
+    return { 
+      data: { 
+        path: fileName, 
+        url: urlData.publicUrl 
+      }, 
+      error: null 
+    };
+  } catch (error) {
+    console.error('Map upload exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
 export const getUserRankingAndScore = async (userId: string) => {
   try {
     const { data: userProfile, error: profileError } = await supabase
