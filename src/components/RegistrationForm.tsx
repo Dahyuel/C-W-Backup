@@ -135,65 +135,66 @@ export const RegistrationForm: React.FC = () => {
     setErrors(prev => prev.filter(error => error.field !== field));
   };
 
-  const validateSection = (section: number): ValidationError[] => {
-    const validationErrors: ValidationError[] = [];
-  
-    if (section === 1) {
-      const firstNameError = validateName(formData.firstName, 'First name');
-      if (firstNameError) validationErrors.push({ field: 'firstName', message: firstNameError });
-  
-      const lastNameError = validateName(formData.lastName, 'Last name');
-      if (lastNameError) validationErrors.push({ field: 'lastName', message: lastNameError });
-  
-      if (!formData.gender) validationErrors.push({ field: 'gender', message: 'Gender is required' });
-      if (!formData.nationality) validationErrors.push({ field: 'nationality', message: 'Nationality is required' });
-  
-      const emailError = validateEmail(formData.email);
-      if (emailError) validationErrors.push({ field: 'email', message: emailError });
-  
-      const phoneError = validatePhone(formData.phone);
-      if (phoneError) validationErrors.push({ field: 'phone', message: phoneError });
-  
-      const personalIdError = validatePersonalId(formData.personalId);
-      if (personalIdError) validationErrors.push({ field: 'personalId', message: personalIdError });
-    }
-  
-    if (section === 2) {
-      if (!formData.university) validationErrors.push({ field: 'university', message: 'University is required' });
-      if (!formData.faculty) validationErrors.push({ field: 'faculty', message: 'Faculty is required' });
-      if (!formData.degreeLevel) validationErrors.push({ field: 'degreeLevel', message: 'Degree level is required' });
-      if (!formData.program) validationErrors.push({ field: 'program', message: 'Program/Major is required' });
-      // Only validate class year for students, not for graduates
-      if (formData.degreeLevel === 'student' && !formData.classYear) {
-        validationErrors.push({ field: 'classYear', message: 'Class year is required for students' });
-      }
-    }
-  
-if (section === 3) {
-  if (!formData.howDidYouHear) validationErrors.push({ field: 'howDidYouHear', message: 'This field is required' });
-  
-  // File upload validation
-  if (!fileUploads.universityId) validationErrors.push({ field: 'universityId', message: 'University ID is required' });
-  if (!fileUploads.resume) validationErrors.push({ field: 'resume', message: 'CV/Resume is required' });
+const validateSection = async (section: number): Promise<ValidationError[]> => {
+  const validationErrors: ValidationError[] = [];
 
-  // Volunteer ID validation (if provided)
-  if (formData.volunteerId && formData.volunteerId.trim()) {
-    const volunteerIdError = await validateVolunteerId(formData.volunteerId); // Make this async if it's not already
-    if (volunteerIdError) validationErrors.push({ field: 'volunteerId', message: volunteerIdError });
+  if (section === 1) {
+    const firstNameError = validateName(formData.firstName, 'First name');
+    if (firstNameError) validationErrors.push({ field: 'firstName', message: firstNameError });
+
+    const lastNameError = validateName(formData.lastName, 'Last name');
+    if (lastNameError) validationErrors.push({ field: 'lastName', message: lastNameError });
+
+    if (!formData.gender) validationErrors.push({ field: 'gender', message: 'Gender is required' });
+    if (!formData.nationality) validationErrors.push({ field: 'nationality', message: 'Nationality is required' });
+
+    const emailError = validateEmail(formData.email);
+    if (emailError) validationErrors.push({ field: 'email', message: emailError });
+
+    const phoneError = validatePhone(formData.phone);
+    if (phoneError) validationErrors.push({ field: 'phone', message: phoneError });
+
+    const personalIdError = validatePersonalId(formData.personalId);
+    if (personalIdError) validationErrors.push({ field: 'personalId', message: personalIdError });
   }
-}
-  
-    if (section === 4) {
-      const passwordError = validatePassword(formData.password);
-      if (passwordError) validationErrors.push({ field: 'password', message: passwordError });
-  
-      const confirmPasswordError = validateConfirmPassword(formData.password, formData.confirmPassword);
-      if (confirmPasswordError) validationErrors.push({ field: 'confirmPassword', message: confirmPasswordError });
-    }
-  
-    return validationErrors;
-  };
 
+  if (section === 2) {
+    if (!formData.university) validationErrors.push({ field: 'university', message: 'University is required' });
+    if (!formData.faculty) validationErrors.push({ field: 'faculty', message: 'Faculty is required' });
+    if (!formData.degreeLevel) validationErrors.push({ field: 'degreeLevel', message: 'Degree level is required' });
+    if (!formData.program) validationErrors.push({ field: 'program', message: 'Program/Major is required' });
+    // Only validate class year for students, not for graduates
+    if (formData.degreeLevel === 'student' && !formData.classYear) {
+      validationErrors.push({ field: 'classYear', message: 'Class year is required for students' });
+    }
+  }
+
+  if (section === 3) {
+    if (!formData.howDidYouHear) validationErrors.push({ field: 'howDidYouHear', message: 'This field is required' });
+    
+    // File upload validation
+    if (!fileUploads.universityId) validationErrors.push({ field: 'universityId', message: 'University ID is required' });
+    if (!fileUploads.resume) validationErrors.push({ field: 'resume', message: 'CV/Resume is required' });
+
+    // Volunteer ID validation (if provided)
+    if (formData.volunteerId && formData.volunteerId.trim()) {
+      const volunteerIdError = await validateVolunteerId(formData.volunteerId);
+      if (volunteerIdError) validationErrors.push({ field: 'volunteerId', message: volunteerIdError });
+    }
+  }
+
+  if (section === 4) {
+    const passwordError = validatePassword(formData.password);
+    if (passwordError) validationErrors.push({ field: 'password', message: passwordError });
+
+    const confirmPasswordError = validateConfirmPassword(formData.password, formData.confirmPassword);
+    if (confirmPasswordError) validationErrors.push({ field: 'confirmPassword', message: confirmPasswordError });
+  }
+
+  return validationErrors;
+};
+
+  
   const nextSection = () => {
     const sectionErrors = validateSection(currentSection);
     if (sectionErrors.length > 0) {
