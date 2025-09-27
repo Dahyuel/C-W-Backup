@@ -18,7 +18,7 @@ interface LeaderboardProps {
 
 const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId }) => {
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
-  const [activeTab, setActiveTab] = useState<'volunteers' | 'attendees'>('attendees');
+  const [activeTab, setActiveTab] = useState<'attendees' | 'volunteers' | 'team_leaders'>('attendees');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,13 +38,16 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId }) =>
 
       // Determine which data to fetch based on user role and active tab
       if (userRole === 'admin') {
-        // Admin can see both tabs
+        // Admin can see all three tabs
         if (activeTab === 'attendees') {
           // Show only attendees
           query = query.eq('role', 'attendee');
-        } else {
+        } else if (activeTab === 'volunteers') {
           // Show volunteers tab: all roles except admin, attendee, and team_leader
           query = query.in('role', ['volunteer', 'registration', 'building', 'info_desk']);
+        } else {
+          // Show team leaders tab
+          query = query.eq('role', 'team_leader');
         }
       } else if (userRole === 'attendee') {
         // Attendees only see other attendees
@@ -153,7 +156,9 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId }) =>
 
   const getTabTitle = () => {
     if (userRole === 'admin') {
-      return activeTab === 'attendees' ? 'Top Attendees' : 'Top Volunteers';
+      if (activeTab === 'attendees') return 'Top Attendees';
+      if (activeTab === 'volunteers') return 'Top Volunteers';
+      return 'Top Team Leaders';
     } else if (userRole === 'attendee') {
       return 'Top Attendees';
     } else if (userRole === 'team_leader') {
@@ -211,6 +216,16 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId }) =>
             }`}
           >
             Volunteers
+          </button>
+          <button
+            onClick={() => setActiveTab('team_leaders')}
+            className={`py-2 px-4 font-semibold text-sm ${
+              activeTab === 'team_leaders'
+                ? "border-b-2 border-orange-500 text-orange-600"
+                : "text-gray-500 hover:text-orange-600"
+            }`}
+          >
+            Team Leaders
           </button>
         </div>
       )}
