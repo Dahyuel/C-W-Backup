@@ -689,52 +689,57 @@ const confirmDeleteEvent = async () => {
   };
 
   // Handle Session Submit
-  const handleSessionSubmit = async () => {
-    if (!newSession.title || !newSession.date || !newSession.speaker) {
-      showNotification("Please fill all required fields!", "error");
-      return;
-    }
+const handleSessionSubmit = async () => {
+  if (!newSession.title || !newSession.date || !newSession.speaker) {
+    showNotification("Please fill all required fields!", "error");
+    return;
+  }
 
-    setLoading(true);
-    try {
-      // Combine date and time
-      const startDateTime = new Date(`${newSession.date}T${newSession.hour}`);
-      const endDateTime = new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000); // 2 hours later
+  setLoading(true);
+  try {
+    // Combine date and time
+    const startDateTime = new Date(`${newSession.date}T${newSession.hour}`);
+    const endDateTime = new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000); // 2 hours later
 
-      const { error } = await supabase.from("sessions").insert({
-        title: newSession.title,
-        description: newSession.description,
-        speaker: newSession.speaker,
-        start_time: startDateTime.toISOString(),
-        end_time: endDateTime.toISOString(),
-        location: newSession.location,
-        max_attendees: parseInt(newSession.capacity) || null,
-        session_type: newSession.type,
-      });
+    // Set both capacity and max_attendees to the same value
+    const capacityValue = parseInt(newSession.capacity) || null;
 
-      if (error) {
-        showNotification("Failed to add session", "error");
-      } else {
-        setSessionModal(false);
-        setNewSession({
-          title: "",
-          date: "",
-          speaker: "",
-          capacity: "",
-          type: "session",
-          hour: "",
-          location: "",
-          description: "",
-        });
-        showNotification("Session added successfully!", "success");
-        await fetchSessions();
-      }
-    } catch (err) {
+    const { error } = await supabase.from("sessions").insert({
+      title: newSession.title,
+      description: newSession.description,
+      speaker: newSession.speaker,
+      start_time: startDateTime.toISOString(),
+      end_time: endDateTime.toISOString(),
+      location: newSession.location,
+      capacity: capacityValue, // Set capacity
+      max_attendees: capacityValue, // Set max_attendees to same value
+      session_type: newSession.type,
+    });
+
+    if (error) {
       showNotification("Failed to add session", "error");
-    } finally {
-      setLoading(false);
+    } else {
+      setSessionModal(false);
+      setNewSession({
+        title: "",
+        date: "",
+        speaker: "",
+        capacity: "",
+        type: "session",
+        hour: "",
+        location: "",
+        description: "",
+      });
+      showNotification("Session added successfully!", "success");
+      await fetchSessions();
     }
-  };
+  } catch (err) {
+    showNotification("Failed to add session", "error");
+  } finally {
+    setLoading(false);
+  }
+};
+  
 const openDeleteCompanyModal = (company) => {
   setSelectedCompanyDelete(company);
   setDeleteCompanyModal(true);
