@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import QRCode from 'qrcode';
-import Leaderboard from 'Leaderboard';
+import Leaderboard from './Leaderboard'; // Fixed import path
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -726,8 +726,30 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                   >
                     Mark as Read
                   </button>
-                </div>
-              )}
+                        {/* Leaderboard Modal */}
+      {showLeaderboard && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+                  <Trophy className="h-6 w-6 mr-3 text-orange-600" />
+                  Leaderboard
+                </h2>
+                <button
+                  onClick={() => setShowLeaderboard(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="max-h-[70vh] overflow-y-auto">
+                <Leaderboard 
+                  userRole={profile?.role} 
+                  currentUserId={profile?.id}
+                />
+              </div>
             </div>
           </div>
         </div>
