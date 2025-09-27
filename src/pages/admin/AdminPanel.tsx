@@ -1648,69 +1648,170 @@ const handleCompanyUpdate = async () => {
           </div>
         )}
 
-        {/* Announcement Modal */}
-        {announcementModal && (
-          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4">
-            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative">
-              <button
-                onClick={() => setAnnouncementModal(false)}
-                className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
-              >
-                <X className="h-6 w-6" />
-              </button>
+       {/* Announcement Modal */}
+{announcementModal && (
+  <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4">
+    <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto relative">
+      <button
+        onClick={() => {
+          setAnnouncementModal(false);
+          clearUserSelection();
+        }}
+        className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+      >
+        <X className="h-6 w-6" />
+      </button>
 
-              <h2 className="text-lg font-semibold text-black mb-4 text-center">
-                Send Announcement
-              </h2>
+      <h2 className="text-lg font-semibold text-black mb-4 text-center">
+        Send Announcement
+      </h2>
 
-              <div className="space-y-4">
-                <input
-                  type="text"
-                  value={announcementTitle}
-                  onChange={(e) => setAnnouncementTitle(e.target.value)}
-                  placeholder="Message Title"
-                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                />
+      <div className="space-y-4">
+        <input
+          type="text"
+          value={announcementTitle}
+          onChange={(e) => setAnnouncementTitle(e.target.value)}
+          placeholder="Message Title"
+          className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+        />
 
-                <textarea
-                  value={announcementDescription}
-                  onChange={(e) => setAnnouncementDescription(e.target.value)}
-                  placeholder="Message Description"
-                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                  rows={3}
-                />
+        <textarea
+          value={announcementDescription}
+          onChange={(e) => setAnnouncementDescription(e.target.value)}
+          placeholder="Message Description"
+          className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+          rows={3}
+        />
 
-                <select
-                  value={announcementRole}
-                  onChange={(e) => setAnnouncementRole(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                >
-                  <option value="">Select Role</option>
-                  <option value="volunteer">Volunteer</option>
-                  <option value="team_leader">Team Leader</option>
-                  <option value="admin">Admin</option>
-                  <option value="attendee">Attendee</option>
-                </select>
-              </div>
+        <select
+          value={announcementRole}
+          onChange={(e) => {
+            setAnnouncementRole(e.target.value);
+            if (e.target.value !== "custom") {
+              clearUserSelection();
+            }
+          }}
+          className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+        >
+          <option value="">Select Target</option>
+          <option value="all">All Users</option>
+          <option value="volunteer">Volunteers</option>
+          <option value="team_leader">Team Leaders</option>
+          <option value="admin">Admins</option>
+          <option value="attendee">Attendees</option>
+          <option value="custom">Custom Selection</option>
+        </select>
 
-              <div className="flex justify-end gap-3 mt-6">
-                <button
-                  onClick={() => setAnnouncementModal(false)}
-                  className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAnnouncementSubmit}
-                  className="px-4 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600"
-                >
-                  Send
-                </button>
-              </div>
+        {/* Custom Selection UI */}
+        {announcementRole === "custom" && (
+          <div className="space-y-3">
+            <div className="relative">
+              <input
+                type="text"
+                value={userSearch}
+                onChange={(e) => {
+                  setUserSearch(e.target.value);
+                  searchUsersByPersonalId(e.target.value);
+                }}
+                placeholder="Search by Personal ID..."
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              {searchLoading && (
+                <div className="absolute right-3 top-3">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                </div>
+              )}
             </div>
+
+            {/* Search Results */}
+            {searchResults.length > 0 && (
+              <div className="max-h-40 overflow-y-auto border rounded-lg">
+                {searchResults.map((user) => (
+                  <div
+                    key={user.id}
+                    onClick={() => addUserToSelection(user)}
+                    className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {user.first_name} {user.last_name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          ID: {user.personal_id} | {user.role}
+                        </p>
+                      </div>
+                      <Plus className="h-4 w-4 text-blue-500" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Selected Users */}
+            {selectedUsers.length > 0 && (
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Selected Users ({selectedUsers.length})
+                  </label>
+                  <button
+                    onClick={clearUserSelection}
+                    className="text-xs text-red-500 hover:text-red-700"
+                  >
+                    Clear All
+                  </button>
+                </div>
+                <div className="max-h-32 overflow-y-auto border rounded-lg bg-gray-50">
+                  {selectedUsers.map((user) => (
+                    <div
+                      key={user.id}
+                      className="p-2 flex justify-between items-center border-b last:border-b-0"
+                    >
+                      <div>
+                        <p className="text-sm text-gray-900">
+                          {user.first_name} {user.last_name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          ID: {user.personal_id}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => removeUserFromSelection(user.id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
+      </div>
 
+      <div className="flex justify-end gap-3 mt-6">
+        <button
+          onClick={() => {
+            setAnnouncementModal(false);
+            clearUserSelection();
+          }}
+          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleAnnouncementSubmit}
+          disabled={loading}
+          className="px-4 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600 disabled:opacity-50"
+        >
+          {loading ? 'Sending...' : 'Send'}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
         {/* Session Detail Modal */}
         {sessionDetailModal && selectedSessionDetail && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
