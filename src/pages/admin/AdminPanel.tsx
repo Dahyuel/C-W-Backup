@@ -1376,22 +1376,29 @@ const clearUserSelection = () => {
               </div>
             )}
             
-            {/* Action Buttons */}
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={() => handleCompanyClick(company)}
-                className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
-              >
-                <Eye className="h-3 w-3 mr-1 inline" />
-                View
-              </button>
-              <button
-                onClick={() => handleEditCompany(company)}
-                className="flex-1 bg-orange-500 text-white py-2 px-3 rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium"
-              >
-                Edit
-              </button>
-            </div>
+{/* Action Buttons */}
+<div className="flex gap-2 mt-4">
+  <button
+    onClick={() => handleCompanyClick(company)}
+    className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+  >
+    <Eye className="h-3 w-3 mr-1 inline" />
+    View
+  </button>
+  <button
+    onClick={() => handleEditCompany(company)}
+    className="flex-1 bg-orange-500 text-white py-2 px-3 rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium"
+  >
+    Edit
+  </button>
+  <button
+    onClick={() => openDeleteCompanyModal(company)}
+    className="flex-1 bg-red-500 text-white py-2 px-3 rounded-lg hover:bg-red-600 transition-colors text-sm font-medium"
+  >
+    <Trash2 className="h-3 w-3 mr-1 inline" />
+    Delete
+  </button>
+</div>
           </div>
         </div>
       ))}
