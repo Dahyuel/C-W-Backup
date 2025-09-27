@@ -343,7 +343,11 @@ export const BuildTeamDashboard: React.FC = () => {
   };
 
   const resetToMainView = () => {
-    setMode(activeTab === "building" ? "building_entry" : null);
+    if (activeTab === "building") {
+      setMode("building_entry");
+    } else {
+      setMode(null);
+    }
     setSearchMode(null);
     setSelectedSession(null);
     setSelectedAttendee(null);
@@ -759,7 +763,7 @@ export const BuildTeamDashboard: React.FC = () => {
               "Scan Attendee QR Code"
             }
             description="Point your camera at the attendee's QR code"
-/>
+          />
         )}
 
         {/* Attendee Card Modal with dynamic action handlers */}
@@ -773,7 +777,8 @@ export const BuildTeamDashboard: React.FC = () => {
           onAction={
             mode === "session_entry" 
               ? handleSessionAttendanceAction 
-              : handleBuildingAttendanceAction
+              :
+            handleBuildingAttendanceAction
           }
           loading={actionLoading}
           mode={mode === "session_entry" ? "session" : "building"}
