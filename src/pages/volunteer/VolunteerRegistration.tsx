@@ -432,27 +432,41 @@ const handleSubmit = async (e: React.FormEvent) => {
   }
 
   // Show success message only when auto-login fails
-  if (showSuccess) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center border border-orange-100">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircle className="w-8 h-8 text-green-600" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Volunteer Registration Successful!</h2>
-          <p className="text-gray-600 mb-6">
-            Your account has been created successfully. You can now log in to access your volunteer dashboard.
-          </p>
-          <button
-            onClick={() => navigate('/login')}
-            className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 transform hover:scale-105"
-          >
-            Go to Login
-          </button>
+if (showSuccess) {
+  const newVolunteerId = localStorage.getItem('newVolunteerId');
+  
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center border border-orange-100">
+        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <CheckCircle className="w-8 h-8 text-green-600" />
         </div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Volunteer Registration Successful!</h2>
+        
+        {newVolunteerId && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <p className="text-sm font-medium text-blue-800">Your Volunteer ID:</p>
+            <p className="text-lg font-bold text-blue-900">{newVolunteerId}</p>
+            <p className="text-xs text-blue-600 mt-1">Please save this ID for future reference</p>
+          </div>
+        )}
+        
+        <p className="text-gray-600 mb-6">
+          Your account has been created successfully. You can now log in to access your volunteer dashboard.
+        </p>
+        <button
+          onClick={() => {
+            localStorage.removeItem('newVolunteerId');
+            navigate('/login');
+          }}
+          className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 transform hover:scale-105"
+        >
+          Go to Login
+        </button>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white py-8 px-4">
