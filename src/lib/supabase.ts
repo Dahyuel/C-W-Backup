@@ -189,6 +189,53 @@ export const signUpUser = async (email: string, password: string, userData: any)
       };
     }
 
+    // STEP 1.5: If volunteer_id is provided, look up the referrer's UUID
+    let referrerId = null;
+    if (userData.volunteer_id && userData.volunteer_id.trim()) {
+      console.log('Looking up volunteer referrer:', userData.volunteer_id);
+      
+      const { data: volunteerData, error: volunteerError } = await supabase
+        .from('users_profiles')
+        .select('id, volunteer_id, role')
+        .eq('volunteer_id', userData.volunteer_id.trim())
+        .single();
+
+      if (volunteerError) {
+        console.error('Volunteer lookup error:', volunteerError);
+        return { 
+          data: null, 
+          error: { 
+            message: 'Invalid volunteer ID. Please check the ID and try again.',
+            validationErrors: ['Invalid volunteer ID']
+          }
+        };
+      }
+
+      if (!volunteerData) {
+        return { 
+          data: null, 
+          error: { 
+            message: 'Volunteer ID not found. Please check the ID and try again.',
+            validationErrors: ['Volunteer ID not found']
+          }
+        };
+      }
+
+      // Verify the found user is actually a volunteer (not attendee)
+      if (volunteerData.role === 'attendee') {
+        return { 
+          data: null, 
+          error: { 
+            message: 'The provided ID belongs to an attendee, not a volunteer.',
+            validationErrors: ['Invalid volunteer role']
+          }
+        };
+      }
+
+      referrerId = volunteerData.id;
+      console.log('Found referrer UUID:', referrerId);
+    }
+
     console.log('User does not exist, creating auth user...');
     
     // STEP 2: Create auth user
@@ -208,20 +255,23 @@ export const signUpUser = async (email: string, password: string, userData: any)
 
     console.log('Auth user created, creating profile...');
 
-    // STEP 3: Create profile with email
-    const { data: profileData, error: profileError } = await supabase
+    // STEP 3: Create profile with email and referrer ID (if applicable)
+    const profileData = {
+      id: authData.user.id,
+      email: email.trim().toLowerCase(), // Add email to profile
+      ...userData,
+      reg_id: referrerId, // Set the referrer's UUID
+      role: 'attendee',
+      score: 0,
+      building_entry: false,
+      event_entry: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: profileDataResult, error: profileError } = await supabase
       .from('users_profiles')
-      .insert({
-        id: authData.user.id,
-        email: email.trim().toLowerCase(), // Add email to profile
-        ...userData,
-        role: 'attendee',
-        score: 0,
-        building_entry: false,
-        event_entry: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
+      .insert(profileData)
       .select();
 
     if (profileError) {
@@ -238,6 +288,10 @@ export const signUpUser = async (email: string, password: string, userData: any)
     }
 
     console.log('Attendee registration completed successfully');
+    if (referrerId) {
+      console.log('Referral bonus will be automatically awarded via database trigger');
+    }
+
     return { data: authData, error: null };
 
   } catch (error: any) {
