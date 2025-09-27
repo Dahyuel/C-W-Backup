@@ -145,66 +145,167 @@ export const validateRegistrationData = async (
 
 export const signUpUser = async (email: string, password: string, userData: any) => {
   try {
-    console.log('Starting attendee registration with server-side processing...');
+    console.log('Starting attendee registration with validation first...');
     
-    // Call the server-side registration function
-    const { data, error } = await supabase.rpc('register_attendee', {
-      p_email: email.trim().toLowerCase(),
-      p_password: password,
-      p_first_name: userData.first_name,
-      p_last_name: userData.last_name,
-      p_phone: userData.phone,
-      p_university: userData.university,
-      p_faculty: userData.faculty,
-      p_personal_id: userData.personal_id,
-      p_volunteer_id: userData.volunteer_id || null,
-      p_gender: userData.gender || null,
-      p_nationality: userData.nationality || null,
-      p_degree_level: userData.degree_level || null,
-      p_program: userData.program || null,
-      p_class: userData.class || null,
-      p_how_did_hear: userData.how_did_hear_about_event || null,
-      p_university_id_path: userData.university_id_path || null,
-      p_cv_path: userData.cv_path || null
-    });
+    // STEP 1: Validate all data first WITHOUT creating anything
+    const validation = await validateRegistrationData(
+      email, 
+      userData.personal_id, 
+      userData.volunteer_id, 
+      userData.phone
+    );
 
-    if (error) {
-      console.error('Registration RPC error:', error);
-      return { 
-        data: null, 
-        error: { 
-          message: 'Registration failed. Please try again.',
-          originalError: error
-        } 
-      };
-    }
-
-    // Check if the server-side function succeeded
-    if (!data.success) {
-      console.error('Registration failed:', data.error);
+    if (!validation.isValid) {
+      console.error('Validation failed:', validation.errors);
       return {
         data: null,
         error: {
-          message: data.error,
-          errorCode: data.error_code,
-          validationErrors: [data.error]
+          message: validation.errors[0],
+          validationErrors: validation.errors
         }
       };
     }
 
-    console.log('Registration completed successfully:', data.message);
-    
-    // Return success with user data
-    return {
-      data: {
-        user: {
-          id: data.data.user_id,
-          email: data.data.email
+    console.log('Validation passed. Creating auth user...');
+
+    // STEP 2: Create the auth user first through Supabase Auth API
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: email.trim().toLowerCase(),
+      password: password,
+    });
+
+    if (authError) {
+      console.error('Auth signup error:', authError);
+      return { data: null, error: authError };
+    }
+
+    if (!authData.user) {
+      return { 
+        data: null, 
+        error: { message: 'Failed to create authentication account' } 
+      };
+    }
+
+    console.log('Auth user created successfully:', authData.user.id);
+
+    // STEP 3: Now create the user profile using a simpler direct insert
+    try {
+      // Process referrer ID if provided
+      let referrerId = null;
+      if (userData.volunteer_id && userData.volunteer_id.trim()) {
+        const { data: referrer, error: referrerError } = await supabase
+          .from('users_profiles')
+          .select('id')
+          .eq('volunteer_id', userData.volunteer_id.trim())
+          .neq('role', 'attendee')
+          .single();
+        
+        if (!referrerError && referrer) {
+          referrerId = referrer.id;
+        }
+      }
+
+      // Prepare the profile data with proper enum handling
+      const profileInsert = {
+        id: authData.user.id, // Use the auth user's ID
+        email: email.trim().toLowerCase(),
+        first_name: userData.first_name?.trim() || '',
+        last_name: userData.last_name?.trim() || '',
+        phone: userData.phone?.trim() || null,
+        university: userData.university?.trim() || '',
+        faculty: userData.faculty?.trim() || '',
+        personal_id: userData.personal_id?.trim(),
+        reg_id: referrerId,
+        role: 'attendee',
+        score: 0,
+        building_entry: false,
+        event_entry: false,
+        nationality: userData.nationality?.trim() || null,
+        program: userData.program?.trim() || null,
+        university_id_path: userData.university_id_path || null,
+        cv_path: userData.cv_path || null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      // Add enum fields only if they have valid values
+      if (userData.gender && userData.gender.trim() && 
+          ['male', 'female', 'other', 'prefer_not_to_say'].includes(userData.gender.trim())) {
+        profileInsert.gender = userData.gender.trim();
+      }
+
+      if (userData.degree_level && userData.degree_level.trim() && 
+          ['student', 'graduate'].includes(userData.degree_level.trim())) {
+        profileInsert.degree_level = userData.degree_level.trim();
+      }
+
+      if (userData.class && userData.class.trim() && 
+          ['1', '2', '3', '4', '5'].includes(userData.class.trim())) {
+        profileInsert.class = userData.class.trim();
+      }
+
+      if (userData.how_did_hear_about_event && userData.how_did_hear_about_event.trim() && 
+          ['linkedin', 'facebook', 'instagram', 'friends', 'banners_in_street', 
+           'information_session_at_faculty', 'campus_marketing', 'other'].includes(userData.how_did_hear_about_event.trim())) {
+        profileInsert.how_did_hear_about_event = userData.how_did_hear_about_event.trim();
+      }
+
+      const { data: profileData, error: profileError } = await supabase
+        .from('users_profiles')
+        .insert(profileInsert)
+        .select()
+        .single();
+
+      if (profileError) {
+        console.error('Profile creation error:', profileError);
+        
+        // Clean up the auth user if profile creation fails
+        try {
+          await supabase.auth.admin.deleteUser(authData.user.id);
+          console.log('Cleaned up auth user after profile creation failure');
+        } catch (cleanupError) {
+          console.error('Failed to cleanup auth user:', cleanupError);
+        }
+
+        return {
+          data: null,
+          error: {
+            message: 'Failed to create user profile: ' + (profileError.message || 'Unknown error'),
+            originalError: profileError
+          }
+        };
+      }
+
+      console.log('Registration completed successfully:', profileData.email);
+      
+      return {
+        data: {
+          user: authData.user,
+          session: authData.session,
+          profile: profileData
         },
-        session: null // Session will be created when user signs in
-      },
-      error: null
-    };
+        error: null
+      };
+
+    } catch (profileError) {
+      console.error('Profile creation exception:', profileError);
+      
+      // Clean up the auth user
+      try {
+        await supabase.auth.admin.deleteUser(authData.user.id);
+        console.log('Cleaned up auth user after profile creation exception');
+      } catch (cleanupError) {
+        console.error('Failed to cleanup auth user:', cleanupError);
+      }
+
+      return {
+        data: null,
+        error: {
+          message: 'Registration failed due to an unexpected error: ' + (profileError.message || 'Unknown error'),
+          originalError: profileError
+        }
+      };
+    }
 
   } catch (error: any) {
     console.error('Registration exception:', error);
