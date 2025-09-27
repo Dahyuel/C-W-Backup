@@ -507,73 +507,86 @@ const AttendeeDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Event Days */}
-      {activeTab === "events" && (
-        <div>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-gray-900 flex items-center mb-4 sm:mb-0">
-              <Calendar className="h-5 w-5 mr-2 text-orange-600" /> 5-Day Event Schedule
-            </h2>
+{/* Event Days */}
+{activeTab === "events" && (
+  <div>
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
+      <h2 className="text-xl font-bold text-gray-900 flex items-center mb-4 sm:mb-0">
+        <Calendar className="h-5 w-5 mr-2 text-orange-600" /> 5-Day Event Schedule
+      </h2>
+      
+      {/* Day Selector */}
+      <div className="flex space-x-2">
+        {[1, 2, 3, 4, 5].map((day) => (
+          <button
+            key={day}
+            onClick={() => setActiveDay(day)}
+            className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+              activeDay === day 
+                ? "bg-orange-500 text-white" 
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            Day {day}
+          </button>
+        ))}
+      </div>
+    </div>
+
+    {eventsLoading ? (
+      <div className="flex items-center justify-center h-32">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+      </div>
+    ) : schedule.length > 0 ? (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {schedule.map((item) => (
+          <div 
+            key={item.id} 
+            onClick={() => handleEventClick(item)}
+            className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-md cursor-pointer transition-all duration-200 h-full flex flex-col"
+          >
+            <div className="flex items-start justify-between mb-3">
+              <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 flex-1">{item.title}</h3>
+            </div>
             
-            {/* Day Selector */}
-            <div className="flex space-x-2">
-              {[1, 2, 3, 4, 5].map((day) => (
-                <button
-                  key={day}
-                  onClick={() => setActiveDay(day)}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    activeDay === day 
-                      ? "bg-orange-500 text-white" 
-                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                  }`}
-                >
-                  Day {day}
-                </button>
-              ))}
+            <p className="text-sm text-gray-600 mb-4 line-clamp-3 flex-1">{item.description}</p>
+            
+            <div className="space-y-2 text-xs text-gray-500 mt-auto">
+              <div className="flex items-center">
+                <Clock className="h-3 w-3 mr-2 flex-shrink-0" />
+                <span className="truncate">
+                  {new Date(item.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - 
+                  {new Date(item.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              </div>
+              <div className="flex items-center">
+                <MapPin className="h-3 w-3 mr-2 flex-shrink-0" />
+                <span className="truncate">{item.location}</span>
+              </div>
+            </div>
+            
+            <div className="mt-4 pt-3 border-t border-gray-100">
+              {item.item_type ? (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  {item.item_type}
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                  Event
+                </span>
+              )}
             </div>
           </div>
-
-          {eventsLoading ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
-            </div>
-          ) : schedule.length > 0 ? (
-            <div className="space-y-4">
-              {schedule.map((item) => (
-                <div 
-                  key={item.id} 
-                  onClick={() => handleEventClick(item)}
-                  className="border-l-4 border-orange-500 pl-4 py-4 bg-white rounded-lg shadow-sm hover:shadow-md cursor-pointer transition-shadow"
-                >
-                  <h3 className="font-semibold text-gray-900 text-lg">{item.title}</h3>
-                  <p className="text-sm text-gray-600 mt-1 line-clamp-2">{item.description}</p>
-                  <div className="flex flex-col sm:flex-row sm:items-center mt-3 space-y-2 sm:space-y-0 sm:space-x-6 text-sm text-gray-500">
-                    <div className="flex items-center">
-                      <Clock className="h-4 w-4 mr-2" />
-                      {new Date(item.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - 
-                      {new Date(item.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </div>
-                    <div className="flex items-center">
-                      <MapPin className="h-4 w-4 mr-2" />
-                      {item.location}
-                    </div>
-                    {item.item_type && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {item.item_type}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-              <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">No events scheduled for Day {activeDay}</p>
-            </div>
-          )}
-        </div>
-      )}
+        ))}
+      </div>
+    ) : (
+      <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+        <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+        <p className="text-gray-500">No events scheduled for Day {activeDay}</p>
+      </div>
+    )}
+  </div>
+)}
 
       {/* Sessions */}
       {activeTab === "sessions" && (
