@@ -246,7 +246,6 @@ export const signUpUser = async (email: string, password: string, userData: any)
   }
 };
 
-// Enhanced volunteer sign up
 export const signUpVolunteer = async (email: string, password: string, userData: any) => {
   try {
     console.log('Starting volunteer registration...');
@@ -272,7 +271,11 @@ export const signUpVolunteer = async (email: string, password: string, userData:
 
     console.log('User does not exist, creating volunteer auth user...');
 
-    // STEP 2: Create auth user
+    // STEP 2: Generate volunteer ID
+    const volunteerId = await generateVolunteerId(userData.role || 'volunteer');
+    console.log('Generated volunteer ID:', volunteerId);
+
+    // STEP 3: Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
       password,
@@ -289,12 +292,13 @@ export const signUpVolunteer = async (email: string, password: string, userData:
 
     console.log('Auth user created, creating volunteer profile...');
 
-    // STEP 3: Create volunteer profile with email
+    // STEP 4: Create volunteer profile with email and volunteer ID
     const { data: profileData, error: profileError } = await supabase
       .from("users_profiles")
       .insert({
         id: authData.user.id,
-        email: email.trim().toLowerCase(), // Add email to profile
+        email: email.trim().toLowerCase(),
+        volunteer_id: volunteerId, // Add the generated volunteer ID
         ...userData,
         role: userData.role || 'volunteer',
         score: 0,
@@ -318,8 +322,8 @@ export const signUpVolunteer = async (email: string, password: string, userData:
       return { data: null, error: profileError };
     }
 
-    console.log('Volunteer registration completed successfully');
-    return { data: authData, error: null };
+    console.log('Volunteer registration completed successfully with ID:', volunteerId);
+    return { data: { ...authData, volunteerId }, error: null };
 
   } catch (error: any) {
     console.error('Volunteer registration error:', error);
