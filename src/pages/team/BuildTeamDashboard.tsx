@@ -74,7 +74,7 @@ export const BuildTeamDashboard: React.FC = () => {
 
   // Tab and mode state
   const [activeTab, setActiveTab] = useState<"building" | "session">("building");
-  const [mode, setMode] = useState<"building_entry" | "building_exit" | "session_entry" | null>(null);
+  const [mode, setMode] = useState<"building_entry" | "building_exit" | "session_entry" | null>("building_entry");
   const [searchMode, setSearchMode] = useState<"qr" | "manual" | null>(null);
 
   // Session state
@@ -110,10 +110,7 @@ export const BuildTeamDashboard: React.FC = () => {
   // Load sessions on mount
   useEffect(() => {
     fetchSessions();
-    if (activeTab === "building") {
-      fetchBuildingStats();
-    }
-  }, [activeTab]);
+  }, []);
 
   // Dynamic search effect
   useEffect(() => {
@@ -320,7 +317,7 @@ export const BuildTeamDashboard: React.FC = () => {
       setTimeout(() => {
         setShowAttendeeCard(false);
         setSelectedAttendee(null);
-        setMode(null);
+        setMode("building_entry");
       }, 2000);
 
     } catch (error) {
@@ -375,7 +372,7 @@ export const BuildTeamDashboard: React.FC = () => {
   };
 
   const resetToMainView = () => {
-    setMode(null);
+    setMode("building_entry");
     setSearchMode(null);
     setSelectedSession(null);
     setSelectedAttendee(null);
@@ -463,112 +460,7 @@ export const BuildTeamDashboard: React.FC = () => {
         {/* BUILDING TAB */}
         {activeTab === "building" && (
           <>
-            {/* Building Stats */}
-            {!mode && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-orange-500">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 mb-1">Total Attendees</p>
-                      <p className="text-3xl font-bold text-orange-600">
-                        {buildingStats?.total_attendees || 0}
-                      </p>
-                    </div>
-                    <Users className="h-8 w-8 text-orange-500" />
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-green-500">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 mb-1">Inside Building</p>
-                      <p className="text-3xl font-bold text-green-600">
-                        {buildingStats?.inside_building || 0}
-                      </p>
-                    </div>
-                    <Building2 className="h-8 w-8 text-green-500" />
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-500">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 mb-1">Today's Entries</p>
-                      <p className="text-3xl font-bold text-blue-600">
-                        {buildingStats?.today_entries || 0}
-                      </p>
-                    </div>
-                    <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                      <span className="text-blue-600 font-bold">📅</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-purple-500">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 mb-1">Session Attendances</p>
-                      <p className="text-3xl font-bold text-purple-600">
-                        {buildingStats?.session_attendances || 0}
-                      </p>
-                    </div>
-                    <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
-                      <span className="text-purple-600 font-bold">🎯</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Building Main View */}
-            {!mode && (
-              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-8 space-y-6">
-                <h2 className="text-2xl font-bold text-gray-900 text-center flex items-center justify-center gap-2">
-                  <Building2 className="h-6 w-6 text-orange-500" />
-                  Building Attendance Management
-                </h2>
-                <p className="text-gray-600 text-center">
-                  Manage entry and exit for attendees using QR code scanning or manual search
-                </p>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                  <button
-                    onClick={() => setMode("building_entry")}
-                    className="flex flex-col items-center justify-center p-8 rounded-2xl shadow-md bg-green-500 text-white hover:bg-green-600 transition"
-                  >
-                    <UserPlus className="h-12 w-12 mb-3" />
-                    <span className="text-lg font-semibold">Building Entry</span>
-                    <span className="text-sm opacity-80 mt-1">
-                      For people entering the building
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={() => setMode("building_exit")}
-                    className="flex flex-col items-center justify-center p-8 rounded-2xl shadow-md bg-red-500 text-white hover:bg-red-600 transition"
-                  >
-                    <UserPlus className="h-12 w-12 mb-3" />
-                    <span className="text-lg font-semibold">Building Exit</span>
-                    <span className="text-sm opacity-80 mt-1">
-                      For people leaving the building
-                    </span>
-                  </button>
-                </div>
-
-                <div className="flex justify-end">
-                  <button
-                    onClick={fetchBuildingStats}
-                    disabled={statsLoading}
-                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:cursor-not-allowed flex items-center space-x-2"
-                  >
-                    <div className={`h-4 w-4 ${statsLoading ? 'animate-spin' : ''}`}>🔄</div>
-                    <span>Refresh Stats</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Building Action Selection */}
+            {/* Building Action Selection - Now the default view for building tab */}
             {(mode === "building_entry" || mode === "building_exit") && !searchMode && (
               <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 space-y-6">
                 <h2 className="text-xl font-bold text-gray-900">
@@ -593,18 +485,36 @@ export const BuildTeamDashboard: React.FC = () => {
                     Search by Personal ID
                   </button>
                 </div>
-                <button
-                  onClick={() => setMode(null)}
-                  className="text-sm text-gray-500 underline"
-                >
-                  ← Back to main menu
-                </button>
+                
+                {/* Toggle between Entry and Exit modes */}
+                <div className="flex justify-center space-x-4 pt-4">
+                  <button
+                    onClick={() => setMode("building_entry")}
+                    className={`px-4 py-2 rounded-lg transition-colors ${
+                      mode === "building_entry"
+                        ? "bg-green-500 text-white"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    }`}
+                  >
+                    Entry Mode
+                  </button>
+                  <button
+                    onClick={() => setMode("building_exit")}
+                    className={`px-4 py-2 rounded-lg transition-colors ${
+                      mode === "building_exit"
+                        ? "bg-red-500 text-white"
+                        : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    }`}
+                  >
+                    Exit Mode
+                  </button>
+                </div>
               </div>
             )}
           </>
         )}
 
-        {/* SESSION TAB */}
+        {/* SESSION TAB - UNCHANGED */}
         {activeTab === "session" && (
           <>
             {/* Session List */}
