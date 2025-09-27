@@ -211,10 +211,11 @@ const validateSection = async (section: number): Promise<ValidationError[]> => {
     }
   };
 
+
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
-  // Validate all sections
+  // Validate all sections (same as volunteer)
   const allErrors = await Promise.all([1, 2, 3, 4].map(section => validateSection(section)))
     .then(errorArrays => errorArrays.flat());
     
@@ -240,6 +241,7 @@ const handleSubmit = async (e: React.FormEvent) => {
   setErrors([]);
 
   try {
+    // Prepare profile data (same structure as volunteer but for attendee)
     const profileData = {
       first_name: formData.firstName.trim(),
       last_name: formData.lastName.trim(),
@@ -256,7 +258,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       volunteer_id: formData.volunteerId?.trim() || null,
     };
 
-    // Create user account
+    // Create user account (using updated signUpUser function)
     const { data, error } = await signUpUser(formData.email, formData.password, profileData);
 
     if (error) {
@@ -266,7 +268,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
     console.log("✅ Attendee registration successful, uploading files...");
 
-    // FILE UPLOADS — use correct buckets
+    // FILE UPLOADS (same as before)
     if (data?.user?.id) {
       const userId = data.user.id;
       const fileUpdates: Partial<{
@@ -277,7 +279,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       // Upload University ID → to 'university-ids' bucket
       if (fileUploads.universityId) {
         const { data: uniData, error: uniError } = await uploadFile(
-          'university-ids',   // ✅ Correct bucket
+          'university-ids',
           userId,
           fileUploads.universityId
         );
@@ -293,7 +295,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       // Upload Resume/CV → to 'cvs' bucket
       if (fileUploads.resume) {
         const { data: resumeData, error: resumeError } = await uploadFile(
-          'cvs',              // ✅ Correct bucket
+          'cvs',
           userId,
           fileUploads.resume
         );
@@ -311,21 +313,25 @@ const handleSubmit = async (e: React.FormEvent) => {
         const { error: updateError } = await updateUserFiles(userId, fileUpdates);
         if (updateError) {
           console.warn('Profile file paths update failed (user still created):', updateError);
-          // Optional: show a non-blocking warning to user
         }
       }
     }
 
-    console.log("✅ File upload completed, attempting auto-login...");
+    console.log("✅ Registration completed successfully, attempting auto-login...");
 
-    // Auto-login
-    const { error: signInError } = await signIn(formData.email, formData.password);
-    if (signInError) {
-      console.warn("⚠️ Auto-login failed:", signInError.message);
+    // Auto-login attempt (same as volunteer)
+    try {
+      const { error: signInError } = await signIn(formData.email, formData.password);
+      if (signInError) {
+        console.warn("⚠️ Auto-login failed:", signInError.message);
+        // Show success page instead of redirecting
+        setShowSuccess(true);
+      }
+      // If auto-login succeeds, the useEffect will handle the redirect
+    } catch (loginError) {
+      console.warn("⚠️ Auto-login exception:", loginError);
+      setShowSuccess(true);
     }
-
-    // Show success (redirect usually handled by auth listener)
-    setShowSuccess(true);
 
   } catch (error: any) {
     console.error("Unexpected error during registration:", error);
@@ -337,6 +343,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     setLoading(false);
   }
 };
+  
   const getFieldError = (field: string) => {
     return errors.find(error => error.field === field)?.message;
   };
