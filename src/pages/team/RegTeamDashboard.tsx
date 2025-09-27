@@ -33,11 +33,11 @@ interface Attendee {
   last_scan?: string;
 }
 
-// Helper function to type-cast attendee data
 const castToAttendee = (data: any): Attendee => {
   return {
     ...data,
-    current_status: data.current_status === 'inside' ? 'inside' : 'outside'
+    // For reg dashboard, use event_entry for current_status
+    current_status: data.event_entry ? 'inside' : 'outside'
   } as Attendee;
 };
 
