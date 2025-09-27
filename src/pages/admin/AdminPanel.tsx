@@ -756,6 +756,59 @@ const handleDeleteCompany = async () => {
     }
   };
 
+
+const handleDeleteSession = async (session) => {
+  if (!window.confirm(`Are you sure you want to delete the session "${session.title}"?`)) {
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const { error } = await supabase
+      .from("sessions")
+      .delete()
+      .eq('id', session.id);
+
+    if (error) {
+      showNotification("Failed to delete session", "error");
+    } else {
+      showNotification("Session deleted successfully!", "success");
+      await fetchSessions();
+    }
+  } catch (err) {
+    showNotification("Failed to delete session", "error");
+  } finally {
+    setLoading(false);
+  }
+};
+
+const handleDeleteEvent = async (event) => {
+  if (!window.confirm(`Are you sure you want to delete the event "${event.title}"?`)) {
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const { error } = await supabase
+      .from("schedule_items")
+      .delete()
+      .eq('id', event.id);
+
+    if (error) {
+      showNotification("Failed to delete event", "error");
+    } else {
+      showNotification("Event deleted successfully!", "success");
+      await fetchEventsByDay(activeDay);
+    }
+  } catch (err) {
+    showNotification("Failed to delete event", "error");
+  } finally {
+    setLoading(false);
+  }
+};
+
+  
+
 // Update the announcement submit handler
 const handleAnnouncementSubmit = async () => {
   if (!announcementTitle || !announcementDescription || !announcementRole) {
