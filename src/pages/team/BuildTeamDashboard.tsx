@@ -488,7 +488,7 @@ export const BuildTeamDashboard: React.FC = () => {
           </>
         )}
 
-        {/* SESSION TAB */}
+        {/* SESSION TAB - KEEP EXACTLY AS BEFORE */}
         {activeTab === "session" && (
           <>
             {/* Session List */}
@@ -763,6 +763,8 @@ export const BuildTeamDashboard: React.FC = () => {
                   </button>
                 </div>
               </div>
+
+              {/* REMOVED SEARCH TIPS SECTION */}
 
               <button
                 onClick={() => setSearchMode(null)}
