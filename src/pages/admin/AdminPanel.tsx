@@ -679,7 +679,10 @@ const handleCompanyUpdate = async () => {
       setLoading(false);
     }
   };
-
+const openDeleteCompanyModal = (company) => {
+  setSelectedCompanyDelete(company);
+  setDeleteCompanyModal(true);
+};
 
 const handleDeleteCompany = async () => {
   if (!selectedCompanyDelete) return;
