@@ -1185,55 +1185,67 @@ const handleCompanyUpdate = async () => {
         )}
 
         {/* Employers Tab */}
-        {activeTab === "employers" && (
-          <div>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center mb-4 sm:mb-0">
-                <Building className="h-5 w-5 mr-2 text-orange-600" /> Employers Management
-              </h2>
+{activeTab === "employers" && (
+  <div>
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
+      <h2 className="text-xl font-bold text-gray-900 flex items-center mb-4 sm:mb-0">
+        <Building className="h-5 w-5 mr-2 text-orange-600" /> Employers Management
+      </h2>
+      <button
+        onClick={() => setCompanyModal(true)}
+        className="flex items-center px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+      >
+        <Plus className="h-4 w-4 mr-2" />
+        Add Company
+      </button>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {companies.map((company) => (
+        <div 
+          key={company.id} 
+          className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-md transition-all duration-200"
+        >
+          <div className="text-center">
+            <img 
+              src={company.logo_url} 
+              alt={`${company.name} logo`} 
+              className="h-16 w-auto mx-auto mb-4 object-contain"
+              onError={(e) => {
+                e.target.src = "https://via.placeholder.com/64x64/orange/white?text=Logo";
+              }}
+            />
+            <h3 className="text-lg font-bold text-gray-900 mb-2">{company.name}</h3>
+            <p className="text-sm text-gray-600 mb-3 line-clamp-3">{company.description}</p>
+            
+            {company.booth_number && (
+              <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 mb-4">
+                Booth {company.booth_number}
+              </div>
+            )}
+            
+            {/* Action Buttons */}
+            <div className="flex gap-2 mt-4">
               <button
-                onClick={() => setCompanyModal(true)}
-                className="flex items-center px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                onClick={() => handleCompanyClick(company)}
+                className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
               >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Company
+                <Eye className="h-3 w-3 mr-1 inline" />
+                View
+              </button>
+              <button
+                onClick={() => handleEditCompany(company)}
+                className="flex-1 bg-orange-500 text-white py-2 px-3 rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium"
+              >
+                Edit
               </button>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {companies.map((company) => (
-                <div 
-                  key={company.id} 
-                  onClick={() => handleCompanyClick(company)}
-                  className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-md cursor-pointer transition-all duration-200"
-                >
-                  <div className="text-center">
-                    <img 
-                      src={company.logo_url} 
-                      alt={`${company.name} logo`} 
-                      className="h-16 w-auto mx-auto mb-4 object-contain"
-                      onError={(e) => {
-                        e.target.src = "https://via.placeholder.com/64x64/orange/white?text=Logo";
-                      }}
-                    />
-                    <h3 className="text-lg font-bold text-gray-900 mb-2">{company.name}</h3>
-                    <p className="text-sm text-gray-600 mb-3 line-clamp-3">{company.description}</p>
-                    
-                    {company.booth_number && (
-                      <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 mb-2">
-                        Booth {company.booth_number}
-                      </div>
-                    )}
-                    
-                    <div className="flex justify-center mt-4">
-                      <Eye className="h-4 w-4 text-orange-500" />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
           </div>
-        )}
+        </div>
+      ))}
+    </div>
+  </div>
+)}
 
         {/* Add Company Modal */}
         {companyModal && (
