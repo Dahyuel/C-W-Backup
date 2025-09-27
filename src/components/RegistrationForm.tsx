@@ -176,11 +176,8 @@ const validateSection = async (section: number): Promise<ValidationError[]> => {
     if (!fileUploads.universityId) validationErrors.push({ field: 'universityId', message: 'University ID is required' });
     if (!fileUploads.resume) validationErrors.push({ field: 'resume', message: 'CV/Resume is required' });
 
-    // Volunteer ID validation (if provided)
-    if (formData.volunteerId && formData.volunteerId.trim()) {
-      const volunteerIdError = await validateVolunteerId(formData.volunteerId);
-      if (volunteerIdError) validationErrors.push({ field: 'volunteerId', message: volunteerIdError });
-    }
+    // Volunteer ID is optional - no validation needed
+    // Removed the volunteer ID validation completely
   }
 
   if (section === 4) {
