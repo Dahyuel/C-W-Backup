@@ -44,26 +44,24 @@ export const checkUserExists = async (personalId: string, email: string): Promis
 // Check if personal ID is unique
 export const checkPersonalIdUnique = async (personalId: string): Promise<ValidationResult> => {
   try {
-    const { data, error } = await supabase
-      .from('users_profiles')
-      .select('personal_id')
-      .eq('personal_id', personalId.trim())
-      .limit(1);
-    
+    const { data, error } = await supabase.rpc('check_personal_id_exists', {
+      p_personal_id: personalId.trim()
+    });
+
     if (error) {
-      return { isValid: false, error: 'Database error while checking Personal ID' };
+      console.error('Personal ID check error:', error);
+      return { isValid: false, error: 'Failed to validate Personal ID' };
     }
-    
-    const isUnique = !data || data.length === 0;
-    return { 
-      isValid: isUnique, 
-      error: isUnique ? null : 'This Personal ID is already registered' 
+
+    return {
+      isValid: !data.exists,
+      error: data.error
     };
   } catch (error: any) {
+    console.error('Personal ID check exception:', error);
     return { isValid: false, error: 'Failed to validate Personal ID' };
   }
 };
-
 // Check if email is unique in users_profiles
 export const checkEmailUnique = async (email: string): Promise<ValidationResult> => {
   try {
