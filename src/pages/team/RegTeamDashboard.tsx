@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
+  UserCheck,
+  Users,
   Search,
   QrCode,
   X,
@@ -14,15 +16,8 @@ import {
   processAttendance, 
   getAttendeeByPersonalId,
   getAttendeeByUUID,
-  searchAttendeesByPersonalId
+  searchAttendeesByPersonalId // New function we'll add
 } from "../../lib/supabase";
-
-interface RegistrationStats {
-  total_registered: number;
-  checked_in_today: number;
-  inside_event: number;
-  total_attendees: number;
-}
 
 interface Attendee {
   id: string;
@@ -70,10 +65,6 @@ export const RegTeamDashboard: React.FC = () => {
     type: 'success' | 'error';
     message: string;
   } | null>(null);
-
-  useEffect(() => {
-    // Component initialization if needed
-  }, []);
 
   // Dynamic search effect
   useEffect(() => {
@@ -240,12 +231,6 @@ export const RegTeamDashboard: React.FC = () => {
         last_scan: new Date().toISOString()
       } : null);
 
-      // Refresh dashboard stats if needed for other purposes
-      // Note: Dashboard functionality removed from this component
-      // if (activeTab === "dashboard") {
-      //   fetchDashboardData();
-      // }
-
       // Close attendee card after successful action
       setTimeout(() => {
         setShowAttendeeCard(false);
@@ -301,272 +286,163 @@ export const RegTeamDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex border-b border-gray-200 mb-6">
-        <div className="px-4 py-2 font-medium text-orange-600 border-b-2 border-orange-600">
-          Scanner & Search
-        </div>
-      </div>
-
-      {/* Scanner Section */}
       <div className="space-y-6">
-          {/* Mode Switch */}
-          <div className="flex space-x-4">
+        {/* Mode Switch */}
+        <div className="flex space-x-4">
+          <button
+            onClick={() => {
+              setSearchMode("manual");
+              clearSearch();
+            }}
+            className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+              searchMode === "manual"
+                ? "bg-orange-500 text-white shadow-md"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            <Search className="h-4 w-4 inline mr-2" />
+            Search by Personal ID
+          </button>
+          <button
+            onClick={() => {
+              setSearchMode("qr");
+              clearSearch();
+            }}
+            className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+              searchMode === "qr"
+                ? "bg-orange-500 text-white shadow-md"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+            }`}
+          >
+            <QrCode className="h-4 w-4 inline mr-2" />
+            QR Scanner
+          </button>
+        </div>
+
+        {/* Manual Search - Personal ID Only */}
+        {searchMode === "manual" && (
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Search Attendees by Personal ID
+                </label>
+                <div className="flex items-center space-x-3 relative">
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      placeholder="Start typing Personal ID (e.g., 123456...)"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSearchByPersonalId()}
+                      onBlur={handleSearchInputBlur}
+                      onFocus={() => searchResults.length > 0 && setShowSearchResults(true)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-colors"
+                    />
+                    {searchTerm && (
+                      <button
+                        onClick={clearSearch}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <X className="h-5 w-5" />
+                      </button>
+                    )}
+
+                    {/* Dynamic Search Results Dropdown */}
+                    {showSearchResults && searchResults.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                        {searchResults.map((attendee) => (
+                          <button
+                            key={attendee.id}
+                            onClick={() => handleSelectSearchResult(attendee)}
+                            className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:bg-orange-50 focus:outline-none"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium text-gray-900">
+                                  {attendee.first_name} {attendee.last_name}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  ID: {attendee.personal_id}
+                                </p>
+                                {attendee.university && (
+                                  <p className="text-xs text-gray-500">
+                                    {attendee.university}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                  attendee.current_status === 'inside'
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {attendee.current_status === 'inside' ? 'Inside' : 'Outside'}
+                                </span>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* No Results Message */}
+                    {showSearchResults && searchResults.length === 0 && searchTerm.trim().length >= 2 && !searchLoading && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 px-4 py-3">
+                        <p className="text-gray-600 text-sm">No attendees found matching "{searchTerm}"</p>
+                      </div>
+                    )}
+
+                    {/* Loading State */}
+                    {searchLoading && searchTerm.trim().length >= 2 && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 px-4 py-3">
+                        <div className="flex items-center space-x-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500"></div>
+                          <p className="text-gray-600 text-sm">Searching attendees...</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={handleSearchByPersonalId}
+                    disabled={searchLoading || !searchTerm.trim()}
+                    className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+                  >
+                    {searchLoading ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    ) : (
+                      <>
+                        <Search className="h-5 w-5" />
+                        <span>Search</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* QR Scanner */}
+        {searchMode === "qr" && (
+          <div className="bg-white rounded-xl shadow-sm p-6 text-center">
+            <QrCode className="h-16 w-16 text-orange-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              QR Code Scanner
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Scan the attendee's QR code to instantly load their information and process entry/exit
+            </p>
             <button
-              onClick={() => {
-                setSearchMode("manual");
-                clearSearch();
-              }}
-              className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-                searchMode === "manual"
-                  ? "bg-orange-500 text-white shadow-md"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
+              onClick={() => setShowScanner(true)}
+              className="px-8 py-4 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center space-x-2 mx-auto"
             >
-              <Search className="h-4 w-4 inline mr-2" />
-              Search by Personal ID
-            </button>
-            <button
-              onClick={() => {
-                setSearchMode("qr");
-                clearSearch();
-              }}
-              className={`px-6 py-3 rounded-lg font-medium transition-colors ${
-                searchMode === "qr"
-                  ? "bg-orange-500 text-white shadow-md"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-              }`}
-            >
-              <QrCode className="h-4 w-4 inline mr-2" />
-              QR Scanner
+              <QrCode className="h-5 w-5" />
+              <span>Open QR Scanner</span>
             </button>
           </div>
-
-          {/* Manual Search - Personal ID Only */}
-          {searchMode === "manual" && (
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Search Attendees by Personal ID
-                  </label>
-                  <div className="flex items-center space-x-3 relative">
-                    <div className="flex-1 relative">
-                      <input
-                        type="text"
-                        placeholder="Start typing Personal ID (e.g., 123456...)"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSearchByPersonalId()}
-                        onBlur={handleSearchInputBlur}
-                        onFocus={() => searchResults.length > 0 && setShowSearchResults(true)}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 outline-none transition-colors"
-                      />
-                      {searchTerm && (
-                        <button
-                          onClick={clearSearch}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                        >
-                          <X className="h-5 w-5" />
-                        </button>
-                      )}
-
-                      {/* Dynamic Search Results Dropdown */}
-                      {showSearchResults && searchResults.length > 0 && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
-                          {searchResults.map((attendee) => (
-                            <button
-                              key={attendee.id}
-                              onClick={() => handleSelectSearchResult(attendee)}
-                              className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 focus:bg-orange-50 focus:outline-none"
-                            >
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="font-medium text-gray-900">
-                                    {attendee.first_name} {attendee.last_name}
-                                  </p>
-                                  <p className="text-sm text-gray-600">
-                                    ID: {attendee.personal_id}
-                                  </p>
-                                  {attendee.university && (
-                                    <p className="text-xs text-gray-500">
-                                      {attendee.university}
-                                    </p>
-                                  )}
-                                </div>
-                                <div className="text-right">
-                                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                    attendee.current_status === 'inside'
-                                      ? 'bg-green-100 text-green-800'
-                                      : 'bg-gray-100 text-gray-800'
-                                  }`}>
-                                    {attendee.current_status === 'inside' ? 'Inside' : 'Outside'}
-                                  </span>
-                                </div>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* No Results Message */}
-                      {showSearchResults && searchResults.length === 0 && searchTerm.trim().length >= 2 && !searchLoading && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 px-4 py-3">
-                          <p className="text-gray-600 text-sm">No attendees found matching "{searchTerm}"</p>
-                        </div>
-                      )}
-
-                      {/* Loading State */}
-                      {searchLoading && searchTerm.trim().length >= 2 && (
-                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 px-4 py-3">
-                          <div className="flex items-center space-x-2">
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500"></div>
-                            <p className="text-gray-600 text-sm">Searching attendees...</p>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <button
-                      onClick={handleSearchByPersonalId}
-                      disabled={searchLoading || !searchTerm.trim()}
-                      className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
-                    >
-                      {searchLoading ? (
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      ) : (
-                        <>
-                          <Search className="h-5 w-5" />
-                          <span>Search</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="text-sm text-gray-600 bg-blue-50 p-4 rounded-lg">
-                  <p className="font-medium mb-1">Search Tips:</p>
-                  <ul className="list-disc list-inside space-y-1 text-xs">
-                    <li>Start typing to see dynamic suggestions (minimum 2 characters)</li>
-                    <li>Only attendees will appear in search results</li>
-                    <li>Click on a suggestion to select that attendee</li>
-                    <li>Use QR Scanner for faster lookup</li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* QR Scanner */}
-          {searchMode === "qr" && (
-            <div className="bg-white rounded-xl shadow-sm p-6 text-center">
-              <QrCode className="h-16 w-16 text-orange-500 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                QR Code Scanner
-              </h3>
-              <p className="text-gray-600 mb-6">
-                Scan the attendee's QR code to instantly load their information and process entry/exit
-              </p>
-              <button
-                onClick={() => setShowScanner(true)}
-                className="px-8 py-4 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center space-x-2 mx-auto"
-              >
-                <QrCode className="h-5 w-5" />
-                <span>Open QR Scanner</span>
-              </button>
-              
-              <div className="mt-6 text-sm text-gray-600 bg-green-50 p-4 rounded-lg">
-                <p className="font-medium mb-1">QR Scanner supports:</p>
-                <ul className="list-disc list-inside space-y-1 text-xs">
-                  <li>UUID format (from QR codes)</li>
-                  <li>Personal ID format (fallback)</li>
-                  <li>Automatic attendee role verification</li>
-                </ul>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Live Dashboard Tab */}
-      {activeTab === "dashboard" && (
-        <div className="space-y-8">
-          {loading ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
-              <span className="ml-3 text-gray-600">Loading dashboard...</span>
-            </div>
-          ) : (
-            <>
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-orange-500">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 mb-1">Total Registered</p>
-                      <p className="text-3xl font-bold text-orange-600">
-                        {stats?.total_registered || 0}
-                      </p>
-                    </div>
-                    <Users className="h-8 w-8 text-orange-500" />
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-green-500">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 mb-1">Checked In Today</p>
-                      <p className="text-3xl font-bold text-green-600">
-                        {stats?.checked_in_today || 0}
-                      </p>
-                    </div>
-                    <UserCheck className="h-8 w-8 text-green-500" />
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-500">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 mb-1">Currently Inside</p>
-                      <p className="text-3xl font-bold text-blue-600">
-                        {stats?.inside_event || 0}
-                      </p>
-                    </div>
-                    <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                      <span className="text-blue-600 font-bold">🏢</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-purple-500">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600 mb-1">Total Attendees</p>
-                      <p className="text-3xl font-bold text-purple-600">
-                        {stats?.total_attendees || 0}
-                      </p>
-                    </div>
-                    <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
-                      <span className="text-purple-600 font-bold">👥</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Refresh Button */}
-              <div className="flex justify-end">
-                <button
-                  onClick={fetchDashboardData}
-                  disabled={loading}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors disabled:cursor-not-allowed flex items-center space-x-2"
-                >
-                  <div className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`}>🔄</div>
-                  <span>Refresh</span>
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      )}
+        )}
+      </div>
 
       {/* QR Scanner Modal */}
       <QRScanner
