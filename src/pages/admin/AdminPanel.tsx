@@ -2702,10 +2702,10 @@ const clearUserSelection = () => {
           {loading ? 'Deleting...' : 'Delete Event'}
         </button>
       </div>
-            </div>
-                </div>
-              </div>
-  )}
+    </div>
+  </div>
+)}
+      </div>
     </DashboardLayout>
   );
 }
