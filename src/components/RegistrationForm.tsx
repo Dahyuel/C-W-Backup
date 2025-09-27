@@ -218,7 +218,9 @@ const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
   // Validate all sections
-  const allErrors = [1, 2, 3, 4].flatMap(section => validateSection(section));
+  const allErrors = await Promise.all([1, 2, 3, 4].map(section => validateSection(section)))
+    .then(errorArrays => errorArrays.flat());
+    
   if (allErrors.length > 0) {
     setErrors(allErrors);
     const sectionMap: Record<string, number> = {
