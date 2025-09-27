@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from "react";
-import { Trophy, Star, QrCode, Calendar, MapPin, Clock, Building, Users, X, CheckCircle, XCircle } from "lucide-react";
+import { Trophy, Star, QrCode, Calendar, MapPin, Clock, Building, Users, X, CheckCircle, XCircle, Activity } from "lucide-react";
 import DashboardLayout from "../../components/shared/DashboardLayout";
-import { supabase } from "../../lib/supabase";
+import { supabase, getUserRankingAndScore, getRecentActivities } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import QRCodeLib from 'qrcode';
@@ -11,6 +12,14 @@ interface UserScore {
   score: number;
   rank: number;
   total_users: number;
+}
+
+interface RecentActivity {
+  id: string;
+  points: number;
+  activity_type: string;
+  activity_description: string;
+  awarded_at: string;
 }
 
 interface ScheduleItem {
@@ -60,6 +69,7 @@ const AttendeeDashboard: React.FC = () => {
   const navigate = useNavigate();
 
   const [userScore, setUserScore] = useState<UserScore | null>(null);
+  const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -130,10 +140,30 @@ const AttendeeDashboard: React.FC = () => {
       )
       .subscribe();
 
+    // Set up realtime subscription for user_scores (for recent activities)
+    const scoresChannel = supabase
+      .channel('user_scores_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_scores',
+          filter: `user_id=eq.${profile?.id}`
+        },
+        (payload) => {
+          console.log('User score change detected:', payload);
+          fetchUserScore(); // Refresh user score and ranking
+          fetchRecentActivities(); // Refresh recent activities
+        }
+      )
+      .subscribe();
+
     // Cleanup subscriptions on unmount
     return () => {
       supabase.removeChannel(sessionsChannel);
       supabase.removeChannel(attendancesChannel);
+      supabase.removeChannel(scoresChannel);
     };
   }, [profile?.id]);
 
@@ -161,24 +191,11 @@ const AttendeeDashboard: React.FC = () => {
   const fetchDashboardData = async () => {
     if (!profile?.id) return;
     try {
-      // Score
-      const { data: scoreData } = await supabase
-        .from("user_scores")
-        .select("score")
-        .eq("user_id", profile.id)
-        .single();
+      // Score and ranking
+      await fetchUserScore();
 
-      if (scoreData) {
-        const { data: rankData } = await supabase.rpc("get_user_ranking", {
-          user_id: profile.id,
-        });
-
-        setUserScore({
-          score: scoreData.score || 0,
-          rank: rankData?.rank || 0,
-          total_users: rankData?.total_users || 0,
-        });
-      }
+      // Recent activities
+      await fetchRecentActivities();
 
       // Initial events for day 1
       await fetchEventsByDay(1);
@@ -194,6 +211,36 @@ const AttendeeDashboard: React.FC = () => {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchUserScore = async () => {
+    if (!profile?.id) return;
+
+    try {
+      const { data, error } = await getUserRankingAndScore(profile.id);
+      if (error) {
+        console.error('Error fetching user score:', error);
+      } else if (data) {
+        setUserScore(data);
+      }
+    } catch (error) {
+      console.error('Error fetching user score:', error);
+    }
+  };
+
+  const fetchRecentActivities = async () => {
+    if (!profile?.id) return;
+
+    try {
+      const { data, error } = await getRecentActivities(profile.id, 5);
+      if (error) {
+        console.error('Error fetching recent activities:', error);
+      } else {
+        setRecentActivities(data);
+      }
+    } catch (error) {
+      console.error('Error fetching recent activities:', error);
     }
   };
 
@@ -419,6 +466,21 @@ const AttendeeDashboard: React.FC = () => {
     }
   };
 
+  const getActivityIcon = (activityType: string) => {
+    switch (activityType) {
+      case 'attendance':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'session':
+        return <Users className="h-4 w-4 text-blue-500" />;
+      case 'event':
+        return <Calendar className="h-4 w-4 text-purple-500" />;
+      case 'bonus':
+        return <Star className="h-4 w-4 text-yellow-500" />;
+      default:
+        return <Activity className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
   if (loading) {
     return (
       <DashboardLayout title="Dashboard" subtitle="Welcome back to Career Week">
@@ -471,7 +533,7 @@ const AttendeeDashboard: React.FC = () => {
 
       {/* Overview */}
       {activeTab === "overview" && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Score */}
           <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
             <p className="text-sm font-medium text-gray-600">Your Score</p>
@@ -504,8 +566,43 @@ const AttendeeDashboard: React.FC = () => {
               <QrCode className="h-6 w-6 text-green-600" />
             </div>
           </div>
-        </div>
-      )}
+
+          {/* Recent Activities */}
+          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm font-medium text-gray-600">Recent Activities</p>
+              <Activity className="h-5 w-5 text-gray-400" />
+            </div>
+            
+            {recentActivities.length > 0 ? (
+              <div className="space-y-3 max-h-40 overflow-y-auto">
+                {recentActivities.map((activity) => (
+                  <div key={activity.id} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2 flex-1 min-w-0">
+                      {getActivityIcon(activity.activity_type)}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-900 truncate">
+                          {activity.activity_description}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(activity.awarded_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-xs font-semibold text-green-600 ml-2">
+                      +{activity.points}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <Activity className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                <p className="text-xs text-gray-500">No recent activities</p>
+              </div>
+            )}
+
+      
 
 {/* Event Days */}
 {activeTab === "events" && (
