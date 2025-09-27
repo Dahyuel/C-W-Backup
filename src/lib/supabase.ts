@@ -247,6 +247,8 @@ export const signUpUser = async (email: string, password: string, userData: any)
 };
 
 // Enhanced volunteer sign up with better error handling
+
+// Enhanced volunteer sign up with better error handling
 export const signUpVolunteer = async (email: string, password: string, userData: any) => {
   try {
     console.log('Starting volunteer registration...');
@@ -294,12 +296,13 @@ export const signUpVolunteer = async (email: string, password: string, userData:
     console.log('Generated volunteer ID:', volunteerId);
 
     // STEP 4: Create volunteer profile with email and volunteer ID
-    // Try without volunteer_id first, then update if there's a constraint issue
+    // Always set university to "Ain Shams University" for volunteers
     let profileDataToInsert = {
       id: authData.user.id,
       email: email.trim().toLowerCase(),
       volunteer_id: volunteerId, // Try to include volunteer_id
       ...userData,
+      university: 'Ain Shams University', // Always set university for volunteers
       role: userData.role || 'volunteer',
       score: 0,
       building_entry: false,
