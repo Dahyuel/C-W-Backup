@@ -20,7 +20,8 @@ interface ScheduleItem {
   start_time: string;
   end_time: string;
   location: string;
-  type: string;
+  item_type: string;
+  created_at: string;
 }
 
 interface Session {
@@ -81,6 +82,11 @@ const AttendeeDashboard: React.FC = () => {
   // Company modal states
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [showCompanyModal, setShowCompanyModal] = useState(false);
+
+  // Event modal states
+  const [selectedEvent, setSelectedEvent] = useState<ScheduleItem | null>(null);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [eventsLoading, setEventsLoading] = useState(false);
 
   // Load dashboard data
   useEffect(() => {
@@ -145,6 +151,13 @@ const AttendeeDashboard: React.FC = () => {
     }
   }, [activeTab, profile?.id]);
 
+  // Fetch events when day changes
+  useEffect(() => {
+    if (activeTab === 'events') {
+      fetchEventsByDay(activeDay);
+    }
+  }, [activeTab, activeDay]);
+
   const fetchDashboardData = async () => {
     if (!profile?.id) return;
     try {
@@ -167,16 +180,8 @@ const AttendeeDashboard: React.FC = () => {
         });
       }
 
-      // Schedule
-      const today = new Date().toISOString().split("T")[0];
-      const { data: scheduleData } = await supabase
-        .from("schedule_items")
-        .select("*")
-        .gte("start_time", `${today}T00:00:00`)
-        .lt("start_time", `${today}T23:59:59`)
-        .order("start_time", { ascending: true });
-
-      if (scheduleData) setSchedule(scheduleData);
+      // Initial events for day 1
+      await fetchEventsByDay(1);
 
       // Sessions
       await fetchSessions();
@@ -190,6 +195,42 @@ const AttendeeDashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchEventsByDay = async (day: number) => {
+    setEventsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("schedule_items")
+        .select("*")
+        .order("start_time", { ascending: true });
+
+      if (error) {
+        console.error("Error fetching events:", error);
+      } else if (data) {
+        // Filter by day - assuming events are spread across 5 days
+        // You might need to adjust this logic based on your actual date structure
+        const filteredData = data.filter((item) => {
+          const itemDay = getDayFromDate(item.start_time);
+          return itemDay === day;
+        });
+        setSchedule(filteredData);
+      }
+    } catch (error) {
+      console.error("Error fetching events:", error);
+    } finally {
+      setEventsLoading(false);
+    }
+  };
+
+  // Helper function to get day number from date (1-5)
+  const getDayFromDate = (dateString: string): number => {
+    const date = new Date(dateString);
+    // Adjust this based on your event start date
+    const eventStartDate = new Date('2024-03-18');
+    const diffTime = date.getTime() - eventStartDate.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.max(1, Math.min(5, diffDays + 1)); // Ensure day is between 1-5
   };
 
   const fetchSessions = async () => {
@@ -290,6 +331,11 @@ const AttendeeDashboard: React.FC = () => {
   const handleCompanyClick = (company: Company) => {
     setSelectedCompany(company);
     setShowCompanyModal(true);
+  };
+
+  const handleEventClick = (event: ScheduleItem) => {
+    setSelectedEvent(event);
+    setShowEventModal(true);
   };
 
   const isSessionBooked = (sessionId: string): boolean => {
@@ -464,31 +510,68 @@ const AttendeeDashboard: React.FC = () => {
       {/* Event Days */}
       {activeTab === "events" && (
         <div>
-          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
-            <Calendar className="h-5 w-5 mr-2 text-orange-600" /> 5-Day Event Schedule
-          </h2>
-          <div className="space-y-4">
-            {schedule.length > 0 ? (
-              schedule.map((item) => (
-                <div key={item.id} className="border-l-4 border-orange-500 pl-4 py-2 bg-white rounded-lg shadow-sm">
-                  <h3 className="font-semibold text-gray-900">{item.title}</h3>
-                  <p className="text-sm text-gray-600 mt-1">{item.description}</p>
-                  <div className="flex items-center mt-2 space-x-4 text-xs text-gray-500">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
+            <h2 className="text-xl font-bold text-gray-900 flex items-center mb-4 sm:mb-0">
+              <Calendar className="h-5 w-5 mr-2 text-orange-600" /> 5-Day Event Schedule
+            </h2>
+            
+            {/* Day Selector */}
+            <div className="flex space-x-2">
+              {[1, 2, 3, 4, 5].map((day) => (
+                <button
+                  key={day}
+                  onClick={() => setActiveDay(day)}
+                  className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    activeDay === day 
+                      ? "bg-orange-500 text-white" 
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  Day {day}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {eventsLoading ? (
+            <div className="flex items-center justify-center h-32">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+            </div>
+          ) : schedule.length > 0 ? (
+            <div className="space-y-4">
+              {schedule.map((item) => (
+                <div 
+                  key={item.id} 
+                  onClick={() => handleEventClick(item)}
+                  className="border-l-4 border-orange-500 pl-4 py-4 bg-white rounded-lg shadow-sm hover:shadow-md cursor-pointer transition-shadow"
+                >
+                  <h3 className="font-semibold text-gray-900 text-lg">{item.title}</h3>
+                  <p className="text-sm text-gray-600 mt-1 line-clamp-2">{item.description}</p>
+                  <div className="flex flex-col sm:flex-row sm:items-center mt-3 space-y-2 sm:space-y-0 sm:space-x-6 text-sm text-gray-500">
                     <div className="flex items-center">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {new Date(item.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      <Clock className="h-4 w-4 mr-2" />
+                      {new Date(item.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - 
+                      {new Date(item.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                     </div>
                     <div className="flex items-center">
-                      <MapPin className="h-3 w-3 mr-1" />
+                      <MapPin className="h-4 w-4 mr-2" />
                       {item.location}
                     </div>
+                    {item.item_type && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {item.item_type}
+                      </span>
+                    )}
                   </div>
                 </div>
-              ))
-            ) : (
-              <p className="text-gray-500 text-center">No schedule available</p>
-            )}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+              <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">No events scheduled for Day {activeDay}</p>
+            </div>
+          )}
         </div>
       )}
 
@@ -696,6 +779,79 @@ const AttendeeDashboard: React.FC = () => {
         </div>
       )}
 
+      {/* Event Details Modal */}
+      {showEventModal && selectedEvent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Event Details</h2>
+                <button
+                  onClick={() => {
+                    setShowEventModal(false);
+                    setSelectedEvent(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{selectedEvent.title}</h3>
+                  <p className="text-gray-700 leading-relaxed">{selectedEvent.description}</p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time</label>
+                    <p className="text-gray-900">
+                      {new Date(selectedEvent.start_time).toLocaleDateString('en-US', { 
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
+                    <p className="text-gray-600 text-sm">
+                      {new Date(selectedEvent.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - 
+                      {new Date(selectedEvent.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                    <p className="text-gray-900 flex items-center">
+                      <MapPin className="h-4 w-4 mr-2" />
+                      {selectedEvent.location}
+                    </p>
+                  </div>
+
+                  {selectedEvent.item_type && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Event Type</label>
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                        {selectedEvent.item_type}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-4 border-t border-gray-200">
+                  <button
+                    onClick={() => setShowEventModal(false)}
+                    className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+                  >
+                    Close Details
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Session Details Modal */}
       {showSessionModal && selectedSession && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -806,6 +962,7 @@ const AttendeeDashboard: React.FC = () => {
           </div>
         </div>
       )}
+
       {/* Company Details Modal */}
       {showCompanyModal && selectedCompany && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
