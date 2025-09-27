@@ -67,26 +67,24 @@ export const checkPersonalIdUnique = async (personalId: string): Promise<Validat
 // Check if email is unique in users_profiles
 export const checkEmailUnique = async (email: string): Promise<ValidationResult> => {
   try {
-    const { data, error } = await supabase
-      .from('users_profiles')
-      .select('email')
-      .eq('email', email.trim().toLowerCase())
-      .limit(1);
-    
+    const { data, error } = await supabase.rpc('check_email_exists', {
+      p_email: email.trim().toLowerCase()
+    });
+
     if (error) {
-      return { isValid: false, error: 'Database error while checking email' };
+      console.error('Email check error:', error);
+      return { isValid: false, error: 'Failed to validate email' };
     }
-    
-    const isUnique = !data || data.length === 0;
-    return { 
-      isValid: isUnique, 
-      error: isUnique ? null : 'This email is already registered' 
+
+    return {
+      isValid: !data.exists,
+      error: data.error
     };
   } catch (error: any) {
-    return { isValid: false, error: 'Failed to validate email address' };
+    console.error('Email check exception:', error);
+    return { isValid: false, error: 'Failed to validate email' };
   }
 };
-
 export const checkVolunteerIdExists = async (volunteerId: string): Promise<ValidationResult> => {
   if (!volunteerId || !volunteerId.trim()) {
     return { isValid: true, error: null };
