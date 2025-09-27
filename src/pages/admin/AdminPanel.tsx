@@ -14,7 +14,7 @@ import {
   X,
   Upload,
   Link,
-  Eye,
+  Eye,Trash2
   Trash2
 } from "lucide-react";
 import DashboardLayout from "../../components/shared/DashboardLayout";
