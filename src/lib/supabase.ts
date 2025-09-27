@@ -1511,7 +1511,24 @@ export async function getDynamicBuildingStats() {
   }
 }
 
+export const checkFileExists = async (bucket: string, filePath: string) => {
+  try {
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .list(filePath.split('/').slice(0, -1).join('/'), {
+        search: filePath.split('/').pop()
+      });
 
+    if (error) {
+      return { exists: false, error };
+    }
+
+    const exists = data && data.length > 0;
+    return { exists, error: null };
+  } catch (error: any) {
+    return { exists: false, error };
+  }
+};
 export const getUserRankingAndScore = async (userId: string) => {
   try {
     const { data: userProfile, error: profileError } = await supabase
