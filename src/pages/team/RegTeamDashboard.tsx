@@ -453,7 +453,7 @@ export const RegTeamDashboard: React.FC = () => {
         description="Point your camera at the attendee's QR code"
       />
 
-      {/* Attendee Card Modal */}
+{/* Attendee Card Modal */}
 <AttendeeCard
   isOpen={showAttendeeCard}
   onClose={() => {
@@ -463,7 +463,7 @@ export const RegTeamDashboard: React.FC = () => {
   attendee={selectedAttendee}
   onAction={handleAttendanceAction}
   loading={actionLoading}
-  mode="registration" // This will show event entry/exit status
+  mode="registration" // This will show "Inside/Outside Event"
 />
     </DashboardLayout>
   );
