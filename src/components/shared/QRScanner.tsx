@@ -21,13 +21,11 @@ export const QRScanner: React.FC<QRScannerProps> = ({
   const [scanSuccess, setScanSuccess] = useState(false);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [isScanning, setIsScanning] = useState(false);
-  const [isCameraStarting, setIsCameraStarting] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number>(0);
-  const scanAttemptsRef = useRef(0);
 
   // Reset all states
   const resetStates = useCallback(() => {
@@ -35,8 +33,6 @@ export const QRScanner: React.FC<QRScannerProps> = ({
     setScanSuccess(false);
     setHasPermission(null);
     setIsScanning(false);
-    setIsCameraStarting(false);
-    scanAttemptsRef.current = 0;
   }, []);
 
   // Stop scanner and cleanup
@@ -56,7 +52,6 @@ export const QRScanner: React.FC<QRScannerProps> = ({
     }
     
     setIsScanning(false);
-    setIsCameraStarting(false);
   }, []);
 
   // Handle successful scan
@@ -80,23 +75,10 @@ export const QRScanner: React.FC<QRScannerProps> = ({
     const canvas = canvasRef.current;
     const context = canvas.getContext('2d');
 
-    // Check if video is ready and has enough data
-    if (!context || video.readyState !== video.HAVE_ENOUGH_DATA || video.videoWidth === 0) {
-      scanAttemptsRef.current++;
-      
-      // If video isn't ready after many attempts, show error
-      if (scanAttemptsRef.current > 100) {
-        setError('Camera failed to initialize properly. Please try again.');
-        stopScanner();
-        return;
-      }
-      
+    if (!context || video.readyState !== video.HAVE_ENOUGH_DATA) {
       animationFrameRef.current = requestAnimationFrame(scanQRCode);
       return;
     }
-
-    // Reset attempt counter once video is ready
-    scanAttemptsRef.current = 0;
 
     // Set canvas dimensions to match video
     canvas.width = video.videoWidth;
@@ -120,19 +102,17 @@ export const QRScanner: React.FC<QRScannerProps> = ({
 
     // Continue scanning
     animationFrameRef.current = requestAnimationFrame(scanQRCode);
-  }, [isScanning, handleScanSuccess, stopScanner]);
+  }, [isScanning, handleScanSuccess]);
 
   // Start the camera and scanner
   const startScanner = useCallback(async () => {
     try {
       resetStates();
       setError(null);
-      setIsCameraStarting(true);
 
       // Check if browser supports media devices
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         setError('Camera access is not supported in this browser');
-        setIsCameraStarting(false);
         return;
       }
 
@@ -150,49 +130,29 @@ export const QRScanner: React.FC<QRScannerProps> = ({
 
       if (!videoRef.current) {
         setError('Video element not available');
-        setIsCameraStarting(false);
         return;
       }
 
       // Set up video element
       videoRef.current.srcObject = stream;
       
-      // Wait for video to be ready before starting scan
-      const waitForVideoReady = () => {
-        return new Promise<void>((resolve, reject) => {
-          if (!videoRef.current) {
-            reject(new Error('Video element not available'));
-            return;
-          }
-
-          const checkReady = () => {
-            if (videoRef.current && videoRef.current.readyState >= videoRef.current.HAVE_METADATA) {
-              resolve();
-            } else {
-              setTimeout(checkReady, 100);
-            }
-          };
-
-          checkReady();
+      // Wait for video to be ready
+      videoRef.current.onloadedmetadata = () => {
+        videoRef.current?.play().then(() => {
+          setIsScanning(true);
+          // Start scanning loop
+          animationFrameRef.current = requestAnimationFrame(scanQRCode);
+        }).catch(err => {
+          setError('Failed to start video: ' + err.message);
         });
       };
 
-      await waitForVideoReady();
-
-      // Start video playback
-      await videoRef.current.play();
-      
-      // Wait a bit more for video to stabilize
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Now start scanning
-      setIsCameraStarting(false);
-      setIsScanning(true);
-      animationFrameRef.current = requestAnimationFrame(scanQRCode);
+      videoRef.current.onerror = () => {
+        setError('Video playback error');
+      };
 
     } catch (err: any) {
       console.error('Camera error:', err);
-      setIsCameraStarting(false);
       
       if (err.name === 'NotAllowedError') {
         setError('Camera permission denied. Please allow camera access and try again.');
@@ -212,10 +172,12 @@ export const QRScanner: React.FC<QRScannerProps> = ({
           
           if (videoRef.current) {
             videoRef.current.srcObject = stream;
-            await videoRef.current.play();
-            setIsCameraStarting(false);
-            setIsScanning(true);
-            animationFrameRef.current = requestAnimationFrame(scanQRCode);
+            videoRef.current.onloadedmetadata = () => {
+              videoRef.current?.play().then(() => {
+                setIsScanning(true);
+                animationFrameRef.current = requestAnimationFrame(scanQRCode);
+              });
+            };
           }
         } catch (retryErr: any) {
           setError('Unable to access camera. Please check your browser settings.');
@@ -364,22 +326,6 @@ export const QRScanner: React.FC<QRScannerProps> = ({
                 )}
               </div>
             </div>
-          ) : isCameraStarting ? (
-            /* Camera Starting State */
-            <div className="text-center space-y-4">
-              <div className="animate-pulse">
-                <Camera className="h-12 w-12 text-orange-500 mx-auto mb-3" />
-              </div>
-              <p className="text-gray-600 font-medium">Starting camera...</p>
-              <p className="text-xs text-gray-500">
-                Please wait while we initialize your camera
-              </p>
-              
-              {/* Loading indicator */}
-              <div className="flex justify-center">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div>
-              </div>
-            </div>
           ) : (
             /* Scanner View */
             <div className="space-y-4">
@@ -414,15 +360,13 @@ export const QRScanner: React.FC<QRScannerProps> = ({
                   </div>
                 </div>
                 
-                {/* Status indicator - Only show when scanning */}
-                {isScanning && (
-                  <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
-                    <div className="bg-black bg-opacity-50 text-white px-3 py-2 rounded-full text-sm flex items-center space-x-2">
-                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                      <span>Scanning for QR codes...</span>
-                    </div>
+                {/* Status indicator */}
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
+                  <div className="bg-black bg-opacity-50 text-white px-3 py-2 rounded-full text-sm flex items-center space-x-2">
+                    <div className={`w-2 h-2 rounded-full ${isScanning ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></div>
+                    <span>{isScanning ? 'Scanning...' : 'Starting camera...'}</span>
                   </div>
-                )}
+                </div>
               </div>
 
               {/* Instructions */}
