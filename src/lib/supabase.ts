@@ -773,6 +773,107 @@ export const getSessionById = async (sessionId: string) => {
   }
 };
 
+export const getScheduleByDay = async (day: number) => {
+  try {
+    // Calculate the date for the specific day
+    // Assuming the event starts on March 18, 2024 (adjust dates as needed)
+    const startDate = new Date('2024-03-18');
+    const targetDate = new Date(startDate);
+    targetDate.setDate(startDate.getDate() + (day - 1));
+    
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const { data, error } = await supabase
+      .from('schedule_items')
+      .select(`
+        id,
+        title,
+        description,
+        start_time,
+        end_time,
+        location,
+        item_type,
+        created_at
+      `)
+      .gte('start_time', startOfDay.toISOString())
+      .lte('start_time', endOfDay.toISOString())
+      .order('start_time', { ascending: true });
+
+    if (error) {
+      console.error('Get schedule by day error:', error);
+      return { data: [], error };
+    }
+
+    return { data: data || [], error: null };
+  } catch (error: any) {
+    console.error('Get schedule by day exception:', error);
+    return { data: [], error: { message: error.message } };
+  }
+};
+
+// Get all schedule items
+export const getAllScheduleItems = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('schedule_items')
+      .select(`
+        id,
+        title,
+        description,
+        start_time,
+        end_time,
+        location,
+        item_type,
+        created_at
+      `)
+      .order('start_time', { ascending: true });
+
+    if (error) {
+      console.error('Get all schedule items error:', error);
+      return { data: [], error };
+    }
+
+    return { data: data || [], error: null };
+  } catch (error: any) {
+    console.error('Get all schedule items exception:', error);
+    return { data: [], error: { message: error.message } };
+  }
+};
+
+// Get schedule item by ID
+export const getScheduleItemById = async (itemId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('schedule_items')
+      .select(`
+        id,
+        title,
+        description,
+        start_time,
+        end_time,
+        location,
+        item_type,
+        created_at
+      `)
+      .eq('id', itemId)
+      .single();
+
+    if (error) {
+      console.error('Get schedule item by ID error:', error);
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  } catch (error: any) {
+    console.error('Get schedule item by ID exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
 // Get all companies from the database
 export const getAllCompanies = async () => {
   try {
@@ -1000,106 +1101,6 @@ export const getBuildingStats = async () => {
     };
   } catch (error: any) {
     console.error('Get building stats error:', error);
-    return { data: null, error: { message: error.message } };
-  }
-};
-export const getScheduleByDay = async (day: number) => {
-  try {
-    // Calculate the date for the specific day
-    // Assuming the event starts on March 18, 2024 (adjust dates as needed)
-    const startDate = new Date('2024-03-18');
-    const targetDate = new Date(startDate);
-    targetDate.setDate(startDate.getDate() + (day - 1));
-    
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
-
-    const { data, error } = await supabase
-      .from('schedule_items')
-      .select(`
-        id,
-        title,
-        description,
-        start_time,
-        end_time,
-        location,
-        item_type,
-        created_at
-      `)
-      .gte('start_time', startOfDay.toISOString())
-      .lte('start_time', endOfDay.toISOString())
-      .order('start_time', { ascending: true });
-
-    if (error) {
-      console.error('Get schedule by day error:', error);
-      return { data: [], error };
-    }
-
-    return { data: data || [], error: null };
-  } catch (error: any) {
-    console.error('Get schedule by day exception:', error);
-    return { data: [], error: { message: error.message } };
-  }
-};
-
-// Get all schedule items
-export const getAllScheduleItems = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('schedule_items')
-      .select(`
-        id,
-        title,
-        description,
-        start_time,
-        end_time,
-        location,
-        item_type,
-        created_at
-      `)
-      .order('start_time', { ascending: true });
-
-    if (error) {
-      console.error('Get all schedule items error:', error);
-      return { data: [], error };
-    }
-
-    return { data: data || [], error: null };
-  } catch (error: any) {
-    console.error('Get all schedule items exception:', error);
-    return { data: [], error: { message: error.message } };
-  }
-};
-
-// Get schedule item by ID
-export const getScheduleItemById = async (itemId: string) => {
-  try {
-    const { data, error } = await supabase
-      .from('schedule_items')
-      .select(`
-        id,
-        title,
-        description,
-        start_time,
-        end_time,
-        location,
-        item_type,
-        created_at
-      `)
-      .eq('id', itemId)
-      .single();
-
-    if (error) {
-      console.error('Get schedule item by ID error:', error);
-      return { data: null, error };
-    }
-
-    return { data, error: null };
-  } catch (error: any) {
-    console.error('Get schedule item by ID exception:', error);
     return { data: null, error: { message: error.message } };
   }
 };
