@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
-  UserCheck,
-  Users,
   Search,
   QrCode,
   X,
@@ -16,8 +14,7 @@ import {
   processAttendance, 
   getAttendeeByPersonalId,
   getAttendeeByUUID,
-  getRegistrationStats,
-  searchAttendeesByPersonalId // New function we'll add
+  searchAttendeesByPersonalId
 } from "../../lib/supabase";
 
 interface RegistrationStats {
@@ -51,11 +48,6 @@ const castToAttendee = (data: any): Attendee => {
 
 export const RegTeamDashboard: React.FC = () => {
   const { profile } = useAuth();
-  const [activeTab, setActiveTab] = useState<"scanner" | "dashboard">("scanner");
-
-  // Dashboard state
-  const [stats, setStats] = useState<RegistrationStats | null>(null);
-  const [loading, setLoading] = useState(true);
 
   // Scanner state
   const [showScanner, setShowScanner] = useState(false);
@@ -80,10 +72,8 @@ export const RegTeamDashboard: React.FC = () => {
   } | null>(null);
 
   useEffect(() => {
-    if (activeTab === "dashboard") {
-      fetchDashboardData();
-    }
-  }, [activeTab]);
+    // Component initialization if needed
+  }, []);
 
   // Dynamic search effect
   useEffect(() => {
@@ -108,25 +98,6 @@ export const RegTeamDashboard: React.FC = () => {
       }
     };
   }, [searchTerm]);
-
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await getRegistrationStats();
-      
-      if (error) {
-        console.error("Error fetching stats:", error);
-        showFeedback('error', 'Failed to load dashboard statistics');
-      } else if (data) {
-        setStats(data);
-      }
-    } catch (error) {
-      console.error("Error fetching stats:", error);
-      showFeedback('error', 'An unexpected error occurred');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const performDynamicSearch = async (query: string) => {
     try {
@@ -269,10 +240,11 @@ export const RegTeamDashboard: React.FC = () => {
         last_scan: new Date().toISOString()
       } : null);
 
-      // Refresh dashboard stats if on dashboard tab
-      if (activeTab === "dashboard") {
-        fetchDashboardData();
-      }
+      // Refresh dashboard stats if needed for other purposes
+      // Note: Dashboard functionality removed from this component
+      // if (activeTab === "dashboard") {
+      //   fetchDashboardData();
+      // }
 
       // Close attendee card after successful action
       setTimeout(() => {
@@ -331,31 +303,13 @@ export const RegTeamDashboard: React.FC = () => {
 
       {/* Tabs */}
       <div className="flex border-b border-gray-200 mb-6">
-        <button
-          className={`px-4 py-2 font-medium transition-colors ${
-            activeTab === "scanner"
-              ? "text-orange-600 border-b-2 border-orange-600"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
-          onClick={() => setActiveTab("scanner")}
-        >
+        <div className="px-4 py-2 font-medium text-orange-600 border-b-2 border-orange-600">
           Scanner & Search
-        </button>
-        <button
-          className={`px-4 py-2 font-medium transition-colors ${
-            activeTab === "dashboard"
-              ? "text-orange-600 border-b-2 border-orange-600"
-              : "text-gray-500 hover:text-gray-700"
-          }`}
-          onClick={() => setActiveTab("dashboard")}
-        >
-          Live Dashboard
-        </button>
+        </div>
       </div>
 
-      {/* Scanner Tab */}
-      {activeTab === "scanner" && (
-        <div className="space-y-6">
+      {/* Scanner Section */}
+      <div className="space-y-6">
           {/* Mode Switch */}
           <div className="flex space-x-4">
             <button
@@ -488,16 +442,6 @@ export const RegTeamDashboard: React.FC = () => {
                     </button>
                   </div>
                 </div>
-
-                <div className="text-sm text-gray-600 bg-blue-50 p-4 rounded-lg">
-                  <p className="font-medium mb-1">Search Tips:</p>
-                  <ul className="list-disc list-inside space-y-1 text-xs">
-                    <li>Start typing to see dynamic suggestions (minimum 2 characters)</li>
-                    <li>Only attendees will appear in search results</li>
-                    <li>Click on a suggestion to select that attendee</li>
-                    <li>Use QR Scanner for faster lookup</li>
-                  </ul>
-                </div>
               </div>
             </div>
           )}
@@ -519,15 +463,6 @@ export const RegTeamDashboard: React.FC = () => {
                 <QrCode className="h-5 w-5" />
                 <span>Open QR Scanner</span>
               </button>
-              
-              <div className="mt-6 text-sm text-gray-600 bg-green-50 p-4 rounded-lg">
-                <p className="font-medium mb-1">QR Scanner supports:</p>
-                <ul className="list-disc list-inside space-y-1 text-xs">
-                  <li>UUID format (from QR codes)</li>
-                  <li>Personal ID format (fallback)</li>
-                  <li>Automatic attendee role verification</li>
-                </ul>
-              </div>
             </div>
           )}
         </div>
