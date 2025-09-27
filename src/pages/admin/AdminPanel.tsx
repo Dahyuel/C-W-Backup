@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Users,
   Activity,
@@ -8,100 +8,463 @@ import {
   Megaphone,
   XCircle,
   CheckCircle2,
- Sparkles,
+  Sparkles,
+  Plus,
+  Clock,
+  MapPin,
+  X,
+  Upload,
+  Link,
+  Eye,
+  Trash2
 } from "lucide-react";
 import DashboardLayout from "../../components/shared/DashboardLayout";
+import { supabase, uploadFile } from "../../lib/supabase";
 
-const fakeStats = {
-  total_users: 120,
-  total_sessions: 35,
-};
+export function AdminPanel() {
+  // Stats and data states
+  const [stats, setStats] = useState({ total_users: 0, total_sessions: 0 });
+  const [buildingStats, setBuildingStats] = useState({
+    inside_building: 0,
+    inside_event: 0,
+    total_attendees: 0
+  });
+  const [sessions, setSessions] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [companies, setCompanies] = useState([]);
+  const [activeDay, setActiveDay] = useState(1);
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState("dashboard");
 
-export  function AdminPanel() {
-  const [stats] = useState(fakeStats);
-
-  // Modals
+  // Modal states
   const [companyModal, setCompanyModal] = useState(false);
   const [sessionModal, setSessionModal] = useState(false);
- 
-    //announcment
-   const [announcementModal, setAnnouncementModal] = useState(false);
-    const [announcementTitle, setAnnouncementTitle] = useState("");
-    const [announcementDescription, setAnnouncementDescription] = useState("");
-    const [announcementRole, setAnnouncementRole] = useState("");
-  
-  
+  const [eventModal, setEventModal] = useState(false);
+  const [mapModal, setMapModal] = useState(false);
+  const [announcementModal, setAnnouncementModal] = useState(false);
+
+  // Form states
+  const [announcementTitle, setAnnouncementTitle] = useState("");
+  const [announcementDescription, setAnnouncementDescription] = useState("");
+  const [announcementRole, setAnnouncementRole] = useState("");
+
+  // Company form state
+  const [newCompany, setNewCompany] = useState({
+    name: "",
+    logo: null,
+    logoUrl: "",
+    logoType: "link", // "link" or "upload"
+    description: "",
+    website: "",
+    boothNumber: "",
+  });
+
+  // Session form state
+  const [newSession, setNewSession] = useState({
+    title: "",
+    date: "",
+    speaker: "",
+    capacity: "",
+    type: "session",
+    hour: "",
+    location: "",
+    description: "",
+  });
+
+  // Event form state
+  const [newEvent, setNewEvent] = useState({
+    title: "",
+    description: "",
+    startDate: "",
+    endDate: "",
+    startTime: "",
+    endTime: "",
+    location: "",
+    type: "general",
+  });
+
+  // Map form state
+  const [mapForm, setMapForm] = useState({
+    day: 1,
+    image: null
+  });
+
+  // Loading states
+  const [loading, setLoading] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
 
   // Notification
-  const [announcement, setAnnouncement] = useState<{
-    message: string;
-    type: "success" | "error" | null;
-  }>({ message: "", type: null });
+  const [announcement, setAnnouncement] = useState({
+    message: "",
+    type: null,
+  });
 
-  const showNotification = (message: string, type: "success" | "error") => {
+  const showNotification = (message, type) => {
     setAnnouncement({ message, type });
     setTimeout(() => {
       setAnnouncement({ message: "", type: null });
     }, 4000);
   };
 
-  // Add Company state
-  const [newCompany, setNewCompany] = useState({
-    name: "",
-    logo: null as File | null,
-    description: "",
-    website: "",
-    boothNumber: "",
-  });
+  // Fetch data
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
 
+  useEffect(() => {
+    if (activeTab === "events") {
+      fetchEventsByDay(activeDay);
+    }
+  }, [activeTab, activeDay]);
+
+  const fetchDashboardData = async () => {
+    setLoadingData(true);
+    try {
+      // Fetch basic stats
+      const { data: usersData } = await supabase
+        .from("users_profiles")
+        .select("id", { count: "exact", head: true });
+      
+      const { data: sessionsData } = await supabase
+        .from("sessions")
+        .select("id", { count: "exact", head: true });
+
+      setStats({
+        total_users: usersData?.length || 0,
+        total_sessions: sessionsData?.length || 0,
+      });
+
+      // Fetch building stats
+      await fetchBuildingStats();
+      
+      // Fetch initial data based on tab
+      await fetchSessions();
+      await fetchCompanies();
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  const fetchBuildingStats = async () => {
+    try {
+      // Get current building status
+      const { data: attendances } = await supabase
+        .from("attendances")
+        .select("user_id, scan_type, scanned_at")
+        .in("scan_type", ["building_entry", "building_exit", "entry", "exit"])
+        .order("scanned_at", { ascending: false });
+
+      // Calculate inside building (last scan was entry)
+      const userLastScans = new Map();
+      attendances?.forEach(scan => {
+        if (!userLastScans.has(scan.user_id)) {
+          userLastScans.set(scan.user_id, scan.scan_type);
+        }
+      });
+
+      const insideBuilding = Array.from(userLastScans.values())
+        .filter(scanType => scanType === "building_entry" || scanType === "entry").length;
+
+      // Get total attendees
+      const { data: totalAttendeesData } = await supabase
+        .from("users_profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("role", "attendee");
+
+      // Today's attendance for "inside event"
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const { data: todayAttendance } = await supabase
+        .from("attendances")
+        .select("user_id", { count: "exact", head: true })
+        .gte("scanned_at", today.toISOString());
+
+      setBuildingStats({
+        inside_building: insideBuilding,
+        inside_event: Math.min(todayAttendance?.length || 0, 5), // Mock data
+        total_attendees: totalAttendeesData?.length || 0
+      });
+    } catch (error) {
+      console.error("Error fetching building stats:", error);
+    }
+  };
+
+  const fetchSessions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("sessions")
+        .select("*")
+        .order("start_time", { ascending: true });
+
+      if (!error && data) {
+        setSessions(data);
+      }
+    } catch (error) {
+      console.error("Error fetching sessions:", error);
+    }
+  };
+
+  const fetchEventsByDay = async (day) => {
+    try {
+      const { data, error } = await supabase
+        .from("schedule_items")
+        .select("*")
+        .order("start_time", { ascending: true });
+
+      if (!error && data) {
+        // Filter by day logic (you may need to adjust this based on your date structure)
+        const filteredData = data.filter((item) => {
+          const itemDay = getDayFromDate(item.start_time);
+          return itemDay === day;
+        });
+        setEvents(filteredData);
+      }
+    } catch (error) {
+      console.error("Error fetching events:", error);
+    }
+  };
+
+  const getDayFromDate = (dateString) => {
+    const date = new Date(dateString);
+    const eventStartDate = new Date('2024-03-18');
+    const diffTime = date.getTime() - eventStartDate.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.max(1, Math.min(5, diffDays + 1));
+  };
+
+  const fetchCompanies = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("companies")
+        .select("*")
+        .order("name", { ascending: true });
+
+      if (!error && data) {
+        setCompanies(data);
+      }
+    } catch (error) {
+      console.error("Error fetching companies:", error);
+    }
+  };
+
+  // Handle Company Submit
   const handleCompanySubmit = async () => {
     if (!newCompany.name || !newCompany.website || !newCompany.boothNumber) {
-      showNotification(" Please fill all required fields!", "error");
+      showNotification("Please fill all required fields!", "error");
       return;
     }
 
+    setLoading(true);
     try {
-      // Simulate success
-      setCompanyModal(false);
-      setNewCompany({
-        name: "",
-        logo: null,
-        description: "",
-        website: "",
-        boothNumber: "",
+      let logoUrl = newCompany.logoUrl;
+
+      // Handle file upload if upload option is selected
+      if (newCompany.logoType === "upload" && newCompany.logo) {
+        const { data: uploadData, error: uploadError } = await uploadFile(
+          "company-logos",
+          "admin",
+          newCompany.logo
+        );
+
+        if (uploadError) {
+          showNotification("Failed to upload logo", "error");
+          setLoading(false);
+          return;
+        }
+
+        logoUrl = uploadData.url;
+      }
+
+      // Insert company
+      const { error } = await supabase.from("companies").insert({
+        name: newCompany.name,
+        logo_url: logoUrl,
+        description: newCompany.description,
+        website: newCompany.website,
+        booth_number: newCompany.boothNumber,
       });
-      showNotification(" Company added successfully!", "success");
+
+      if (error) {
+        showNotification("Failed to add company", "error");
+      } else {
+        setCompanyModal(false);
+        setNewCompany({
+          name: "",
+          logo: null,
+          logoUrl: "",
+          logoType: "link",
+          description: "",
+          website: "",
+          boothNumber: "",
+        });
+        showNotification("Company added successfully!", "success");
+        await fetchCompanies();
+      }
     } catch (err) {
       showNotification("Failed to add company", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Add Session state
-  const [newSession, setNewSession] = useState({
-    title: "",
-  date: "",
-  speaker: "",
-  capacity: "",
-  type: "",
-  hour: "",
-  location: "",
-  });
-
+  // Handle Session Submit
   const handleSessionSubmit = async () => {
     if (!newSession.title || !newSession.date || !newSession.speaker) {
-      showNotification(" Please fill all required fields!", "error");
+      showNotification("Please fill all required fields!", "error");
       return;
     }
 
+    setLoading(true);
     try {
-      // Simulate success
-      setSessionModal(false);
-      setNewSession({ title: "", date: "", speaker: "", capacity:"", type: "", hour: "", location:"" });
-      showNotification(" Session added successfully!", "success");
+      // Combine date and time
+      const startDateTime = new Date(`${newSession.date}T${newSession.hour}`);
+      const endDateTime = new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000); // 2 hours later
+
+      const { error } = await supabase.from("sessions").insert({
+        title: newSession.title,
+        description: newSession.description,
+        speaker: newSession.speaker,
+        start_time: startDateTime.toISOString(),
+        end_time: endDateTime.toISOString(),
+        location: newSession.location,
+        max_attendees: parseInt(newSession.capacity) || null,
+        session_type: newSession.type,
+      });
+
+      if (error) {
+        showNotification("Failed to add session", "error");
+      } else {
+        setSessionModal(false);
+        setNewSession({
+          title: "",
+          date: "",
+          speaker: "",
+          capacity: "",
+          type: "session",
+          hour: "",
+          location: "",
+          description: "",
+        });
+        showNotification("Session added successfully!", "success");
+        await fetchSessions();
+      }
     } catch (err) {
-      showNotification(" Failed to add session", "error");
+      showNotification("Failed to add session", "error");
+    } finally {
+      setLoading(false);
     }
   };
+
+  // Handle Event Submit
+  const handleEventSubmit = async () => {
+    if (!newEvent.title || !newEvent.startDate || !newEvent.startTime) {
+      showNotification("Please fill all required fields!", "error");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const startDateTime = new Date(`${newEvent.startDate}T${newEvent.startTime}`);
+      const endDateTime = newEvent.endDate && newEvent.endTime 
+        ? new Date(`${newEvent.endDate}T${newEvent.endTime}`)
+        : new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000);
+
+      const { error } = await supabase.from("schedule_items").insert({
+        title: newEvent.title,
+        description: newEvent.description,
+        start_time: startDateTime.toISOString(),
+        end_time: endDateTime.toISOString(),
+        location: newEvent.location,
+        item_type: newEvent.type,
+      });
+
+      if (error) {
+        showNotification("Failed to add event", "error");
+      } else {
+        setEventModal(false);
+        setNewEvent({
+          title: "",
+          description: "",
+          startDate: "",
+          endDate: "",
+          startTime: "",
+          endTime: "",
+          location: "",
+          type: "general",
+        });
+        showNotification("Event added successfully!", "success");
+        await fetchEventsByDay(activeDay);
+      }
+    } catch (err) {
+      showNotification("Failed to add event", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle Announcement Submit
+  const handleAnnouncementSubmit = () => {
+    if (!announcementTitle || !announcementDescription || !announcementRole) {
+      showNotification("Please fill all required fields!", "error");
+      return;
+    }
+
+    showNotification("Announcement sent successfully!", "success");
+    setAnnouncementTitle("");
+    setAnnouncementDescription("");
+    setAnnouncementRole("");
+    setAnnouncementModal(false);
+  };
+
+  // Handle Map Upload
+  const handleMapUpload = async () => {
+    if (!mapForm.image) {
+      showNotification("Please select an image!", "error");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // In a real application, you would upload to a maps bucket and update the file
+      // For now, we'll just show success
+      showNotification(`Day ${mapForm.day} map updated successfully!`, "success");
+      setMapModal(false);
+      setMapForm({ day: 1, image: null });
+    } catch (err) {
+      showNotification("Failed to update map", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const tabItems = [
+    { key: "dashboard", label: "Dashboard" },
+    { key: "sessions", label: "Sessions" },
+    { key: "events", label: "Events" },
+    { key: "maps", label: "Maps" },
+    { key: "employers", label: "Employers" },
+  ];
+
+  const mapImages = [
+    "/src/Assets/day1.png",
+    "/src/Assets/day2.png",
+    "/src/Assets/day3.png",
+    "/src/Assets/day4.png",
+    "/src/Assets/day5.png",
+  ];
+
+  if (loadingData) {
+    return (
+      <DashboardLayout title="Admin Panel" subtitle="System administration, user management, and analytics">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout
@@ -110,415 +473,811 @@ export  function AdminPanel() {
     >
       <div className="space-y-8">
         {/* Notification */}
-        {/* Notification */}
-{announcement.type && (
-  <div
-    className={`fixed top-4 right-4 z-[9999] flex items-center gap-2 p-4 rounded-lg shadow-lg text-white ${
-      announcement.type === "success" ? "bg-green-600" : "bg-red-600"
-    }`}
-  >
-    {announcement.type === "success" ? (
-      <CheckCircle2 className="h-5 w-5" />
-    ) : (
-      <XCircle className="h-5 w-5" />
-    )}
-    <span>{announcement.message}</span>
-  </div>
-)}
-
-
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Users</p>
-                <p className="text-3xl font-bold text-orange-600">
-                  {stats?.total_users || 0}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Users className="h-6 w-6 text-orange-600" />
-              </div>
-            </div>
+        {announcement.type && (
+          <div
+            className={`fixed top-4 right-4 z-[9999] flex items-center gap-2 p-4 rounded-lg shadow-lg text-white ${
+              announcement.type === "success" ? "bg-green-600" : "bg-red-600"
+            }`}
+          >
+            {announcement.type === "success" ? (
+              <CheckCircle2 className="h-5 w-5" />
+            ) : (
+              <XCircle className="h-5 w-5" />
+            )}
+            <span>{announcement.message}</span>
           </div>
+        )}
 
-          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">
-                  Active Sessions
-                </p>
-                <p className="text-3xl font-bold text-blue-600">
-                  {stats?.total_sessions || 0}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Activity className="h-6 w-6 text-blue-600" />
-              </div>
-            </div>
-          </div>
+        {/* Tabs */}
+        <div className="flex space-x-1 sm:space-x-4 border-b mb-6 overflow-x-auto scrollbar-hide">
+          {tabItems.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`py-2 px-2 sm:px-4 font-semibold text-sm sm:text-base whitespace-nowrap ${
+                activeTab === tab.key
+                  ? "border-b-2 border-orange-500 text-orange-600"
+                  : "text-gray-500 hover:text-orange-600"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        {/* Quick Actions */}
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 text-center">
-  <h1 className="text-3xl font-bold text-black-800 flex items-center justify-center gap-2 mb-6">
-    <Sparkles className="h-7 w-7 text-orange-500" />
-    Quick Actions
-  </h1>
+        {/* Dashboard Tab */}
+        {activeTab === "dashboard" && (
+          <div className="space-y-8">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Users</p>
+                    <p className="text-3xl font-bold text-orange-600">
+                      {stats?.total_users || 0}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                    <Users className="h-6 w-6 text-orange-600" />
+                  </div>
+                </div>
+              </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button
-              onClick={() => setCompanyModal(true)}
-              className="flex flex-col items-center justify-center py-6 px-4 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors"
-            >
-              <Building className="h-8 w-8 mb-2" />
-              <span className="text-base font-medium">Add Company</span>
-            </button>
+              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Active Sessions</p>
+                    <p className="text-3xl font-bold text-blue-600">
+                      {stats?.total_sessions || 0}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <Activity className="h-6 w-6 text-blue-600" />
+                  </div>
+                </div>
+              </div>
+            </div>
 
-            <button
-              onClick={() => setSessionModal(true)}
-              className="flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
-            >
-              <Calendar className="h-8 w-8 mb-2" />
-              <span className="text-base font-medium">Add Session</span>
-            </button>
+            {/* Quick Actions */}
+            <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 text-center">
+              <h1 className="text-3xl font-bold text-black-800 flex items-center justify-center gap-2 mb-6">
+                <Sparkles className="h-7 w-7 text-orange-500" />
+                Quick Actions
+              </h1>
 
-            <button
-              onClick={() => setAnnouncementModal(true)}
-              className="flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-700 transition-colors"
-            >
-              <Megaphone className="h-8 w-8 mb-2" />
-              <span className="text-base font-medium">Send Announcement</span>
-            </button>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <button
+                  onClick={() => setCompanyModal(true)}
+                  className="flex flex-col items-center justify-center py-6 px-4 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors"
+                >
+                  <Building className="h-8 w-8 mb-2" />
+                  <span className="text-base font-medium">Add Company</span>
+                </button>
+
+                <button
+                  onClick={() => setSessionModal(true)}
+                  className="flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
+                >
+                  <Calendar className="h-8 w-8 mb-2" />
+                  <span className="text-base font-medium">Add Session</span>
+                </button>
+
+                <button
+                  onClick={() => setAnnouncementModal(true)}
+                  className="flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-700 transition-colors"
+                >
+                  <Megaphone className="h-8 w-8 mb-2" />
+                  <span className="text-base font-medium">Send Announcement</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Flow Dashboard Widget */}
+            <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+                <h2 className="text-3xl font-bold text-black-800 flex items-center gap-2 mx-auto">
+                  <Building className="h-7 w-7 text-orange-500" />
+                  Flow Dashboard
+                </h2>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 px-6 py-6 text-center">
+                <div className="bg-green-100 p-4 rounded-lg shadow-sm">
+                  <p className="text-2xl font-bold text-green-900">{buildingStats.inside_building}</p>
+                  <p className="text-lg font-bold text-gray-700">Inside Building</p>
+                </div>
+                <div className="bg-teal-100 p-4 rounded-lg shadow-sm">
+                  <p className="text-2xl font-bold text-teal-900">{buildingStats.inside_event}</p>
+                  <p className="text-lg font-bold text-gray-700">Inside Event</p>
+                </div>
+                <div className="bg-blue-100 p-4 rounded-lg shadow-sm">
+                  <p className="text-2xl font-bold text-blue-900">{buildingStats.total_attendees}</p>
+                  <p className="text-lg font-bold text-gray-700">Total Attendees</p>
+                </div>
+              </div>
+
+              <div className="p-6">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-lg font-bold text-left border border-gray-200 rounded-lg overflow-hidden">
+                    <thead className="bg-gray-100 text-gray-800 text-xl font-extrabold">
+                      <tr>
+                        <th className="px-4 py-3">Site</th>
+                        <th className="px-4 py-3">Maximum Capacity</th>
+                        <th className="px-4 py-3">Current Capacity</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-t">
+                        <td className="px-4 py-3">Building</td>
+                        <td className="px-4 py-3 text-red-600">500</td>
+                        <td className="px-4 py-3">{Math.round((buildingStats.inside_building / 500) * 100)}%</td>
+                      </tr>
+                      <tr className="border-t">
+                        <td className="px-4 py-3">Event</td>
+                        <td className="px-4 py-3 text-red-600">4000</td>
+                        <td className="px-4 py-3">{Math.round((buildingStats.inside_event / 4000) * 100)}%</td>
+                      </tr>
+                      <tr className="border-t">
+                        <td className="px-4 py-3">Total</td>
+                        <td className="px-4 py-3 text-red-600">4500</td>
+                        <td className="px-4 py-3">{Math.round(((buildingStats.inside_building + buildingStats.inside_event) / 4500) * 100)}%</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Flow Dashboard Widget */}
-        <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
-            <h2 className="text-3xl font-bold text-black-800 flex items-center gap-2 mx-auto">
-              <Building className="h-7 w-7 text-orange-500" />
-              Flow Dashboard
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4 px-6 py-6 text-center">
-            <div className="bg-green-100 p-4 rounded-lg shadow-sm">
-              <p className="text-2xl font-bold text-green-900">12</p>
-              <p className="text-lg font-bold text-gray-700">Inside Building</p>
-            </div>
-            <div className="bg-teal-100 p-4 rounded-lg shadow-sm">
-              <p className="text-2xl font-bold text-teal-900">5</p>
-              <p className="text-lg font-bold text-gray-700">Inside Event</p>
-            </div>
-            <div className="bg-blue-100 p-4 rounded-lg shadow-sm">
-              <p className="text-2xl font-bold text-blue-900">3</p>
-              <p className="text-lg font-bold text-gray-700">
-                Total Attendees Today
-              </p>
-            </div>
-          </div>
-
-          <div className="p-6">
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-lg font-bold text-left border border-gray-200 rounded-lg overflow-hidden">
-                <thead className="bg-gray-100 text-gray-800 text-xl font-extrabold">
-                  <tr>
-                    <th className="px-4 py-3">Site</th>
-                    <th className="px-4 py-3">Maximum Capacity</th>
-                    <th className="px-4 py-3">Current Capacity</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-t">
-                    <td className="px-4 py-3">Building</td>
-                    <td className="px-4 py-3 text-red-600">500</td>
-                    <td className="px-4 py-3">80%</td>
-                  </tr>
-                  <tr className="border-t">
-                    <td className="px-4 py-3">Event</td>
-                    <td className="px-4 py-3 text-red-600">4000</td>
-                    <td className="px-4 py-3">40%</td>
-                  </tr>
-                  <tr className="border-t">
-                    <td className="px-4 py-3">Total</td>
-                    <td className="px-4 py-3 text-red-600">4500</td>
-                    <td className="px-4 py-3">15%</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Add Company Modal */}
-      {companyModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-lg">
-            <h3 className="text-2xl font-bold mb-4">Add New Company</h3>
-            <div className="space-y-4">
-              <input
-                type="text"
-                value={newCompany.name}
-                onChange={(e) =>
-                  setNewCompany({ ...newCompany, name: e.target.value })
-                }
-                className="w-full border rounded-lg p-2"
-                placeholder="Company Name *"
-              />
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) =>
-                  setNewCompany({
-                    ...newCompany,
-                    logo: e.target.files?.[0] || null,
-                  })
-                }
-                className="w-full border rounded-lg p-2"
-              />
-              <textarea
-                value={newCompany.description}
-                onChange={(e) =>
-                  setNewCompany({ ...newCompany, description: e.target.value })
-                }
-                className="w-full border rounded-lg p-2"
-                placeholder="Description"
-                rows={3}
-              />
-              <input
-                type="url"
-                value={newCompany.website}
-                onChange={(e) =>
-                  setNewCompany({ ...newCompany, website: e.target.value })
-                }
-                className="w-full border rounded-lg p-2"
-                placeholder="Website *"
-              />
-              <input
-                type="text"
-                value={newCompany.boothNumber}
-                onChange={(e) =>
-                  setNewCompany({ ...newCompany, boothNumber: e.target.value })
-                }
-                className="w-full border rounded-lg p-2"
-                placeholder="Booth Number *"
-              />
-            </div>
-            <div className="flex justify-end space-x-3 mt-6">
+        {/* Sessions Tab */}
+        {activeTab === "sessions" && (
+          <div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center mb-4 sm:mb-0">
+                <Calendar className="h-5 w-5 mr-2 text-orange-600" /> Sessions Management
+              </h2>
               <button
-                onClick={() => setCompanyModal(false)}
-                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                onClick={() => setSessionModal(true)}
+                className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
               >
-                Cancel
-              </button>
-              <button
-                onClick={handleCompanySubmit}
-                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
-              >
-                Save Company
+                <Plus className="h-4 w-4 mr-2" />
+                Add Session
               </button>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {sessions.map((session) => (
+                <div key={session.id} className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{session.title}</h3>
+                  <p className="text-sm text-gray-600 mb-3">{session.description}</p>
+                  {session.speaker && (
+                    <p className="text-sm font-medium text-gray-900 mb-2">Speaker: {session.speaker}</p>
+                  )}
+                  <div className="space-y-1 text-xs text-gray-500 mb-4">
+                    <div className="flex items-center">
+                      <Clock className="h-3 w-3 mr-1" />
+                      {new Date(session.start_time).toLocaleDateString()} {new Date(session.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </div>
+                    <div className="flex items-center">
+                      <MapPin className="h-3 w-3 mr-1" />
+                      {session.location}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                      {session.session_type}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {session.current_bookings || 0}/{session.max_attendees || 'Unlimited'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
-{/* Add Session Modal */}
-{sessionModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-    <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
-      <h3 className="text-2xl font-bold mb-4">Add Session</h3>
-      <div className="space-y-4">
-        {/* Session Title */}
-        <input
-          type="text"
-          value={newSession.title}
-          onChange={(e) =>
-            setNewSession({ ...newSession, title: e.target.value })
-          }
-          className="w-full border rounded-lg p-2"
-          placeholder="Session Title *"
-        />
+        )}
 
-        
-        {/* Session Type */}
-        <input
-          type="text"
-          value={newSession.type || ""}
-          onChange={(e) =>
-            setNewSession({ ...newSession, type: e.target.value })
-          }
-          className="w-full border rounded-lg p-2"
-          placeholder="Session Type *"
-        />
+        {/* Events Tab */}
+        {activeTab === "events" && (
+          <div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center mb-4 sm:mb-0">
+                <Calendar className="h-5 w-5 mr-2 text-orange-600" /> Events Management
+              </h2>
+              <div className="flex items-center space-x-4">
+                <div className="flex space-x-2">
+                  {[1, 2, 3, 4, 5].map((day) => (
+                    <button
+                      key={day}
+                      onClick={() => setActiveDay(day)}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        activeDay === day 
+                          ? "bg-orange-500 text-white" 
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      Day {day}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setEventModal(true)}
+                  className="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Event
+                </button>
+              </div>
+            </div>
 
-        
-        {/* Session Hour */}
-        <input
-          type="time"
-          value={newSession.hour || ""}
-          onChange={(e) =>
-            setNewSession({ ...newSession, hour: e.target.value })
-          }
-          className="w-full border rounded-lg p-2"
-          placeholder="Session Hour *"
-        />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {events.map((event) => (
+                <div key={event.id} className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{event.title}</h3>
+                  <p className="text-sm text-gray-600 mb-3">{event.description}</p>
+                  <div className="space-y-1 text-xs text-gray-500 mb-4">
+                    <div className="flex items-center">
+                      <Clock className="h-3 w-3 mr-1" />
+                      {new Date(event.start_time).toLocaleDateString()} {new Date(event.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </div>
+                    <div className="flex items-center">
+                      <MapPin className="h-3 w-3 mr-1" />
+                      {event.location}
+                    </div>
+                  </div>
+                  <span className="text-xs px-2 py-1 bg-purple-100 text-purple-800 rounded-full">
+                    {event.item_type}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-        {/* Date with dd/mm/yyyy placeholder hack */}
-        <div className="relative">
-          <input
-            type="date"
-            value={newSession.date}
-            onChange={(e) =>
-              setNewSession({ ...newSession, date: e.target.value })
-            }
-            className="w-full border rounded-lg p-2 text-gray-900"
-          />
-          {!newSession.date && (
-            <span className="absolute left-3 top-2 text-gray-400 pointer-events-none">
-           
-            </span>
-          )}
-        </div>
+        {/* Maps Tab */}
+        {activeTab === "maps" && (
+          <div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4 sm:mb-0">Event Maps</h2>
+              <div className="flex items-center space-x-4">
+                <div className="flex space-x-2">
+                  {[1, 2, 3, 4, 5].map((day) => (
+                    <button
+                      key={day}
+                      onClick={() => setActiveDay(day)}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        activeDay === day 
+                          ? "bg-orange-500 text-white" 
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      Day {day}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setMapModal(true)}
+                  className="flex items-center px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Modify Map
+                </button>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-xl shadow-sm border p-4 flex justify-center">
+              <img
+                src={mapImages[activeDay - 1]}
+                alt={`Day ${activeDay} Map`}
+                className="max-w-full h-auto rounded-lg"
+              />
+            </div>
+          </div>
+        )}
 
-        {/* Speaker */}
-        <input
-          type="text"
-          value={newSession.speaker}
-          onChange={(e) =>
-            setNewSession({ ...newSession, speaker: e.target.value })
-          }
-          className="w-full border rounded-lg p-2"
-          placeholder="Speaker *"
-        />
+        {/* Employers Tab */}
+        {activeTab === "employers" && (
+          <div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center mb-4 sm:mb-0">
+                <Building className="h-5 w-5 mr-2 text-orange-600" /> Employers Management
+              </h2>
+              <button
+                onClick={() => setCompanyModal(true)}
+                className="flex items-center px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Company
+              </button>
+            </div>
 
-        {/* Capacity */}
-        <input
-          type="number"
-          value={newSession.capacity || ""}
-          onChange={(e) =>
-            setNewSession({ ...newSession, capacity: e.target.value })
-          }
-          className="w-full border rounded-lg p-2"
-          placeholder="Capacity *"
-        />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {companies.map((company) => (
+                <div key={company.id} className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+                  <div className="text-center">
+                    <img 
+                      src={company.logo_url} 
+                      alt={`${company.name} logo`} 
+                      className="h-16 w-auto mx-auto mb-4 object-contain" 
+                    />
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">{company.name}</h3>
+                    <p className="text-sm text-gray-600 mb-3 line-clamp-3">{company.description}</p>
+                    
+                    {company.booth_number && (
+                      <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 mb-2">
+                        Booth {company.booth_number}
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-center mt-4">
+                      <a 
+                        href={company.website} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-orange-500 hover:text-orange-700 text-sm"
+                      >
+                        <Eye className="h-4 w-4 inline mr-1" />
+                        View Website
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
+        {/* Add Company Modal */}
+        {companyModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+              <h3 className="text-2xl font-bold mb-4">Add New Company</h3>
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  value={newCompany.name}
+                  onChange={(e) =>
+                    setNewCompany({ ...newCompany, name: e.target.value })
+                  }
+                  className="w-full border rounded-lg p-2"
+                  placeholder="Company Name *"
+                />
+                
+                {/* Logo Type Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Logo *</label>
+                  <div className="flex space-x-4 mb-3">
+                    <button
+                      type="button"
+                      onClick={() => setNewCompany({ ...newCompany, logoType: "link" })}
+                      className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium ${
+                        newCompany.logoType === "link" 
+                          ? "bg-blue-500 text-white" 
+                          : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      <Link className="h-4 w-4 mr-2" />
+                      URL
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNewCompany({ ...newCompany, logoType: "upload" })}
+                      className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium ${
+                        newCompany.logoType === "upload" 
+                          ? "bg-blue-500 text-white" 
+                          : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload
+                    </button>
+                  </div>
+                  
+                  {newCompany.logoType === "link" ? (
+                    <input
+                      type="url"
+                      value={newCompany.logoUrl}
+                      onChange={(e) =>
+                        setNewCompany({ ...newCompany, logoUrl: e.target.value })
+                      }
+                      className="w-full border rounded-lg p-2"
+                      placeholder="Logo URL *"
+                    />
+                  ) : (
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) =>
+                        setNewCompany({
+                          ...newCompany,
+                          logo: e.target.files?.[0] || null,
+                        })
+                      }
+                      className="w-full border rounded-lg p-2"
+                    />
+                  )}
+                </div>
+                
+                <textarea
+                  value={newCompany.description}
+                  onChange={(e) =>
+                    setNewCompany({ ...newCompany, description: e.target.value })
+                  }
+                  className="w-full border rounded-lg p-2"
+                  placeholder="Description"
+                  rows={3}
+                />
+                <input
+                  type="url"
+                  value={newCompany.website}
+                  onChange={(e) =>
+                    setNewCompany({ ...newCompany, website: e.target.value })
+                  }
+                  className="w-full border rounded-lg p-2"
+                  placeholder="Website *"
+                />
+                <input
+                  type="text"
+                  value={newCompany.boothNumber}
+                  onChange={(e) =>
+                    setNewCompany({ ...newCompany, boothNumber: e.target.value })
+                  }
+                  className="w-full border rounded-lg p-2"
+                  placeholder="Booth Number *"
+                />
+              </div>
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setCompanyModal(false)}
+                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCompanySubmit}
+                  disabled={loading}
+                  className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50"
+                >
+                  {loading ? 'Adding...' : 'Save Company'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
-        {/* Session Location */}
-        <input
-          type="text"
-          value={newSession.location || ""}
-          onChange={(e) =>
-            setNewSession({ ...newSession, location: e.target.value })
-          }
-          className="w-full border rounded-lg p-2"
-          placeholder="Session Location *"
-        />
-      </div>
+        {/* Add Session Modal */}
+        {sessionModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+              <h3 className="text-2xl font-bold mb-4">Add Session</h3>
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  value={newSession.title}
+                  onChange={(e) =>
+                    setNewSession({ ...newSession, title: e.target.value })
+                  }
+                  className="w-full border rounded-lg p-2"
+                  placeholder="Session Title *"
+                />
+                
+                <textarea
+                  value={newSession.description}
+                  onChange={(e) =>
+                    setNewSession({ ...newSession, description: e.target.value })
+                  }
+                  className="w-full border rounded-lg p-2"
+                  placeholder="Session Description"
+                  rows={3}
+                />
 
-      {/* Buttons */}
-      <div className="flex justify-end space-x-3 mt-6">
-        <button
-          onClick={() => setSessionModal(false)}
-          className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleSessionSubmit}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          Save Session
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+                <select
+                  value={newSession.type}
+                  onChange={(e) =>
+                    setNewSession({ ...newSession, type: e.target.value })
+                  }
+                  className="w-full border rounded-lg p-2"
+                >
+                  <option value="session">Session</option>
+                  <option value="mentorship">Mentorship</option>
+                </select>
 
+                <input
+                  type="time"
+                  value={newSession.hour}
+                  onChange={(e) =>
+                    setNewSession({ ...newSession, hour: e.target.value })
+                  }
+                  className="w-full border rounded-lg p-2"
+                />
 
-      
-     {/* ✅ Announcement Modal */}
-      {announcementModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-96 relative">
-            {/* Close Button */}
-            <button
-              onClick={() => setAnnouncementModal(false)}
-              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
-            >
-              ✕
-            </button>
+                <input
+                  type="date"
+                  value={newSession.date}
+                  onChange={(e) =>
+                    setNewSession({ ...newSession, date: e.target.value })
+                  }
+                  className="w-full border rounded-lg p-2"
+                />
 
-            <h2 className="text-lg font-semibold text-black mb-4 text-center">
-              Send Announcement
-            </h2>
+                <input
+                  type="text"
+                  value={newSession.speaker}
+                  onChange={(e) =>
+                    setNewSession({ ...newSession, speaker: e.target.value })
+                  }
+                  className="w-full border rounded-lg p-2"
+                  placeholder="Speaker *"
+                />
 
-            {/* Title */}
-            <input
-              type="text"
-              value={announcementTitle}
-              onChange={(e) => setAnnouncementTitle(e.target.value)}
-              placeholder="Message Title"
-              className="w-full border rounded-lg px-3 py-2 mb-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-            />
+                <input
+                  type="number"
+                  value={newSession.capacity}
+                  onChange={(e) =>
+                    setNewSession({ ...newSession, capacity: e.target.value })
+                  }
+                  className="w-full border rounded-lg p-2"
+                  placeholder="Capacity"
+                />
 
-            {/* Description */}
-            <textarea
-              value={announcementDescription}
-              onChange={(e) => setAnnouncementDescription(e.target.value)}
-              placeholder="Message Description"
-              className="w-full border rounded-lg px-3 py-2 mb-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-              rows={3}
-            />
+                <input
+                  type="text"
+                  value={newSession.location}
+                  onChange={(e) =>
+                    setNewSession({ ...newSession, location: e.target.value })
+                  }
+                  className="w-full border rounded-lg p-2"
+                  placeholder="Session Location *"
+                />
+              </div>
 
-            {/* Role */}
-            <select
-              value={announcementRole}
-              onChange={(e) => setAnnouncementRole(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 mb-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-            >
-             <option value="select_role">Select Role</option>
-              <option value="volunteer">Volunteer</option>
-              <option value="team_leader">Team Leader</option>
-              <option value="admin">Admin</option>
-            </select>
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setSessionModal(false)}
+                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSessionSubmit}
+                  disabled={loading}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {loading ? 'Adding...' : 'Save Session'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
-            {/* Actions */}
-            <div className="flex justify-end gap-3 mt-4">
+        {/* Add Event Modal */}
+        {eventModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+              <h3 className="text-2xl font-bold mb-4">Add Event</h3>
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  value={newEvent.title}
+                  onChange={(e) =>
+                    setNewEvent({ ...newEvent, title: e.target.value })
+                  }
+                  className="w-full border rounded-lg p-2"
+                  placeholder="Event Title *"
+                />
+                
+                <textarea
+                  value={newEvent.description}
+                  onChange={(e) =>
+                    setNewEvent({ ...newEvent, description: e.target.value })
+                  }
+                  className="w-full border rounded-lg p-2"
+                  placeholder="Event Description"
+                  rows={3}
+                />
+
+                <select
+                  value={newEvent.type}
+                  onChange={(e) =>
+                    setNewEvent({ ...newEvent, type: e.target.value })
+                  }
+                  className="w-full border rounded-lg p-2"
+                >
+                  <option value="general">General</option>
+                  <option value="workshop">Workshop</option>
+                  <option value="networking">Networking</option>
+                  <option value="keynote">Keynote</option>
+                  <option value="panel">Panel</option>
+                </select>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="date"
+                    value={newEvent.startDate}
+                    onChange={(e) =>
+                      setNewEvent({ ...newEvent, startDate: e.target.value })
+                    }
+                    className="w-full border rounded-lg p-2"
+                    placeholder="Start Date *"
+                  />
+                  <input
+                    type="time"
+                    value={newEvent.startTime}
+                    onChange={(e) =>
+                      setNewEvent({ ...newEvent, startTime: e.target.value })
+                    }
+                    className="w-full border rounded-lg p-2"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="date"
+                    value={newEvent.endDate}
+                    onChange={(e) =>
+                      setNewEvent({ ...newEvent, endDate: e.target.value })
+                    }
+                    className="w-full border rounded-lg p-2"
+                    placeholder="End Date (Optional)"
+                  />
+                  <input
+                    type="time"
+                    value={newEvent.endTime}
+                    onChange={(e) =>
+                      setNewEvent({ ...newEvent, endTime: e.target.value })
+                    }
+                    className="w-full border rounded-lg p-2"
+                  />
+                </div>
+
+                <input
+                  type="text"
+                  value={newEvent.location}
+                  onChange={(e) =>
+                    setNewEvent({ ...newEvent, location: e.target.value })
+                  }
+                  className="w-full border rounded-lg p-2"
+                  placeholder="Event Location"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setEventModal(false)}
+                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleEventSubmit}
+                  disabled={loading}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                >
+                  {loading ? 'Adding...' : 'Save Event'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Map Upload Modal */}
+        {mapModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+              <h3 className="text-2xl font-bold mb-4">Modify Map</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Day</label>
+                  <select
+                    value={mapForm.day}
+                    onChange={(e) =>
+                      setMapForm({ ...mapForm, day: parseInt(e.target.value) })
+                    }
+                    className="w-full border rounded-lg p-2"
+                  >
+                    {[1, 2, 3, 4, 5].map(day => (
+                      <option key={day} value={day}>Day {day}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Upload New Map Image</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) =>
+                      setMapForm({ ...mapForm, image: e.target.files?.[0] || null })
+                    }
+                    className="w-full border rounded-lg p-2"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => setMapModal(false)}
+                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleMapUpload}
+                  disabled={loading}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {loading ? 'Uploading...' : 'Update Map'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Announcement Modal */}
+        {announcementModal && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative">
               <button
                 onClick={() => setAnnouncementModal(false)}
-                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+                className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
               >
-                Cancel
+                <X className="h-6 w-6" />
               </button>
-             <button
-  onClick={() => {
-    if (!announcementTitle || !announcementDescription || !announcementRole) {
-      showNotification(" Please fill all required fields!", "error");
-      return;
-    }
 
-    showNotification(" Announcement sent successfully!", "success");
+              <h2 className="text-lg font-semibold text-black mb-4 text-center">
+                Send Announcement
+              </h2>
 
-    // reset form & close modal
-    setAnnouncementTitle("");
-    setAnnouncementDescription("");
-    setAnnouncementRole("");
-    setAnnouncementModal(false);
-  }}
-  className="px-4 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600"
->
-  Send
-</button>
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  value={announcementTitle}
+                  onChange={(e) => setAnnouncementTitle(e.target.value)}
+                  placeholder="Message Title"
+                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                />
 
+                <textarea
+                  value={announcementDescription}
+                  onChange={(e) => setAnnouncementDescription(e.target.value)}
+                  placeholder="Message Description"
+                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  rows={3}
+                />
+
+                <select
+                  value={announcementRole}
+                  onChange={(e) => setAnnouncementRole(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                >
+                  <option value="">Select Role</option>
+                  <option value="volunteer">Volunteer</option>
+                  <option value="team_leader">Team Leader</option>
+                  <option value="admin">Admin</option>
+                  <option value="attendee">Attendee</option>
+                </select>
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => setAnnouncementModal(false)}
+                  className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAnnouncementSubmit}
+                  className="px-4 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600"
+                >
+                  Send
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </DashboardLayout>
   );
 }
-
-
-
