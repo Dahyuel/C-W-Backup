@@ -1747,6 +1747,221 @@ const handleEventUpdate = async () => {
             </div>
           </div>
         )}
+
+        {/* Edit Session Modal */}
+{editSessionModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <h3 className="text-2xl font-bold mb-4">Edit Session</h3>
+      <div className="space-y-4">
+        <input
+          type="text"
+          value={editSession.title}
+          onChange={(e) =>
+            setEditSession({ ...editSession, title: e.target.value })
+          }
+          className="w-full border rounded-lg p-2"
+          placeholder="Session Title *"
+        />
+        
+        <textarea
+          value={editSession.description}
+          onChange={(e) =>
+            setEditSession({ ...editSession, description: e.target.value })
+          }
+          className="w-full border rounded-lg p-2"
+          placeholder="Session Description"
+          rows={3}
+        />
+
+        <select
+          value={editSession.type}
+          onChange={(e) =>
+            setEditSession({ ...editSession, type: e.target.value })
+          }
+          className="w-full border rounded-lg p-2"
+        >
+          <option value="session">Session</option>
+          <option value="mentorship">Mentorship</option>
+        </select>
+
+        <input
+          type="time"
+          value={editSession.hour}
+          onChange={(e) =>
+            setEditSession({ ...editSession, hour: e.target.value })
+          }
+          className="w-full border rounded-lg p-2"
+        />
+
+        <input
+          type="date"
+          value={editSession.date}
+          onChange={(e) =>
+            setEditSession({ ...editSession, date: e.target.value })
+          }
+          className="w-full border rounded-lg p-2"
+        />
+
+        <input
+          type="text"
+          value={editSession.speaker}
+          onChange={(e) =>
+            setEditSession({ ...editSession, speaker: e.target.value })
+          }
+          className="w-full border rounded-lg p-2"
+          placeholder="Speaker *"
+        />
+
+        <input
+          type="number"
+          value={editSession.capacity}
+          onChange={(e) =>
+            setEditSession({ ...editSession, capacity: e.target.value })
+          }
+          className="w-full border rounded-lg p-2"
+          placeholder="Capacity"
+        />
+
+        <input
+          type="text"
+          value={editSession.location}
+          onChange={(e) =>
+            setEditSession({ ...editSession, location: e.target.value })
+          }
+          className="w-full border rounded-lg p-2"
+          placeholder="Session Location *"
+        />
+      </div>
+
+      <div className="flex justify-end space-x-3 mt-6">
+        <button
+          onClick={() => setEditSessionModal(false)}
+          className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSessionUpdate}
+          disabled={loading}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+        >
+          {loading ? 'Updating...' : 'Update Session'}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+{/* Edit Event Modal */}
+{editEventModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <h3 className="text-2xl font-bold mb-4">Edit Event</h3>
+      <div className="space-y-4">
+        <input
+          type="text"
+          value={editEvent.title}
+          onChange={(e) =>
+            setEditEvent({ ...editEvent, title: e.target.value })
+          }
+          className="w-full border rounded-lg p-2"
+          placeholder="Event Title *"
+        />
+        
+        <textarea
+          value={editEvent.description}
+          onChange={(e) =>
+            setEditEvent({ ...editEvent, description: e.target.value })
+          }
+          className="w-full border rounded-lg p-2"
+          placeholder="Event Description"
+          rows={3}
+        />
+
+        <select
+          value={editEvent.type}
+          onChange={(e) =>
+            setEditEvent({ ...editEvent, type: e.target.value })
+          }
+          className="w-full border rounded-lg p-2"
+        >
+          <option value="general">General</option>
+          <option value="workshop">Workshop</option>
+          <option value="networking">Networking</option>
+          <option value="keynote">Keynote</option>
+          <option value="panel">Panel</option>
+        </select>
+
+        <div className="grid grid-cols-2 gap-3">
+          <input
+            type="date"
+            value={editEvent.startDate}
+            onChange={(e) =>
+              setEditEvent({ ...editEvent, startDate: e.target.value })
+            }
+            className="w-full border rounded-lg p-2"
+            placeholder="Start Date *"
+          />
+          <input
+            type="time"
+            value={editEvent.startTime}
+            onChange={(e) =>
+              setEditEvent({ ...editEvent, startTime: e.target.value })
+            }
+            className="w-full border rounded-lg p-2"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <input
+            type="date"
+            value={editEvent.endDate}
+            onChange={(e) =>
+              setEditEvent({ ...editEvent, endDate: e.target.value })
+            }
+            className="w-full border rounded-lg p-2"
+            placeholder="End Date (Optional)"
+          />
+          <input
+            type="time"
+            value={editEvent.endTime}
+            onChange={(e) =>
+              setEditEvent({ ...editEvent, endTime: e.target.value })
+            }
+            className="w-full border rounded-lg p-2"
+          />
+        </div>
+
+        <input
+          type="text"
+          value={editEvent.location}
+          onChange={(e) =>
+            setEditEvent({ ...editEvent, location: e.target.value })
+          }
+          className="w-full border rounded-lg p-2"
+          placeholder="Event Location"
+        />
+      </div>
+
+      <div className="flex justify-end space-x-3 mt-6">
+        <button
+          onClick={() => setEditEventModal(false)}
+          className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleEventUpdate}
+          disabled={loading}
+          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+        >
+          {loading ? 'Updating...' : 'Update Event'}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
       </div>
     </DashboardLayout>
   );
