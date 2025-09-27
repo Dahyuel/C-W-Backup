@@ -1288,7 +1288,7 @@ const clearUserSelection = () => {
         ))}
       </div>
       
-      {/* Add Event button - positioned below days on mobile */}
+      {/* Add Event button */}
       <button
         onClick={() => setEventModal(true)}
         className="w-full sm:w-auto flex items-center justify-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
@@ -1319,7 +1319,7 @@ const clearUserSelection = () => {
             </span>
           </div>
           
-          {/* Action Buttons */}
+          {/* Action Buttons with Delete */}
           <div className="flex gap-2">
             <button
               onClick={() => handleEventClick(event)}
@@ -1333,6 +1333,13 @@ const clearUserSelection = () => {
               className="flex-1 bg-green-500 text-white py-2 px-3 rounded-lg hover:bg-green-600 transition-colors text-sm font-medium"
             >
               Edit
+            </button>
+            <button
+              onClick={() => handleDeleteEvent(event)}
+              className="flex-1 bg-red-500 text-white py-2 px-3 rounded-lg hover:bg-red-600 transition-colors text-sm font-medium"
+            >
+              <Trash2 className="h-3 w-3 mr-1 inline" />
+              Delete
             </button>
           </div>
         </div>
