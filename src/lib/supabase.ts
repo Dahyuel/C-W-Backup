@@ -476,6 +476,68 @@ export const uploadCompanyLogo = async (userId: string, file: File, companyName:
   }
 };
 
+export const uploadMapImage = async (dayNumber: number, imageFile: File, userId: string) => {
+  try {
+    if (!imageFile) {
+      return { data: null, error: { message: 'No map image provided' } };
+    }
+
+    // Validate image file
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(imageFile.type)) {
+      return { 
+        data: null, 
+        error: { message: 'Map must be an image file (JPEG, PNG, GIF, or WebP)' } 
+      };
+    }
+
+    // Check file size (10MB limit for maps)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (imageFile.size > maxSize) {
+      return { data: null, error: { message: 'Map image must be less than 10MB' } };
+    }
+
+    if (dayNumber < 1 || dayNumber > 5) {
+      return { data: null, error: { message: 'Day number must be between 1 and 5' } };
+    }
+
+    const fileName = `day${dayNumber}.png`; // Always use PNG for maps
+    const filePath = `Maps/${fileName}`;
+
+    console.log(`Uploading map image to Assets/${filePath}`);
+
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from("Assets")
+      .upload(filePath, imageFile, {
+        cacheControl: '3600',
+        upsert: true // Replace existing map for this day
+      });
+
+    if (uploadError) {
+      console.error('Map upload error:', uploadError);
+      return { data: null, error: uploadError };
+    }
+
+    // Get the public URL
+    const { data: urlData } = supabase.storage
+      .from("Assets")
+      .getPublicUrl(filePath);
+
+    return { 
+      data: { 
+        path: filePath, 
+        url: urlData.publicUrl,
+        fileName: fileName
+      }, 
+      error: null 
+    };
+
+  } catch (error: any) {
+    console.error('Map upload exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
 export const uploadFile = async (bucket: string, userId: string, file: File) => {
   try {
     // Validate inputs
