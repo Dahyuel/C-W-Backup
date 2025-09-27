@@ -20,11 +20,13 @@ import {
 import DashboardLayout from "../../components/shared/DashboardLayout";
 import { supabase, uploadFile, getDynamicBuildingStats } from "../../lib/supabase";
 // Add these states
-const [deleteCompanyModal, setDeleteCompanyModal] = useState(false);
-const [selectedCompanyDelete, setSelectedCompanyDelete] = useState(null);
+
 
 
 export function AdminPanel() {
+
+  const [deleteCompanyModal, setDeleteCompanyModal] = useState(false);
+const [selectedCompanyDelete, setSelectedCompanyDelete] = useState(null);
   // Stats and data states
   const [stats, setStats] = useState({ total_users: 0, total_sessions: 0 });
   const [buildingStats, setBuildingStats] = useState({
