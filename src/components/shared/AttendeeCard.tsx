@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, User, UserCheck, UserX, Crown, Shield, Users, Phone, Mail, MapPin, Clock } from 'lucide-react';
+import { X, User, UserCheck, UserX, Crown, Shield, Users, Phone, Mail, MapPin, Clock, UserPlus } from 'lucide-react';
 
 interface AttendeeCardProps {
   isOpen: boolean;
@@ -19,6 +19,8 @@ interface AttendeeCardProps {
   } | null;
   onAction: (action: 'enter' | 'exit') => Promise<void>;
   loading?: boolean;
+  mode?: 'building' | 'session'; // New prop to determine which mode we're in
+  sessionTitle?: string; // Optional session title for session mode
 }
 
 const getRoleIcon = (role: string) => {
@@ -64,7 +66,9 @@ export const AttendeeCard: React.FC<AttendeeCardProps> = ({
   onClose,
   attendee,
   onAction,
-  loading = false
+  loading = false,
+  mode = 'building',
+  sessionTitle
 }) => {
   const [actionLoading, setActionLoading] = useState<'enter' | 'exit' | null>(null);
 
@@ -85,12 +89,95 @@ export const AttendeeCard: React.FC<AttendeeCardProps> = ({
     return date.toLocaleString();
   };
 
+  const getCardTitle = () => {
+    if (mode === 'session') {
+      return 'Add to Session';
+    }
+    return 'Attendee Details';
+  };
+
+  const getActionButtons = () => {
+    if (mode === 'session') {
+      // Session mode: only show "Add to Session" button
+      return (
+        <div className="pt-4">
+          <button
+            onClick={() => handleAction('enter')}
+            disabled={loading || actionLoading !== null}
+            className={`w-full flex items-center justify-center space-x-2 py-3 px-4 rounded-lg font-medium transition-colors ${
+              actionLoading === 'enter' 
+                ? 'bg-green-100 text-green-700 cursor-not-allowed' 
+                : 'bg-green-500 hover:bg-green-600 text-white'
+            }`}
+          >
+            {actionLoading === 'enter' ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
+            ) : (
+              <>
+                <UserPlus className="h-5 w-5" />
+                <span>Add to Session</span>
+              </>
+            )}
+          </button>
+          {sessionTitle && (
+            <p className="text-sm text-gray-600 text-center mt-2">
+              Adding to: <span className="font-medium">{sessionTitle}</span>
+            </p>
+          )}
+        </div>
+      );
+    }
+
+    // Building mode: show both Enter and Exit buttons
+    return (
+      <div className="flex space-x-3 pt-4">
+        <button
+          onClick={() => handleAction('enter')}
+          disabled={loading || actionLoading !== null}
+          className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-lg font-medium transition-colors ${
+            actionLoading === 'enter' 
+              ? 'bg-green-100 text-green-700 cursor-not-allowed' 
+              : 'bg-green-500 hover:bg-green-600 text-white'
+          }`}
+        >
+          {actionLoading === 'enter' ? (
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
+          ) : (
+            <>
+              <UserCheck className="h-5 w-5" />
+              <span>Enter</span>
+            </>
+          )}
+        </button>
+
+        <button
+          onClick={() => handleAction('exit')}
+          disabled={loading || actionLoading !== null}
+          className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-lg font-medium transition-colors ${
+            actionLoading === 'exit' 
+              ? 'bg-red-100 text-red-700 cursor-not-allowed' 
+              : 'bg-red-500 hover:bg-red-600 text-white'
+          }`}
+        >
+          {actionLoading === 'exit' ? (
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-red-600"></div>
+          ) : (
+            <>
+              <UserX className="h-5 w-5" />
+              <span>Exit</span>
+            </>
+          )}
+        </button>
+      </div>
+    );
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h3 className="text-xl font-bold text-gray-900">Attendee Details</h3>
+          <h3 className="text-xl font-bold text-gray-900">{getCardTitle()}</h3>
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -115,7 +202,7 @@ export const AttendeeCard: React.FC<AttendeeCardProps> = ({
                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor(attendee.role)}`}>
                   {formatRole(attendee.role)}
                 </span>
-                {attendee.current_status && (
+                {attendee.current_status && mode === 'building' && (
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                     attendee.current_status === 'inside' 
                       ? 'bg-green-100 text-green-800' 
@@ -161,7 +248,7 @@ export const AttendeeCard: React.FC<AttendeeCardProps> = ({
               </div>
             )}
 
-            {attendee.last_scan && (
+            {attendee.last_scan && mode === 'building' && (
               <div className="flex items-center space-x-3 text-gray-600">
                 <Clock className="h-4 w-4 flex-shrink-0" />
                 <div className="text-sm">
@@ -172,45 +259,7 @@ export const AttendeeCard: React.FC<AttendeeCardProps> = ({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex space-x-3 pt-4">
-            <button
-              onClick={() => handleAction('enter')}
-              disabled={loading || actionLoading !== null}
-              className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-lg font-medium transition-colors ${
-                actionLoading === 'enter' 
-                  ? 'bg-green-100 text-green-700 cursor-not-allowed' 
-                  : 'bg-green-500 hover:bg-green-600 text-white'
-              }`}
-            >
-              {actionLoading === 'enter' ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
-              ) : (
-                <>
-                  <UserCheck className="h-5 w-5" />
-                  <span>Enter</span>
-                </>
-              )}
-            </button>
-
-            <button
-              onClick={() => handleAction('exit')}
-              disabled={loading || actionLoading !== null}
-              className={`flex-1 flex items-center justify-center space-x-2 py-3 px-4 rounded-lg font-medium transition-colors ${
-                actionLoading === 'exit' 
-                  ? 'bg-red-100 text-red-700 cursor-not-allowed' 
-                  : 'bg-red-500 hover:bg-red-600 text-white'
-              }`}
-            >
-              {actionLoading === 'exit' ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-red-600"></div>
-              ) : (
-                <>
-                  <UserX className="h-5 w-5" />
-                  <span>Exit</span>
-                </>
-              )}
-            </button>
-          </div>
+          {getActionButtons()}
         </div>
       </div>
     </div>
