@@ -236,6 +236,9 @@ export const validateRegistrationWithVolunteer = async (
 
 // Updated signUpUser function using the same successful approach as volunteer registration
 // CORRECTED signUpUser function using RPC for proper enum handling
+
+
+// In your supabase.ts file, replace the signUpUser function with this simplified version:
 export const signUpUser = async (email: string, password: string, userData: any) => {
   try {
     console.log('Starting attendee registration...');
@@ -271,94 +274,92 @@ export const signUpUser = async (email: string, password: string, userData: any)
       return { data: null, error: { message: 'Failed to create attendee account' } };
     }
 
-    // STEP 3: Create profile using SQL with proper enum casting
-// STEP 3: Create profile using direct insert (bypassing RPC enum issues)
-try {
-  console.log('Creating profile via direct insert for user:', authData.user.id);
-  
-  // Wait a moment for auth user to be fully committed
-  await new Promise(resolve => setTimeout(resolve, 1000));
-  
-  const profileData = {
-    id: authData.user.id,
-    email: email.trim().toLowerCase(),
-    first_name: userData.first_name?.trim() || '',
-    last_name: userData.last_name?.trim() || '',
-    personal_id: userData.personal_id?.trim(),
-    university: userData.university?.trim() || '',
-    faculty: userData.faculty?.trim() || '',
-    program: userData.program?.trim() || '',
-    nationality: userData.nationality?.trim() || '',
-    phone: userData.phone?.trim() || null,
-    reg_id: validation.volunteerUuid || null,
-    volunteer_id: null, // Always null for attendees
-    role: 'attendee', // Direct string value
-    gender: userData.gender?.toLowerCase() === 'male' ? 'male' : 
-            userData.gender?.toLowerCase() === 'female' ? 'female' : null,
-    degree_level: userData.degree_level?.toLowerCase() === 'student' ? 'student' :
-                  userData.degree_level?.toLowerCase() === 'graduate' ? 'graduate' : null,
-    class: ['1', '2', '3', '4', '5'].includes(userData.class?.toString()) ? userData.class?.toString() : null,
-    how_did_hear_about_event: ['linkedin', 'facebook', 'instagram', 'friends', 'banners_in_street', 'information_session_at_faculty', 'campus_marketing', 'other'].includes(userData.how_did_hear_about_event?.toLowerCase()) ? userData.how_did_hear_about_event?.toLowerCase() : null,
-    university_id_path: userData.university_id_path || null,
-    cv_path: userData.cv_path || null,
-    score: 0,
-    building_entry: false,
-    event_entry: false
-  };
+    // STEP 3: Create profile using direct insert (now with text role field)
+    try {
+      console.log('Creating profile via direct insert for user:', authData.user.id);
+      
+      // Wait a moment for auth user to be fully committed
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const profileData = {
+        id: authData.user.id,
+        email: email.trim().toLowerCase(),
+        first_name: userData.first_name?.trim() || '',
+        last_name: userData.last_name?.trim() || '',
+        personal_id: userData.personal_id?.trim(),
+        university: userData.university?.trim() || '',
+        faculty: userData.faculty?.trim() || '',
+        program: userData.program?.trim() || '',
+        nationality: userData.nationality?.trim() || '',
+        phone: userData.phone?.trim() || null,
+        reg_id: validation.volunteerUuid || null,
+        volunteer_id: null, // Always null for attendees
+        role: 'attendee', // Now just a plain string
+        gender: userData.gender?.toLowerCase() === 'male' ? 'male' : 
+                userData.gender?.toLowerCase() === 'female' ? 'female' : null,
+        degree_level: userData.degree_level?.toLowerCase() === 'student' ? 'student' :
+                      userData.degree_level?.toLowerCase() === 'graduate' ? 'graduate' : null,
+        class: ['1', '2', '3', '4', '5'].includes(userData.class?.toString()) ? userData.class?.toString() : null,
+        how_did_hear_about_event: ['linkedin', 'facebook', 'instagram', 'friends', 'banners_in_street', 'information_session_at_faculty', 'campus_marketing', 'other'].includes(userData.how_did_hear_about_event?.toLowerCase()) ? userData.how_did_hear_about_event?.toLowerCase() : null,
+        university_id_path: userData.university_id_path || null,
+        cv_path: userData.cv_path || null,
+        score: 0,
+        building_entry: false,
+        event_entry: false
+      };
 
-  console.log('Profile data to insert:', profileData);
+      console.log('Profile data to insert:', profileData);
 
-  const { data: insertedProfile, error: profileError } = await supabase
-    .from('users_profiles')
-    .insert([profileData])
-    .select()
-    .single();
+      const { data: insertedProfile, error: profileError } = await supabase
+        .from('users_profiles')
+        .insert([profileData])
+        .select()
+        .single();
 
-  if (profileError) {
-    console.error('Profile creation failed:', profileError);
-    console.warn(`Orphaned auth user created: ${authData.user.id} (${email})`);
-    
-    let errorMessage = 'Failed to create user profile. ';
-    if (profileError.code === '23505') {
-      if (profileError.message.includes('personal_id')) {
-        errorMessage += 'This Personal ID is already registered.';
-      } else if (profileError.message.includes('email')) {
-        errorMessage += 'This email address is already registered.';
-      } else {
-        errorMessage += 'Some information is already in use.';
+      if (profileError) {
+        console.error('Profile creation failed:', profileError);
+        console.warn(`Orphaned auth user created: ${authData.user.id} (${email})`);
+        
+        let errorMessage = 'Failed to create user profile. ';
+        if (profileError.code === '23505') {
+          if (profileError.message.includes('personal_id')) {
+            errorMessage += 'This Personal ID is already registered.';
+          } else if (profileError.message.includes('email')) {
+            errorMessage += 'This email address is already registered.';
+          } else {
+            errorMessage += 'Some information is already in use.';
+          }
+        } else if (profileError.code === '23503') {
+          errorMessage += 'Authentication sync issue. Please try again in a moment.';
+        } else {
+          errorMessage += profileError.message || 'Unknown error occurred.';
+        }
+        
+        return { data: null, error: { message: errorMessage } };
       }
-    } else if (profileError.code === '23503') {
-      errorMessage += 'Authentication sync issue. Please try again in a moment.';
-    } else {
-      errorMessage += profileError.message || 'Unknown error occurred.';
+
+      console.log('Profile created successfully:', insertedProfile.id);
+      return { 
+        data: { 
+          ...authData, 
+          profile: insertedProfile,
+          referredBy: validation.volunteerInfo
+        }, 
+        error: null 
+      };
+
+    } catch (profileError: any) {
+      console.error('Profile creation exception:', profileError);
+      console.warn(`Orphaned auth user created: ${authData.user.id} (${email})`);
+      return { data: null, error: { message: profileError.message || 'Registration failed during profile creation' } };
     }
-    
-    return { data: null, error: { message: errorMessage } };
-  }
-
-  console.log('Profile created successfully:', insertedProfile.id);
-  return { 
-    data: { 
-      ...authData, 
-      profile: insertedProfile,
-      referredBy: validation.volunteerInfo
-    }, 
-    error: null 
-  };
-
-} catch (profileError: any) {
-  console.error('Profile creation exception:', profileError);
-  console.warn(`Orphaned auth user created: ${authData.user.id} (${email})`);
-  return { data: null, error: { message: profileError.message || 'Registration failed during profile creation' } };
-}
 
   } catch (error: any) {
     console.error('Registration error:', error);
     return { data: null, error: { message: error.message || 'Registration failed' } };
   }
 };
-// Corrected signUpVolunteer function
-// CORRECTED signUpVolunteer function with proper parameter order
+
 export const signUpVolunteer = async (email: string, password: string, userData: any) => {
   try {
     console.log('Starting volunteer registration...');
@@ -382,8 +383,6 @@ export const signUpVolunteer = async (email: string, password: string, userData:
       };
     }
 
-    console.log('Pre-validation passed, creating volunteer auth user...');
-
     // STEP 2: Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
@@ -391,7 +390,6 @@ export const signUpVolunteer = async (email: string, password: string, userData:
     });
 
     if (authError) {
-      console.error('Auth signup error:', authError);
       return { data: null, error: authError };
     }
 
@@ -399,46 +397,39 @@ export const signUpVolunteer = async (email: string, password: string, userData:
       return { data: null, error: { message: 'Failed to create volunteer account' } };
     }
 
-    console.log('Auth user created successfully:', authData.user.id);
-
     // STEP 3: Generate volunteer ID and create profile using direct insert
     try {
       const volunteerId = await generateVolunteerId(userData.role || 'volunteer');
       console.log('Generated volunteer ID:', volunteerId);
 
-     const { data: insertedProfile, error: profileError } = await supabase.rpc('create_volunteer_profile', {
-        p_id: authData.user.id,
-        p_email: email.trim().toLowerCase(),
-        p_volunteer_id: volunteerId,
-        p_first_name: userData.first_name?.trim() || '',
-        p_last_name: userData.last_name?.trim() || '',
-        p_personal_id: userData.personal_id?.trim(),
-        p_faculty: userData.faculty?.trim() || '',
-        p_phone: userData.phone?.trim() || null,
-        p_university: 'Ain Shams University',
-        p_role: userData.role || 'volunteer'
-      });
+      // Wait for auth user to be committed
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      const profileData = {
+        id: authData.user.id,
+        email: email.trim().toLowerCase(),
+        volunteer_id: volunteerId,
+        first_name: userData.first_name?.trim() || '',
+        last_name: userData.last_name?.trim() || '',
+        personal_id: userData.personal_id?.trim(),
+        faculty: userData.faculty?.trim() || '',
+        phone: userData.phone?.trim() || null,
+        university: 'Ain Shams University',
+        role: userData.role || 'volunteer', // Now just a plain string
+        score: 0,
+        building_entry: false,
+        event_entry: false
+      };
+
+      const { data: insertedProfile, error: profileError } = await supabase
+        .from('users_profiles')
+        .insert([profileData])
+        .select()
+        .single();
 
       if (profileError) {
         console.error('Volunteer profile creation error:', profileError);
-        console.warn(`Orphaned auth user created: ${authData.user.id} (${email})`);
-        
-        let errorMessage = 'Failed to create volunteer profile. ';
-        if (profileError.code === '23505') {
-          if (profileError.message.includes('personal_id')) {
-            errorMessage += 'This Personal ID is already registered.';
-          } else if (profileError.message.includes('email')) {
-            errorMessage += 'This email address is already registered.';
-          } else if (profileError.message.includes('volunteer_id')) {
-            errorMessage += 'Volunteer ID generation failed.';
-          } else {
-            errorMessage += 'Some information is already in use.';
-          }
-        } else {
-          errorMessage += profileError.message || 'Unknown error occurred.';
-        }
-        
-        return { data: null, error: { message: errorMessage } };
+        return { data: null, error: { message: profileError.message || 'Failed to create volunteer profile' } };
       }
 
       console.log('Volunteer registration completed successfully with ID:', volunteerId);
@@ -446,8 +437,6 @@ export const signUpVolunteer = async (email: string, password: string, userData:
 
     } catch (profileError: any) {
       console.error('Volunteer profile creation exception:', profileError);
-      console.warn(`Orphaned auth user created: ${authData.user.id} (${email})`);
-      
       return { data: null, error: { message: profileError.message || 'Volunteer registration failed' } };
     }
 
@@ -456,6 +445,8 @@ export const signUpVolunteer = async (email: string, password: string, userData:
     return { data: null, error: { message: error.message || 'Volunteer registration failed' } };
   }
 };
+
+
 const cleanupOrphanedAuthUser = async (userId: string, email: string) => {
   try {
     console.log('Attempting to clean up orphaned auth user:', email);
