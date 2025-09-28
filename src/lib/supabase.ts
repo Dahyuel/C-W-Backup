@@ -217,7 +217,7 @@ export const signUpUser = async (email: string, password: string, userData: any)
   try {
     console.log('Starting attendee registration...');
     
-    // STEP 1: Pre-validation using RPC function (no trigger interference)
+    // STEP 1: Pre-validation using RPC function
     const validation = await validateRegistrationWithVolunteer(
       userData.personal_id,
       userData.volunteer_id,
@@ -236,7 +236,7 @@ export const signUpUser = async (email: string, password: string, userData: any)
 
     console.log('Pre-validation passed, creating auth user...');
 
-    // STEP 2: Create auth user (should now work without trigger interference)
+    // STEP 2: Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
       password,
@@ -253,7 +253,7 @@ export const signUpUser = async (email: string, password: string, userData: any)
 
     console.log('Auth user created successfully:', authData.user.id);
 
-    // STEP 3: Create attendee profile immediately after auth user creation
+    // STEP 3: Create attendee profile with proper enum casting
     try {
       const profileDataToInsert = {
         id: authData.user.id,
@@ -265,8 +265,9 @@ export const signUpUser = async (email: string, password: string, userData: any)
         faculty: userData.faculty?.trim() || '',
         personal_id: userData.personal_id?.trim(),
         volunteer_id: null, // CRITICAL: Attendees never get volunteer_id
-        reg_id: validation.volunteerUuid || null, // Referring volunteer's UUID
-        role: 'attendee',
+        reg_id: validation.volunteerUuid || null,
+        // DON'T SET ROLE HERE - let the database use its default value
+        // The database has role default as 'attendee'::user_role
         score: 0,
         building_entry: false,
         event_entry: false,
@@ -278,7 +279,7 @@ export const signUpUser = async (email: string, password: string, userData: any)
         updated_at: new Date().toISOString()
       };
 
-      // Add enum fields conditionally
+      // Add enum fields conditionally with proper type handling
       if (userData.gender && ['male', 'female', 'other', 'prefer_not_to_say'].includes(userData.gender.trim())) {
         profileDataToInsert.gender = userData.gender.trim();
       }
@@ -295,7 +296,7 @@ export const signUpUser = async (email: string, password: string, userData: any)
         profileDataToInsert.how_did_hear_about_event = userData.how_did_hear_about_event.trim();
       }
 
-      // Insert profile
+      // Insert profile - let database handle role default
       const { data: profileData, error: profileError } = await supabase
         .from("users_profiles")
         .insert(profileDataToInsert)
@@ -303,9 +304,6 @@ export const signUpUser = async (email: string, password: string, userData: any)
 
       if (profileError) {
         console.error('Profile creation failed:', profileError);
-        
-        // Note: We can't easily delete auth user from client side
-        // The orphaned user will need to be cleaned up via admin functions
         console.warn(`Orphaned auth user created: ${authData.user.id} (${email})`);
         
         let errorMessage = 'Failed to create user profile. ';
@@ -349,6 +347,8 @@ export const signUpUser = async (email: string, password: string, userData: any)
     return { data: null, error: { message: error.message || 'Registration failed' } };
   }
 };
+
+
 // Corrected signUpVolunteer function
 export const signUpVolunteer = async (email: string, password: string, userData: any) => {
   try {
