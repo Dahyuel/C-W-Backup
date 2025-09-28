@@ -18,12 +18,17 @@ import {
 } from '../../utils/validation';
 import { useAuth } from '../../contexts/AuthContext';
 
+// Extended interface to include gender
+interface ExtendedVolunteerRegistrationData extends VolunteerRegistrationData {
+  gender: string;
+}
+
 export const VolunteerRegistration: React.FC = () => {
   const navigate = useNavigate();
   const { signUpVolunteer, signIn, isAuthenticated, profile, loading: authLoading, getRoleBasedRedirect } = useAuth();
   
   const [currentSection, setCurrentSection] = useState(1);
-  const [formData, setFormData] = useState<VolunteerRegistrationData>({
+  const [formData, setFormData] = useState<ExtendedVolunteerRegistrationData>({
     firstName: '',
     lastName: '',
     email: '',
@@ -32,7 +37,8 @@ export const VolunteerRegistration: React.FC = () => {
     faculty: '',
     password: '',
     confirmPassword: '',
-    role: ''
+    role: '',
+    gender: '' // Added gender field
   });
   
   const [errors, setErrors] = useState<ValidationError[]>([]);
@@ -53,6 +59,11 @@ export const VolunteerRegistration: React.FC = () => {
     { value: 'team_leader', label: 'Team Leader' }
   ];
 
+  const genderOptions = [
+    { value: 'male', label: 'Male' },
+    { value: 'female', label: 'Female' }
+  ];
+
   // Redirect when authentication is complete after auto-login
   useEffect(() => {
     if (isAuthenticated && profile && !authLoading) {
@@ -61,52 +72,51 @@ export const VolunteerRegistration: React.FC = () => {
     }
   }, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect]);
 
-  const updateField = (field: keyof VolunteerRegistrationData, value: string) => {
+  const updateField = (field: keyof ExtendedVolunteerRegistrationData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setErrors(prev => prev.filter(error => error.field !== field));
   };
 
-// In VolunteerRegistration.tsx - Fix the validateSection function
-const validateSection = (section: number): ValidationError[] => {
-  const validationErrors: ValidationError[] = [];
+  const validateSection = (section: number): ValidationError[] => {
+    const validationErrors: ValidationError[] = [];
 
-  if (section === 1) {
-    const firstNameError = validateName(formData.firstName, 'First name');
-    if (firstNameError) validationErrors.push({ field: 'firstName', message: firstNameError });
+    if (section === 1) {
+      const firstNameError = validateName(formData.firstName, 'First name');
+      if (firstNameError) validationErrors.push({ field: 'firstName', message: firstNameError });
 
-    const lastNameError = validateName(formData.lastName, 'Last name');
-    if (lastNameError) validationErrors.push({ field: 'lastName', message: lastNameError });
+      const lastNameError = validateName(formData.lastName, 'Last name');
+      if (lastNameError) validationErrors.push({ field: 'lastName', message: lastNameError });
 
-    const emailError = validateEmail(formData.email);
-    if (emailError) validationErrors.push({ field: 'email', message: emailError });
+      const emailError = validateEmail(formData.email);
+      if (emailError) validationErrors.push({ field: 'email', message: emailError });
 
-    const phoneError = validatePhone(formData.phone);
-    if (phoneError) validationErrors.push({ field: 'phone', message: phoneError });
+      const phoneError = validatePhone(formData.phone);
+      if (phoneError) validationErrors.push({ field: 'phone', message: phoneError });
 
-    const personalIdError = validatePersonalId(formData.personalId);
-    if (personalIdError) validationErrors.push({ field: 'personalId', message: personalIdError });
+      const personalIdError = validatePersonalId(formData.personalId);
+      if (personalIdError) validationErrors.push({ field: 'personalId', message: personalIdError });
 
-    if (!formData.faculty) validationErrors.push({ field: 'faculty', message: 'Faculty is required' });
-  }
-
-  if (section === 2) {
-    if (!formData.role) {
-      validationErrors.push({ field: 'role', message: 'Please select a volunteer role' });
+      if (!formData.faculty) validationErrors.push({ field: 'faculty', message: 'Faculty is required' });
+      
+      if (!formData.gender) validationErrors.push({ field: 'gender', message: 'Gender is required' });
     }
-  }
 
-  if (section === 3) {
-    const passwordError = validatePassword(formData.password);
-    if (passwordError) validationErrors.push({ field: 'password', message: passwordError });
+    if (section === 2) {
+      if (!formData.role) {
+        validationErrors.push({ field: 'role', message: 'Please select a volunteer role' });
+      }
+    }
 
-    const confirmPasswordError = validateConfirmPassword(formData.password, formData.confirmPassword);
-    if (confirmPasswordError) validationErrors.push({ field: 'confirmPassword', message: confirmPasswordError });
-  }
+    if (section === 3) {
+      const passwordError = validatePassword(formData.password);
+      if (passwordError) validationErrors.push({ field: 'password', message: passwordError });
 
-  return validationErrors;
-};
+      const confirmPasswordError = validateConfirmPassword(formData.password, formData.confirmPassword);
+      if (confirmPasswordError) validationErrors.push({ field: 'confirmPassword', message: confirmPasswordError });
+    }
 
-
+    return validationErrors;
+  };
 
   const nextSection = () => {
     const sectionErrors = validateSection(currentSection);
@@ -127,63 +137,65 @@ const validateSection = (section: number): ValidationError[] => {
     }
   };
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  // Validate all sections
-  const allErrors = [1, 2, 3].flatMap(section => validateSection(section));
-  if (allErrors.length > 0) {
-    setErrors(allErrors);
-    const firstErrorSection = Math.min(...allErrors.map(error => {
-      if (['firstName', 'lastName', 'email', 'phone', 'personalId', 'faculty'].includes(error.field)) return 1;
-      if (['role'].includes(error.field)) return 2;
-      if (['password', 'confirmPassword'].includes(error.field)) return 3;
-      return 1;
-    }));
-    setCurrentSection(firstErrorSection);
-    return;
-  }
-
-  setLoading(true);
-  setErrors([]);
-
-  try {
-    // Include role in profile data
-    const profileData = {
-      first_name: formData.firstName.trim(),
-      last_name: formData.lastName.trim(),
-      phone: formData.phone.trim(),
-      personal_id: formData.personalId.trim(),
-      faculty: formData.faculty,
-      role: formData.role,
-    };
-
-    // Use signUpVolunteer which now generates volunteer ID
-    const { data, error } = await signUpVolunteer(formData.email, formData.password, profileData);
-
-    if (error) {
-      setErrors([{ field: "general", message: error.message }]);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate all sections
+    const allErrors = [1, 2, 3].flatMap(section => validateSection(section));
+    if (allErrors.length > 0) {
+      setErrors(allErrors);
+      const firstErrorSection = Math.min(...allErrors.map(error => {
+        if (['firstName', 'lastName', 'email', 'phone', 'personalId', 'faculty', 'gender'].includes(error.field)) return 1;
+        if (['role'].includes(error.field)) return 2;
+        if (['password', 'confirmPassword'].includes(error.field)) return 3;
+        return 1;
+      }));
+      setCurrentSection(firstErrorSection);
       return;
     }
 
-    // Store the volunteer ID for display
-    const volunteerId = (data as any)?.volunteerId;
-    
-    // Show success message with volunteer ID
-    setShowSuccess(true);
-    
-    // Optional: Store volunteer ID in local storage for display
-    if (volunteerId) {
-      localStorage.setItem('newVolunteerId', volunteerId);
-    }
+    setLoading(true);
+    setErrors([]);
 
-  } catch (error: any) {
-    console.error('Registration error:', error);
-    setErrors([{ field: "general", message: error.message || 'An unexpected error occurred' }]);
-  } finally {
-    setLoading(false);
-  }
-};
+    try {
+      // Include gender in profile data
+      const profileData = {
+        first_name: formData.firstName.trim(),
+        last_name: formData.lastName.trim(),
+        phone: formData.phone.trim(),
+        personal_id: formData.personalId.trim(),
+        faculty: formData.faculty,
+        role: formData.role,
+        gender: formData.gender, // Added gender to profile data
+      };
+
+      // Use signUpVolunteer which now generates volunteer ID
+      const { data, error } = await signUpVolunteer(formData.email, formData.password, profileData);
+
+      if (error) {
+        setErrors([{ field: "general", message: error.message }]);
+        return;
+      }
+
+      // Store the volunteer ID for display
+      const volunteerId = (data as any)?.volunteerId;
+      
+      // Show success message with volunteer ID
+      setShowSuccess(true);
+      
+      // Optional: Store volunteer ID in local storage for display
+      if (volunteerId) {
+        localStorage.setItem('newVolunteerId', volunteerId);
+      }
+
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      setErrors([{ field: "general", message: error.message || 'An unexpected error occurred' }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getFieldError = (field: string) => {
     return errors.find(error => error.field === field)?.message;
   };
@@ -285,25 +297,48 @@ const handleSubmit = async (e: React.FormEvent) => {
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Faculty *
-        </label>
-        <select
-          value={formData.faculty}
-          onChange={(e) => updateField('faculty', e.target.value)}
-          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-            getFieldError('faculty') ? 'border-red-500' : 'border-gray-300'
-          }`}
-        >
-          <option value="">Select faculty</option>
-          {FACULTIES.map(faculty => (
-            <option key={faculty} value={faculty}>{faculty}</option>
-          ))}
-        </select>
-        {getFieldError('faculty') && (
-          <p className="mt-1 text-sm text-red-600">{getFieldError('faculty')}</p>
-        )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Faculty *
+          </label>
+          <select
+            value={formData.faculty}
+            onChange={(e) => updateField('faculty', e.target.value)}
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
+              getFieldError('faculty') ? 'border-red-500' : 'border-gray-300'
+            }`}
+          >
+            <option value="">Select faculty</option>
+            {FACULTIES.map(faculty => (
+              <option key={faculty} value={faculty}>{faculty}</option>
+            ))}
+          </select>
+          {getFieldError('faculty') && (
+            <p className="mt-1 text-sm text-red-600">{getFieldError('faculty')}</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Gender *
+          </label>
+          <select
+            value={formData.gender}
+            onChange={(e) => updateField('gender', e.target.value)}
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
+              getFieldError('gender') ? 'border-red-500' : 'border-gray-300'
+            }`}
+          >
+            <option value="">Select gender</option>
+            {genderOptions.map(option => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+          {getFieldError('gender') && (
+            <p className="mt-1 text-sm text-red-600">{getFieldError('gender')}</p>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -432,41 +467,41 @@ const handleSubmit = async (e: React.FormEvent) => {
   }
 
   // Show success message only when auto-login fails
-if (showSuccess) {
-  const newVolunteerId = localStorage.getItem('newVolunteerId');
-  
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center border border-orange-100">
-        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <CheckCircle className="w-8 h-8 text-green-600" />
-        </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Volunteer Registration Successful!</h2>
-        
-        {newVolunteerId && (
-          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-            <p className="text-sm font-medium text-blue-800">Your Volunteer ID:</p>
-            <p className="text-lg font-bold text-blue-900">{newVolunteerId}</p>
-            <p className="text-xs text-blue-600 mt-1">Please save this ID for future reference</p>
+  if (showSuccess) {
+    const newVolunteerId = localStorage.getItem('newVolunteerId');
+    
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center border border-orange-100">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
-        )}
-        
-        <p className="text-gray-600 mb-6">
-          Your account has been created successfully. You can now log in to access your volunteer dashboard.
-        </p>
-        <button
-          onClick={() => {
-            localStorage.removeItem('newVolunteerId');
-            navigate('/login');
-          }}
-          className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 transform hover:scale-105"
-        >
-          Go to Login
-        </button>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Volunteer Registration Successful!</h2>
+          
+          {newVolunteerId && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm font-medium text-blue-800">Your Volunteer ID:</p>
+              <p className="text-lg font-bold text-blue-900">{newVolunteerId}</p>
+              <p className="text-xs text-blue-600 mt-1">Please save this ID for future reference</p>
+            </div>
+          )}
+          
+          <p className="text-gray-600 mb-6">
+            Your account has been created successfully. You can now log in to access your volunteer dashboard.
+          </p>
+          <button
+            onClick={() => {
+              localStorage.removeItem('newVolunteerId');
+              navigate('/login');
+            }}
+            className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 transform hover:scale-105"
+          >
+            Go to Login
+          </button>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white py-8 px-4">
