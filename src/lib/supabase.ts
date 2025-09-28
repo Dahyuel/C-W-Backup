@@ -194,17 +194,23 @@ export const getVolunteerByVolunteerId = async (volunteerId: string) => {
 
 
 // Replace validateRegistrationWithVolunteer with this:
+
+
 export const validateRegistrationWithEdgeFunction = async (
   personalId: string,
   email: string,
+  firstName: string,
+  lastName: string,
   volunteerId?: string,
   phone?: string,
-  userType: 'attendee' | 'volunteer' = 'attendee'
+  userType: 'attendee' | 'volunteer' = 'attendee',
+  role?: string
 ): Promise<{ 
   isValid: boolean; 
   errors: string[]; 
   volunteerInfo?: any;
   volunteerUuid?: string;
+  warnings?: string[];
 }> => {
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -212,20 +218,25 @@ export const validateRegistrationWithEdgeFunction = async (
     const response = await fetch(`${supabaseUrl}/functions/v1/validate-registration`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${session?.access_token || supabase.supabaseKey}`,
+        'Authorization': `Bearer ${session?.access_token || supabaseAnonKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         email: email?.trim().toLowerCase(),
         personalId: personalId?.trim(),
+        firstName: firstName?.trim(),
+        lastName: lastName?.trim(),
         volunteerId: volunteerId?.trim() || null,
         phone: phone?.trim() || null,
-        userType
+        userType,
+        role: role || null
       })
     });
 
     if (!response.ok) {
-      throw new Error('Validation service error');
+      const errorText = await response.text();
+      console.error('Edge function validation error:', response.status, errorText);
+      throw new Error(`Validation service error: ${response.status}`);
     }
 
     const validation = await response.json();
@@ -235,11 +246,11 @@ export const validateRegistrationWithEdgeFunction = async (
     console.error('Edge function validation error:', error);
     return {
       isValid: false,
-      errors: ['Validation failed. Please try again.']
+      errors: ['Validation failed. Please try again.'],
+      warnings: []
     };
   }
 };
-
 
 // Updated signUpUser function using the same successful approach as volunteer registration
 // CORRECTED signUpUser function using RPC for proper enum handling
