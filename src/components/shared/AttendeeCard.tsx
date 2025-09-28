@@ -184,37 +184,72 @@ export const AttendeeCard: React.FC<AttendeeCardProps> = ({
     return isInside ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800';
   };
 
-  const getActionButtons = () => {
-    if (mode === 'session') {
-      // Session mode: only show "Add to Session" button
-      return (
-        <div className="pt-4">
-          <button
-            onClick={() => handleAction('enter')}
-            disabled={loading || actionLoading !== null}
-            className={`w-full flex items-center justify-center space-x-2 py-3 px-4 rounded-lg font-medium transition-colors ${
-              actionLoading === 'enter' 
+const getActionButtons = () => {
+  if (mode === 'session') {
+    // Session mode: check building_entry status
+    const canEnterSession = currentAttendee.building_entry;
+    
+    return (
+      <div className="pt-4">
+        {/* Warning for attendees outside building */}
+        {!canEnterSession && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-red-400 rounded-full flex items-center justify-center">
+                <span className="text-white text-xs font-bold">!</span>
+              </div>
+              <p className="text-sm text-red-800 font-medium">
+                Attendee must be inside the building to join a session
+              </p>
+            </div>
+          </div>
+        )}
+        
+        <button
+          onClick={() => handleAction('enter')}
+          disabled={loading || actionLoading !== null || !canEnterSession}
+          className={`w-full flex items-center justify-center space-x-2 py-3 px-4 rounded-lg font-medium transition-colors ${
+            !canEnterSession
+              ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+              : actionLoading === 'enter' 
                 ? 'bg-green-100 text-green-700 cursor-not-allowed' 
                 : 'bg-green-500 hover:bg-green-600 text-white'
-            }`}
-          >
-            {actionLoading === 'enter' ? (
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
-            ) : (
-              <>
-                <UserPlus className="h-5 w-5" />
-                <span>Add to Session</span>
-              </>
-            )}
-          </button>
-          {sessionTitle && (
-            <p className="text-sm text-gray-600 text-center mt-2">
-              Adding to: <span className="font-medium">{sessionTitle}</span>
-            </p>
+          }`}
+        >
+          {actionLoading === 'enter' ? (
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-green-600"></div>
+          ) : (
+            <>
+              <UserPlus className="h-5 w-5" />
+              <span>{canEnterSession ? 'Add to Session' : 'Cannot Add to Session'}</span>
+            </>
           )}
+        </button>
+        
+        {sessionTitle && (
+          <p className="text-sm text-gray-600 text-center mt-2">
+            {canEnterSession ? (
+              <>Adding to: <span className="font-medium">{sessionTitle}</span></>
+            ) : (
+              <span className="text-red-600">Session: {sessionTitle}</span>
+            )}
+          </p>
+        )}
+        
+        {/* Show building status for context */}
+        <div className="mt-3 text-center">
+          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+            currentAttendee.building_entry ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+          }`}>
+            <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+              currentAttendee.building_entry ? 'bg-green-500' : 'bg-red-500'
+            }`}></span>
+            {currentAttendee.building_entry ? 'Inside Building' : 'Outside Building'}
+          </span>
         </div>
-      );
-    }
+      </div>
+    );
+  }
 
     // Building/Registration mode: show both Enter and Exit buttons with conditional disabling
     const currentStatus = getCurrentStatus();
