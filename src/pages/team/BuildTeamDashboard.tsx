@@ -58,7 +58,8 @@ const castToAttendee = (data: any): Attendee => {
   return {
     ...data,
     // For building dashboard, current_status should reflect building entry
-    current_status: data.building_entry ? 'inside' : 'outside'
+    current_status: data.building_entry ? 'inside' : 'outside',
+    building_entry: data.building_entry // Add this field to pass building status
   } as Attendee;
 };
 
