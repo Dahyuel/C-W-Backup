@@ -1,3 +1,4 @@
+//constants.ts
 export const FACULTIES = [
   'Faculty of Engineering',
   'Faculty of Medicine',
