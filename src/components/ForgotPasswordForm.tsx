@@ -119,16 +119,8 @@ export const ForgotPasswordForm: React.FC = () => {
       <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
         <div className="bg-white rounded-2xl shadow-2xl border border-orange-100 w-full max-w-md overflow-hidden">
           {/* Header */}
-          <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4 text-center">
-            {/* Bigger Rounded Logo */}
-            <div className="mx-auto w-28 h-28 bg-white rounded-full flex items-center justify-center mb-2 shadow-lg">
-              <img 
-                src="https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/logo.png" 
-                alt="ASU Career Week Logo" 
-                className="w-24 h-24 rounded-full object-cover"
-              />
-            </div>
-            <KeyRound className="mx-auto h-8 w-8 text-white mb-2" />
+          <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-6 text-center">
+            <KeyRound className="mx-auto h-12 w-12 text-white mb-3" />
             <h1 className="text-2xl font-bold text-white mb-2">Reset Password</h1>
             <p className="text-orange-100">Enter your details to reset your password</p>
           </div>
