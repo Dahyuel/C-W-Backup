@@ -822,7 +822,6 @@ return (
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-white mb-2 drop-shadow-lg">Join Career Week</h1>
             <p className="text-white drop-shadow">Create your attendee account to access exclusive events</p>
-          </div>
 
         {/* Progress Steps */}
         <div className="mb-8">
