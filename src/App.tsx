@@ -1,84 +1,39 @@
-import React, { Suspense } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
-// Auth Components (keep these regular imports since they're small and frequently used)
+// Auth Components
 import { LoginForm } from './components/LoginForm';
 import { RegistrationForm } from './components/RegistrationForm';
 import { ForgotPasswordForm } from './components/ForgotPasswordForm';
+import { VolunteerRegistration } from './pages/volunteer/VolunteerRegistration';
 
-// Lazy load all dashboard components to improve initial load time
-const AttendeeDashboard = React.lazy(() => import('./pages/user/AttendeeDashboard'));
-const VolunteerRegistration = React.lazy(() => import('./pages/volunteer/VolunteerRegistration').then(module => ({ default: module.VolunteerRegistration })));
-const VolunteerDashboard = React.lazy(() => import('./pages/volunteer/VolunteerDashboard').then(module => ({ default: module.VolunteerDashboard })));
-const RegTeamDashboard = React.lazy(() => import('./pages/team/RegTeamDashboard').then(module => ({ default: module.RegTeamDashboard })));
-const BuildTeamDashboard = React.lazy(() => import('./pages/team/BuildTeamDashboard').then(module => ({ default: module.BuildTeamDashboard })));
-const InfoDeskDashboard = React.lazy(() => import('./pages/team/InfoDeskDashboard').then(module => ({ default: module.InfoDeskDashboard })));
-const TeamLeaderDashboard = React.lazy(() => import('./pages/team/TeamLeaderDashboard').then(module => ({ default: module.TeamLeaderDashboard })));
-const AdminPanel = React.lazy(() => import('./pages/admin/AdminPanel').then(module => ({ default: module.AdminPanel })));
-const SuperAdminPanel = React.lazy(() => import('./pages/admin/SuperAdminPanel').then(module => ({ default: module.SuperAdminPanel })));
+// Dashboard Components
+import AttendeeDashboard from './pages/user/AttendeeDashboard';
+import { VolunteerDashboard } from './pages/volunteer/VolunteerDashboard';
+import { RegTeamDashboard } from './pages/team/RegTeamDashboard';
+import { BuildTeamDashboard } from './pages/team/BuildTeamDashboard';
+import { InfoDeskDashboard } from './pages/team/InfoDeskDashboard';
+import { TeamLeaderDashboard } from './pages/team/TeamLeaderDashboard';
+import { AdminPanel } from './pages/admin/AdminPanel';
+import { SuperAdminPanel } from './pages/admin/SuperAdminPanel';
 
 // Enhanced Loading component with better UX
 const LoadingScreen: React.FC<{ message?: string }> = ({ message = "Loading..." }) => (
-  <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center">
+  <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center fade-in">
     <div className="text-center">
-      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-      <p className="text-gray-600 text-lg">{message}</p>
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4 spinner-enhanced"></div>
+      <p className="text-gray-600 text-lg fade-in-up" style={{ animationDelay: '0.2s' }}>{message}</p>
     </div>
   </div>
 );
 
-// Lazy loading fallback component with skeleton
-const LazyLoadingFallback: React.FC = () => (
-  <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white">
-    <div className="animate-pulse">
-      {/* Header skeleton */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="h-8 bg-gray-200 rounded w-48"></div>
-            <div className="h-8 bg-gray-200 rounded w-24"></div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Content skeleton */}
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-white rounded-lg shadow p-6">
-              <div className="h-4 bg-gray-200 rounded mb-4"></div>
-              <div className="h-8 bg-gray-200 rounded"></div>
-            </div>
-          ))}
-        </div>
-        
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="h-6 bg-gray-200 rounded mb-4 w-1/3"></div>
-          <div className="space-y-3">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-4 bg-gray-200 rounded"></div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-    
-    <div className="fixed bottom-4 right-4 bg-white rounded-lg shadow-lg p-4 border">
-      <div className="flex items-center space-x-3">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div>
-        <span className="text-gray-600">Loading dashboard...</span>
-      </div>
-    </div>
-  </div>
-);
-
-// Enhanced Protected Route component with better role mapping
+// Enhanced Protected Route component
 const ProtectedRoute: React.FC<{ 
   children: React.ReactNode; 
   requiredRole?: string | string[];
 }> = ({ children, requiredRole }) => {
-  const { isAuthenticated, profile, loading, sessionLoaded, hasRole, getRoleBasedRedirect } = useAuth();
+  const { isAuthenticated, profile, loading, sessionLoaded, hasRole } = useAuth();
   
   // Still loading session or auth state
   if (!sessionLoaded || loading) {
@@ -87,7 +42,7 @@ const ProtectedRoute: React.FC<{
   
   // Not authenticated - redirect to login
   if (!isAuthenticated) {
-    console.log('Not authenticated, redirecting to login');
+    console.log('🔄 Not authenticated, redirecting to login');
     return <Navigate to="/login" replace />;
   }
   
@@ -103,19 +58,35 @@ const ProtectedRoute: React.FC<{
       : hasRole(requiredRole);
       
     if (!hasRequiredRole) {
-      console.log('Access denied for role:', profile.role, 'Required:', requiredRole);
-      
-      // Redirect to appropriate dashboard instead of showing error
-      const redirectPath = getRoleBasedRedirect();
-      return <Navigate to={redirectPath} replace />;
+      console.log('❌ Access denied for role:', profile.role, 'Required:', requiredRole);
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center">
+          <div className="text-center max-w-md mx-auto p-8">
+            <div className="text-red-500 text-6xl mb-4">🚫</div>
+            <h1 className="text-2xl font-bold text-gray-800 mb-2">Access Denied</h1>
+            <p className="text-gray-600 mb-4">
+              You don't have permission to access this page.
+            </p>
+            <p className="text-sm text-gray-500 mb-6">
+              Your role: <span className="font-medium">{profile.role}</span>
+            </p>
+            <button
+              onClick={() => window.history.back()}
+              className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-lg transition-colors"
+            >
+              Go Back
+            </button>
+          </div>
+        </div>
+      );
     }
   }
   
-  console.log('Access granted for role:', profile?.role);
+  console.log('✅ Access granted for role:', profile?.role);
   return <>{children}</>;
 };
 
-// Enhanced Public Route component
+// Public Route component (redirects if authenticated)
 const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, profile, loading, sessionLoaded, getRoleBasedRedirect } = useAuth();
   
@@ -127,30 +98,18 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Already authenticated and has profile, redirect to appropriate dashboard
   if (isAuthenticated && profile) {
     const redirectPath = getRoleBasedRedirect();
-    console.log('Already authenticated, redirecting to:', redirectPath);
+    console.log('🚀 Already authenticated, redirecting to:', redirectPath);
     return <Navigate to={redirectPath} replace />;
   }
   
   return <>{children}</>;
 };
 
-// Lazy Route wrapper component
-const LazyRoute: React.FC<{ 
-  component: React.LazyExoticComponent<React.ComponentType<any>>;
-  requiredRole?: string | string[];
-}> = ({ component: Component, requiredRole }) => (
-  <ProtectedRoute requiredRole={requiredRole}>
-    <Suspense fallback={<LazyLoadingFallback />}>
-      <Component />
-    </Suspense>
-  </ProtectedRoute>
-);
-
 // App Router component that uses the auth context
 const AppRouter: React.FC = () => {
   return (
     <Routes>
-      {/* Public Routes - No lazy loading for auth forms */}
+      {/* Public Routes */}
       <Route path="/login" element={
         <PublicRoute>
           <LoginForm />
@@ -169,116 +128,100 @@ const AppRouter: React.FC = () => {
         </PublicRoute>
       } />
       
-      {/* Volunteer Registration - Lazy loaded since it's accessed less frequently */}
       <Route path="/V0lunt33ringR3g" element={
         <PublicRoute>
-          <Suspense fallback={<LoadingScreen message="Loading registration form..." />}>
-            <VolunteerRegistration />
-          </Suspense>
+          <VolunteerRegistration />
         </PublicRoute>
       } />
       
-      {/* Protected Routes - All lazy loaded */}
+      {/* Protected Routes */}
       <Route 
         path="/attendee" 
-        element={<LazyRoute component={AttendeeDashboard} requiredRole="attendee" />}
+        element={
+          <ProtectedRoute requiredRole="attendee">
+            <AttendeeDashboard />
+          </ProtectedRoute>
+        } 
       />
       
       <Route 
         path="/volunteer" 
-        element={<LazyRoute component={VolunteerDashboard} requiredRole="volunteer" />}
+        element={
+          <ProtectedRoute requiredRole="volunteer">
+            <VolunteerDashboard />
+          </ProtectedRoute>
+        } 
       />
       
       <Route 
         path="/regteam" 
-        element={<LazyRoute component={RegTeamDashboard} requiredRole="registration" />}
+        element={
+          <ProtectedRoute requiredRole="registration">
+            <RegTeamDashboard />
+          </ProtectedRoute>
+        } 
       />
       
       <Route 
         path="/buildteam" 
-        element={<LazyRoute component={BuildTeamDashboard} requiredRole="building" />}
+        element={
+          <ProtectedRoute requiredRole="building">
+            <BuildTeamDashboard />
+          </ProtectedRoute>
+        } 
       />
       
       <Route 
         path="/infodesk" 
-        element={<LazyRoute component={InfoDeskDashboard} requiredRole="info_desk" />}
+        element={
+          <ProtectedRoute requiredRole="info_desk">
+            <InfoDeskDashboard />
+          </ProtectedRoute>
+        } 
       />
       
       <Route 
         path="/teamleader" 
-        element={<LazyRoute component={TeamLeaderDashboard} requiredRole="team_leader" />}
+        element={
+          <ProtectedRoute requiredRole="team_leader">
+            <TeamLeaderDashboard />
+          </ProtectedRoute>
+        } 
       />
       
       <Route 
         path="/secure-9821panel" 
-        element={<LazyRoute component={AdminPanel} requiredRole="admin" />}
+        element={
+          <ProtectedRoute requiredRole="admin">
+            <AdminPanel />
+          </ProtectedRoute>
+        } 
       />
       
       <Route 
         path="/super-ctrl-92k1x" 
-        element={<LazyRoute component={SuperAdminPanel} requiredRole="sadmin" />}
+        element={
+          <ProtectedRoute requiredRole="sadmin">
+            <SuperAdminPanel />
+          </ProtectedRoute>
+        } 
       />
       
-      {/* Default redirect - Enhanced to handle edge cases */}
+      {/* Default redirect */}
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 };
 
-// Main App component with error boundary
-class ErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  { hasError: boolean; error: Error | null }
-> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('App Error Boundary caught an error:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen bg-gradient-to-br from-red-50 to-white flex items-center justify-center">
-          <div className="text-center max-w-md mx-auto p-8">
-            <div className="text-red-500 text-6xl mb-4">⚠️</div>
-            <h1 className="text-2xl font-bold text-gray-800 mb-2">Something went wrong</h1>
-            <p className="text-gray-600 mb-4">
-              The application encountered an unexpected error.
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg transition-colors"
-            >
-              Reload Application
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    return this.props.children;
-  }
-}
-
 // Main App component
 function App() {
   return (
-    <ErrorBoundary>
-      <Router>
-        <AuthProvider>
-          <AppRouter />
-        </AuthProvider>
-      </Router>
-    </ErrorBoundary>
+    <Router>
+      <AuthProvider>
+        <AppRouter />
+      </AuthProvider>
+    </Router>
   );
 }
 
