@@ -14,7 +14,8 @@ import {
   validatePhone,
   validatePersonalId,
   validatePassword,
-  validateConfirmPassword
+  validateConfirmPassword,
+  validateGender // Add this import
 } from '../../utils/validation';
 import { useAuth } from '../../contexts/AuthContext';
 
