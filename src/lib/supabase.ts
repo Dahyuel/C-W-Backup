@@ -350,6 +350,7 @@ export const signUpUser = async (email: string, password: string, userData: any)
 
 
 // Corrected signUpVolunteer function
+// CORRECTED signUpVolunteer function with proper parameter order
 export const signUpVolunteer = async (email: string, password: string, userData: any) => {
   try {
     console.log('Starting volunteer registration...');
@@ -397,25 +398,7 @@ export const signUpVolunteer = async (email: string, password: string, userData:
       const volunteerId = await generateVolunteerId(userData.role || 'volunteer');
       console.log('Generated volunteer ID:', volunteerId);
 
-      const profileDataToInsert = {
-        id: authData.user.id,
-        email: email.trim().toLowerCase(),
-        volunteer_id: volunteerId,
-        first_name: userData.first_name?.trim() || '',
-        last_name: userData.last_name?.trim() || '',
-        phone: userData.phone?.trim() || null,
-        personal_id: userData.personal_id?.trim(),
-        faculty: userData.faculty?.trim() || '',
-        university: 'Ain Shams University',
-        // Let the database handle role casting by using raw SQL value
-        score: 0,
-        building_entry: false,
-        event_entry: false,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-
-      // Use raw SQL for proper enum casting
+      // Use RPC function with corrected parameter order
       const { data: profileData, error: profileError } = await supabase
         .rpc('insert_volunteer_profile', {
           p_id: authData.user.id,
@@ -423,9 +406,10 @@ export const signUpVolunteer = async (email: string, password: string, userData:
           p_volunteer_id: volunteerId,
           p_first_name: userData.first_name?.trim() || '',
           p_last_name: userData.last_name?.trim() || '',
-          p_phone: userData.phone?.trim() || null,
           p_personal_id: userData.personal_id?.trim(),
           p_faculty: userData.faculty?.trim() || '',
+          // Optional parameters with defaults
+          p_phone: userData.phone?.trim() || null,
           p_university: 'Ain Shams University',
           p_role: userData.role || 'volunteer'
         });
@@ -467,7 +451,6 @@ export const signUpVolunteer = async (email: string, password: string, userData:
     return { data: null, error: { message: error.message || 'Volunteer registration failed' } };
   }
 };
-
 
 const cleanupOrphanedAuthUser = async (userId: string, email: string) => {
   try {
