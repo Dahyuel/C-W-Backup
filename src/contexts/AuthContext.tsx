@@ -36,6 +36,14 @@ type AuthContextType = {
 };
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const shouldRedirectToLogin = useCallback(() => {
+  // If user is not authenticated or role is undefined/null
+  if (!isAuthenticated || !profile?.role) {
+    return true;
+  }
+  return false;
+}, [isAuthenticated, profile?.role]);
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
