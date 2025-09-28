@@ -3,9 +3,9 @@ import { KeyRound, ArrowLeft, CheckCircle, AlertCircle, Eye, EyeOff } from 'luci
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase'; // Adjust path as needed
 
-interface ResetPasswordFormProps {}
+interface ForgotPasswordFormProps {}
 
- const ResetPasswordForm: React.FC<ResetPasswordFormProps> = () => {
+export const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   
@@ -50,6 +50,8 @@ interface ResetPasswordFormProps {}
         setTokenValid(false);
       }
     };
+
+
 
     checkToken();
   }, [searchParams]);
@@ -380,4 +382,3 @@ interface ResetPasswordFormProps {}
     </div>
   );
 };
-export default ForgotPasswordForm;
