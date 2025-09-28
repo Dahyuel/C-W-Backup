@@ -47,3 +47,15 @@ export interface FileUpload {
   universityId?: File;
   resume?: File;
 }
+export interface VolunteerRegistrationData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  personalId: string;
+  faculty: string;
+  password: string;
+  confirmPassword: string;
+  role: string;
+  gender: string; // Add this line
+}
