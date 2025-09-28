@@ -647,7 +647,6 @@ export const findOrphanedUsers = async () => {
     return { data: [], error: { message: error.message } };
   }
 };
-
 // Function for admin to clean up orphaned users
 export const cleanupOrphanedUsers = async () => {
   try {
