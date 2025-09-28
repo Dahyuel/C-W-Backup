@@ -107,40 +107,55 @@ export const checkVolunteerIdExists = async (volunteerId: string): Promise<Valid
     return { isValid: false, error: 'Failed to validate Volunteer ID' };
   }
 };
+
+// Enhanced error handling for validation
 export const validateRegistrationData = async (
   email: string,
   personalId: string,
   volunteerId?: string,
   phone?: string
 ): Promise<{ isValid: boolean; errors: string[]; volunteerInfo?: any }> => {
-  try {
-    const { data, error } = await supabase.rpc('validate_registration_data', {
-      p_email: email.trim().toLowerCase(),
-      p_personal_id: personalId.trim(),
-      p_volunteer_id: volunteerId?.trim() || null,
-      p_phone: phone?.trim() || null
-    });
+  const errors: string[] = [];
 
-    if (error) {
-      console.error('Validation error:', error);
-      return {
-        isValid: false,
-        errors: ['Validation failed. Please try again.']
-      };
-    }
-
-    return {
-      isValid: data.is_valid,
-      errors: data.errors || [],
-      volunteerInfo: data.volunteer_info
-    };
-  } catch (error: any) {
-    console.error('Validation exception:', error);
-    return {
-      isValid: false,
-      errors: ['An unexpected error occurred during validation.']
-    };
+  // Basic email validation
+  if (!email || !email.includes('@')) {
+    errors.push('Valid email is required');
   }
+
+  // Personal ID validation (14 digits)
+  if (!personalId || !/^\d{14}$/.test(personalId.trim())) {
+    errors.push('Personal ID must be exactly 14 digits');
+  }
+
+  // Phone validation if provided
+  if (phone && !/^(010|011|012|015)\d{8}$/.test(phone.trim())) {
+    errors.push('Phone number must be valid Egyptian format (01X-XXXXXXXX)');
+  }
+
+  // Check for existing users
+  const userExists = await checkUserExists(personalId, email);
+  if (userExists.exists) {
+    if (userExists.byPersonalId) errors.push('Personal ID already registered');
+    if (userExists.byEmail) errors.push('Email already registered');
+  }
+
+  // Validate volunteer ID if provided
+  let volunteerInfo = null;
+  if (volunteerId && volunteerId.trim()) {
+    const volunteerValidation = await checkVolunteerIdExists(volunteerId);
+    if (!volunteerValidation.isValid && volunteerValidation.error) {
+      errors.push(volunteerValidation.error);
+    } else if (volunteerValidation.isValid) {
+      const { data: volunteer } = await getVolunteerByVolunteerId(volunteerId);
+      volunteerInfo = volunteer;
+    }
+  }
+
+  return {
+    isValid: errors.length === 0,
+    errors,
+    volunteerInfo
+  };
 };
 
 export const getVolunteerByVolunteerId = async (volunteerId: string) => {
