@@ -26,7 +26,11 @@ interface AttendeeCardProps {
   mode?: 'building' | 'session' | 'registration';
   sessionTitle?: string; // Optional session title for session mode
 }
-
+interface AttendeeCardProps {
+  // ... existing props
+  disableAction?: boolean;
+  disableReason?: string;
+}
 const getRoleIcon = (role: string) => {
   switch (role.toLowerCase()) {
     case 'admin':
