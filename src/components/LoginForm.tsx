@@ -126,7 +126,6 @@ export const LoginForm: React.FC = () => {
                 className="w-24 h-24 rounded-full object-cover"
               />
             </div>
-            </div>
             <h1 className="text-2xl font-bold text-white mb-2">Welcome Back</h1>
             <p className="text-orange-100">Sign in to ASU Career Week</p>
           </div>
