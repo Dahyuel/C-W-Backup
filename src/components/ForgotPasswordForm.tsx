@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'; // Adjust path as needed
 
 interface ResetPasswordFormProps {}
 
-export ResetPasswordForm: React.FC<ResetPasswordFormProps> = () => {
+ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   
