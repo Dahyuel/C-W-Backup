@@ -813,43 +813,49 @@ return (
           backgroundImage: 'url("https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/careercenter.png")',
         }}
       >
- {/* Title Section - Responsive */}
-<div className="text-center mb-6 sm:mb-8">
-  <h1 className="text-2xl sm:text-4xl font-bold text-white mb-2 drop-shadow-lg">Join Career Week</h1>
-  <p className="text-sm sm:text-base text-white drop-shadow">Create your attendee account to access exclusive events</p>
-</div>
+        {/* Overlay for better readability */}
+        <div className="absolute inset-0 bg-black bg-opacity-10"></div>
+      </div>
 
-{/* Progress Steps - Mobile Responsive */}
-<div className="mb-6 sm:mb-8">
-  <div className="flex items-center justify-between max-w-2xl mx-auto px-2">
-    {sections.map((section, index) => (
-      <div key={section.id} className="flex items-center flex-1">
-        <div className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 transition-colors ${
-          currentSection >= section.id
-            ? 'bg-orange-500 border-orange-500 text-white'
-            : 'bg-white border-gray-300 text-gray-400'
-        }`}>
-          <section.icon className="w-4 h-4 sm:w-5 sm:h-5" />
+      <div className="relative z-10 py-8 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-white mb-2 drop-shadow-lg">Join Career Week</h1>
+            <p className="text-white drop-shadow">Create your attendee account to access exclusive events</p>
+          </div>
+          </div>
+          
+
+        {/* Progress Steps */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between max-w-2xl mx-auto">
+            {sections.map((section, index) => (
+              <div key={section.id} className="flex items-center">
+                <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors ${
+                  currentSection >= section.id
+                    ? 'bg-orange-500 border-orange-500 text-white'
+                    : 'bg-white border-gray-300 text-gray-400'
+                }`}>
+                  <section.icon className="w-5 h-5" />
+                </div>
+                {index < sections.length - 1 && (
+                  <div className={`w-16 h-0.5 mx-2 transition-colors ${
+                    currentSection > section.id ? 'bg-orange-500' : 'bg-gray-300'
+                  }`} />
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-between max-w-2xl mx-auto mt-2">
+            {sections.map(section => (
+              <div key={section.id} className="text-xs text-center" style={{ width: '120px' }}>
+                <span className={currentSection >= section.id ? 'text-orange-600 font-medium' : 'text-gray-500'}>
+                  {section.title}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
-        {index < sections.length - 1 && (
-          <div className={`flex-1 h-0.5 mx-1 sm:mx-2 transition-colors ${
-            currentSection > section.id ? 'bg-orange-500' : 'bg-gray-300'
-          }`} />
-        )}
-      </div>
-    ))}
-  </div>
-  <div className="flex justify-between max-w-2xl mx-auto mt-2 px-2">
-    {sections.map(section => (
-      <div key={section.id} className="text-xs sm:text-sm text-center flex-1">
-        <span className={`${currentSection >= section.id ? 'text-white font-medium' : 'text-white opacity-70'} block`}>
-          <span className="hidden sm:inline">{section.title}</span>
-          <span className="sm:hidden">{section.title.split(' ')[0]}</span>
-        </span>
-      </div>
-    ))}
-  </div>
-</div>
 
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-2xl p-8 border border-orange-100">
           {/* General Error */}
