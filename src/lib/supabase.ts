@@ -215,58 +215,29 @@ export const validateRegistrationWithVolunteer = async (
 // Updated signUpUser function using the same successful approach as volunteer registration
 // CORRECTED signUpUser function - DO NOT pass volunteer_id for attendees
 export const signUpUser = async (email: string, password: string, userData: any) => {
-  let authUserId = null;
-  
   try {
     console.log('Starting attendee registration...');
     
-    // STEP 1: Pre-validation to avoid creating auth user if data is invalid
-    const userExists = await checkUserExists(userData.personal_id, email);
-    if (userExists.exists) {
-      const errors: string[] = [];
-      if (userExists.byPersonalId) {
-        errors.push('Personal ID already registered');
-      }
-      if (userExists.byEmail) {
-        errors.push('Email already registered');
-      }
+    // STEP 1: Pre-validation using RPC function (no trigger interference)
+    const validation = await validateRegistrationWithVolunteer(
+      userData.personal_id,
+      userData.volunteer_id,
+      email
+    );
+
+    if (!validation.isValid) {
       return { 
         data: null, 
         error: { 
-          message: errors.join('. '),
-          validationErrors: errors
+          message: validation.errors.join('. '),
+          validationErrors: validation.errors
         }
       };
     }
 
-    // STEP 1.5: Validate volunteer ID if provided (before creating auth user)
-    let referrerId = null;
-    if (userData.volunteer_id && userData.volunteer_id.trim()) {
-      console.log('Validating volunteer referrer:', userData.volunteer_id.trim());
-      const { data: referrer, error: referrerError } = await supabase
-        .from('users_profiles')
-        .select('id, first_name, last_name')
-        .eq('volunteer_id', userData.volunteer_id.trim())
-        .neq('role', 'attendee')
-        .single();
-      
-      if (referrerError || !referrer) {
-        return { 
-          data: null, 
-          error: { 
-            message: 'Invalid volunteer ID provided. Please check with your referring volunteer.',
-            validationErrors: ['Invalid volunteer ID']
-          }
-        };
-      }
-      
-      referrerId = referrer.id;
-      console.log('Found valid referrer:', referrer.first_name, referrer.last_name);
-    }
-
     console.log('Pre-validation passed, creating auth user...');
 
-    // STEP 2: Create auth user
+    // STEP 2: Create auth user (should now work without trigger interference)
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
       password,
@@ -281,14 +252,12 @@ export const signUpUser = async (email: string, password: string, userData: any)
       return { data: null, error: { message: 'Failed to create attendee account' } };
     }
 
-    authUserId = authData.user.id; // Store for cleanup if needed
-    console.log('Auth user created successfully:', authUserId);
+    console.log('Auth user created successfully:', authData.user.id);
 
-    // STEP 3: Create attendee profile with transaction-like behavior
+    // STEP 3: Create attendee profile immediately after auth user creation
     try {
-      // Prepare profile data
       const profileDataToInsert = {
-        id: authUserId,
+        id: authData.user.id,
         email: email.trim().toLowerCase(),
         first_name: userData.first_name?.trim() || '',
         last_name: userData.last_name?.trim() || '',
@@ -296,8 +265,8 @@ export const signUpUser = async (email: string, password: string, userData: any)
         university: userData.university?.trim() || '',
         faculty: userData.faculty?.trim() || '',
         personal_id: userData.personal_id?.trim(),
-        volunteer_id: null, // CRITICAL: Attendees don't get volunteer_id
-        reg_id: referrerId, // Referring volunteer's UUID
+        volunteer_id: null, // CRITICAL: Attendees never get volunteer_id
+        reg_id: validation.volunteerUuid || null, // Referring volunteer's UUID
         role: 'attendee',
         score: 0,
         building_entry: false,
@@ -336,8 +305,9 @@ export const signUpUser = async (email: string, password: string, userData: any)
       if (profileError) {
         console.error('Profile creation failed:', profileError);
         
-        // Try to clean up the auth user using an edge function
-        await cleanupOrphanedAuthUser(authUserId, email);
+        // Note: We can't easily delete auth user from client side
+        // The orphaned user will need to be cleaned up via admin functions
+        console.warn(`Orphaned auth user created: ${authData.user.id} (${email})`);
         
         let errorMessage = 'Failed to create user profile. ';
         if (profileError.code === '23505') {
@@ -356,15 +326,18 @@ export const signUpUser = async (email: string, password: string, userData: any)
       }
 
       console.log('Attendee registration completed successfully');
-      return { data: { ...authData, profile: profileData }, error: null };
+      return { 
+        data: { 
+          ...authData, 
+          profile: profileData,
+          referredBy: validation.volunteerInfo
+        }, 
+        error: null 
+      };
 
     } catch (profileError) {
       console.error('Profile creation exception:', profileError);
-      
-      // Try to clean up the auth user
-      if (authUserId) {
-        await cleanupOrphanedAuthUser(authUserId, email);
-      }
+      console.warn(`Orphaned auth user created: ${authData.user.id} (${email})`);
       
       return { 
         data: null, 
@@ -374,16 +347,9 @@ export const signUpUser = async (email: string, password: string, userData: any)
 
   } catch (error: any) {
     console.error('Registration error:', error);
-    
-    // Try to clean up the auth user if it was created
-    if (authUserId) {
-      await cleanupOrphanedAuthUser(authUserId, email);
-    }
-    
     return { data: null, error: { message: error.message || 'Registration failed' } };
   }
 };
-
 
 export const signUpVolunteer = async (email: string, password: string, userData: any) => {
   let authUserId = null;
