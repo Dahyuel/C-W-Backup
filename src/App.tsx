@@ -1,6 +1,7 @@
 import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ResetPasswordForm } from './components/ResetPasswordForm';
 
 // Auth Components (keep these regular imports since they're small and frequently used)
 import { LoginForm } from './components/LoginForm';
