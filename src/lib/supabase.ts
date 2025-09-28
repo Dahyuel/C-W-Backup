@@ -169,6 +169,8 @@ export const getVolunteerByVolunteerId = async (volunteerId: string) => {
     return { data: null, error: { message: error.message } };
   }
 };
+
+
 export const validateRegistrationWithVolunteer = async (
   personalId: string,
   volunteerId?: string,
