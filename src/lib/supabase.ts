@@ -1556,7 +1556,6 @@ export const addScheduleItem = async (eventData) => {
   }
 };
 
-// Enhanced volunteer ID generation that handles the constraint
 const generateVolunteerId = async (role: string): Promise<string> => {
   try {
     // Define role prefixes
@@ -1610,10 +1609,19 @@ const generateVolunteerId = async (role: string): Promise<string> => {
   } catch (error) {
     console.error('Error generating volunteer ID:', error);
     // Fallback: use timestamp with prefix
+    const rolePrefixes: { [key: string]: string } = {
+      'registration': 'REG',
+      'building': 'BLD',
+      'info_desk': 'INFDSK',
+      'volunteer': 'VOL',
+      'team_leader': 'TLDR'
+    };
     const prefix = rolePrefixes[role] || 'VOL';
     return `${prefix}${Date.now().toString().slice(-6)}`;
   }
 };
+
+
 // Add Company
 export const addCompany = async (companyData) => {
   try {
