@@ -375,11 +375,19 @@ export const signUpVolunteer = async (email: string, password: string, userData:
         event_entry: false
       };
 
-      const { data: insertedProfile, error: profileError } = await supabase
-        .from('users_profiles')
-        .insert([profileData])
-        .select()
-        .single();
+// Replace the profile creation part in signUpVolunteer with:
+const { data: insertedProfile, error: profileError } = await supabase.rpc('create_volunteer_profile', {
+  p_id: authData.user.id,
+  p_email: email.trim().toLowerCase(),
+  p_volunteer_id: volunteerId,
+  p_first_name: userData.first_name?.trim() || '',
+  p_last_name: userData.last_name?.trim() || '',
+  p_personal_id: userData.personal_id?.trim(),
+  p_faculty: userData.faculty?.trim() || '',
+  p_phone: userData.phone?.trim() || null,
+  p_university: 'Ain Shams University',
+  p_role: userData.role || 'volunteer'
+});
 
       if (profileError) {
         console.error('Volunteer profile creation error:', profileError);
