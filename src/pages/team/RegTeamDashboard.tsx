@@ -33,11 +33,11 @@ interface Attendee {
   last_scan?: string;
 }
 
+// Helper function to type-cast attendee data
 const castToAttendee = (data: any): Attendee => {
   return {
     ...data,
-    // For registration dashboard, current_status should reflect event entry
-    current_status: data.event_entry ? 'inside' : 'outside'
+    current_status: data.current_status === 'inside' ? 'inside' : 'outside'
   } as Attendee;
 };
 
@@ -266,7 +266,7 @@ export const RegTeamDashboard: React.FC = () => {
     >
       {/* Feedback Toast */}
       {feedback && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center space-x-2 px-4 py-3 rounded-lg shadow-lg ${
+        <div className={`fixed top-4 right-4 z-50 flex items-center space-x-2 px-4 py-3 rounded-lg shadow-lg toast-enter ${
           feedback.type === 'success' 
             ? 'bg-green-500 text-white' 
             : 'bg-red-500 text-white'
@@ -288,13 +288,13 @@ export const RegTeamDashboard: React.FC = () => {
 
       <div className="space-y-6">
         {/* Mode Switch */}
-        <div className="flex space-x-4">
+        <div className="flex space-x-4 fade-in-up" style={{ animationDelay: '0.1s' }}>
           <button
             onClick={() => {
               setSearchMode("manual");
               clearSearch();
             }}
-            className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+            className={`px-6 py-3 rounded-lg font-medium btn-animate ${
               searchMode === "manual"
                 ? "bg-orange-500 text-white shadow-md"
                 : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -308,7 +308,7 @@ export const RegTeamDashboard: React.FC = () => {
               setSearchMode("qr");
               clearSearch();
             }}
-            className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+            className={`px-6 py-3 rounded-lg font-medium btn-animate ${
               searchMode === "qr"
                 ? "bg-orange-500 text-white shadow-md"
                 : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -321,7 +321,7 @@ export const RegTeamDashboard: React.FC = () => {
 
         {/* Manual Search - Personal ID Only */}
         {searchMode === "manual" && (
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-white rounded-xl shadow-sm p-6 fade-in-up" style={{ animationDelay: '0.2s' }}>
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -343,7 +343,7 @@ export const RegTeamDashboard: React.FC = () => {
                       <button
                         onClick={clearSearch}
                         className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      >
+                      className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center space-x-2 btn-animate"
                         <X className="h-5 w-5" />
                       </button>
                     )}
@@ -425,7 +425,7 @@ export const RegTeamDashboard: React.FC = () => {
 
         {/* QR Scanner */}
         {searchMode === "qr" && (
-          <div className="bg-white rounded-xl shadow-sm p-6 text-center">
+          <div className="bg-white rounded-xl shadow-sm p-6 text-center fade-in-up" style={{ animationDelay: '0.2s' }}>
             <QrCode className="h-16 w-16 text-orange-500 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               QR Code Scanner
@@ -435,7 +435,7 @@ export const RegTeamDashboard: React.FC = () => {
             </p>
             <button
               onClick={() => setShowScanner(true)}
-              className="px-8 py-4 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center space-x-2 mx-auto"
+              className="px-8 py-4 bg-orange-500 text-white rounded-lg hover:bg-orange-600 font-medium flex items-center space-x-2 mx-auto btn-animate"
             >
               <QrCode className="h-5 w-5" />
               <span>Open QR Scanner</span>
@@ -453,18 +453,17 @@ export const RegTeamDashboard: React.FC = () => {
         description="Point your camera at the attendee's QR code"
       />
 
-{/* Attendee Card Modal */}
-<AttendeeCard
-  isOpen={showAttendeeCard}
-  onClose={() => {
-    setShowAttendeeCard(false);
-    setSelectedAttendee(null);
-  }}
-  attendee={selectedAttendee}
-  onAction={handleAttendanceAction}
-  loading={actionLoading}
-  mode="registration" // This will show "Inside/Outside Event"
-/>
+      {/* Attendee Card Modal */}
+      <AttendeeCard
+        isOpen={showAttendeeCard}
+        onClose={() => {
+          setShowAttendeeCard(false);
+          setSelectedAttendee(null);
+        }}
+        attendee={selectedAttendee}
+        onAction={handleAttendanceAction}
+        loading={actionLoading}
+      />
     </DashboardLayout>
   );
 };

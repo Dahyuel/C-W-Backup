@@ -52,7 +52,7 @@ export const TeamLeaderDashboard: React.FC = () => {
     >
       <div className="space-y-8">
 {/* Quick Actions */}
-<div className="bg-white rounded-xl shadow-sm border border-black p-6">
+<div className="bg-white rounded-xl shadow-sm border border-black p-6 fade-in-up" style={{ animationDelay: '0.1s' }}>
  <div className="flex justify-center">
   <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2 mb-8">
     <Users className="h-8 w-8 text-orange-500" />
@@ -61,7 +61,7 @@ export const TeamLeaderDashboard: React.FC = () => {
 </div>
 
 
-<div className="flex flex-col md:flex-row gap-4 justify-center">
+<div className="flex flex-col md:flex-row gap-4 justify-center stagger-children">
   
   {/* Attendance */}
   <button
@@ -69,7 +69,7 @@ export const TeamLeaderDashboard: React.FC = () => {
       setScannerMode("attendance");
       setScannerOpen(true);
     }}
-    className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-700 transition-colors"
+    className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-700 btn-animate"
   >
     <QrCode className="h-8 w-8 mb-2" />
     <span className="text-base font-medium">Scan Attendance</span>
@@ -78,7 +78,7 @@ export const TeamLeaderDashboard: React.FC = () => {
   {/* Bonus */}
   <button
     onClick={() => setBonusModal(true)}
-    className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-green-500 text-white rounded-xl hover:bg-green-800 transition-colors"
+    className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-green-500 text-white rounded-xl hover:bg-green-800 btn-animate"
   >
     <Gift className="h-8 w-8 mb-2" />
     <span className="text-base font-medium">Assign Bonus</span>
@@ -87,7 +87,7 @@ export const TeamLeaderDashboard: React.FC = () => {
   {/* Announcements */}
   <button
     onClick={() => setAnnouncementModal(true)}
-    className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-700 transition-colors"
+    className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-700 btn-animate"
   >
     <Megaphone className="h-8 w-8 mb-2" />
     <span className="text-base font-medium">Send Announcement</span>
@@ -98,7 +98,7 @@ export const TeamLeaderDashboard: React.FC = () => {
         </div>
 
 {/* Flow Dashboard Widget */}
-<div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+<div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden fade-in-up chart-animate">
   {/* Header */}
   <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
     <h2 className="text-3xl font-bold text-black-800 flex items-center gap-2 mx-auto">
@@ -108,7 +108,7 @@ export const TeamLeaderDashboard: React.FC = () => {
   </div>
 
   {/* Stats Overview */}
-  <div className="grid grid-cols-3 gap-4 px-6 py-6 text-center">
+  <div className="grid grid-cols-3 gap-4 px-6 py-6 text-center stagger-children">
     <div className="bg-green-100 p-4 rounded-lg shadow-sm">
       <p className="text-2xl font-bold text-green-900">12</p>
       <p className="text-lg font-bold text-gray-700">Inside Building</p>
@@ -126,7 +126,7 @@ export const TeamLeaderDashboard: React.FC = () => {
   {/* Content */}
   <div className="p-6">
     <div className="overflow-x-auto">
-      <table className="min-w-full text-lg font-bold text-left border border-gray-200 rounded-lg overflow-hidden">
+      <table className="min-w-full text-lg font-bold text-left border border-gray-200 rounded-lg overflow-hidden stagger-rows">
         <thead className="bg-gray-100 text-gray-800 text-xl font-extrabold">
           <tr>
             <th className="px-4 py-3">Site</th>
@@ -159,7 +159,7 @@ export const TeamLeaderDashboard: React.FC = () => {
 
         {/* Last Scan Info */}
         {lastScan && (
-          <div className="p-4 bg-gray-100 rounded-xl border border-gray-200">
+          <div className="p-4 bg-gray-100 rounded-xl border border-gray-200 fade-in-up" style={{ animationDelay: '1s' }}>
             <p className="text-sm text-gray-800">
               ✅ Last scanned volunteer: <b>{lastScan}</b>
             </p>
@@ -174,8 +174,8 @@ export const TeamLeaderDashboard: React.FC = () => {
 
       {/* Bonus Input Modal */}
       {bonusModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-96 relative">
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 modal-backdrop">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-96 relative modal-content">
             {/* Close Button */}
             <button
               onClick={() => setBonusModal(false)}
@@ -223,7 +223,7 @@ export const TeamLeaderDashboard: React.FC = () => {
             <div className="flex justify-end gap-3 mt-4">
               <button
                 onClick={() => setBonusModal(false)}
-                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 btn-animate"
               >
                 Cancel
               </button>
@@ -234,7 +234,7 @@ export const TeamLeaderDashboard: React.FC = () => {
                   setScannerMode("bonus");
                   setScannerOpen(true);
                 }}
-                className="px-4 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 btn-animate"
               >
                 Continue to Scan
               </button>
@@ -245,8 +245,8 @@ export const TeamLeaderDashboard: React.FC = () => {
       
      {/* ✅ Announcement Modal */}
       {announcementModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-96 relative">
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 modal-backdrop">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-96 relative modal-content">
             {/* Close Button */}
             <button
               onClick={() => setAnnouncementModal(false)}
@@ -293,7 +293,7 @@ export const TeamLeaderDashboard: React.FC = () => {
             <div className="flex justify-end gap-3 mt-4">
               <button
                 onClick={() => setAnnouncementModal(false)}
-                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 btn-animate"
               >
                 Cancel
               </button>
@@ -304,7 +304,7 @@ export const TeamLeaderDashboard: React.FC = () => {
                   );
                   setAnnouncementModal(false);
                 }}
-                className="px-4 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600"
+                className="px-4 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600 btn-animate"
               >
                 Send
               </button>

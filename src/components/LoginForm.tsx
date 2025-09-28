@@ -101,12 +101,12 @@ export const LoginForm: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen relative">
+    <div className="min-h-screen relative page-transition">
       {/* Responsive Wallpaper */}
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
         style={{
-          backgroundImage: 'url("https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/careercenter.png")',
+          backgroundImage: 'url("/src/Assets/careercenter.png")', // Replace with your wallpaper path
         }}
       >
         {/* Overlay for better readability */}
@@ -115,13 +115,13 @@ export const LoginForm: React.FC = () => {
 
       {/* Login Form */}
       <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
-        <div className="bg-white rounded-2xl shadow-2xl border border-orange-100 w-full max-w-md overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-2xl border border-orange-100 w-full max-w-md overflow-hidden fade-in-scale">
           {/* Header */}
-          <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4 text-center">
+          <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4 text-center fade-in-down" style={{ animationDelay: '0.2s' }}>
             {/* Bigger Rounded Logo */}
             <div className="mx-auto w-28 h-28 bg-white rounded-full flex items-center justify-center mb-2 shadow-lg">
               <img 
-                src="https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/logo.png" 
+                src="\src\Assets\logo.png" 
                 alt="ASU Career Week Logo" 
                 className="w-24 h-24 rounded-full object-cover"
               />
@@ -131,7 +131,7 @@ export const LoginForm: React.FC = () => {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="p-8">
+          <form onSubmit={handleSubmit} className="p-8 fade-in-up" style={{ animationDelay: '0.3s' }}>
             {/* General Error */}
             {getFieldError('general') && (
               <div className="bg-red-50 border border-red-200 p-4 rounded-lg flex items-center space-x-2 mb-6">
@@ -207,7 +207,7 @@ export const LoginForm: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed btn-animate"
               >
                 {loading ? (
                   <div className="flex items-center justify-center space-x-2">
@@ -220,7 +220,7 @@ export const LoginForm: React.FC = () => {
               </button>
 
               {/* Register Links */}
-              <div className="text-center pt-4 border-t border-gray-200 space-y-2">
+              <div className="text-center pt-4 border-t border-gray-200 space-y-2 stagger-children">
                 <p className="text-gray-600">
                   Don't have an account?{' '}
                   <button
