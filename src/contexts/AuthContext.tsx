@@ -491,27 +491,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     userRole: profile?.role
   });
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        profile,
-        loading,
-        sessionLoaded,
-        isAuthenticated,
-        signUp,
-        signUpVolunteer: signUpVolunteerFunc,
-        signIn,
-        signOut,
-        hasRole,
-        getRoleBasedRedirect,
-        validateRegistration,
-        refreshProfile,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+return (
+  <AuthContext.Provider
+    value={{
+      user,
+      profile,
+      loading,
+      sessionLoaded,
+      isAuthenticated,
+      signUp,
+      signUpVolunteer: signUpVolunteerFunc,
+      signIn,
+      signOut,
+      hasRole,
+      getRoleBasedRedirect,
+      shouldRedirectToLogin, // Add this new helper
+      validateRegistration,
+      refreshProfile,
+    }}
+  >
+    {children}
+  </AuthContext.Provider>
+);
 };
 
 // Hook with better error handling
