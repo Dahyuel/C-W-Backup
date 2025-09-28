@@ -510,6 +510,74 @@ export const signUpVolunteer = async (email: string, password: string, userData:
   }
 };
 
+const cleanupOrphanedAuthUser = async (userId: string, email: string) => {
+  try {
+    console.log('Attempting to clean up orphaned auth user:', email);
+    
+    // Try using an edge function for cleanup (requires admin privileges)
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (session?.access_token) {
+      const response = await fetch(`${supabaseUrl}/functions/v1/cleanup-auth-user`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          email: email
+        })
+      });
+
+      if (response.ok) {
+        console.log('Successfully cleaned up orphaned auth user');
+      } else {
+        console.warn('Failed to clean up auth user via edge function');
+      }
+    }
+  } catch (cleanupError) {
+    console.warn('Auth user cleanup failed:', cleanupError);
+    // Store the orphaned user info for manual cleanup later
+    console.warn(`Orphaned auth user: ${userId} (${email}) - needs manual cleanup`);
+  }
+};
+
+// Function to find and report orphaned users (for admin use)
+export const findOrphanedUsers = async () => {
+  try {
+    const { data, error } = await supabase.rpc('find_orphaned_auth_users');
+    
+    if (error) {
+      console.error('Error finding orphaned users:', error);
+      return { data: [], error };
+    }
+    
+    return { data: data || [], error: null };
+  } catch (error: any) {
+    console.error('Find orphaned users exception:', error);
+    return { data: [], error: { message: error.message } };
+  }
+};
+
+// Function for admin to clean up orphaned users
+export const cleanupOrphanedUsers = async () => {
+  try {
+    const { data, error } = await supabase.rpc('cleanup_orphaned_auth_users');
+    
+    if (error) {
+      console.error('Error cleaning orphaned users:', error);
+      return { data: [], error };
+    }
+    
+    console.log(`Cleaned up ${data?.length || 0} orphaned users`);
+    return { data: data || [], error: null };
+  } catch (error: any) {
+    console.error('Cleanup orphaned users exception:', error);
+    return { data: [], error: { message: error.message } };
+  }
+};
+
 
 // Keep existing functions for backward compatibility
 export const signInUser = async (email: string, password: string) => {
