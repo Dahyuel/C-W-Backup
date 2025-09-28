@@ -354,7 +354,7 @@ export const signUpVolunteer = async (email: string, password: string, userData:
   try {
     console.log('Starting volunteer registration...');
     
-    // STEP 1: Check if user already exists (simple check)
+    // STEP 1: Check if user already exists
     const userExists = await checkUserExists(userData.personal_id, email);
     if (userExists.exists) {
       const errors: string[] = [];
@@ -406,8 +406,8 @@ export const signUpVolunteer = async (email: string, password: string, userData:
         phone: userData.phone?.trim() || null,
         personal_id: userData.personal_id?.trim(),
         faculty: userData.faculty?.trim() || '',
-        university: 'Ain Shams University', // Always set for volunteers
-        role: userData.role || 'volunteer',
+        university: 'Ain Shams University',
+        // Let the database handle role casting by using raw SQL value
         score: 0,
         building_entry: false,
         event_entry: false,
@@ -415,11 +415,20 @@ export const signUpVolunteer = async (email: string, password: string, userData:
         updated_at: new Date().toISOString()
       };
 
-      // Insert profile
+      // Use raw SQL for proper enum casting
       const { data: profileData, error: profileError } = await supabase
-        .from("users_profiles")
-        .insert(profileDataToInsert)
-        .select();
+        .rpc('insert_volunteer_profile', {
+          p_id: authData.user.id,
+          p_email: email.trim().toLowerCase(),
+          p_volunteer_id: volunteerId,
+          p_first_name: userData.first_name?.trim() || '',
+          p_last_name: userData.last_name?.trim() || '',
+          p_phone: userData.phone?.trim() || null,
+          p_personal_id: userData.personal_id?.trim(),
+          p_faculty: userData.faculty?.trim() || '',
+          p_university: 'Ain Shams University',
+          p_role: userData.role || 'volunteer'
+        });
 
       if (profileError) {
         console.error('Volunteer profile creation error:', profileError);
@@ -458,6 +467,8 @@ export const signUpVolunteer = async (email: string, password: string, userData:
     return { data: null, error: { message: error.message || 'Volunteer registration failed' } };
   }
 };
+
+
 const cleanupOrphanedAuthUser = async (userId: string, email: string) => {
   try {
     console.log('Attempting to clean up orphaned auth user:', email);
