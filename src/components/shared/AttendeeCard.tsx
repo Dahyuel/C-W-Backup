@@ -28,11 +28,7 @@ interface AttendeeCardProps {
     disableAction?: boolean;
   disableReason?: string;
 }
-interface AttendeeCardProps {
-  // ... existing props
-  disableAction?: boolean;
-  disableReason?: string;
-}
+
 const getRoleIcon = (role: string) => {
   switch (role.toLowerCase()) {
     case 'admin':
@@ -353,22 +349,25 @@ export const AttendeeCard: React.FC<AttendeeCardProps> = ({
                   </>
                 )}
                 
-                {/* Show only relevant status for other modes */}
-                {mode !== 'building' && (
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor()}`}>
-                    <span className={`inline-block w-2 h-2 rounded-full mr-1 ${
-                      (() => {
-                        if (mode === 'registration') {
-                          return currentAttendee.event_entry ? 'bg-green-500' : 'bg-red-500';
-                        } else {
-                          // Session mode - show event status
-                          return currentAttendee.event_entry ? 'bg-green-500' : 'bg-red-500';
-                        }
-                      })()
-                    }`}></span>
-                    {getStatusDisplay()}
-                  </span>
-                )}
+{/* Show only relevant status for other modes */}
+{mode !== 'building' && (
+  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor()}`}>
+    <span className={`inline-block w-2 h-2 rounded-full mr-1 ${
+      (() => {
+        if (mode === 'registration') {
+          return currentAttendee.event_entry ? 'bg-green-500' : 'bg-red-500';
+        } else {
+          // Session mode - show building status (more relevant for sessions)
+          return currentAttendee.building_entry ? 'bg-green-500' : 'bg-red-500';
+        }
+      })()
+    }`}></span>
+    {mode === 'session' ? 
+      (currentAttendee.building_entry ? 'Inside Building' : 'Outside Building') : 
+      getStatusDisplay()
+    }
+  </span>
+)}
               </div>
             </div>
           </div>
