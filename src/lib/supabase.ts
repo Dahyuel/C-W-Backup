@@ -171,6 +171,7 @@ export const getVolunteerByVolunteerId = async (volunteerId: string) => {
 };
 
 
+
 export const validateRegistrationWithVolunteer = async (
   personalId: string,
   volunteerId?: string,
@@ -210,6 +211,7 @@ export const validateRegistrationWithVolunteer = async (
     };
   }
 };
+
 // Updated signUpUser function using the same successful approach as volunteer registration
 // CORRECTED signUpUser function - DO NOT pass volunteer_id for attendees
 export const signUpUser = async (email: string, password: string, userData: any) => {
