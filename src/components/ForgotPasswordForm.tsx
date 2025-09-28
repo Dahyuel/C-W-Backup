@@ -70,111 +70,147 @@ export const ForgotPasswordForm: React.FC = () => {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl border border-orange-100 w-full max-w-md p-8 text-center">
-          <CheckCircle className="mx-auto h-16 w-16 text-green-500 mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Check Your Email</h2>
-          <p className="text-gray-600 mb-6">
-            We've sent password reset instructions to your email address. Please check your inbox and follow the link to reset your password.
-          </p>
-          <button
-            onClick={() => navigate('/login')}
-            className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200"
-          >
-            Back to Login
-          </button>
+      <div className="min-h-screen relative">
+        {/* Responsive Wallpaper */}
+        <div 
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
+          style={{
+            backgroundImage: 'url("https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/careercenter.png")',
+          }}
+        >
+          {/* Overlay for better readability */}
+          <div className="absolute inset-0 bg-black bg-opacity-20"></div>
+        </div>
+
+        {/* Success Message */}
+        <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
+          <div className="bg-white rounded-2xl shadow-2xl border border-orange-100 w-full max-w-md p-8 text-center">
+            <CheckCircle className="mx-auto h-16 w-16 text-green-500 mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">Check Your Email</h2>
+            <p className="text-gray-600 mb-6">
+              We've sent password reset instructions to your email address. Please check your inbox and follow the link to reset your password.
+            </p>
+            <button
+              onClick={() => navigate('/login')}
+              className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200"
+            >
+              Back to Login
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl border border-orange-100 w-full max-w-md overflow-hidden">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-8 py-6 text-center">
-          <KeyRound className="mx-auto h-12 w-12 text-white mb-3" />
-          <h1 className="text-2xl font-bold text-white mb-2">Reset Password</h1>
-          <p className="text-orange-100">Enter your details to reset your password</p>
-        </div>
+    <div className="min-h-screen relative">
+      {/* Responsive Wallpaper */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
+        style={{
+          backgroundImage: 'url("https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/careercenter.png")',
+        }}
+      >
+        {/* Overlay for better readability */}
+        <div className="absolute inset-0 bg-black bg-opacity-20"></div>
+      </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-8">
-          {/* General Error */}
-          {getFieldError('general') && (
-            <div className="bg-red-50 border border-red-200 p-4 rounded-lg flex items-center space-x-2 mb-6">
-              <AlertCircle className="h-5 w-5 text-red-600" />
-              <p className="text-red-700">{getFieldError('general')}</p>
-            </div>
-          )}
-
-          <div className="space-y-6">
-            {/* Personal ID */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Personal ID
-              </label>
-              <input
-                type="text"
-                value={formData.personalId}
-                onChange={(e) => updateField('personalId', e.target.value)}
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-                  getFieldError('personalId') ? 'border-red-300' : 'border-gray-300'
-                }`}
-                placeholder="Enter your 14-digit Personal ID"
-                maxLength={14}
+      {/* Forgot Password Form */}
+      <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
+        <div className="bg-white rounded-2xl shadow-2xl border border-orange-100 w-full max-w-md overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4 text-center">
+            {/* Bigger Rounded Logo */}
+            <div className="mx-auto w-28 h-28 bg-white rounded-full flex items-center justify-center mb-2 shadow-lg">
+              <img 
+                src="https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/logo.png" 
+                alt="ASU Career Week Logo" 
+                className="w-24 h-24 rounded-full object-cover"
               />
-              {getFieldError('personalId') && (
-                <p className="text-sm text-red-600 mt-2">{getFieldError('personalId')}</p>
-              )}
             </div>
-
-            {/* Email */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => updateField('email', e.target.value)}
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-                  getFieldError('email') ? 'border-red-300' : 'border-gray-300'
-                }`}
-                placeholder="Enter your registered email address"
-              />
-              {getFieldError('email') && (
-                <p className="text-sm text-red-600 mt-2">{getFieldError('email')}</p>
-              )}
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <div className="flex items-center justify-center space-x-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  <span>Sending Reset Link...</span>
-                </div>
-              ) : (
-                'Send Reset Link'
-              )}
-            </button>
-
-            {/* Back to Login */}
-            <button
-              type="button"
-              onClick={() => navigate('/login')}
-              className="w-full flex items-center justify-center space-x-2 text-orange-600 hover:text-orange-700 font-medium py-2 transition-colors"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span>Back to Login</span>
-            </button>
+            <KeyRound className="mx-auto h-8 w-8 text-white mb-2" />
+            <h1 className="text-2xl font-bold text-white mb-2">Reset Password</h1>
+            <p className="text-orange-100">Enter your details to reset your password</p>
           </div>
-        </form>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="p-8">
+            {/* General Error */}
+            {getFieldError('general') && (
+              <div className="bg-red-50 border border-red-200 p-4 rounded-lg flex items-center space-x-2 mb-6">
+                <AlertCircle className="h-5 w-5 text-red-600" />
+                <p className="text-red-700">{getFieldError('general')}</p>
+              </div>
+            )}
+
+            <div className="space-y-6">
+              {/* Personal ID */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Personal ID
+                </label>
+                <input
+                  type="text"
+                  value={formData.personalId}
+                  onChange={(e) => updateField('personalId', e.target.value)}
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
+                    getFieldError('personalId') ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter your 14-digit Personal ID"
+                  maxLength={14}
+                />
+                {getFieldError('personalId') && (
+                  <p className="text-sm text-red-600 mt-2">{getFieldError('personalId')}</p>
+                )}
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => updateField('email', e.target.value)}
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
+                    getFieldError('email') ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                  placeholder="Enter your registered email address"
+                />
+                {getFieldError('email') && (
+                  <p className="text-sm text-red-600 mt-2">{getFieldError('email')}</p>
+                )}
+              </div>
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <div className="flex items-center justify-center space-x-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    <span>Sending Reset Link...</span>
+                  </div>
+                ) : (
+                  'Send Reset Link'
+                )}
+              </button>
+
+              {/* Back to Login */}
+              <button
+                type="button"
+                onClick={() => navigate('/login')}
+                className="w-full flex items-center justify-center space-x-2 text-orange-600 hover:text-orange-700 font-medium py-2 transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Back to Login</span>
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
