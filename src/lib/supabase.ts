@@ -215,10 +215,12 @@ export const validateRegistrationWithVolunteer = async (
 // Updated signUpUser function using the same successful approach as volunteer registration
 // CORRECTED signUpUser function - DO NOT pass volunteer_id for attendees
 export const signUpUser = async (email: string, password: string, userData: any) => {
+  let authUserId = null;
+  
   try {
     console.log('Starting attendee registration...');
     
-    // STEP 1: Check if user already exists
+    // STEP 1: Pre-validation to avoid creating auth user if data is invalid
     const userExists = await checkUserExists(userData.personal_id, email);
     if (userExists.exists) {
       const errors: string[] = [];
@@ -237,9 +239,34 @@ export const signUpUser = async (email: string, password: string, userData: any)
       };
     }
 
-    console.log('User does not exist, creating attendee auth user...');
+    // STEP 1.5: Validate volunteer ID if provided (before creating auth user)
+    let referrerId = null;
+    if (userData.volunteer_id && userData.volunteer_id.trim()) {
+      console.log('Validating volunteer referrer:', userData.volunteer_id.trim());
+      const { data: referrer, error: referrerError } = await supabase
+        .from('users_profiles')
+        .select('id, first_name, last_name')
+        .eq('volunteer_id', userData.volunteer_id.trim())
+        .neq('role', 'attendee')
+        .single();
+      
+      if (referrerError || !referrer) {
+        return { 
+          data: null, 
+          error: { 
+            message: 'Invalid volunteer ID provided. Please check with your referring volunteer.',
+            validationErrors: ['Invalid volunteer ID']
+          }
+        };
+      }
+      
+      referrerId = referrer.id;
+      console.log('Found valid referrer:', referrer.first_name, referrer.last_name);
+    }
 
-    // STEP 2: Create auth user first
+    console.log('Pre-validation passed, creating auth user...');
+
+    // STEP 2: Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
       password,
@@ -254,30 +281,14 @@ export const signUpUser = async (email: string, password: string, userData: any)
       return { data: null, error: { message: 'Failed to create attendee account' } };
     }
 
-    console.log('Auth user created successfully:', authData.user.id);
+    authUserId = authData.user.id; // Store for cleanup if needed
+    console.log('Auth user created successfully:', authUserId);
 
-    // STEP 3: Create attendee profile with proper reg_id handling
+    // STEP 3: Create attendee profile with transaction-like behavior
     try {
-      // Process referrer ID if provided
-      let referrerId = null;
-      if (userData.volunteer_id && userData.volunteer_id.trim()) {
-        console.log('Looking up volunteer referrer:', userData.volunteer_id.trim());
-        const { data: referrer, error: referrerError } = await supabase
-          .from('users_profiles')
-          .select('id')
-          .eq('volunteer_id', userData.volunteer_id.trim())
-          .neq('role', 'attendee')
-          .single();
-        
-        if (!referrerError && referrer) {
-          referrerId = referrer.id;
-          console.log('Found referrer:', referrerId);
-        }
-      }
-
-      // Prepare profile data with proper type handling
-      let profileDataToInsert = {
-        id: authData.user.id,
+      // Prepare profile data
+      const profileDataToInsert = {
+        id: authUserId,
         email: email.trim().toLowerCase(),
         first_name: userData.first_name?.trim() || '',
         last_name: userData.last_name?.trim() || '',
@@ -285,9 +296,9 @@ export const signUpUser = async (email: string, password: string, userData: any)
         university: userData.university?.trim() || '',
         faculty: userData.faculty?.trim() || '',
         personal_id: userData.personal_id?.trim(),
-        volunteer_id: null, // CRITICAL: Attendees don't get volunteer_id - only actual volunteers do
-        reg_id: referrerId, // This is where we store the referring volunteer's UUID
-        role: 'attendee', // Explicitly set role
+        volunteer_id: null, // CRITICAL: Attendees don't get volunteer_id
+        reg_id: referrerId, // Referring volunteer's UUID
+        role: 'attendee',
         score: 0,
         building_entry: false,
         event_entry: false,
@@ -299,50 +310,41 @@ export const signUpUser = async (email: string, password: string, userData: any)
         updated_at: new Date().toISOString()
       };
 
-      // Add enum fields conditionally (same validation as before)
-      if (userData.gender && userData.gender.trim() && 
-          ['male', 'female', 'other', 'prefer_not_to_say'].includes(userData.gender.trim())) {
+      // Add enum fields conditionally
+      if (userData.gender && ['male', 'female', 'other', 'prefer_not_to_say'].includes(userData.gender.trim())) {
         profileDataToInsert.gender = userData.gender.trim();
       }
-
-      if (userData.degree_level && userData.degree_level.trim() && 
-          ['student', 'graduate'].includes(userData.degree_level.trim())) {
+      if (userData.degree_level && ['student', 'graduate'].includes(userData.degree_level.trim())) {
         profileDataToInsert.degree_level = userData.degree_level.trim();
       }
-
-      if (userData.class && userData.class.trim() && 
-          ['1', '2', '3', '4', '5'].includes(userData.class.trim())) {
+      if (userData.class && ['1', '2', '3', '4', '5'].includes(userData.class.trim())) {
         profileDataToInsert.class = userData.class.trim();
       }
-
-      if (userData.how_did_hear_about_event && userData.how_did_hear_about_event.trim() && 
-          ['linkedin', 'facebook', 'instagram', 'friends', 'banners_in_street', 
-           'information_session_at_faculty', 'campus_marketing', 'other'].includes(userData.how_did_hear_about_event.trim())) {
+      if (userData.how_did_hear_about_event && [
+        'linkedin', 'facebook', 'instagram', 'friends', 'banners_in_street', 
+        'information_session_at_faculty', 'campus_marketing', 'other'
+      ].includes(userData.how_did_hear_about_event.trim())) {
         profileDataToInsert.how_did_hear_about_event = userData.how_did_hear_about_event.trim();
       }
 
-      // Insert profile (attendees never have volunteer_id)
+      // Insert profile
       const { data: profileData, error: profileError } = await supabase
         .from("users_profiles")
         .insert(profileDataToInsert)
         .select();
 
       if (profileError) {
-        console.error('Attendee profile creation error:', profileError);
+        console.error('Profile creation failed:', profileError);
         
-        // Clean up auth user (can't use admin.deleteUser from client)
-        // This is handled by auth triggers or RLS policies
-        console.warn('Auth user cleanup may need to be handled server-side');
+        // Try to clean up the auth user using an edge function
+        await cleanupOrphanedAuthUser(authUserId, email);
         
-        // Return more specific error messages
         let errorMessage = 'Failed to create user profile. ';
-        if (profileError.code === '23505') { // Unique constraint violation
+        if (profileError.code === '23505') {
           if (profileError.message.includes('personal_id')) {
             errorMessage += 'This Personal ID is already registered.';
           } else if (profileError.message.includes('email')) {
             errorMessage += 'This email address is already registered.';
-          } else if (profileError.message.includes('volunteer_id')) {
-            errorMessage += 'There was an error with volunteer ID processing.';
           } else {
             errorMessage += 'Some information is already in use.';
           }
@@ -357,16 +359,31 @@ export const signUpUser = async (email: string, password: string, userData: any)
       return { data: { ...authData, profile: profileData }, error: null };
 
     } catch (profileError) {
-      console.error('Attendee profile creation exception:', profileError);
-      return { data: null, error: { message: profileError.message || 'Attendee registration failed' } };
+      console.error('Profile creation exception:', profileError);
+      
+      // Try to clean up the auth user
+      if (authUserId) {
+        await cleanupOrphanedAuthUser(authUserId, email);
+      }
+      
+      return { 
+        data: null, 
+        error: { message: profileError.message || 'Registration failed during profile creation' } 
+      };
     }
 
   } catch (error: any) {
-    console.error('Attendee registration error:', error);
-    return { data: null, error: { message: error.message || 'Attendee registration failed' } };
+    console.error('Registration error:', error);
+    
+    // Try to clean up the auth user if it was created
+    if (authUserId) {
+      await cleanupOrphanedAuthUser(authUserId, email);
+    }
+    
+    return { data: null, error: { message: error.message || 'Registration failed' } };
   }
 };
-// Enhanced volunteer sign up with better error handling
+
 
 
 
