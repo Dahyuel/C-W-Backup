@@ -54,6 +54,11 @@ interface Attendee {
   building_entry?: boolean; // Add this line
   last_scan?: string;
 }
+interface AttendeeCardProps {
+  // ... existing props
+  disableAction?: boolean;
+  disableReason?: string;
+}
 
 const castToAttendee = (data: any): Attendee => {
   return {
