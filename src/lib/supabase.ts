@@ -11,6 +11,13 @@ interface ValidationResult {
   error: string | null;
 }
 
+export const isValidEnumValue = <T extends readonly string[]>(
+  value: string, 
+  enumArray: T
+): value is T[number] => {
+  return enumArray.includes(value as T[number]);
+};
+
 // Check if user exists by personal ID or email
 export const checkUserExists = async (personalId: string, email: string): Promise<{exists: boolean, byPersonalId: boolean, byEmail: boolean}> => {
   try {
