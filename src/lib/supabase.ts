@@ -213,6 +213,7 @@ export const validateRegistrationWithVolunteer = async (
 };
 
 // Updated signUpUser function using the same successful approach as volunteer registration
+// CORRECTED signUpUser function using RPC for proper enum handling
 export const signUpUser = async (email: string, password: string, userData: any) => {
   try {
     console.log('Starting attendee registration...');
@@ -253,54 +254,30 @@ export const signUpUser = async (email: string, password: string, userData: any)
 
     console.log('Auth user created successfully:', authData.user.id);
 
-    // STEP 3: Create attendee profile with proper enum casting
+    // STEP 3: Create attendee profile using RPC function
     try {
-      const profileDataToInsert = {
-        id: authData.user.id,
-        email: email.trim().toLowerCase(),
-        first_name: userData.first_name?.trim() || '',
-        last_name: userData.last_name?.trim() || '',
-        phone: userData.phone?.trim() || null,
-        university: userData.university?.trim() || '',
-        faculty: userData.faculty?.trim() || '',
-        personal_id: userData.personal_id?.trim(),
-        volunteer_id: null, // CRITICAL: Attendees never get volunteer_id
-        reg_id: validation.volunteerUuid || null,
-        // DON'T SET ROLE HERE - let the database use its default value
-        // The database has role default as 'attendee'::user_role
-        score: 0,
-        building_entry: false,
-        event_entry: false,
-        nationality: userData.nationality?.trim() || null,
-        program: userData.program?.trim() || null,
-        university_id_path: userData.university_id_path || null,
-        cv_path: userData.cv_path || null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-
-      // Add enum fields conditionally with proper type handling
-      if (userData.gender && ['male', 'female', 'other', 'prefer_not_to_say'].includes(userData.gender.trim())) {
-        profileDataToInsert.gender = userData.gender.trim();
-      }
-      if (userData.degree_level && ['student', 'graduate'].includes(userData.degree_level.trim())) {
-        profileDataToInsert.degree_level = userData.degree_level.trim();
-      }
-      if (userData.class && ['1', '2', '3', '4', '5'].includes(userData.class.trim())) {
-        profileDataToInsert.class = userData.class.trim();
-      }
-      if (userData.how_did_hear_about_event && [
-        'linkedin', 'facebook', 'instagram', 'friends', 'banners_in_street', 
-        'information_session_at_faculty', 'campus_marketing', 'other'
-      ].includes(userData.how_did_hear_about_event.trim())) {
-        profileDataToInsert.how_did_hear_about_event = userData.how_did_hear_about_event.trim();
-      }
-
-      // Insert profile - let database handle role default
+      // Use RPC function for proper enum casting
       const { data: profileData, error: profileError } = await supabase
-        .from("users_profiles")
-        .insert(profileDataToInsert)
-        .select();
+        .rpc('insert_attendee_profile', {
+          p_id: authData.user.id,
+          p_email: email.trim().toLowerCase(),
+          p_first_name: userData.first_name?.trim() || '',
+          p_last_name: userData.last_name?.trim() || '',
+          p_personal_id: userData.personal_id?.trim(),
+          p_university: userData.university?.trim() || '',
+          p_faculty: userData.faculty?.trim() || '',
+          p_program: userData.program?.trim() || '',
+          p_nationality: userData.nationality?.trim() || '',
+          // Optional parameters
+          p_phone: userData.phone?.trim() || null,
+          p_reg_id: validation.volunteerUuid || null,
+          p_gender: userData.gender?.trim() || null,
+          p_degree_level: userData.degree_level?.trim() || null,
+          p_class: userData.class?.trim() || null,
+          p_how_did_hear: userData.how_did_hear_about_event?.trim() || null,
+          p_university_id_path: userData.university_id_path || null,
+          p_cv_path: userData.cv_path || null
+        });
 
       if (profileError) {
         console.error('Profile creation failed:', profileError);
@@ -320,6 +297,12 @@ export const signUpUser = async (email: string, password: string, userData: any)
         }
         
         return { data: null, error: { message: errorMessage } };
+      }
+
+      // Check if the returned data has an error flag
+      if (profileData && profileData.error) {
+        console.error('Profile creation failed via RPC:', profileData.message);
+        return { data: null, error: { message: profileData.message || 'Failed to create profile' } };
       }
 
       console.log('Attendee registration completed successfully');
