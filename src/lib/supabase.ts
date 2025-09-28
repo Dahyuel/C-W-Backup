@@ -257,14 +257,18 @@ export const validateRegistrationWithEdgeFunction = async (
 
 
 // In your supabase.ts file, replace the signUpUser function with this simplified version:
+
+// Updated signUpUser function using Edge Function validation
 export const signUpUser = async (email: string, password: string, userData: any) => {
   try {
     console.log('Starting attendee registration with edge function validation...');
     
-    // STEP 1: Use Edge Function for validation
+    // STEP 1: Use Edge Function for comprehensive validation
     const validation = await validateRegistrationWithEdgeFunction(
       userData.personal_id,
       email,
+      userData.first_name,
+      userData.last_name,
       userData.volunteer_id,
       userData.phone,
       'attendee'
@@ -282,7 +286,7 @@ export const signUpUser = async (email: string, password: string, userData: any)
 
     console.log('Edge function validation passed, creating auth user...');
 
-    // STEP 2: Create auth user (validation already done)
+    // STEP 2: Create auth user (validation already done by Edge Function)
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
       password,
@@ -300,6 +304,7 @@ export const signUpUser = async (email: string, password: string, userData: any)
 
     // STEP 3: Create profile (should succeed since validation passed)
     try {
+      // Small delay to ensure auth user is committed
       await new Promise(resolve => setTimeout(resolve, 500));
 
       const profileData = {
@@ -314,7 +319,7 @@ export const signUpUser = async (email: string, password: string, userData: any)
         nationality: userData.nationality?.trim() || '',
         phone: userData.phone?.trim() || null,
         reg_id: validation.volunteerUuid || null,
-        volunteer_id: null,
+        volunteer_id: null, // Always null for attendees
         role: 'attendee',
         gender: userData.gender?.toLowerCase() === 'male' ? 'male' : 
                 userData.gender?.toLowerCase() === 'female' ? 'female' : null,
@@ -336,11 +341,16 @@ export const signUpUser = async (email: string, password: string, userData: any)
         .single();
 
       if (profileError) {
-        console.error('Profile creation failed:', profileError);
+        console.error('Profile creation failed despite validation:', profileError);
         console.error(`ORPHANED AUTH USER: ${authData.user.id} (${email})`);
-        return { data: null, error: { message: 'Profile creation failed. Please contact support.' } };
+        
+        return { 
+          data: null, 
+          error: { message: 'Profile creation failed unexpectedly. Please contact support.' }
+        };
       }
 
+      console.log('Attendee profile created successfully:', insertedProfile.id);
       return { 
         data: { 
           ...authData, 
@@ -352,6 +362,7 @@ export const signUpUser = async (email: string, password: string, userData: any)
 
     } catch (profileError: any) {
       console.error('Profile creation exception:', profileError);
+      console.error(`ORPHANED AUTH USER: ${authData.user.id} (${email})`);
       return { data: null, error: { message: 'Registration failed during profile creation' } };
     }
 
@@ -360,28 +371,35 @@ export const signUpUser = async (email: string, password: string, userData: any)
     return { data: null, error: { message: error.message || 'Registration failed' } };
   }
 };
+
+// Updated signUpVolunteer function using Edge Function validation
 export const signUpVolunteer = async (email: string, password: string, userData: any) => {
   try {
-    console.log('Starting volunteer registration...');
+    console.log('Starting volunteer registration with edge function validation...');
     
-    // STEP 1: Check if user already exists
-    const userExists = await checkUserExists(userData.personal_id, email);
-    if (userExists.exists) {
-      const errors: string[] = [];
-      if (userExists.byPersonalId) {
-        errors.push('Personal ID already registered');
-      }
-      if (userExists.byEmail) {
-        errors.push('Email already registered');
-      }
+    // STEP 1: Use Edge Function for comprehensive validation
+    const validation = await validateRegistrationWithEdgeFunction(
+      userData.personal_id,
+      email,
+      userData.first_name,
+      userData.last_name,
+      null, // No volunteer ID needed for volunteer signup
+      userData.phone,
+      'volunteer',
+      userData.role
+    );
+
+    if (!validation.isValid) {
       return { 
         data: null, 
         error: { 
-          message: errors.join('. '),
-          validationErrors: errors
+          message: validation.errors.join('. '),
+          validationErrors: validation.errors
         }
       };
     }
+
+    console.log('Edge function validation passed, creating volunteer auth user...');
 
     // STEP 2: Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -397,13 +415,14 @@ export const signUpVolunteer = async (email: string, password: string, userData:
       return { data: null, error: { message: 'Failed to create volunteer account' } };
     }
 
-    // STEP 3: Generate volunteer ID and create profile using direct insert
+    console.log('Volunteer auth user created successfully:', authData.user.id);
+
+    // STEP 3: Generate volunteer ID and create profile
     try {
       const volunteerId = await generateVolunteerId(userData.role || 'volunteer');
-      console.log('Generated volunteer ID:', volunteerId);
-
-      // Wait for auth user to be committed
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Small delay for auth user commitment
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       const profileData = {
         id: authData.user.id,
@@ -415,7 +434,7 @@ export const signUpVolunteer = async (email: string, password: string, userData:
         faculty: userData.faculty?.trim() || '',
         phone: userData.phone?.trim() || null,
         university: 'Ain Shams University',
-        role: userData.role || 'volunteer', // Now just a plain string
+        role: userData.role || 'volunteer',
         score: 0,
         building_entry: false,
         event_entry: false
@@ -428,16 +447,33 @@ export const signUpVolunteer = async (email: string, password: string, userData:
         .single();
 
       if (profileError) {
-        console.error('Volunteer profile creation error:', profileError);
-        return { data: null, error: { message: profileError.message || 'Failed to create volunteer profile' } };
+        console.error('Volunteer profile creation failed despite validation:', profileError);
+        console.error(`ORPHANED AUTH USER: ${authData.user.id} (${email})`);
+        
+        return { 
+          data: null, 
+          error: { message: 'Profile creation failed unexpectedly. Please contact support.' }
+        };
       }
 
       console.log('Volunteer registration completed successfully with ID:', volunteerId);
-      return { data: { ...authData, volunteerId, profile: insertedProfile }, error: null };
+      return { 
+        data: { 
+          ...authData, 
+          volunteerId, 
+          profile: insertedProfile 
+        }, 
+        error: null 
+      };
 
     } catch (profileError: any) {
       console.error('Volunteer profile creation exception:', profileError);
-      return { data: null, error: { message: profileError.message || 'Volunteer registration failed' } };
+      console.error(`ORPHANED AUTH USER: ${authData.user.id} (${email})`);
+      
+      return { 
+        data: null, 
+        error: { message: 'Volunteer registration failed during profile creation' }
+      };
     }
 
   } catch (error: any) {
@@ -445,7 +481,6 @@ export const signUpVolunteer = async (email: string, password: string, userData:
     return { data: null, error: { message: error.message || 'Volunteer registration failed' } };
   }
 };
-
 
 const cleanupOrphanedAuthUser = async (userId: string, email: string) => {
   try {
