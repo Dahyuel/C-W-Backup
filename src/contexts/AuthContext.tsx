@@ -26,6 +26,7 @@ type AuthContextType = {
   signOut: () => Promise<void>;
   hasRole: (roles: string | string[]) => boolean;
   getRoleBasedRedirect: (role?: string) => string;
+  shouldRedirectToLogin: () => boolean; // Add this new helper
   validateRegistration: (
     email: string,
     personalId: string,
@@ -33,7 +34,6 @@ type AuthContextType = {
   ) => Promise<{ isValid: boolean; errors: string[] }>;
   refreshProfile: () => Promise<void>;
 };
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
