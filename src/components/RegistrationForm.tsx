@@ -826,7 +826,7 @@ return (
           </div>
           
 
-        {/* Progress Steps */}
+{/* Progress Steps */}
         <div className="mb-8">
           <div className="flex items-center justify-between max-w-2xl mx-auto">
             {sections.map((section, index) => (
@@ -839,7 +839,7 @@ return (
                   <section.icon className="w-5 h-5" />
                 </div>
                 {index < sections.length - 1 && (
-                  <div className={`w-16 h-0.5 mx-2 transition-colors ${
+                  <div className={`w-16 md:w-16 sm:w-8 h-0.5 mx-2 sm:mx-1 transition-colors ${
                     currentSection > section.id ? 'bg-orange-500' : 'bg-gray-300'
                   }`} />
                 )}
@@ -849,7 +849,7 @@ return (
           <div className="flex justify-between max-w-2xl mx-auto mt-2">
             {sections.map(section => (
               <div key={section.id} className="text-xs text-center" style={{ width: '120px' }}>
-                <span className={currentSection >= section.id ? 'text-orange-600 font-medium' : 'text-gray-500'}>
+                <span className={`${currentSection >= section.id ? 'text-white font-medium drop-shadow' : 'text-white drop-shadow'}`}>
                   {section.title}
                 </span>
               </div>
