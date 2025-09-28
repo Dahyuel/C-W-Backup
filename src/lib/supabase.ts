@@ -204,7 +204,8 @@ export const validateRegistrationWithEdgeFunction = async (
   volunteerId?: string,
   phone?: string,
   userType: 'attendee' | 'volunteer' = 'attendee',
-  role?: string
+  role?: string,
+  gender?: string // Added gender parameter
 ): Promise<{ 
   isValid: boolean; 
   errors: string[]; 
@@ -229,7 +230,8 @@ export const validateRegistrationWithEdgeFunction = async (
         volunteerId: volunteerId?.trim() || null,
         phone: phone?.trim() || null,
         userType,
-        role: role || null
+        role: role || null,
+        gender: gender || null // Added gender to request body
       })
     });
 
