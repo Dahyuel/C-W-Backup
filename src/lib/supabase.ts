@@ -272,52 +272,68 @@ export const signUpUser = async (email: string, password: string, userData: any)
     }
 
     // STEP 3: Create profile using SQL with proper enum casting
+// STEP 3: Create profile using direct insert (bypassing RPC enum issues)
 try {
-  console.log('Calling create_attendee_profile RPC...');
+  console.log('Creating profile via direct insert for user:', authData.user.id);
   
-  const rpcParams = {
-    p_id: authData.user.id,
-    p_email: email.trim().toLowerCase(),
-    p_first_name: userData.first_name?.trim() || '',
-    p_last_name: userData.last_name?.trim() || '',
-    p_personal_id: userData.personal_id?.trim(),
-    p_university: userData.university?.trim() || '',
-    p_faculty: userData.faculty?.trim() || '',
-    p_program: userData.program?.trim() || '',
-    p_nationality: userData.nationality?.trim() || '',
-    p_phone: userData.phone?.trim() || null,
-    p_reg_id: validation.volunteerUuid || null,
-    p_gender: userData.gender?.toLowerCase() || null,
-    p_degree_level: userData.degree_level?.toLowerCase() || null,
-    p_class: userData.class?.toString() || null,
-    p_how_did_hear: userData.how_did_hear_about_event?.toLowerCase() || null,
-    p_university_id_path: userData.university_id_path || null,
-    p_cv_path: userData.cv_path || null
+  // Wait a moment for auth user to be fully committed
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  
+  const profileData = {
+    id: authData.user.id,
+    email: email.trim().toLowerCase(),
+    first_name: userData.first_name?.trim() || '',
+    last_name: userData.last_name?.trim() || '',
+    personal_id: userData.personal_id?.trim(),
+    university: userData.university?.trim() || '',
+    faculty: userData.faculty?.trim() || '',
+    program: userData.program?.trim() || '',
+    nationality: userData.nationality?.trim() || '',
+    phone: userData.phone?.trim() || null,
+    reg_id: validation.volunteerUuid || null,
+    volunteer_id: null, // Always null for attendees
+    role: 'attendee', // Direct string value
+    gender: userData.gender?.toLowerCase() === 'male' ? 'male' : 
+            userData.gender?.toLowerCase() === 'female' ? 'female' : null,
+    degree_level: userData.degree_level?.toLowerCase() === 'student' ? 'student' :
+                  userData.degree_level?.toLowerCase() === 'graduate' ? 'graduate' : null,
+    class: ['1', '2', '3', '4', '5'].includes(userData.class?.toString()) ? userData.class?.toString() : null,
+    how_did_hear_about_event: ['linkedin', 'facebook', 'instagram', 'friends', 'banners_in_street', 'information_session_at_faculty', 'campus_marketing', 'other'].includes(userData.how_did_hear_about_event?.toLowerCase()) ? userData.how_did_hear_about_event?.toLowerCase() : null,
+    university_id_path: userData.university_id_path || null,
+    cv_path: userData.cv_path || null,
+    score: 0,
+    building_entry: false,
+    event_entry: false
   };
 
-  console.log('RPC Parameters:', rpcParams);
+  console.log('Profile data to insert:', profileData);
 
-  const { data: insertedProfile, error: profileError } = await supabase.rpc('create_attendee_profile', rpcParams);
+  const { data: insertedProfile, error: profileError } = await supabase
+    .from('users_profiles')
+    .insert([profileData])
+    .select()
+    .single();
 
-  console.log('RPC Response - Data:', insertedProfile);
-  console.log('RPC Response - Error:', profileError);
-
-  // Check for RPC-level errors first
   if (profileError) {
-    console.error('Profile creation RPC error:', profileError);
-    return { data: null, error: { message: profileError.message || 'Failed to create profile' } };
-  }
-
-  // Check if the RPC function returned an error in the data
-  if (insertedProfile && insertedProfile.error === true) {
-    console.error('Profile creation failed via RPC function:', insertedProfile.message);
-    return { data: null, error: { message: insertedProfile.message || 'Failed to create profile' } };
-  }
-
-  // Check if we got a valid profile back
-  if (!insertedProfile || !insertedProfile.id) {
-    console.error('Invalid profile data returned:', insertedProfile);
-    return { data: null, error: { message: 'Profile creation returned invalid data' } };
+    console.error('Profile creation failed:', profileError);
+    console.warn(`Orphaned auth user created: ${authData.user.id} (${email})`);
+    
+    let errorMessage = 'Failed to create user profile. ';
+    if (profileError.code === '23505') {
+      if (profileError.message.includes('personal_id')) {
+        errorMessage += 'This Personal ID is already registered.';
+      } else if (profileError.message.includes('email')) {
+        errorMessage += 'This email address is already registered.';
+      } else {
+        errorMessage += 'Some information is already in use.';
+      }
+    } else if (profileError.code === '23503') {
+      errorMessage += 'Authentication sync issue. Please try again in a moment.';
+    } else {
+      errorMessage += profileError.message || 'Unknown error occurred.';
+    }
+    
+    return { data: null, error: { message: errorMessage } };
   }
 
   console.log('Profile created successfully:', insertedProfile.id);
@@ -333,7 +349,7 @@ try {
 } catch (profileError: any) {
   console.error('Profile creation exception:', profileError);
   console.warn(`Orphaned auth user created: ${authData.user.id} (${email})`);
-  return { data: null, error: { message: profileError.message || 'Registration failed' } };
+  return { data: null, error: { message: profileError.message || 'Registration failed during profile creation' } };
 }
 
   } catch (error: any) {
