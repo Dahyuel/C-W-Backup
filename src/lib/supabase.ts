@@ -366,35 +366,18 @@ export const signUpVolunteer = async (email: string, password: string, userData:
       const volunteerId = await generateVolunteerId(userData.role || 'volunteer');
       console.log('Generated volunteer ID:', volunteerId);
 
-      const profileData = {
-        id: authData.user.id,
-        email: email.trim().toLowerCase(),
-        volunteer_id: volunteerId,
-        first_name: userData.first_name?.trim() || '',
-        last_name: userData.last_name?.trim() || '',
-        personal_id: userData.personal_id?.trim(),
-        faculty: userData.faculty?.trim() || '',
-        phone: userData.phone?.trim() || null,
-        university: 'Ain Shams University',
-        role: userData.role || 'volunteer',
-        score: 0,
-        building_entry: false,
-        event_entry: false
-      };
-
-// Replace the profile creation part in signUpVolunteer with:
-const { data: insertedProfile, error: profileError } = await supabase.rpc('create_volunteer_profile', {
-  p_id: authData.user.id,
-  p_email: email.trim().toLowerCase(),
-  p_volunteer_id: volunteerId,
-  p_first_name: userData.first_name?.trim() || '',
-  p_last_name: userData.last_name?.trim() || '',
-  p_personal_id: userData.personal_id?.trim(),
-  p_faculty: userData.faculty?.trim() || '',
-  p_phone: userData.phone?.trim() || null,
-  p_university: 'Ain Shams University',
-  p_role: userData.role || 'volunteer'
-});
+     const { data: insertedProfile, error: profileError } = await supabase.rpc('create_volunteer_profile', {
+        p_id: authData.user.id,
+        p_email: email.trim().toLowerCase(),
+        p_volunteer_id: volunteerId,
+        p_first_name: userData.first_name?.trim() || '',
+        p_last_name: userData.last_name?.trim() || '',
+        p_personal_id: userData.personal_id?.trim(),
+        p_faculty: userData.faculty?.trim() || '',
+        p_phone: userData.phone?.trim() || null,
+        p_university: 'Ain Shams University',
+        p_role: userData.role || 'volunteer'
+      });
 
       if (profileError) {
         console.error('Volunteer profile creation error:', profileError);
