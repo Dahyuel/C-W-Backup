@@ -825,7 +825,6 @@ return (
           </div>
           </div>
           
-
 {/* Progress Steps */}
         <div className="mb-8">
           <div className="flex items-center justify-between max-w-2xl mx-auto">
@@ -839,7 +838,7 @@ return (
                   <section.icon className="w-5 h-5" />
                 </div>
                 {index < sections.length - 1 && (
-                  <div className={`w-16 md:w-16 sm:w-8 h-0.5 mx-2 sm:mx-1 transition-colors ${
+                  <div className={`w-8 md:w-16 h-0.5 mx-1 md:mx-2 transition-colors ${
                     currentSection > section.id ? 'bg-orange-500' : 'bg-gray-300'
                   }`} />
                 )}
