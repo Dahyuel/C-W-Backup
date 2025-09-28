@@ -1038,7 +1038,7 @@ export const BuildTeamDashboard: React.FC = () => {
           />
         )}
 
-{/* Attendee Card Modal with dynamic action handlers */}
+{/* Attendee Card Modal with dynamic action handlers and building entry validation */}
 <AttendeeCard
   isOpen={showAttendeeCard}
   onClose={() => {
@@ -1054,6 +1054,20 @@ export const BuildTeamDashboard: React.FC = () => {
   loading={actionLoading}
   mode={activeTab === "session" && sessionMode === "session_entry" ? "session" : "building"}
   sessionTitle={activeTab === "session" && sessionMode === "session_entry" ? selectedSession?.title : undefined}
+  disableAction={
+    activeTab === "session" && 
+    sessionMode === "session_entry" && 
+    selectedAttendee && 
+    !selectedAttendee.building_entry
+  }
+  disableReason={
+    activeTab === "session" && 
+    sessionMode === "session_entry" && 
+    selectedAttendee && 
+    !selectedAttendee.building_entry 
+      ? "Attendee must be inside the building to join a session" 
+      : undefined
+  }
 />
       </div>
     </DashboardLayout>
