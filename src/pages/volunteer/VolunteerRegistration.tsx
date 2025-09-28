@@ -77,46 +77,48 @@ export const VolunteerRegistration: React.FC = () => {
     setErrors(prev => prev.filter(error => error.field !== field));
   };
 
-  const validateSection = (section: number): ValidationError[] => {
-    const validationErrors: ValidationError[] = [];
+const validateSection = (section: number): ValidationError[] => {
+  const validationErrors: ValidationError[] = [];
 
-    if (section === 1) {
-      const firstNameError = validateName(formData.firstName, 'First name');
-      if (firstNameError) validationErrors.push({ field: 'firstName', message: firstNameError });
+  if (section === 1) {
+    const firstNameError = validateName(formData.firstName, 'First name');
+    if (firstNameError) validationErrors.push({ field: 'firstName', message: firstNameError });
 
-      const lastNameError = validateName(formData.lastName, 'Last name');
-      if (lastNameError) validationErrors.push({ field: 'lastName', message: lastNameError });
+    const lastNameError = validateName(formData.lastName, 'Last name');
+    if (lastNameError) validationErrors.push({ field: 'lastName', message: lastNameError });
 
-      const emailError = validateEmail(formData.email);
-      if (emailError) validationErrors.push({ field: 'email', message: emailError });
+    const emailError = validateEmail(formData.email);
+    if (emailError) validationErrors.push({ field: 'email', message: emailError });
 
-      const phoneError = validatePhone(formData.phone);
-      if (phoneError) validationErrors.push({ field: 'phone', message: phoneError });
+    const phoneError = validatePhone(formData.phone);
+    if (phoneError) validationErrors.push({ field: 'phone', message: phoneError });
 
-      const personalIdError = validatePersonalId(formData.personalId);
-      if (personalIdError) validationErrors.push({ field: 'personalId', message: personalIdError });
+    const personalIdError = validatePersonalId(formData.personalId);
+    if (personalIdError) validationErrors.push({ field: 'personalId', message: personalIdError });
 
-      if (!formData.faculty) validationErrors.push({ field: 'faculty', message: 'Faculty is required' });
-      
-      if (!formData.gender) validationErrors.push({ field: 'gender', message: 'Gender is required' });
+    if (!formData.faculty) validationErrors.push({ field: 'faculty', message: 'Faculty is required' });
+    
+    // Add gender validation
+    const genderError = validateGender(formData.gender);
+    if (genderError) validationErrors.push({ field: 'gender', message: genderError });
+  }
+
+  if (section === 2) {
+    if (!formData.role) {
+      validationErrors.push({ field: 'role', message: 'Please select a volunteer role' });
     }
+  }
 
-    if (section === 2) {
-      if (!formData.role) {
-        validationErrors.push({ field: 'role', message: 'Please select a volunteer role' });
-      }
-    }
+  if (section === 3) {
+    const passwordError = validatePassword(formData.password);
+    if (passwordError) validationErrors.push({ field: 'password', message: passwordError });
 
-    if (section === 3) {
-      const passwordError = validatePassword(formData.password);
-      if (passwordError) validationErrors.push({ field: 'password', message: passwordError });
+    const confirmPasswordError = validateConfirmPassword(formData.password, formData.confirmPassword);
+    if (confirmPasswordError) validationErrors.push({ field: 'confirmPassword', message: confirmPasswordError });
+  }
 
-      const confirmPasswordError = validateConfirmPassword(formData.password, formData.confirmPassword);
-      if (confirmPasswordError) validationErrors.push({ field: 'confirmPassword', message: confirmPasswordError });
-    }
-
-    return validationErrors;
-  };
+  return validationErrors;
+};
 
   const nextSection = () => {
     const sectionErrors = validateSection(currentSection);
