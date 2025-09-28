@@ -106,7 +106,7 @@ export const LoginForm: React.FC = () => {
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
         style={{
-          backgroundImage: 'url("/src/Assets/careercenter.png")', // Replace with your wallpaper path
+          backgroundImage: 'url("https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/careercenter.png")',
         }}
       >
         {/* Overlay for better readability */}
