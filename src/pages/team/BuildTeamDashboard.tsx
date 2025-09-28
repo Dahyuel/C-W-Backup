@@ -51,6 +51,7 @@ interface Attendee {
   university?: string;
   faculty?: string;
   current_status?: 'inside' | 'outside';
+  building_entry?: boolean; // Add this line
   last_scan?: string;
 }
 
