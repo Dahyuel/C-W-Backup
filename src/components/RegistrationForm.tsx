@@ -827,22 +827,24 @@ return (
           
 {/* Progress Steps */}
         <div className="mb-8">
-          <div className="flex items-center justify-between max-w-2xl mx-auto">
+          <div className="flex items-center max-w-2xl mx-auto">
             {sections.map((section, index) => (
-              <div key={section.id} className="flex items-center">
-                <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors ${
-                  currentSection >= section.id
-                    ? 'bg-orange-500 border-orange-500 text-white'
-                    : 'bg-white border-gray-300 text-gray-400'
-                }`}>
-                  <section.icon className="w-5 h-5" />
+              <React.Fragment key={section.id}>
+                <div className="flex flex-col items-center">
+                  <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors ${
+                    currentSection >= section.id
+                      ? 'bg-orange-500 border-orange-500 text-white'
+                      : 'bg-white border-gray-300 text-gray-400'
+                  }`}>
+                    <section.icon className="w-5 h-5" />
+                  </div>
                 </div>
                 {index < sections.length - 1 && (
-                  <div className={`w-8 md:w-16 h-0.5 mx-1 md:mx-2 transition-colors ${
+                  <div className={`flex-1 h-0.5 mx-2 transition-colors ${
                     currentSection > section.id ? 'bg-orange-500' : 'bg-gray-300'
                   }`} />
                 )}
-              </div>
+              </React.Fragment>
             ))}
           </div>
           <div className="flex justify-between max-w-2xl mx-auto mt-2">
