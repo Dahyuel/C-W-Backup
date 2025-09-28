@@ -219,6 +219,11 @@ const AppRouter: React.FC = () => {
         path="/super-ctrl-92k1x" 
         element={<LazyRoute component={SuperAdminPanel} requiredRole="sadmin" />}
       />
+<Route path="/reset-password" element={
+  <PublicRoute>
+    <ResetPasswordForm />
+  </PublicRoute>
+} />
       
       {/* Default redirect - Enhanced to handle edge cases */}
       <Route path="/" element={<Navigate to="/login" replace />} />
