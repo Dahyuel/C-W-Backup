@@ -260,99 +260,38 @@ export const signUpUser = async (email: string, password: string, userData: any)
       };
     }
 
-    // STEP 2: Create auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: email.trim().toLowerCase(),
-      password,
+    // STEP 2: Use database transaction to ensure atomicity
+    const { data: transactionResult, error: transactionError } = await supabase.rpc('register_attendee_with_auth', {
+      p_email: email.trim().toLowerCase(),
+      p_password: userData.password,
+      p_first_name: userData.first_name?.trim() || '',
+      p_last_name: userData.last_name?.trim() || '',
+      p_personal_id: userData.personal_id?.trim(),
+      p_university: userData.university?.trim() || '',
+      p_faculty: userData.faculty?.trim() || '',
+      p_program: userData.program?.trim() || '',
+      p_nationality: userData.nationality?.trim() || '',
+      p_phone: userData.phone?.trim() || null,
+      p_reg_id: validation.volunteerUuid || null,
+      p_gender: userData.gender?.toLowerCase() || null,
+      p_degree_level: userData.degree_level?.toLowerCase() || null,
+      p_class: userData.class?.toString() || null,
+      p_how_did_hear: userData.how_did_hear_about_event?.toLowerCase() || null,
+      p_university_id_path: userData.university_id_path || null,
+      p_cv_path: userData.cv_path || null
     });
 
-    if (authError) {
-      return { data: null, error: authError };
-    }
-
-    if (!authData.user) {
-      return { data: null, error: { message: 'Failed to create attendee account' } };
-    }
-
-    // STEP 3: Create profile using direct insert (now with text role field)
-    try {
-      console.log('Creating profile via direct insert for user:', authData.user.id);
-      
-      // Wait a moment for auth user to be fully committed
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const profileData = {
-        id: authData.user.id,
-        email: email.trim().toLowerCase(),
-        first_name: userData.first_name?.trim() || '',
-        last_name: userData.last_name?.trim() || '',
-        personal_id: userData.personal_id?.trim(),
-        university: userData.university?.trim() || '',
-        faculty: userData.faculty?.trim() || '',
-        program: userData.program?.trim() || '',
-        nationality: userData.nationality?.trim() || '',
-        phone: userData.phone?.trim() || null,
-        reg_id: validation.volunteerUuid || null,
-        volunteer_id: null, // Always null for attendees
-        role: 'attendee', // Now just a plain string
-        gender: userData.gender?.toLowerCase() === 'male' ? 'male' : 
-                userData.gender?.toLowerCase() === 'female' ? 'female' : null,
-        degree_level: userData.degree_level?.toLowerCase() === 'student' ? 'student' :
-                      userData.degree_level?.toLowerCase() === 'graduate' ? 'graduate' : null,
-        class: ['1', '2', '3', '4', '5'].includes(userData.class?.toString()) ? userData.class?.toString() : null,
-        how_did_hear_about_event: ['linkedin', 'facebook', 'instagram', 'friends', 'banners_in_street', 'information_session_at_faculty', 'campus_marketing', 'other'].includes(userData.how_did_hear_about_event?.toLowerCase()) ? userData.how_did_hear_about_event?.toLowerCase() : null,
-        university_id_path: userData.university_id_path || null,
-        cv_path: userData.cv_path || null,
-        score: 0,
-        building_entry: false,
-        event_entry: false
-      };
-
-      console.log('Profile data to insert:', profileData);
-
-      const { data: insertedProfile, error: profileError } = await supabase
-        .from('users_profiles')
-        .insert([profileData])
-        .select()
-        .single();
-
-      if (profileError) {
-        console.error('Profile creation failed:', profileError);
-        console.warn(`Orphaned auth user created: ${authData.user.id} (${email})`);
-        
-        let errorMessage = 'Failed to create user profile. ';
-        if (profileError.code === '23505') {
-          if (profileError.message.includes('personal_id')) {
-            errorMessage += 'This Personal ID is already registered.';
-          } else if (profileError.message.includes('email')) {
-            errorMessage += 'This email address is already registered.';
-          } else {
-            errorMessage += 'Some information is already in use.';
-          }
-        } else if (profileError.code === '23503') {
-          errorMessage += 'Authentication sync issue. Please try again in a moment.';
-        } else {
-          errorMessage += profileError.message || 'Unknown error occurred.';
-        }
-        
-        return { data: null, error: { message: errorMessage } };
-      }
-
-      console.log('Profile created successfully:', insertedProfile.id);
+    if (transactionError || !transactionResult?.success) {
       return { 
-        data: { 
-          ...authData, 
-          profile: insertedProfile,
-          referredBy: validation.volunteerInfo
-        }, 
-        error: null 
+        data: null, 
+        error: { message: transactionResult?.error || transactionError?.message || 'Registration failed' }
       };
-
-    } catch (profileError: any) {
-      console.error('Profile creation exception:', profileError);
-      console.warn(`Orphaned auth user created: ${authData.user.id} (${email})`);
-      return { data: null, error: { message: profileError.message || 'Registration failed during profile creation' } };
     }
+
+    return { 
+      data: transactionResult.data, 
+      error: null 
+    };
 
   } catch (error: any) {
     console.error('Registration error:', error);
