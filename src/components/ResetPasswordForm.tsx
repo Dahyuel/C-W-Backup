@@ -21,9 +21,11 @@ export const ResetPasswordForm: React.FC = () => {
   // Check if we have valid reset token on component mount
   useEffect(() => {
     const checkToken = async () => {
-      const accessToken = searchParams.get('access_token');
-      const refreshToken = searchParams.get('refresh_token');
-      const type = searchParams.get('type');
+      // Parse tokens from URL hash instead of search params
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+      const type = hashParams.get('type');
 
       if (type !== 'recovery' || !accessToken || !refreshToken) {
         setTokenValid(false);
@@ -50,7 +52,7 @@ export const ResetPasswordForm: React.FC = () => {
     };
 
     checkToken();
-  }, [searchParams]);
+  }, []); // Remove searchParams dependency since we're not using it
 
   const validatePassword = (password: string): string[] => {
     const errors: string[] = [];
