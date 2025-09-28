@@ -804,13 +804,25 @@ const handleSubmit = async (e: React.FormEvent) => {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white py-8 px-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Join Career Week</h1>
-          <p className="text-gray-600">Create your attendee account to access exclusive events</p>
-        </div>
+return (
+    <div className="min-h-screen relative">
+      {/* Background Image */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
+        style={{
+          backgroundImage: 'url("https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/careercenter.png")',
+        }}
+      >
+        {/* Overlay for better readability */}
+        <div className="absolute inset-0 bg-black bg-opacity-10"></div>
+      </div>
+
+      <div className="relative z-10 py-8 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-white mb-2 drop-shadow-lg">Join Career Week</h1>
+            <p className="text-white drop-shadow">Create your attendee account to access exclusive events</p>
+          </div>
 
         {/* Progress Steps */}
         <div className="mb-8">
