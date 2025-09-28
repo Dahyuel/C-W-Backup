@@ -1,4 +1,4 @@
-// src/contexts/AuthContext.tsx - Enhanced with robust session management
+// src/contexts/AuthContext.tsx - Enhanced with robust session management and fixed redirects
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { supabase, signUpUser, signUpVolunteer, signInUser, validateRegistrationData } from "../lib/supabase";
 import type { User, Session } from '@supabase/supabase-js';
@@ -44,46 +44,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [loading, setLoading] = useState(true);
   const [sessionLoaded, setSessionLoaded] = useState(false);
 
-  // 🔹 Session storage helpers
-  const saveProfileToSession = (profileData: any) => {
+  // Session storage helpers - optimized to avoid errors
+  const saveProfileToSession = useCallback((profileData: any) => {
     try {
-      sessionStorage.setItem('user_profile', JSON.stringify(profileData));
+      if (typeof Storage !== 'undefined') {
+        sessionStorage.setItem('user_profile', JSON.stringify(profileData));
+      }
     } catch (error) {
       console.warn('Could not save profile to session storage:', error);
     }
-  };
+  }, []);
 
-  const getProfileFromSession = () => {
+  const getProfileFromSession = useCallback(() => {
     try {
-      const stored = sessionStorage.getItem('user_profile');
-      return stored ? JSON.parse(stored) : null;
+      if (typeof Storage !== 'undefined') {
+        const stored = sessionStorage.getItem('user_profile');
+        return stored ? JSON.parse(stored) : null;
+      }
     } catch (error) {
       console.warn('Could not read profile from session storage:', error);
-      return null;
     }
-  };
+    return null;
+  }, []);
 
-  const clearProfileFromSession = () => {
+  const clearProfileFromSession = useCallback(() => {
     try {
-      sessionStorage.removeItem('user_profile');
+      if (typeof Storage !== 'undefined') {
+        sessionStorage.removeItem('user_profile');
+      }
     } catch (error) {
       console.warn('Could not clear profile from session storage:', error);
     }
-  };
+  }, []);
 
-  // 🔹 Enhanced profile fetching with session storage and retry logic
+  // Enhanced profile fetching with session storage and retry logic
   const fetchProfile = useCallback(async (uid: string, retries = 3): Promise<boolean> => {
     // First check session storage for cached profile
     const cachedProfile = getProfileFromSession();
     if (cachedProfile && cachedProfile.id === uid) {
-      console.log('✅ Using cached profile:', cachedProfile.role);
+      console.log('Using cached profile:', cachedProfile.role);
       setProfile(cachedProfile);
       return true;
     }
 
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
-        console.log(`🔄 Fetching profile (attempt ${attempt}/${retries}) for user:`, uid);
+        console.log(`Fetching profile (attempt ${attempt}/${retries}) for user:`, uid);
         
         const { data, error } = await supabase
           .from("users_profiles")
@@ -92,7 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           .single();
 
         if (error) {
-          console.error(`❌ Profile fetch error (attempt ${attempt}):`, error);
+          console.error(`Profile fetch error (attempt ${attempt}):`, error);
           
           // If it's the last attempt or a non-retryable error, handle it
           if (attempt === retries || error.code === 'PGRST116') { // PGRST116 = no rows returned
@@ -100,7 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             
             // If we have a cached profile, use it as fallback
             if (cachedProfile && cachedProfile.id === uid) {
-              console.log('🔄 Using cached profile as fallback');
+              console.log('Using cached profile as fallback');
               setProfile(cachedProfile);
               return true;
             }
@@ -110,13 +116,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             return false;
           }
           
-          // Wait before retry
-          await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+          // Wait before retry with exponential backoff
+          await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, attempt - 1)));
           continue;
         }
 
         if (data) {
-          console.log('✅ Profile fetched successfully:', data.role);
+          console.log('Profile fetched successfully:', data.role);
           setProfile(data);
           saveProfileToSession(data);
           return true;
@@ -126,7 +132,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         
         // Use cached profile as fallback
         if (cachedProfile && cachedProfile.id === uid) {
-          console.log('🔄 Using cached profile as fallback');
+          console.log('Using cached profile as fallback');
           setProfile(cachedProfile);
           return true;
         }
@@ -139,7 +145,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         if (attempt === retries) {
           // Use cached profile as final fallback
           if (cachedProfile && cachedProfile.id === uid) {
-            console.log('🔄 Using cached profile as final fallback');
+            console.log('Using cached profile as final fallback');
             setProfile(cachedProfile);
             return true;
           }
@@ -148,15 +154,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           clearProfileFromSession();
           return false;
         }
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, attempt - 1)));
       }
     }
     return false;
-  }, []);
+  }, [getProfileFromSession, saveProfileToSession, clearProfileFromSession]);
 
-  // 🔹 Handle auth state changes
+  // Handle auth state changes
   const handleAuthStateChange = useCallback(async (event: string, session: Session | null) => {
-    console.log('🔄 Auth state change:', event, session ? 'Session exists' : 'No session');
+    console.log('Auth state change:', event, session ? 'Session exists' : 'No session');
     
     try {
       if (session?.user) {
@@ -166,16 +172,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         // Set session loaded immediately - don't wait for profile
         setSessionLoaded(true);
         
-        // Fetch profile for authenticated user (non-blocking)
-        fetchProfile(session.user.id).then(profileFetched => {
+        // For volunteer registration success, we need to fetch profile immediately
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          // Fetch profile synchronously for sign-in events
+          const profileFetched = await fetchProfile(session.user.id);
           if (!profileFetched) {
-            console.warn('⚠️ Could not fetch profile, but session is valid');
+            console.warn('Could not fetch profile, but session is valid');
           }
           setLoading(false);
-        }).catch(error => {
-          console.error('Profile fetch failed:', error);
-          setLoading(false);
-        });
+        } else {
+          // For other events, fetch profile asynchronously
+          fetchProfile(session.user.id).then(profileFetched => {
+            if (!profileFetched) {
+              console.warn('Could not fetch profile, but session is valid');
+            }
+            setLoading(false);
+          }).catch(error => {
+            console.error('Profile fetch failed:', error);
+            setLoading(false);
+          });
+        }
       } else {
         console.log('Clearing user and profile');
         setUser(null);
@@ -192,22 +208,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setSessionLoaded(true);
       setLoading(false);
     }
-  }, [fetchProfile]);
+  }, [fetchProfile, clearProfileFromSession]);
 
-  // 🔹 Initialize auth on mount
+  // Initialize auth on mount
   useEffect(() => {
     let mounted = true;
     let authListener: any = null;
 
     const initializeAuth = async () => {
       try {
-        console.log('🚀 Initializing authentication...');
+        console.log('Initializing authentication...');
         
         // Get current session
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
-          console.error('❌ Error getting session:', error);
+          console.error('Error getting session:', error);
           if (mounted) {
             setUser(null);
             setProfile(null);
@@ -219,26 +235,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         if (session?.user && mounted) {
-          console.log('✅ Found existing session for user:', session.user.id);
+          console.log('Found existing session for user:', session.user.id);
           setUser(session.user);
-          setSessionLoaded(true); // Set this immediately
+          setSessionLoaded(true);
           
-          // Fetch profile asynchronously
-          fetchProfile(session.user.id).then(profileFetched => {
-            if (mounted) {
-              if (!profileFetched) {
-                console.warn('⚠️ Profile not found for authenticated user');
-              }
-              setLoading(false);
+          // Fetch profile synchronously on initialization
+          const profileFetched = await fetchProfile(session.user.id);
+          if (mounted) {
+            if (!profileFetched) {
+              console.warn('Profile not found for authenticated user');
             }
-          }).catch(error => {
-            console.error('Profile fetch error during init:', error);
-            if (mounted) {
-              setLoading(false);
-            }
-          });
+            setLoading(false);
+          }
         } else {
-          console.log('ℹ️ No existing session found');
+          console.log('No existing session found');
           if (mounted) {
             setUser(null);
             setProfile(null);
@@ -249,7 +259,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
       } catch (error) {
-        console.error('❌ Auth initialization error:', error);
+        console.error('Auth initialization error:', error);
         if (mounted) {
           setUser(null);
           setProfile(null);
@@ -274,32 +284,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         authListener.unsubscribe();
       }
     };
-  }, []); // Remove dependencies to prevent re-initialization
+  }, []); // No dependencies to prevent re-initialization
 
-  // 🔹 Refresh profile manually
+  // Refresh profile manually
   const refreshProfile = useCallback(async () => {
     if (user?.id) {
-      console.log('🔄 Manually refreshing profile...');
+      console.log('Manually refreshing profile...');
       await fetchProfile(user.id);
     }
   }, [user?.id, fetchProfile]);
 
-  // 🔹 Enhanced SIGN UP for attendees
+  // Enhanced SIGN UP for attendees
   const signUp = async (email: string, password: string, profileData: any) => {
     try {
-      console.log('🔄 Starting attendee registration...');
+      console.log('Starting attendee registration...');
       setLoading(true);
       
       const result = await signUpUser(email, password, profileData);
       
       if (result.error) {
-        console.error('❌ Registration failed:', result.error);
+        console.error('Registration failed:', result.error);
         return result;
       }
 
-      console.log('✅ Registration successful');
+      console.log('Registration successful');
       
-      // The auth state listener will handle setting user and fetching profile
+      // Force profile refresh after successful registration
+      if (result.data?.user?.id) {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for DB consistency
+        await fetchProfile(result.data.user.id);
+      }
+      
       return result;
     } catch (error: any) {
       console.error('Registration exception:', error);
@@ -312,22 +327,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // 🔹 Enhanced SIGN UP for volunteers
+  // Enhanced SIGN UP for volunteers with immediate profile fetch
   const signUpVolunteerFunc = async (email: string, password: string, profileData: any) => {
     try {
-      console.log('🔄 Starting volunteer registration...');
+      console.log('Starting volunteer registration...');
       setLoading(true);
       
       const result = await signUpVolunteer(email, password, profileData);
       
       if (result.error) {
-        console.error('❌ Volunteer registration failed:', result.error);
+        console.error('Volunteer registration failed:', result.error);
         return result;
       }
 
-      console.log('✅ Volunteer registration successful');
+      console.log('Volunteer registration successful');
       
-      // The auth state listener will handle setting user and fetching profile
+      // Force profile refresh after successful volunteer registration
+      if (result.data?.user?.id) {
+        // Wait a bit longer for volunteer registration to ensure DB consistency
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        const profileFetched = await fetchProfile(result.data.user.id, 5); // More retries for volunteer registration
+        
+        if (!profileFetched) {
+          console.warn('Could not fetch volunteer profile immediately after registration');
+        }
+      }
+      
       return result;
     } catch (error: any) {
       console.error('Volunteer registration exception:', error);
@@ -340,22 +365,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // 🔹 Enhanced SIGN IN
+  // Enhanced SIGN IN with immediate profile fetch
   const signIn = async (email: string, password: string) => {
     try {
-      console.log('🔄 Starting sign in...');
+      console.log('Starting sign in...');
       setLoading(true);
       
       const { data, error } = await signInUser(email, password);
 
       if (error) {
-        console.error('❌ Sign in failed:', error);
+        console.error('Sign in failed:', error);
         return { error };
       }
 
-      console.log('✅ Sign in successful');
+      console.log('Sign in successful');
       
-      // The auth state listener will handle setting user and fetching profile
+      // Force profile fetch after successful sign in
+      if (data?.user?.id) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        await fetchProfile(data.user.id);
+      }
+      
       return { error: null };
     } catch (error: any) {
       console.error('Sign in exception:', error);
@@ -365,10 +395,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
   
-  // 🔹 Enhanced SIGN OUT
+  // Enhanced SIGN OUT
   const signOut = async () => {
     try {
-      console.log('🔄 Signing out...');
+      console.log('Signing out...');
       setLoading(true);
       
       const { error } = await supabase.auth.signOut();
@@ -376,7 +406,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (error) {
         console.error('Sign out error:', error);
       } else {
-        console.log('✅ Signed out successfully');
+        console.log('Signed out successfully');
       }
       
       // Clear session storage and state
@@ -384,7 +414,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setUser(null);
       setProfile(null);
       
-      // Auth state listener will handle the rest
     } catch (error) {
       console.error('Sign out exception:', error);
       // Still clear local state
@@ -396,7 +425,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // 🔹 VALIDATION HELPER
+  // VALIDATION HELPER
   const validateRegistration = async (
     email: string,
     personalId: string,
@@ -405,17 +434,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return await validateRegistrationData(email, personalId, volunteerId);
   };
 
-  // 🔹 ROLE HELPERS
-  const hasRole = (roles: string | string[]) => {
+  // ROLE HELPERS
+  const hasRole = useCallback((roles: string | string[]) => {
     if (!profile?.role) return false;
     if (Array.isArray(roles)) {
       return roles.includes(profile.role);
     }
     return profile.role === roles;
-  };
+  }, [profile?.role]);
 
-  const getRoleBasedRedirect = (role?: string) => {
+  // Enhanced role-based redirect with better volunteer role mapping
+  const getRoleBasedRedirect = useCallback((role?: string) => {
     const r = role || profile?.role;
+    
+    // Map all volunteer-type roles correctly
     switch (r) {
       case "admin":
         return "/secure-9821panel";
@@ -434,13 +466,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       case "attendee":
         return "/attendee";
       default:
+        console.warn('Unknown role for redirect:', r);
         return "/login";
     }
-  };
+  }, [profile?.role]);
 
-  // 🔹 Computed values - Updated logic for authentication
-  // A user is authenticated if they have a valid session (user) 
-  // We'll allow access even if profile is temporarily unavailable
+  // Computed values - Updated logic for authentication
   const isAuthenticated = !!user && sessionLoaded;
   
   console.log('Auth Context State:', {
@@ -475,7 +506,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 };
 
-// ✅ Hook with better error handling
+// Hook with better error handling
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
