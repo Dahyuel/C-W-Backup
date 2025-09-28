@@ -25,6 +25,8 @@ interface AttendeeCardProps {
   loading?: boolean;
   mode?: 'building' | 'session' | 'registration';
   sessionTitle?: string; // Optional session title for session mode
+    disableAction?: boolean;
+  disableReason?: string;
 }
 interface AttendeeCardProps {
   // ... existing props
