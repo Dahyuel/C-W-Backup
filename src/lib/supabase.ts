@@ -375,11 +375,12 @@ export const signUpUser = async (email: string, password: string, userData: any)
 };
 
 // Updated signUpVolunteer function using Edge Function validation
+
 export const signUpVolunteer = async (email: string, password: string, userData: any) => {
   try {
     console.log('Starting volunteer registration with edge function validation...');
     
-    // STEP 1: Use Edge Function for comprehensive validation
+    // STEP 1: Use Edge Function for comprehensive validation with gender
     const validation = await validateRegistrationWithEdgeFunction(
       userData.personal_id,
       email,
@@ -388,7 +389,8 @@ export const signUpVolunteer = async (email: string, password: string, userData:
       null, // No volunteer ID needed for volunteer signup
       userData.phone,
       'volunteer',
-      userData.role
+      userData.role,
+      userData.gender // Pass gender to validation
     );
 
     if (!validation.isValid) {
@@ -437,6 +439,8 @@ export const signUpVolunteer = async (email: string, password: string, userData:
         phone: userData.phone?.trim() || null,
         university: 'Ain Shams University',
         role: userData.role || 'volunteer',
+        gender: userData.gender?.toLowerCase() === 'male' ? 'male' : 
+                userData.gender?.toLowerCase() === 'female' ? 'female' : null, // Added gender field
         score: 0,
         building_entry: false,
         event_entry: false
