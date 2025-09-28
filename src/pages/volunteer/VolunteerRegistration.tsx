@@ -541,6 +541,8 @@ return (
             </div>
             <p className="text-white drop-shadow">Join our amazing volunteer team and help make Career Week unforgettable!</p>
           </div>
+          </div>
+          
 
         {/* Progress Steps */}
         <div className="mb-8">
