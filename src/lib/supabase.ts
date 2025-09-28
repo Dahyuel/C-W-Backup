@@ -385,14 +385,13 @@ export const signUpUser = async (email: string, password: string, userData: any)
 };
 
 
-
-
-// Enhanced volunteer sign up with better error handling
 export const signUpVolunteer = async (email: string, password: string, userData: any) => {
+  let authUserId = null;
+
   try {
     console.log('Starting volunteer registration...');
     
-    // STEP 1: Check if user already exists
+    // STEP 1: Check if user already exists (pre-validation)
     const userExists = await checkUserExists(userData.personal_id, email);
     if (userExists.exists) {
       const errors: string[] = [];
@@ -411,7 +410,7 @@ export const signUpVolunteer = async (email: string, password: string, userData:
       };
     }
 
-    console.log('User does not exist, creating volunteer auth user...');
+    console.log('Pre-validation passed, creating volunteer auth user...');
 
     // STEP 2: Create auth user first
     const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -428,93 +427,90 @@ export const signUpVolunteer = async (email: string, password: string, userData:
       return { data: null, error: { message: 'Failed to create volunteer account' } };
     }
 
-    console.log('Auth user created, generating volunteer ID...');
+    authUserId = authData.user.id;
+    console.log('Auth user created successfully:', authUserId);
 
     // STEP 3: Generate volunteer ID AFTER auth user is created
     const volunteerId = await generateVolunteerId(userData.role || 'volunteer');
     console.log('Generated volunteer ID:', volunteerId);
 
-    // STEP 4: Create volunteer profile with email and volunteer ID
-    // Always set university to "Ain Shams University" for volunteers
-    let profileDataToInsert = {
-      id: authData.user.id,
-      email: email.trim().toLowerCase(),
-      volunteer_id: volunteerId, // Try to include volunteer_id
-      ...userData,
-      university: 'Ain Shams University', // Always set university for volunteers
-      role: userData.role || 'volunteer',
-      score: 0,
-      building_entry: false,
-      event_entry: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
+    // STEP 4: Create volunteer profile
+    try {
+      const profileDataToInsert = {
+        id: authUserId,
+        email: email.trim().toLowerCase(),
+        volunteer_id: volunteerId,
+        first_name: userData.first_name?.trim() || '',
+        last_name: userData.last_name?.trim() || '',
+        phone: userData.phone?.trim() || null,
+        personal_id: userData.personal_id?.trim(),
+        faculty: userData.faculty?.trim() || '',
+        university: 'Ain Shams University', // Always set for volunteers
+        role: userData.role || 'volunteer',
+        score: 0,
+        building_entry: false,
+        event_entry: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
 
-    let { data: profileData, error: profileError } = await supabase
-      .from("users_profiles")
-      .insert(profileDataToInsert)
-      .select();
-
-    // If there's a constraint error with volunteer_id, try without it first
-    if (profileError && profileError.code === 'P0001') {
-      console.log('Constraint error detected, trying without volunteer_id first...');
-      
-      // Insert without volunteer_id first
-      const { data: initialProfile, error: initialError } = await supabase
+      // Insert profile with volunteer_id
+      const { data: profileData, error: profileError } = await supabase
         .from("users_profiles")
-        .insert({
-          ...profileDataToInsert,
-          volunteer_id: null // Omit volunteer_id initially
-        })
+        .insert(profileDataToInsert)
         .select();
 
-      if (initialError) {
-        console.error('Initial profile creation error:', initialError);
+      if (profileError) {
+        console.error('Volunteer profile creation error:', profileError);
+        
         // Clean up auth user
-        try {
-          await supabase.auth.admin.deleteUser(authData.user.id);
-        } catch (cleanupError) {
-          console.error('Failed to cleanup auth user:', cleanupError);
+        await cleanupOrphanedAuthUser(authUserId, email);
+        
+        let errorMessage = 'Failed to create volunteer profile. ';
+        if (profileError.code === '23505') {
+          if (profileError.message.includes('personal_id')) {
+            errorMessage += 'This Personal ID is already registered.';
+          } else if (profileError.message.includes('email')) {
+            errorMessage += 'This email address is already registered.';
+          } else if (profileError.message.includes('volunteer_id')) {
+            errorMessage += 'Volunteer ID generation failed.';
+          } else {
+            errorMessage += 'Some information is already in use.';
+          }
+        } else {
+          errorMessage += profileError.message || 'Unknown error occurred.';
         }
-        return { data: null, error: initialError };
+        
+        return { data: null, error: { message: errorMessage } };
       }
 
-      // Then update with volunteer_id
-      const { data: updatedProfile, error: updateError } = await supabase
-        .from("users_profiles")
-        .update({ volunteer_id: volunteerId })
-        .eq('id', authData.user.id)
-        .select();
+      console.log('Volunteer registration completed successfully with ID:', volunteerId);
+      return { data: { ...authData, volunteerId, profile: profileData }, error: null };
 
-      if (updateError) {
-        console.error('Volunteer ID update error:', updateError);
-        // Continue anyway - the user is created, just without volunteer_id
-        profileData = initialProfile;
-        console.warn('Volunteer ID could not be set, but account was created');
-      } else {
-        profileData = updatedProfile;
-      }
-    } else if (profileError) {
-      console.error('Volunteer profile creation error:', profileError);
+    } catch (profileError) {
+      console.error('Volunteer profile creation exception:', profileError);
       
       // Clean up auth user
-      try {
-        await supabase.auth.admin.deleteUser(authData.user.id);
-      } catch (cleanupError) {
-        console.error('Failed to cleanup auth user:', cleanupError);
+      if (authUserId) {
+        await cleanupOrphanedAuthUser(authUserId, email);
       }
       
-      return { data: null, error: profileError };
+      return { data: null, error: { message: profileError.message || 'Volunteer registration failed' } };
     }
-
-    console.log('Volunteer registration completed successfully with ID:', volunteerId);
-    return { data: { ...authData, volunteerId }, error: null };
 
   } catch (error: any) {
     console.error('Volunteer registration error:', error);
+    
+    // Clean up auth user if it was created
+    if (authUserId) {
+      await cleanupOrphanedAuthUser(authUserId, email);
+    }
+    
     return { data: null, error: { message: error.message || 'Volunteer registration failed' } };
   }
 };
+
+
 // Keep existing functions for backward compatibility
 export const signInUser = async (email: string, password: string) => {
   const { data, error } = await supabase.auth.signInWithPassword({
