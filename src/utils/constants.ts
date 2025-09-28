@@ -26,6 +26,21 @@ export const FACULTIES = [
   'Faculty of Applied Arts',
   'Other'
 ];
+export const ENUM_VALUES = {
+  GENDER: ['male', 'female'] as const,
+  DEGREE_LEVEL: ['student', 'graduate'] as const,
+  CLASS_LEVEL: ['1', '2', '3', '4', '5'] as const,
+  MARKETING_SOURCE: [
+    'linkedin', 'facebook', 'instagram', 'friends', 
+    'banners_in_street', 'information_session_at_faculty', 
+    'campus_marketing', 'other'
+  ] as const,
+  USER_ROLE: [
+    'admin', 'team_leader', 'registration', 'building', 
+    'attendee', 'volunteer', 'info_desk'
+  ] as const
+};
+
 
 export const CLASS_YEARS = [
   { value: '1', label: '1st Year' },
