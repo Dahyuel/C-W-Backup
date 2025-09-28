@@ -380,3 +380,4 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = () => {
     </div>
   );
 };
+export default ForgotPasswordForm;
