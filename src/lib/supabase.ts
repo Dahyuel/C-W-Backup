@@ -377,26 +377,32 @@ export const signUpVolunteer = async (email: string, password: string, userData:
 
     console.log('Auth user created successfully:', authData.user.id);
 
-    // STEP 3: Generate volunteer ID and create profile
+    // STEP 3: Generate volunteer ID and create profile using direct insert
     try {
       const volunteerId = await generateVolunteerId(userData.role || 'volunteer');
       console.log('Generated volunteer ID:', volunteerId);
 
-      // Use RPC function with corrected parameter order
-      const { data: profileData, error: profileError } = await supabase
-        .rpc('insert_volunteer_profile', {
-          p_id: authData.user.id,
-          p_email: email.trim().toLowerCase(),
-          p_volunteer_id: volunteerId,
-          p_first_name: userData.first_name?.trim() || '',
-          p_last_name: userData.last_name?.trim() || '',
-          p_personal_id: userData.personal_id?.trim(),
-          p_faculty: userData.faculty?.trim() || '',
-          // Optional parameters with defaults
-          p_phone: userData.phone?.trim() || null,
-          p_university: 'Ain Shams University',
-          p_role: userData.role || 'volunteer'
-        });
+      const profileData = {
+        id: authData.user.id,
+        email: email.trim().toLowerCase(),
+        volunteer_id: volunteerId,
+        first_name: userData.first_name?.trim() || '',
+        last_name: userData.last_name?.trim() || '',
+        personal_id: userData.personal_id?.trim(),
+        faculty: userData.faculty?.trim() || '',
+        phone: userData.phone?.trim() || null,
+        university: 'Ain Shams University',
+        role: userData.role || 'volunteer',
+        score: 0,
+        building_entry: false,
+        event_entry: false
+      };
+
+      const { data: insertedProfile, error: profileError } = await supabase
+        .from('users_profiles')
+        .insert([profileData])
+        .select()
+        .single();
 
       if (profileError) {
         console.error('Volunteer profile creation error:', profileError);
@@ -421,9 +427,9 @@ export const signUpVolunteer = async (email: string, password: string, userData:
       }
 
       console.log('Volunteer registration completed successfully with ID:', volunteerId);
-      return { data: { ...authData, volunteerId, profile: profileData }, error: null };
+      return { data: { ...authData, volunteerId, profile: insertedProfile }, error: null };
 
-    } catch (profileError) {
+    } catch (profileError: any) {
       console.error('Volunteer profile creation exception:', profileError);
       console.warn(`Orphaned auth user created: ${authData.user.id} (${email})`);
       
@@ -435,7 +441,6 @@ export const signUpVolunteer = async (email: string, password: string, userData:
     return { data: null, error: { message: error.message || 'Volunteer registration failed' } };
   }
 };
-
 const cleanupOrphanedAuthUser = async (userId: string, email: string) => {
   try {
     console.log('Attempting to clean up orphaned auth user:', email);
