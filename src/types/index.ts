@@ -1,4 +1,4 @@
-// types.ts - Fixed interface definitions
+// index.ts - Fixed interface definitions
 
 export interface RegistrationData {
   // Personal Information
