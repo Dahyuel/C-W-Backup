@@ -245,8 +245,8 @@ export const SuperAdminPanel: React.FC = () => {
     >
       <div className="space-y-8">
         {/* System Health Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 stagger-children">
-          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 card-hover">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">CPU Usage</p>
@@ -260,7 +260,7 @@ export const SuperAdminPanel: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 card-hover">
+          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Memory Usage</p>
@@ -274,7 +274,7 @@ export const SuperAdminPanel: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 card-hover">
+          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Disk Usage</p>
@@ -288,7 +288,7 @@ export const SuperAdminPanel: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 card-hover">
+          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Active Connections</p>
@@ -302,28 +302,28 @@ export const SuperAdminPanel: React.FC = () => {
         </div>
 
         {/* Critical Actions */}
-        <div className="bg-white rounded-xl shadow-sm border border-red-200 p-6 fade-in-up" style={{ animationDelay: '0.5s' }}>
+        <div className="bg-white rounded-xl shadow-sm border border-red-200 p-6">
           <div className="flex items-center mb-4">
             <AlertTriangle className="h-5 w-5 text-red-600 mr-2" />
             <h2 className="text-xl font-bold text-red-900">Critical System Actions</h2>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 stagger-children">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <button
               onClick={performDatabaseMaintenance}
-              className="flex items-center justify-center p-4 bg-red-500 text-white rounded-lg hover:bg-red-600 btn-animate"
+              className="flex items-center justify-center p-4 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
             >
               <Database className="h-5 w-5 mr-2" />
               DB Maintenance
             </button>
-            <button className="flex items-center justify-center p-4 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 btn-animate">
+            <button className="flex items-center justify-center p-4 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors">
               <Server className="h-5 w-5 mr-2" />
               Restart Services
             </button>
-            <button className="flex items-center justify-center p-4 bg-purple-500 text-white rounded-lg hover:bg-purple-600 btn-animate">
+            <button className="flex items-center justify-center p-4 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors">
               <Lock className="h-5 w-5 mr-2" />
               Emergency Lock
             </button>
-            <button className="flex items-center justify-center p-4 bg-gray-500 text-white rounded-lg hover:bg-gray-600 btn-animate">
+            <button className="flex items-center justify-center p-4 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors">
               <Settings className="h-5 w-5 mr-2" />
               System Config
             </button>
@@ -331,7 +331,7 @@ export const SuperAdminPanel: React.FC = () => {
         </div>
 
         {/* Tab Navigation */}
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 fade-in-up" style={{ animationDelay: '0.6s' }}>
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100">
           <div className="border-b border-gray-200">
             <nav className="flex space-x-8 px-6">
               {[
@@ -344,7 +344,7 @@ export const SuperAdminPanel: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm btn-animate ${
+                  className={`flex items-center py-4 px-1 border-b-2 font-medium text-sm ${
                     activeTab === tab.id
                       ? 'border-orange-500 text-orange-600'
                       : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -359,11 +359,11 @@ export const SuperAdminPanel: React.FC = () => {
 
           <div className="p-6">
             {activeTab === 'system' && (
-              <div className="space-y-6 tab-content">
+              <div className="space-y-6">
                 <h3 className="text-lg font-semibold text-gray-900">Real-time System Monitoring</h3>
                 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="space-y-4 fade-in-left">
+                  <div className="space-y-4">
                     <h4 className="font-medium text-gray-900">Resource Usage</h4>
                     <div className="space-y-3">
                       {[
@@ -390,7 +390,7 @@ export const SuperAdminPanel: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="space-y-4 fade-in-up" style={{ animationDelay: '0.3s' }}>
+                  <div className="space-y-4">
                     <h4 className="font-medium text-gray-900">System Information</h4>
                     <div className="space-y-3">
                       <div className="flex justify-between p-3 bg-gray-50 rounded-lg">
@@ -416,18 +416,18 @@ export const SuperAdminPanel: React.FC = () => {
             )}
 
             {activeTab === 'admins' && (
-              <div className="space-y-4 tab-content">
+              <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-lg font-semibold text-gray-900">Administrator Management</h3>
                   <button
                     onClick={createAdminUser}
-                    className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 btn-animate"
+                    className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
                   >
                     Create Admin
                   </button>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full stagger-rows">
+                  <table className="w-full">
                     <thead>
                       <tr className="border-b border-gray-200">
                         <th className="text-left py-3 px-4 font-semibold text-gray-900">Administrator</th>
@@ -486,9 +486,9 @@ export const SuperAdminPanel: React.FC = () => {
             )}
 
             {activeTab === 'security' && (
-              <div className="space-y-4 tab-content">
+              <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-gray-900">Security Event Logs</h3>
-                <div className="space-y-3 stagger-list">
+                <div className="space-y-3">
                   {securityLogs.map((log) => (
                     <div key={log.id} className="border border-gray-200 rounded-lg p-4">
                       <div className="flex items-start justify-between mb-2">
@@ -512,11 +512,11 @@ export const SuperAdminPanel: React.FC = () => {
             )}
 
             {activeTab === 'database' && (
-              <div className="space-y-6 tab-content">
+              <div className="space-y-6">
                 <h3 className="text-lg font-semibold text-gray-900">Database Administration</h3>
                 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="space-y-4 fade-in-left">
+                  <div className="space-y-4">
                     <h4 className="font-medium text-gray-900">Database Status</h4>
                     <div className="space-y-3">
                       <div className="flex justify-between p-3 bg-gray-50 rounded-lg">
@@ -538,25 +538,25 @@ export const SuperAdminPanel: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="space-y-4 fade-in-up" style={{ animationDelay: '0.3s' }}>
+                  <div className="space-y-4">
                     <h4 className="font-medium text-gray-900">Database Operations</h4>
                     <div className="space-y-3">
                       <button
                         onClick={performDatabaseMaintenance}
-                        className="w-full flex items-center justify-center p-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 btn-animate"
+                        className="w-full flex items-center justify-center p-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
                       >
                         <Database className="h-4 w-4 mr-2" />
                         Run Maintenance
                       </button>
-                      <button className="w-full flex items-center justify-center p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 btn-animate">
+                      <button className="w-full flex items-center justify-center p-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
                         <HardDrive className="h-4 w-4 mr-2" />
                         Create Backup
                       </button>
-                      <button className="w-full flex items-center justify-center p-3 bg-green-500 text-white rounded-lg hover:bg-green-600 btn-animate">
+                      <button className="w-full flex items-center justify-center p-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
                         <Monitor className="h-4 w-4 mr-2" />
                         Query Monitor
                       </button>
-                      <button className="w-full flex items-center justify-center p-3 bg-red-500 text-white rounded-lg hover:bg-red-600 btn-animate">
+                      <button className="w-full flex items-center justify-center p-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
                         <AlertTriangle className="h-4 w-4 mr-2" />
                         Emergency Reset
                       </button>
@@ -567,11 +567,11 @@ export const SuperAdminPanel: React.FC = () => {
             )}
 
             {activeTab === 'config' && (
-              <div className="space-y-6 tab-content">
+              <div className="space-y-6">
                 <h3 className="text-lg font-semibold text-gray-900">System Configuration</h3>
                 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="space-y-4 fade-in-left">
+                  <div className="space-y-4">
                     <h4 className="font-medium text-gray-900">Security Configuration</h4>
                     <div className="space-y-3">
                       <div>
@@ -607,7 +607,7 @@ export const SuperAdminPanel: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="space-y-4 fade-in-up" style={{ animationDelay: '0.3s' }}>
+                  <div className="space-y-4">
                     <h4 className="font-medium text-gray-900">System Limits</h4>
                     <div className="space-y-3">
                       <div>
@@ -646,13 +646,13 @@ export const SuperAdminPanel: React.FC = () => {
 
                 <div className="pt-4 border-t border-gray-200">
                   <div className="flex space-x-3">
-                    <button className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 btn-animate">
+                    <button className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors">
                       Save Configuration
                     </button>
-                    <button className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 btn-animate">
+                    <button className="bg-gray-200 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-300 transition-colors">
                       Reset to Defaults
                     </button>
-                    <button className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 btn-animate">
+                    <button className="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 transition-colors">
                       Emergency Shutdown
                     </button>
                   </div>

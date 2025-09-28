@@ -20,21 +20,21 @@ export const QRScanner: React.FC<QRScannerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [scanSuccess, setScanSuccess] = useState(false);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const [isScanning, setIsScanning] = useState(false);
-  const [cameraReady, setCameraReady] = useState(false);
+  const [isReady, setIsReady] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number>(0);
+  const scanningRef = useRef<boolean>(false);
 
   // Reset all states
   const resetStates = useCallback(() => {
     setError(null);
     setScanSuccess(false);
     setHasPermission(null);
-    setIsScanning(false);
-    setCameraReady(false);
+    setIsReady(false);
+    scanningRef.current = false;
   }, []);
 
   // Stop scanner and cleanup
@@ -53,14 +53,15 @@ export const QRScanner: React.FC<QRScannerProps> = ({
       videoRef.current.srcObject = null;
     }
     
-    setIsScanning(false);
-    setCameraReady(false);
+    scanningRef.current = false;
+    setIsReady(false);
   }, []);
 
   // Handle successful scan
   const handleScanSuccess = useCallback((data: string) => {
     console.log('QR Code scanned:', data);
     setScanSuccess(true);
+    scanningRef.current = false;
     stopScanner();
     
     // Provide feedback and close
@@ -72,7 +73,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
 
   // Scan for QR codes
   const scanQRCode = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current || !isScanning) return;
+    if (!videoRef.current || !canvasRef.current || !scanningRef.current) return;
 
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -104,8 +105,10 @@ export const QRScanner: React.FC<QRScannerProps> = ({
     }
 
     // Continue scanning
-    animationFrameRef.current = requestAnimationFrame(scanQRCode);
-  }, [isScanning, handleScanSuccess]);
+    if (scanningRef.current) {
+      animationFrameRef.current = requestAnimationFrame(scanQRCode);
+    }
+  }, [handleScanSuccess]);
 
   // Start the camera and scanner
   const startScanner = useCallback(async () => {
@@ -142,14 +145,13 @@ export const QRScanner: React.FC<QRScannerProps> = ({
       // Wait for video to be ready
       videoRef.current.onloadedmetadata = () => {
         videoRef.current?.play().then(() => {
-          setCameraReady(true);
+          setIsReady(true);
           
-          // Add a small delay before starting scanning to ensure camera is stable
+          // Start scanning after a short delay
           setTimeout(() => {
-            setIsScanning(true);
-            // Start scanning loop
+            scanningRef.current = true;
             animationFrameRef.current = requestAnimationFrame(scanQRCode);
-          }, 1000); // 1 second delay for camera to stabilize
+          }, 500);
           
         }).catch(err => {
           setError('Failed to start video: ' + err.message);
@@ -183,11 +185,11 @@ export const QRScanner: React.FC<QRScannerProps> = ({
             videoRef.current.srcObject = stream;
             videoRef.current.onloadedmetadata = () => {
               videoRef.current?.play().then(() => {
-                setCameraReady(true);
+                setIsReady(true);
                 setTimeout(() => {
-                  setIsScanning(true);
+                  scanningRef.current = true;
                   animationFrameRef.current = requestAnimationFrame(scanQRCode);
-                }, 1000);
+                }, 500);
               });
             };
           }
@@ -263,36 +265,11 @@ export const QRScanner: React.FC<QRScannerProps> = ({
     };
   }, [stopScanner]);
 
-  // Get status message and indicator color
-  const getStatusInfo = () => {
-    if (!cameraReady) {
-      return {
-        message: 'Starting camera...',
-        color: 'bg-yellow-500',
-        animate: false
-      };
-    }
-    if (!isScanning) {
-      return {
-        message: 'Camera ready...',
-        color: 'bg-blue-500',
-        animate: false
-      };
-    }
-    return {
-      message: 'Scanning for QR codes...',
-      color: 'bg-green-500',
-      animate: true
-    };
-  };
-
-  const statusInfo = getStatusInfo();
-
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 modal-backdrop">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden modal-content">
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -339,7 +316,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
                       </p>
                       <button
                         onClick={requestPermissionAndRetry}
-                        className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 font-medium flex items-center justify-center space-x-2 btn-animate"
+                        className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center justify-center space-x-2"
                       >
                         <Camera className="h-4 w-4" />
                         <span>Allow Camera Access</span>
@@ -347,7 +324,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
                     </div>
                     <button
                       onClick={onClose}
-                      className="w-full bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 font-medium btn-animate"
+                      className="w-full bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors font-medium"
                     >
                       Close Scanner
                     </button>
@@ -355,7 +332,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
                 ) : (
                   <button
                     onClick={handleRetry}
-                    className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 font-medium flex items-center justify-center space-x-2 btn-animate"
+                    className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center justify-center space-x-2"
                   >
                     <RefreshCw className="h-4 w-4" />
                     <span>Try Again</span>
@@ -395,32 +372,6 @@ export const QRScanner: React.FC<QRScannerProps> = ({
                       <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-white"></div>
                     </div>
                   </div>
-                </div>
-                
-                {/* Status indicator */}
-                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
-                  <div className="bg-black bg-opacity-50 text-white px-3 py-2 rounded-full text-sm flex items-center space-x-2">
-                    <div className={`w-2 h-2 rounded-full ${statusInfo.color} ${statusInfo.animate ? 'animate-pulse' : ''}`}></div>
-                    <span>{statusInfo.message}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Instructions */}
-              <div className="text-center">
-                <p className="text-xs text-gray-500 leading-relaxed mb-2">
-                  Hold your device steady and position the QR code within the frame.
-                </p>
-                <div className="bg-blue-50 p-3 rounded-lg">
-                  <p className="text-xs text-blue-800 font-medium">
-                    Tips for best results:
-                  </p>
-                  <ul className="text-xs text-blue-700 mt-1 space-y-1">
-                    <li>• Ensure good lighting</li>
-                    <li>• Keep the QR code flat and unfolded</li>
-                    <li>• Maintain steady hands</li>
-                    <li>• Clean your camera lens if needed</li>
-                  </ul>
                 </div>
               </div>
             </div>

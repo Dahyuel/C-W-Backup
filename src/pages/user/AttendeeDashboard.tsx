@@ -514,7 +514,7 @@ const AttendeeDashboard: React.FC = () => {
   return (
     <DashboardLayout title="Attendee Dashboard" subtitle={`Welcome back, ${profile?.first_name}!`}>
       {/* Tabs - Mobile optimized */}
-      <div className="flex space-x-1 sm:space-x-4 border-b mb-6 overflow-x-auto scrollbar-hide fade-in-up" style={{ animationDelay: '0.1s' }}>
+      <div className="flex space-x-1 sm:space-x-4 border-b mb-6 overflow-x-auto scrollbar-hide">
         {tabItems.map((tab) => (
           <button
             key={tab.key}
@@ -532,9 +532,9 @@ const AttendeeDashboard: React.FC = () => {
 
       {/* Overview */}
       {activeTab === "overview" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 stagger-children tab-content">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* Score */}
-          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 card-hover">
+          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
             <p className="text-sm font-medium text-gray-600">Your Score</p>
             <p className="text-3xl font-bold text-orange-600">{userScore?.score || 0}</p>
             <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mt-2">
@@ -543,7 +543,7 @@ const AttendeeDashboard: React.FC = () => {
           </div>
 
           {/* Rank */}
-          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 card-hover">
+          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
             <p className="text-sm font-medium text-gray-600">Your Rank</p>
             <p className="text-3xl font-bold text-blue-600">#{userScore?.rank || 0}</p>
             <p className="text-xs text-gray-500">of {userScore?.total_users || 0} attendees</p>
@@ -553,11 +553,11 @@ const AttendeeDashboard: React.FC = () => {
           </div>
 
           {/* QR */}
-          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 card-hover">
+          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
             <p className="text-sm font-medium text-gray-600">Your QR Code</p>
             <button
               onClick={handleShowQR}
-              className="mt-2 bg-orange-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-orange-600 btn-animate"
+              className="mt-2 bg-orange-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-orange-600 transition-colors"
             >
               Show QR
             </button>
@@ -567,14 +567,14 @@ const AttendeeDashboard: React.FC = () => {
           </div>
 
           {/* Recent Activities */}
-          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 card-hover">
+          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm font-medium text-gray-600">Recent Activities</p>
               <Activity className="h-5 w-5 text-gray-400" />
             </div>
             
             {recentActivities.length > 0 ? (
-              <div className="space-y-3 max-h-40 overflow-y-auto stagger-list">
+              <div className="space-y-3 max-h-40 overflow-y-auto">
                 {recentActivities.map((activity) => (
                   <div key={activity.id} className="flex items-center justify-between">
                     <div className="flex items-center space-x-2 flex-1 min-w-0">
@@ -606,7 +606,7 @@ const AttendeeDashboard: React.FC = () => {
 
       {/* Event Days */}
       {activeTab === "events" && (
-        <div className="tab-content">
+        <div>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-gray-900 flex items-center mb-4 sm:mb-0">
               <Calendar className="h-5 w-5 mr-2 text-orange-600" /> 5-Day Event Schedule
@@ -635,12 +635,12 @@ const AttendeeDashboard: React.FC = () => {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
             </div>
           ) : schedule.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {schedule.map((item) => (
                 <div 
                   key={item.id} 
                   onClick={() => handleEventClick(item)}
-                  className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-md cursor-pointer h-full flex flex-col card-hover"
+                  className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-md cursor-pointer transition-all duration-200 h-full flex flex-col"
                 >
                   <div className="flex items-start justify-between mb-3">
                     <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 flex-1">{item.title}</h3>
@@ -687,7 +687,7 @@ const AttendeeDashboard: React.FC = () => {
 
       {/* Sessions */}
       {activeTab === "sessions" && (
-        <div className="tab-content">
+        <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-900 flex items-center">
               <Users className="h-5 w-5 mr-2 text-orange-600" /> Available Sessions
@@ -706,7 +706,7 @@ const AttendeeDashboard: React.FC = () => {
               <p className="text-gray-500">No sessions available</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {sessions.map((session) => {
                 const booked = isSessionBooked(session.id);
                 const full = isSessionFull(session);
@@ -715,7 +715,7 @@ const AttendeeDashboard: React.FC = () => {
                   <div
                     key={session.id}
                     onClick={() => handleSessionClick(session)}
-                    className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-md cursor-pointer relative card-hover"
+                    className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-md cursor-pointer transition-all duration-200 relative"
                   >
                     {/* Real-time update indicator */}
                     {sessionsLoading && (
@@ -781,14 +781,14 @@ const AttendeeDashboard: React.FC = () => {
 
       {/* Maps */}
       {activeTab === "maps" && (
-        <div className="tab-content">
+        <div>
           <h2 className="text-xl font-bold text-gray-900 mb-4">Event Maps</h2>
           <div className="flex space-x-2 mb-4">
             {[1, 2, 3, 4, 5].map((day) => (
               <button
                 key={day}
                 onClick={() => setActiveDay(day)}
-                className={`px-4 py-2 rounded-lg text-sm btn-animate ${activeDay === day ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-700"}`}
+                className={`px-4 py-2 rounded-lg text-sm ${activeDay === day ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-700"}`}
               >
                 Day {day}
               </button>
@@ -798,7 +798,7 @@ const AttendeeDashboard: React.FC = () => {
             <img
               src={mapImages[activeDay - 1]}
               alt={`Day ${activeDay} Map`}
-              className="max-w-full h-auto rounded-lg fade-in-up"
+              className="max-w-full h-auto rounded-lg"
             />
           </div>
         </div>
@@ -806,16 +806,16 @@ const AttendeeDashboard: React.FC = () => {
 
       {/* Employers */}
       {activeTab === "employers" && (
-        <div className="tab-content">
+        <div>
           <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
             <Building className="h-5 w-5 mr-2 text-orange-600" /> Participating Companies
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {companies.map((company) => (
               <div
                 key={company.id}
                 onClick={() => handleCompanyClick(company)}
-                className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-md cursor-pointer card-hover"
+                className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-md cursor-pointer transition-shadow"
               >
                 <div className="text-center">
                   <img 
@@ -844,8 +844,8 @@ const AttendeeDashboard: React.FC = () => {
 
       {/* QR Code Modal */}
       {showQR && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center modal-content">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-gray-900">Your QR Code</h3>
               <button
@@ -891,8 +891,8 @@ const AttendeeDashboard: React.FC = () => {
 
       {/* Event Details Modal */}
       {showEventModal && selectedEvent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-gray-900">Event Details</h2>
@@ -951,7 +951,7 @@ const AttendeeDashboard: React.FC = () => {
                 <div className="pt-4 border-t border-gray-200">
                   <button
                     onClick={() => setShowEventModal(false)}
-                  className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 font-medium btn-animate"
+                    className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
                   >
                     Close Details
                   </button>
@@ -964,8 +964,8 @@ const AttendeeDashboard: React.FC = () => {
 
       {/* Session Details Modal */}
       {showSessionModal && selectedSession && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-gray-900">Session Details</h2>
@@ -1053,7 +1053,7 @@ const AttendeeDashboard: React.FC = () => {
                     <button
                       onClick={() => handleCancelBooking(selectedSession.id)}
                       disabled={bookingLoading}
-                    className="w-full bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed btn-animate"
+                      className="w-full bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {bookingLoading ? 'Cancelling...' : 'Cancel Booking'}
                     </button>
@@ -1061,7 +1061,7 @@ const AttendeeDashboard: React.FC = () => {
                     <button
                       onClick={() => handleBookSession(selectedSession.id)}
                       disabled={bookingLoading || isSessionFull(selectedSession)}
-                    className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed btn-animate"
+                      className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {bookingLoading ? 'Booking...' : isSessionFull(selectedSession) ? 'Session Full' : 'Book Now'}
                     </button>
@@ -1075,8 +1075,8 @@ const AttendeeDashboard: React.FC = () => {
 
       {/* Company Details Modal */}
       {showCompanyModal && selectedCompany && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-gray-900">Company Details</h2>
@@ -1131,7 +1131,7 @@ const AttendeeDashboard: React.FC = () => {
                 <div className="pt-4 space-y-3">
                   <button
                     onClick={() => handleEmployerWebsiteClick(selectedCompany.website)}
-                  className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 font-medium btn-animate"
+                    className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
                   >
                     Visit Career Page
                   </button>
@@ -1141,7 +1141,7 @@ const AttendeeDashboard: React.FC = () => {
                       setShowCompanyModal(false);
                       setSelectedCompany(null);
                     }}
-                  className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 font-medium btn-animate"
+                    className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium"
                   >
                     Close
                   </button>

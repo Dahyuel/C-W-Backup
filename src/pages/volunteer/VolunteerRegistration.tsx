@@ -14,16 +14,22 @@ import {
   validatePhone,
   validatePersonalId,
   validatePassword,
-  validateConfirmPassword
+  validateConfirmPassword,
+  validateGender // Add this import
 } from '../../utils/validation';
 import { useAuth } from '../../contexts/AuthContext';
+
+// Extended interface to include gender
+interface ExtendedVolunteerRegistrationData extends VolunteerRegistrationData {
+  gender: string;
+}
 
 export const VolunteerRegistration: React.FC = () => {
   const navigate = useNavigate();
   const { signUpVolunteer, signIn, isAuthenticated, profile, loading: authLoading, getRoleBasedRedirect } = useAuth();
   
   const [currentSection, setCurrentSection] = useState(1);
-  const [formData, setFormData] = useState<VolunteerRegistrationData>({
+  const [formData, setFormData] = useState<ExtendedVolunteerRegistrationData>({
     firstName: '',
     lastName: '',
     email: '',
@@ -32,7 +38,8 @@ export const VolunteerRegistration: React.FC = () => {
     faculty: '',
     password: '',
     confirmPassword: '',
-    role: ''
+    role: '',
+    gender: '' // Added gender field
   });
   
   const [errors, setErrors] = useState<ValidationError[]>([]);
@@ -53,6 +60,11 @@ export const VolunteerRegistration: React.FC = () => {
     { value: 'team_leader', label: 'Team Leader' }
   ];
 
+  const genderOptions = [
+    { value: 'male', label: 'Male' },
+    { value: 'female', label: 'Female' }
+  ];
+
   // Redirect when authentication is complete after auto-login
   useEffect(() => {
     if (isAuthenticated && profile && !authLoading) {
@@ -61,12 +73,24 @@ export const VolunteerRegistration: React.FC = () => {
     }
   }, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect]);
 
-  const updateField = (field: keyof VolunteerRegistrationData, value: string) => {
+  const updateField = (field: keyof ExtendedVolunteerRegistrationData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setErrors(prev => prev.filter(error => error.field !== field));
   };
 
-// In VolunteerRegistration.tsx - Fix the validateSection function
+ const validateGender = (gender: string): string | null => {
+  if (!gender || !gender.trim()) {
+    return 'Gender is required';
+  }
+
+  const validGenders = ['male', 'female'];
+  if (!validGenders.includes(gender.trim().toLowerCase())) {
+    return 'Please select a valid gender';
+  }
+
+  return null;
+};
+
 const validateSection = (section: number): ValidationError[] => {
   const validationErrors: ValidationError[] = [];
 
@@ -87,6 +111,10 @@ const validateSection = (section: number): ValidationError[] => {
     if (personalIdError) validationErrors.push({ field: 'personalId', message: personalIdError });
 
     if (!formData.faculty) validationErrors.push({ field: 'faculty', message: 'Faculty is required' });
+    
+    // Add gender validation
+    const genderError = validateGender(formData.gender);
+    if (genderError) validationErrors.push({ field: 'gender', message: genderError });
   }
 
   if (section === 2) {
@@ -105,8 +133,6 @@ const validateSection = (section: number): ValidationError[] => {
 
   return validationErrors;
 };
-
-
 
   const nextSection = () => {
     const sectionErrors = validateSection(currentSection);
@@ -135,7 +161,7 @@ const validateSection = (section: number): ValidationError[] => {
     if (allErrors.length > 0) {
       setErrors(allErrors);
       const firstErrorSection = Math.min(...allErrors.map(error => {
-        if (['firstName', 'lastName', 'email', 'phone', 'personalId', 'faculty'].includes(error.field)) return 1;
+        if (['firstName', 'lastName', 'email', 'phone', 'personalId', 'faculty', 'gender'].includes(error.field)) return 1;
         if (['role'].includes(error.field)) return 2;
         if (['password', 'confirmPassword'].includes(error.field)) return 3;
         return 1;
@@ -147,32 +173,44 @@ const validateSection = (section: number): ValidationError[] => {
     setLoading(true);
     setErrors([]);
 
-try {
-    // UPDATED: Include role in profile data
-    const profileData = {
-      first_name: formData.firstName.trim(),
-      last_name: formData.lastName.trim(),
-      phone: formData.phone.trim(),
-      personal_id: formData.personalId.trim(),
-      faculty: formData.faculty,
-      role: formData.role, // ✅ Include the selected role
-    };
+    try {
+      // Include gender in profile data
+      const profileData = {
+        first_name: formData.firstName.trim(),
+        last_name: formData.lastName.trim(),
+        phone: formData.phone.trim(),
+        personal_id: formData.personalId.trim(),
+        faculty: formData.faculty,
+        role: formData.role,
+        gender: formData.gender, // Added gender to profile data
+      };
 
-    // FIXED: Use signUpVolunteer instead of signUp
-    const { data, error } = await signUpVolunteer(formData.email, formData.password, profileData);
+      // Use signUpVolunteer which now generates volunteer ID
+      const { data, error } = await signUpVolunteer(formData.email, formData.password, profileData);
 
-    if (error) {
-      setErrors([{ field: "general", message: error.message }]);
-      return;
+      if (error) {
+        setErrors([{ field: "general", message: error.message }]);
+        return;
+      }
+
+      // Store the volunteer ID for display
+      const volunteerId = (data as any)?.volunteerId;
+      
+      // Show success message with volunteer ID
+      setShowSuccess(true);
+      
+      // Optional: Store volunteer ID in local storage for display
+      if (volunteerId) {
+        localStorage.setItem('newVolunteerId', volunteerId);
+      }
+
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      setErrors([{ field: "general", message: error.message || 'An unexpected error occurred' }]);
+    } finally {
+      setLoading(false);
     }
-
-    // ... rest of the function ...
-  } catch (error: any) {
-    // ... error handling ...
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const getFieldError = (field: string) => {
     return errors.find(error => error.field === field)?.message;
@@ -275,25 +313,48 @@ try {
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Faculty *
-        </label>
-        <select
-          value={formData.faculty}
-          onChange={(e) => updateField('faculty', e.target.value)}
-          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-            getFieldError('faculty') ? 'border-red-500' : 'border-gray-300'
-          }`}
-        >
-          <option value="">Select faculty</option>
-          {FACULTIES.map(faculty => (
-            <option key={faculty} value={faculty}>{faculty}</option>
-          ))}
-        </select>
-        {getFieldError('faculty') && (
-          <p className="mt-1 text-sm text-red-600">{getFieldError('faculty')}</p>
-        )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Faculty *
+          </label>
+          <select
+            value={formData.faculty}
+            onChange={(e) => updateField('faculty', e.target.value)}
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
+              getFieldError('faculty') ? 'border-red-500' : 'border-gray-300'
+            }`}
+          >
+            <option value="">Select faculty</option>
+            {FACULTIES.map(faculty => (
+              <option key={faculty} value={faculty}>{faculty}</option>
+            ))}
+          </select>
+          {getFieldError('faculty') && (
+            <p className="mt-1 text-sm text-red-600">{getFieldError('faculty')}</p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Gender *
+          </label>
+          <select
+            value={formData.gender}
+            onChange={(e) => updateField('gender', e.target.value)}
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
+              getFieldError('gender') ? 'border-red-500' : 'border-gray-300'
+            }`}
+          >
+            <option value="">Select gender</option>
+            {genderOptions.map(option => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+          {getFieldError('gender') && (
+            <p className="mt-1 text-sm text-red-600">{getFieldError('gender')}</p>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -423,6 +484,8 @@ try {
 
   // Show success message only when auto-login fails
   if (showSuccess) {
+    const newVolunteerId = localStorage.getItem('newVolunteerId');
+    
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center border border-orange-100">
@@ -430,11 +493,23 @@ try {
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Volunteer Registration Successful!</h2>
+          
+          {newVolunteerId && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm font-medium text-blue-800">Your Volunteer ID:</p>
+              <p className="text-lg font-bold text-blue-900">{newVolunteerId}</p>
+              <p className="text-xs text-blue-600 mt-1">Please save this ID for future reference</p>
+            </div>
+          )}
+          
           <p className="text-gray-600 mb-6">
             Your account has been created successfully. You can now log in to access your volunteer dashboard.
           </p>
           <button
-            onClick={() => navigate('/login')}
+            onClick={() => {
+              localStorage.removeItem('newVolunteerId');
+              navigate('/login');
+            }}
             className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 transform hover:scale-105"
           >
             Go to Login
@@ -444,41 +519,58 @@ try {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white py-8 px-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-4">
-            <Heart className="h-12 w-12 text-orange-600 mr-3" />
-            <h1 className="text-4xl font-bold text-gray-900">Volunteer Registration</h1>
+return (
+    <div className="min-h-screen relative">
+      {/* Background Image */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
+        style={{
+          backgroundImage: 'url("https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/careercenter.png")',
+        }}
+      >
+        {/* Overlay for better readability */}
+        <div className="absolute inset-0 bg-black bg-opacity-10"></div>
+      </div>
+
+      <div className="relative z-10 py-8 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center mb-4">
+              <Heart className="h-12 w-12 text-white mr-3 drop-shadow-lg" />
+              <h1 className="text-4xl font-bold text-white drop-shadow-lg">Volunteer Registration</h1>
+            </div>
+            <p className="text-white drop-shadow">Join our amazing volunteer team and help make Career Week unforgettable!</p>
           </div>
-          <p className="text-gray-600">Join our amazing volunteer team and help make Career Week unforgettable!</p>
-        </div>
+          </div>
+          
+
 
         {/* Progress Steps */}
         <div className="mb-8">
-          <div className="flex items-center justify-between max-w-2xl mx-auto">
+          <div className="flex items-center max-w-2xl mx-auto">
             {sections.map((section, index) => (
-              <div key={section.id} className="flex items-center">
-                <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors ${
-                  currentSection >= section.id
-                    ? 'bg-orange-500 border-orange-500 text-white'
-                    : 'bg-white border-gray-300 text-gray-400'
-                }`}>
-                  <section.icon className="w-5 h-5" />
+              <React.Fragment key={section.id}>
+                <div className="flex flex-col items-center">
+                  <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors ${
+                    currentSection >= section.id
+                      ? 'bg-orange-500 border-orange-500 text-white'
+                      : 'bg-white border-gray-300 text-gray-400'
+                  }`}>
+                    <section.icon className="w-5 h-5" />
+                  </div>
                 </div>
                 {index < sections.length - 1 && (
-                  <div className={`w-16 h-0.5 mx-2 transition-colors ${
+                  <div className={`flex-1 h-0.5 mx-2 transition-colors ${
                     currentSection > section.id ? 'bg-orange-500' : 'bg-gray-300'
                   }`} />
                 )}
-              </div>
+              </React.Fragment>
             ))}
           </div>
           <div className="flex justify-between max-w-2xl mx-auto mt-2">
             {sections.map(section => (
               <div key={section.id} className="text-xs text-center" style={{ width: '120px' }}>
-                <span className={currentSection >= section.id ? 'text-orange-600 font-medium' : 'text-gray-500'}>
+                <span className={`${currentSection >= section.id ? 'text-white font-medium drop-shadow' : 'text-white drop-shadow'}`}>
                   {section.title}
                 </span>
               </div>

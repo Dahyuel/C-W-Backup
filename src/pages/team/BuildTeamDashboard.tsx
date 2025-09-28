@@ -51,13 +51,21 @@ interface Attendee {
   university?: string;
   faculty?: string;
   current_status?: 'inside' | 'outside';
+  building_entry?: boolean; // Add this line
   last_scan?: string;
+}
+interface AttendeeCardProps {
+  // ... existing props
+  disableAction?: boolean;
+  disableReason?: string;
 }
 
 const castToAttendee = (data: any): Attendee => {
   return {
     ...data,
-    current_status: data.current_status === 'inside' ? 'inside' : 'outside'
+    // For building dashboard, current_status should reflect building entry
+    current_status: data.building_entry ? 'inside' : 'outside',
+    building_entry: data.building_entry // Add this field to pass building status
   } as Attendee;
 };
 
@@ -508,7 +516,7 @@ export const BuildTeamDashboard: React.FC = () => {
     >
       {/* Feedback Toast */}
       {feedback && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center space-x-2 px-4 py-3 rounded-lg shadow-lg toast-enter ${
+        <div className={`fixed top-4 right-4 z-50 flex items-center space-x-2 px-4 py-3 rounded-lg shadow-lg ${
           feedback.type === 'success' 
             ? 'bg-green-500 text-white' 
             : 'bg-red-500 text-white'
@@ -529,13 +537,13 @@ export const BuildTeamDashboard: React.FC = () => {
       )}
 
       {/* Tabs */}
-      <div className="flex space-x-6 mb-8 border-b border-gray-200 fade-in-up" style={{ animationDelay: '0.1s' }}>
+      <div className="flex space-x-6 mb-8 border-b border-gray-200">
         <button
           onClick={() => {
             setActiveTab("building");
             resetSessionTab();
           }}
-          className={`pb-2 px-2 text-sm font-medium btn-animate ${
+          className={`pb-2 px-2 text-sm font-medium ${
             activeTab === "building"
               ? "text-orange-600 border-b-2 border-orange-600"
               : "text-gray-500 hover:text-gray-700"
@@ -548,7 +556,7 @@ export const BuildTeamDashboard: React.FC = () => {
             setActiveTab("session");
             resetBuildingTab();
           }}
-          className={`pb-2 px-2 text-sm font-medium btn-animate ${
+          className={`pb-2 px-2 text-sm font-medium ${
             activeTab === "session"
               ? "text-orange-600 border-b-2 border-orange-600"
               : "text-gray-500 hover:text-gray-700"
@@ -564,7 +572,7 @@ export const BuildTeamDashboard: React.FC = () => {
           <>
             {/* Building Main View */}
             {!buildingSearchMode && (
-              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-8 space-y-6 fade-in-up" style={{ animationDelay: '0.2s' }}>
+              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-8 space-y-6">
                 <h2 className="text-2xl font-bold text-gray-900 text-center flex items-center justify-center gap-2">
                   <Building2 className="h-6 w-6 text-orange-500" />
                   Building Attendance Management
@@ -576,14 +584,14 @@ export const BuildTeamDashboard: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                   <button
                     onClick={() => setBuildingSearchMode("qr")}
-                    className="flex items-center justify-center p-4 bg-orange-500 text-white rounded-lg hover:bg-orange-600 btn-animate"
+                    className="flex items-center justify-center p-4 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
                   >
                     <QrCode className="h-5 w-5 mr-2" />
                     QR Code Scanner
                   </button>
                   <button
                     onClick={() => setBuildingSearchMode("manual")}
-                    className="flex items-center justify-center p-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 btn-animate"
+                    className="flex items-center justify-center p-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
                   >
                     <Search className="h-5 w-5 mr-2" />
                     Search by Personal ID
@@ -594,7 +602,7 @@ export const BuildTeamDashboard: React.FC = () => {
 
             {/* Building Manual Search */}
             {buildingSearchMode === "manual" && (
-              <div className="bg-white rounded-xl shadow-sm p-6 fade-in-up" style={{ animationDelay: '0.3s' }}>
+              <div className="bg-white rounded-xl shadow-sm p-6">
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -681,7 +689,7 @@ export const BuildTeamDashboard: React.FC = () => {
                       <button
                         onClick={handleBuildingSearchByPersonalId}
                         disabled={buildingSearchLoading || !buildingSearchTerm.trim()}
-                        className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center space-x-2 btn-animate"
+                        className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
                       >
                         {buildingSearchLoading ? (
                           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
@@ -729,17 +737,17 @@ export const BuildTeamDashboard: React.FC = () => {
                     <span className="ml-3 text-gray-600">Loading sessions...</span>
                   </div>
                 ) : sessions.length === 0 ? (
-                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center fade-in-up" style={{ animationDelay: '0.2s' }}>
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
                     <Calendar className="h-16 w-16 text-gray-400 mx-auto mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 mb-2">No Sessions Available</h3>
                     <p className="text-gray-600">There are currently no sessions scheduled.</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {sessions.map((session) => (
                       <div
                         key={session.id}
-                        className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 cursor-pointer hover:shadow-md card-hover"
+                        className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 cursor-pointer hover:shadow-md transition"
                         onClick={() => setSelectedSession(session)}
                       >
                         <div className="flex items-center justify-between mb-3">
@@ -791,7 +799,7 @@ export const BuildTeamDashboard: React.FC = () => {
 
             {/* Session Selected */}
             {selectedSession && !sessionMode && (
-              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 space-y-4 fade-in-up" style={{ animationDelay: '0.3s' }}>
+              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-bold text-gray-900">
                     {selectedSession.title}
@@ -842,7 +850,7 @@ export const BuildTeamDashboard: React.FC = () => {
                   <button
                     onClick={() => setSessionMode("session_entry")}
                     disabled={selectedSession.capacity && selectedSession.current_attendees >= selectedSession.capacity}
-                    className="w-full flex items-center justify-center p-4 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed btn-animate"
+                    className="w-full flex items-center justify-center p-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
                   >
                     <PlusCircle className="h-5 w-5 mr-2" />
                     Add Attendee to Session
@@ -856,7 +864,7 @@ export const BuildTeamDashboard: React.FC = () => {
 
             {/* Session Action Selection */}
             {sessionMode === "session_entry" && !sessionSearchMode && (
-              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 space-y-6 fade-in-up" style={{ animationDelay: '0.4s' }}>
+              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 space-y-6">
                 <h2 className="text-xl font-bold text-gray-900">
                   Add Attendee to: {selectedSession?.title}
                 </h2>
@@ -866,14 +874,14 @@ export const BuildTeamDashboard: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <button
                     onClick={() => setSessionSearchMode("qr")}
-                    className="flex items-center justify-center p-4 bg-orange-500 text-white rounded-lg hover:bg-orange-600 btn-animate"
+                    className="flex items-center justify-center p-4 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
                   >
                     <QrCode className="h-5 w-5 mr-2" />
                     QR Code Scanner
                   </button>
                   <button
                     onClick={() => setSessionSearchMode("manual")}
-                    className="flex items-center justify-center p-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 btn-animate"
+                    className="flex items-center justify-center p-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
                   >
                     <Search className="h-5 w-5 mr-2" />
                     Search by Personal ID
@@ -890,7 +898,7 @@ export const BuildTeamDashboard: React.FC = () => {
 
             {/* Session Manual Search */}
             {sessionSearchMode === "manual" && (
-              <div className="bg-white rounded-xl shadow-sm p-6 fade-in-up" style={{ animationDelay: '0.5s' }}>
+              <div className="bg-white rounded-xl shadow-sm p-6">
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -977,7 +985,7 @@ export const BuildTeamDashboard: React.FC = () => {
                       <button
                         onClick={handleSessionSearchByPersonalId}
                         disabled={sessionSearchLoading || !sessionSearchTerm.trim()}
-                        className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center space-x-2 btn-animate"
+                        className="px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
                       >
                         {sessionSearchLoading ? (
                           <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
@@ -1035,23 +1043,37 @@ export const BuildTeamDashboard: React.FC = () => {
           />
         )}
 
-        {/* Attendee Card Modal with dynamic action handlers */}
-        <AttendeeCard
-          isOpen={showAttendeeCard}
-          onClose={() => {
-            setShowAttendeeCard(false);
-            setSelectedAttendee(null);
-          }}
-          attendee={selectedAttendee}
-          onAction={
-            activeTab === "session" && sessionMode === "session_entry" 
-              ? handleSessionAttendanceAction 
-              : handleBuildingAttendanceAction
-          }
-          loading={actionLoading}
-          mode={activeTab === "session" && sessionMode === "session_entry" ? "session" : "building"}
-          sessionTitle={activeTab === "session" && sessionMode === "session_entry" ? selectedSession?.title : undefined}
-        />
+{/* Attendee Card Modal with dynamic action handlers and building entry validation */}
+<AttendeeCard
+  isOpen={showAttendeeCard}
+  onClose={() => {
+    setShowAttendeeCard(false);
+    setSelectedAttendee(null);
+  }}
+  attendee={selectedAttendee}
+  onAction={
+    activeTab === "session" && sessionMode === "session_entry" 
+      ? handleSessionAttendanceAction 
+      : handleBuildingAttendanceAction
+  }
+  loading={actionLoading}
+  mode={activeTab === "session" && sessionMode === "session_entry" ? "session" : "building"}
+  sessionTitle={activeTab === "session" && sessionMode === "session_entry" ? selectedSession?.title : undefined}
+  disableAction={
+    activeTab === "session" && 
+    sessionMode === "session_entry" && 
+    selectedAttendee && 
+    !selectedAttendee.building_entry
+  }
+  disableReason={
+    activeTab === "session" && 
+    sessionMode === "session_entry" && 
+    selectedAttendee && 
+    !selectedAttendee.building_entry 
+      ? "Attendee must be inside the building to join a session" 
+      : undefined
+  }
+/>
       </div>
     </DashboardLayout>
   );

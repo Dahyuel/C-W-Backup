@@ -135,77 +135,75 @@ export const RegistrationForm: React.FC = () => {
     setErrors(prev => prev.filter(error => error.field !== field));
   };
 
-  const validateSection = (section: number): ValidationError[] => {
-    const validationErrors: ValidationError[] = [];
-  
-    if (section === 1) {
-      const firstNameError = validateName(formData.firstName, 'First name');
-      if (firstNameError) validationErrors.push({ field: 'firstName', message: firstNameError });
-  
-      const lastNameError = validateName(formData.lastName, 'Last name');
-      if (lastNameError) validationErrors.push({ field: 'lastName', message: lastNameError });
-  
-      if (!formData.gender) validationErrors.push({ field: 'gender', message: 'Gender is required' });
-      if (!formData.nationality) validationErrors.push({ field: 'nationality', message: 'Nationality is required' });
-  
-      const emailError = validateEmail(formData.email);
-      if (emailError) validationErrors.push({ field: 'email', message: emailError });
-  
-      const phoneError = validatePhone(formData.phone);
-      if (phoneError) validationErrors.push({ field: 'phone', message: phoneError });
-  
-      const personalIdError = validatePersonalId(formData.personalId);
-      if (personalIdError) validationErrors.push({ field: 'personalId', message: personalIdError });
-    }
-  
-    if (section === 2) {
-      if (!formData.university) validationErrors.push({ field: 'university', message: 'University is required' });
-      if (!formData.faculty) validationErrors.push({ field: 'faculty', message: 'Faculty is required' });
-      if (!formData.degreeLevel) validationErrors.push({ field: 'degreeLevel', message: 'Degree level is required' });
-      if (!formData.program) validationErrors.push({ field: 'program', message: 'Program/Major is required' });
-      // Only validate class year for students, not for graduates
-      if (formData.degreeLevel === 'student' && !formData.classYear) {
-        validationErrors.push({ field: 'classYear', message: 'Class year is required for students' });
-      }
-    }
-  
-    if (section === 3) {
-      if (!formData.howDidYouHear) validationErrors.push({ field: 'howDidYouHear', message: 'This field is required' });
-      
-      // File upload validation
-      if (!fileUploads.universityId) validationErrors.push({ field: 'universityId', message: 'University ID is required' });
-      if (!fileUploads.resume) validationErrors.push({ field: 'resume', message: 'CV/Resume is required' });
-  
-      // Volunteer ID validation (if provided)
-      if (formData.volunteerId && formData.volunteerId.trim()) {
-        const volunteerIdError = validateVolunteerId(formData.volunteerId);
-        if (volunteerIdError) validationErrors.push({ field: 'volunteerId', message: volunteerIdError });
-      }
-    }
-  
-    if (section === 4) {
-      const passwordError = validatePassword(formData.password);
-      if (passwordError) validationErrors.push({ field: 'password', message: passwordError });
-  
-      const confirmPasswordError = validateConfirmPassword(formData.password, formData.confirmPassword);
-      if (confirmPasswordError) validationErrors.push({ field: 'confirmPassword', message: confirmPasswordError });
-    }
-  
-    return validationErrors;
-  };
+const validateSection = async (section: number): Promise<ValidationError[]> => {
+  const validationErrors: ValidationError[] = [];
 
-  const nextSection = () => {
-    const sectionErrors = validateSection(currentSection);
-    if (sectionErrors.length > 0) {
-      setErrors(sectionErrors);
-      return;
+  if (section === 1) {
+    const firstNameError = validateName(formData.firstName, 'First name');
+    if (firstNameError) validationErrors.push({ field: 'firstName', message: firstNameError });
+
+    const lastNameError = validateName(formData.lastName, 'Last name');
+    if (lastNameError) validationErrors.push({ field: 'lastName', message: lastNameError });
+
+    if (!formData.gender) validationErrors.push({ field: 'gender', message: 'Gender is required' });
+    if (!formData.nationality) validationErrors.push({ field: 'nationality', message: 'Nationality is required' });
+
+    const emailError = validateEmail(formData.email);
+    if (emailError) validationErrors.push({ field: 'email', message: emailError });
+
+    const phoneError = validatePhone(formData.phone);
+    if (phoneError) validationErrors.push({ field: 'phone', message: phoneError });
+
+    const personalIdError = validatePersonalId(formData.personalId);
+    if (personalIdError) validationErrors.push({ field: 'personalId', message: personalIdError });
+  }
+
+  if (section === 2) {
+    if (!formData.university) validationErrors.push({ field: 'university', message: 'University is required' });
+    if (!formData.faculty) validationErrors.push({ field: 'faculty', message: 'Faculty is required' });
+    if (!formData.degreeLevel) validationErrors.push({ field: 'degreeLevel', message: 'Degree level is required' });
+    if (!formData.program) validationErrors.push({ field: 'program', message: 'Program/Major is required' });
+    // Only validate class year for students, not for graduates
+    if (formData.degreeLevel === 'student' && !formData.classYear) {
+      validationErrors.push({ field: 'classYear', message: 'Class year is required for students' });
     }
+  }
+
+  if (section === 3) {
+    if (!formData.howDidYouHear) validationErrors.push({ field: 'howDidYouHear', message: 'This field is required' });
     
-    setErrors([]);
-    if (currentSection < 4) {
-      setCurrentSection(currentSection + 1);
-    }
-  };
+    // File upload validation
+    if (!fileUploads.universityId) validationErrors.push({ field: 'universityId', message: 'University ID is required' });
+    if (!fileUploads.resume) validationErrors.push({ field: 'resume', message: 'CV/Resume is required' });
+
+    // Volunteer ID is optional - no validation needed
+    // Removed the volunteer ID validation completely
+  }
+
+  if (section === 4) {
+    const passwordError = validatePassword(formData.password);
+    if (passwordError) validationErrors.push({ field: 'password', message: passwordError });
+
+    const confirmPasswordError = validateConfirmPassword(formData.password, formData.confirmPassword);
+    if (confirmPasswordError) validationErrors.push({ field: 'confirmPassword', message: confirmPasswordError });
+  }
+
+  return validationErrors;
+};
+
+  
+ const nextSection = async () => {
+  const sectionErrors = await validateSection(currentSection);
+  if (sectionErrors.length > 0) {
+    setErrors(sectionErrors);
+    return;
+  }
+  
+  setErrors([]);
+  if (currentSection < 4) {
+    setCurrentSection(currentSection + 1);
+  }
+};
 
   const prevSection = () => {
     if (currentSection > 1) {
@@ -213,11 +211,14 @@ export const RegistrationForm: React.FC = () => {
     }
   };
 
+
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
-  // Validate all sections
-  const allErrors = [1, 2, 3, 4].flatMap(section => validateSection(section));
+  // Validate all sections (same as volunteer)
+  const allErrors = await Promise.all([1, 2, 3, 4].map(section => validateSection(section)))
+    .then(errorArrays => errorArrays.flat());
+    
   if (allErrors.length > 0) {
     setErrors(allErrors);
     const sectionMap: Record<string, number> = {
@@ -240,6 +241,7 @@ const handleSubmit = async (e: React.FormEvent) => {
   setErrors([]);
 
   try {
+    // Prepare profile data (same structure as volunteer but for attendee)
     const profileData = {
       first_name: formData.firstName.trim(),
       last_name: formData.lastName.trim(),
@@ -256,7 +258,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       volunteer_id: formData.volunteerId?.trim() || null,
     };
 
-    // Create user account
+    // Create user account (using updated signUpUser function)
     const { data, error } = await signUpUser(formData.email, formData.password, profileData);
 
     if (error) {
@@ -266,7 +268,7 @@ const handleSubmit = async (e: React.FormEvent) => {
 
     console.log("✅ Attendee registration successful, uploading files...");
 
-    // FILE UPLOADS — use correct buckets
+    // FILE UPLOADS (same as before)
     if (data?.user?.id) {
       const userId = data.user.id;
       const fileUpdates: Partial<{
@@ -277,7 +279,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       // Upload University ID → to 'university-ids' bucket
       if (fileUploads.universityId) {
         const { data: uniData, error: uniError } = await uploadFile(
-          'university-ids',   // ✅ Correct bucket
+          'university-ids',
           userId,
           fileUploads.universityId
         );
@@ -293,7 +295,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       // Upload Resume/CV → to 'cvs' bucket
       if (fileUploads.resume) {
         const { data: resumeData, error: resumeError } = await uploadFile(
-          'cvs',              // ✅ Correct bucket
+          'cvs',
           userId,
           fileUploads.resume
         );
@@ -311,21 +313,25 @@ const handleSubmit = async (e: React.FormEvent) => {
         const { error: updateError } = await updateUserFiles(userId, fileUpdates);
         if (updateError) {
           console.warn('Profile file paths update failed (user still created):', updateError);
-          // Optional: show a non-blocking warning to user
         }
       }
     }
 
-    console.log("✅ File upload completed, attempting auto-login...");
+    console.log("✅ Registration completed successfully, attempting auto-login...");
 
-    // Auto-login
-    const { error: signInError } = await signIn(formData.email, formData.password);
-    if (signInError) {
-      console.warn("⚠️ Auto-login failed:", signInError.message);
+    // Auto-login attempt (same as volunteer)
+    try {
+      const { error: signInError } = await signIn(formData.email, formData.password);
+      if (signInError) {
+        console.warn("⚠️ Auto-login failed:", signInError.message);
+        // Show success page instead of redirecting
+        setShowSuccess(true);
+      }
+      // If auto-login succeeds, the useEffect will handle the redirect
+    } catch (loginError) {
+      console.warn("⚠️ Auto-login exception:", loginError);
+      setShowSuccess(true);
     }
-
-    // Show success (redirect usually handled by auth listener)
-    setShowSuccess(true);
 
   } catch (error: any) {
     console.error("Unexpected error during registration:", error);
@@ -337,6 +343,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     setLoading(false);
   }
 };
+  
   const getFieldError = (field: string) => {
     return errors.find(error => error.field === field)?.message;
   };
@@ -797,40 +804,53 @@ const handleSubmit = async (e: React.FormEvent) => {
     );
   }
 
-  return (
-    <div className="min-h-screen relative page-transition">
+return (
+    <div className="min-h-screen relative">
       {/* Background Image */}
+      <div 
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
+        style={{
+          backgroundImage: 'url("https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/careercenter.png")',
+        }}
+      >
+        {/* Overlay for better readability */}
+        <div className="absolute inset-0 bg-black bg-opacity-10"></div>
+      </div>
+
       <div className="relative z-10 py-8 px-4">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-8 fade-in-down">
-            <h1 className="text-4xl font-bold text-gray-900 mb-2">Join Career Week</h1>
-            <p className="text-gray-600">Create your attendee account to access exclusive events</p>
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-white mb-2 drop-shadow-lg">Join Career Week</h1>
+            <p className="text-white drop-shadow">Create your attendee account to access exclusive events</p>
           </div>
-
-        {/* Progress Steps */}
-        <div className="mb-8 fade-in-up" style={{ animationDelay: '0.2s' }}>
-          <div className="flex items-center justify-between max-w-2xl mx-auto">
+          </div>
+          
+{/* Progress Steps */}
+        <div className="mb-8">
+          <div className="flex items-center max-w-2xl mx-auto">
             {sections.map((section, index) => (
-              <div key={section.id} className="flex items-center">
-                <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors ${
-                  currentSection >= section.id
-                    ? 'bg-orange-500 border-orange-500 text-white'
-                    : 'bg-white border-gray-300 text-gray-400'
-                }`}>
-                  <section.icon className="w-5 h-5" />
+              <React.Fragment key={section.id}>
+                <div className="flex flex-col items-center">
+                  <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors ${
+                    currentSection >= section.id
+                      ? 'bg-orange-500 border-orange-500 text-white'
+                      : 'bg-white border-gray-300 text-gray-400'
+                  }`}>
+                    <section.icon className="w-5 h-5" />
+                  </div>
                 </div>
                 {index < sections.length - 1 && (
-                  <div className={`w-16 h-0.5 mx-2 transition-colors ${
+                  <div className={`flex-1 h-0.5 mx-2 transition-colors ${
                     currentSection > section.id ? 'bg-orange-500' : 'bg-gray-300'
                   }`} />
                 )}
-              </div>
+              </React.Fragment>
             ))}
           </div>
           <div className="flex justify-between max-w-2xl mx-auto mt-2">
             {sections.map(section => (
               <div key={section.id} className="text-xs text-center" style={{ width: '120px' }}>
-                <span className={currentSection >= section.id ? 'text-orange-600 font-medium' : 'text-gray-500'}>
+                <span className={`${currentSection >= section.id ? 'text-white font-medium drop-shadow' : 'text-white drop-shadow'}`}>
                   {section.title}
                 </span>
               </div>
@@ -838,7 +858,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-2xl p-8 border border-orange-100 fade-in-scale" style={{ animationDelay: '0.4s' }}>
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-2xl p-8 border border-orange-100">
           {/* General Error */}
           {getFieldError('general') && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
@@ -861,9 +881,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           </div>
 
           {/* Section Content */}
-          <div className="tab-content">
-            {renderSectionContent()}
-          </div>
+          {renderSectionContent()}
 
           {/* Navigation Buttons */}
           <div className="flex justify-between mt-8 pt-6 border-t border-gray-200">
@@ -882,18 +900,18 @@ const handleSubmit = async (e: React.FormEvent) => {
 
             {currentSection < 4 ? (
               <button
-                type="button"
-                onClick={nextSection}
-                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 flex items-center btn-animate"
-              >
-                Next
-                <ChevronRight className="w-4 h-4 ml-2" />
-              </button>
+  type="button"
+  onClick={() => nextSection()}
+  className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 transform hover:scale-105 flex items-center"
+>
+  Next
+  <ChevronRight className="w-4 h-4 ml-2" />
+</button>
             ) : (
               <button
                 type="submit"
                 disabled={loading}
-                className="px-8 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center btn-animate"
+                className="px-8 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center"
               >
                 {loading ? (
                   <>

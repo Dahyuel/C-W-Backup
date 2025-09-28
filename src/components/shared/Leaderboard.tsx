@@ -264,7 +264,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId }) =>
       )}
 
       {/* Leaderboard List */}
-      <div className="space-y-2 fade-in-up" style={{ animationDelay: '0.3s' }}>
+      <div className="space-y-2">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 flex items-center">
             <Trophy className="h-5 w-5 mr-2 text-orange-600" />
@@ -279,13 +279,13 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId }) =>
             <p className="text-gray-500">No data available</p>
           </div>
         ) : (
-          <div className="space-y-3 stagger-list">
+          <div className="space-y-3">
             {leaderboardData.map((user) => {
               const isCurrentUser = user.id === currentUserId;
               return (
                 <div
                   key={user.id}
-                  className={`flex items-center justify-between p-4 rounded-lg border smooth-hover ${getRankBackgroundColor(user.rank, isCurrentUser)} ${
+                  className={`flex items-center justify-between p-4 rounded-lg border transition-all ${getRankBackgroundColor(user.rank, isCurrentUser)} ${
                     isCurrentUser ? 'ring-2 ring-orange-300' : ''
                   }`}
                 >
