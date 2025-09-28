@@ -143,13 +143,78 @@ export const validateRegistrationData = async (
   }
 };
 
+export const getVolunteerByVolunteerId = async (volunteerId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('users_profiles')
+      .select(`
+        id,
+        first_name,
+        last_name,
+        role,
+        volunteer_id
+      `)
+      .eq('volunteer_id', volunteerId.trim())
+      .neq('role', 'attendee')
+      .single();
+
+    if (error) {
+      console.error('Get volunteer error:', error);
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  } catch (error: any) {
+    console.error('Get volunteer exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+export const validateRegistrationWithVolunteer = async (
+  personalId: string,
+  volunteerId?: string,
+  email?: string
+): Promise<{ 
+  isValid: boolean; 
+  errors: string[]; 
+  volunteerInfo?: any;
+  volunteerUuid?: string;
+}> => {
+  try {
+    const { data, error } = await supabase.rpc('validate_registration_with_volunteer', {
+      p_personal_id: personalId.trim(),
+      p_volunteer_id: volunteerId?.trim() || null,
+      p_email: email?.trim().toLowerCase() || null
+    });
+
+    if (error) {
+      console.error('Validation error:', error);
+      return {
+        isValid: false,
+        errors: ['Validation failed. Please try again.']
+      };
+    }
+
+    return {
+      isValid: data.is_valid,
+      errors: data.errors || [],
+      volunteerInfo: data.volunteer_info,
+      volunteerUuid: data.volunteer_uuid
+    };
+  } catch (error: any) {
+    console.error('Validation exception:', error);
+    return {
+      isValid: false,
+      errors: ['An unexpected error occurred during validation.']
+    };
+  }
+};
 // Updated signUpUser function using the same successful approach as volunteer registration
-// Updated signUpUser function using the same successful approach as volunteer registration
+// CORRECTED signUpUser function - DO NOT pass volunteer_id for attendees
 export const signUpUser = async (email: string, password: string, userData: any) => {
   try {
     console.log('Starting attendee registration...');
     
-    // STEP 1: Check if user already exists (like volunteer registration does)
+    // STEP 1: Check if user already exists
     const userExists = await checkUserExists(userData.personal_id, email);
     if (userExists.exists) {
       const errors: string[] = [];
@@ -170,7 +235,7 @@ export const signUpUser = async (email: string, password: string, userData: any)
 
     console.log('User does not exist, creating attendee auth user...');
 
-    // STEP 2: Create auth user first (same as volunteer)
+    // STEP 2: Create auth user first
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
       password,
@@ -187,7 +252,7 @@ export const signUpUser = async (email: string, password: string, userData: any)
 
     console.log('Auth user created successfully:', authData.user.id);
 
-    // STEP 3: Create attendee profile (same pattern as volunteer)
+    // STEP 3: Create attendee profile with proper reg_id handling
     try {
       // Process referrer ID if provided
       let referrerId = null;
@@ -216,8 +281,9 @@ export const signUpUser = async (email: string, password: string, userData: any)
         university: userData.university?.trim() || '',
         faculty: userData.faculty?.trim() || '',
         personal_id: userData.personal_id?.trim(),
-        reg_id: referrerId,
-        // Don't set role here - let database use default or handle it separately
+        volunteer_id: null, // CRITICAL: Attendees don't get volunteer_id - only actual volunteers do
+        reg_id: referrerId, // This is where we store the referring volunteer's UUID
+        role: 'attendee', // Explicitly set role
         score: 0,
         building_entry: false,
         event_entry: false,
@@ -251,7 +317,7 @@ export const signUpUser = async (email: string, password: string, userData: any)
         profileDataToInsert.how_did_hear_about_event = userData.how_did_hear_about_event.trim();
       }
 
-      // Insert profile (same pattern as volunteer)
+      // Insert profile (attendees never have volunteer_id)
       const { data: profileData, error: profileError } = await supabase
         .from("users_profiles")
         .insert(profileDataToInsert)
@@ -260,13 +326,9 @@ export const signUpUser = async (email: string, password: string, userData: any)
       if (profileError) {
         console.error('Attendee profile creation error:', profileError);
         
-        // Clean up auth user (same as volunteer)
-        try {
-          await supabase.auth.admin.deleteUser(authData.user.id);
-          console.log('Cleaned up auth user after profile creation failure');
-        } catch (cleanupError) {
-          console.error('Failed to cleanup auth user:', cleanupError);
-        }
+        // Clean up auth user (can't use admin.deleteUser from client)
+        // This is handled by auth triggers or RLS policies
+        console.warn('Auth user cleanup may need to be handled server-side');
         
         // Return more specific error messages
         let errorMessage = 'Failed to create user profile. ';
@@ -275,6 +337,8 @@ export const signUpUser = async (email: string, password: string, userData: any)
             errorMessage += 'This Personal ID is already registered.';
           } else if (profileError.message.includes('email')) {
             errorMessage += 'This email address is already registered.';
+          } else if (profileError.message.includes('volunteer_id')) {
+            errorMessage += 'There was an error with volunteer ID processing.';
           } else {
             errorMessage += 'Some information is already in use.';
           }
@@ -290,15 +354,6 @@ export const signUpUser = async (email: string, password: string, userData: any)
 
     } catch (profileError) {
       console.error('Attendee profile creation exception:', profileError);
-      
-      // Clean up auth user
-      try {
-        await supabase.auth.admin.deleteUser(authData.user.id);
-        console.log('Cleaned up auth user after profile creation exception');
-      } catch (cleanupError) {
-        console.error('Failed to cleanup auth user:', cleanupError);
-      }
-      
       return { data: null, error: { message: profileError.message || 'Attendee registration failed' } };
     }
 
