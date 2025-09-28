@@ -121,10 +121,11 @@ export const LoginForm: React.FC = () => {
             {/* Bigger Rounded Logo */}
             <div className="mx-auto w-28 h-28 bg-white rounded-full flex items-center justify-center mb-2 shadow-lg">
               <img 
-                src="\src\Assets\logo.png" 
+                src="https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/logo.png" 
                 alt="ASU Career Week Logo" 
                 className="w-24 h-24 rounded-full object-cover"
               />
+            </div>
             </div>
             <h1 className="text-2xl font-bold text-white mb-2">Welcome Back</h1>
             <p className="text-orange-100">Sign in to ASU Career Week</p>
