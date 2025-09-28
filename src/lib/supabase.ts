@@ -254,30 +254,38 @@ export const signUpUser = async (email: string, password: string, userData: any)
 
     console.log('Auth user created successfully:', authData.user.id);
 
-    // STEP 3: Create attendee profile using RPC function
+    // STEP 3: Create attendee profile using direct insert (bypassing RPC enum issues)
     try {
-      // Use RPC function for proper enum casting
-      const { data: profileData, error: profileError } = await supabase
-        .rpc('insert_attendee_profile', {
-          p_id: authData.user.id,
-          p_email: email.trim().toLowerCase(),
-          p_first_name: userData.first_name?.trim() || '',
-          p_last_name: userData.last_name?.trim() || '',
-          p_personal_id: userData.personal_id?.trim(),
-          p_university: userData.university?.trim() || '',
-          p_faculty: userData.faculty?.trim() || '',
-          p_program: userData.program?.trim() || '',
-          p_nationality: userData.nationality?.trim() || '',
-          // Optional parameters
-          p_phone: userData.phone?.trim() || null,
-          p_reg_id: validation.volunteerUuid || null,
-          p_gender: userData.gender?.trim() || null,
-          p_degree_level: userData.degree_level?.trim() || null,
-          p_class: userData.class?.trim() || null,
-          p_how_did_hear: userData.how_did_hear_about_event?.trim() || null,
-          p_university_id_path: userData.university_id_path || null,
-          p_cv_path: userData.cv_path || null
-        });
+      const profileData = {
+        id: authData.user.id,
+        email: email.trim().toLowerCase(),
+        first_name: userData.first_name?.trim() || '',
+        last_name: userData.last_name?.trim() || '',
+        personal_id: userData.personal_id?.trim(),
+        university: userData.university?.trim() || '',
+        faculty: userData.faculty?.trim() || '',
+        program: userData.program?.trim() || '',
+        nationality: userData.nationality?.trim() || '',
+        phone: userData.phone?.trim() || null,
+        reg_id: validation.volunteerUuid || null,
+        volunteer_id: null, // Always null for attendees
+        role: 'attendee',
+        gender: userData.gender?.trim() || null,
+        degree_level: userData.degree_level?.trim() || null,
+        class: userData.class?.trim() || null,
+        how_did_hear_about_event: userData.how_did_hear_about_event?.trim() || null,
+        university_id_path: userData.university_id_path || null,
+        cv_path: userData.cv_path || null,
+        score: 0,
+        building_entry: false,
+        event_entry: false
+      };
+
+      const { data: insertedProfile, error: profileError } = await supabase
+        .from('users_profiles')
+        .insert([profileData])
+        .select()
+        .single();
 
       if (profileError) {
         console.error('Profile creation failed:', profileError);
@@ -299,23 +307,17 @@ export const signUpUser = async (email: string, password: string, userData: any)
         return { data: null, error: { message: errorMessage } };
       }
 
-      // Check if the returned data has an error flag
-      if (profileData && profileData.error) {
-        console.error('Profile creation failed via RPC:', profileData.message);
-        return { data: null, error: { message: profileData.message || 'Failed to create profile' } };
-      }
-
       console.log('Attendee registration completed successfully');
       return { 
         data: { 
           ...authData, 
-          profile: profileData,
+          profile: insertedProfile,
           referredBy: validation.volunteerInfo
         }, 
         error: null 
       };
 
-    } catch (profileError) {
+    } catch (profileError: any) {
       console.error('Profile creation exception:', profileError);
       console.warn(`Orphaned auth user created: ${authData.user.id} (${email})`);
       
@@ -330,7 +332,6 @@ export const signUpUser = async (email: string, password: string, userData: any)
     return { data: null, error: { message: error.message || 'Registration failed' } };
   }
 };
-
 
 // Corrected signUpVolunteer function
 // CORRECTED signUpVolunteer function with proper parameter order
