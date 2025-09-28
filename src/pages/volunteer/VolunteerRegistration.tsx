@@ -78,6 +78,19 @@ export const VolunteerRegistration: React.FC = () => {
     setErrors(prev => prev.filter(error => error.field !== field));
   };
 
+  export const validateGender = (gender: string): string | null => {
+  if (!gender || !gender.trim()) {
+    return 'Gender is required';
+  }
+
+  const validGenders = ['male', 'female'];
+  if (!validGenders.includes(gender.trim().toLowerCase())) {
+    return 'Please select a valid gender';
+  }
+
+  return null;
+};
+
 const validateSection = (section: number): ValidationError[] => {
   const validationErrors: ValidationError[] = [];
 
