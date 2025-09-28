@@ -26,7 +26,7 @@ type AuthContextType = {
   signOut: () => Promise<void>;
   hasRole: (roles: string | string[]) => boolean;
   getRoleBasedRedirect: (role?: string) => string;
-  shouldRedirectToLogin: () => boolean; // Add this new helper
+  shouldRedirectToLogin: () => boolean;
   validateRegistration: (
     email: string,
     personalId: string,
@@ -34,15 +34,8 @@ type AuthContextType = {
   ) => Promise<{ isValid: boolean; errors: string[] }>;
   refreshProfile: () => Promise<void>;
 };
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const shouldRedirectToLogin = useCallback(() => {
-  // If user is not authenticated or role is undefined/null
-  if (!isAuthenticated || !profile?.role) {
-    return true;
-  }
-  return false;
-}, [isAuthenticated, profile?.role]);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -294,6 +287,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, []); // No dependencies to prevent re-initialization
 
+  // Computed values - Updated logic for authentication
+  const isAuthenticated = !!user && sessionLoaded;
+
   // Refresh profile manually
   const refreshProfile = useCallback(async () => {
     if (user?.id) {
@@ -455,6 +451,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const getRoleBasedRedirect = useCallback((role?: string) => {
     const r = role || profile?.role;
     
+    // Explicitly handle undefined/null roles - redirect to login
+    if (!r || r === undefined || r === null) {
+      console.warn('User role is undefined or null, redirecting to login');
+      return "/login";
+    }
+    
     // Map all volunteer-type roles correctly
     switch (r) {
       case "admin":
@@ -479,9 +481,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [profile?.role]);
 
-  // Computed values - Updated logic for authentication
-  const isAuthenticated = !!user && sessionLoaded;
-  
+  // Should redirect to login helper - now properly defined after state variables
+  const shouldRedirectToLogin = useCallback(() => {
+    // If user is not authenticated or role is undefined/null
+    if (!isAuthenticated || !profile?.role) {
+      return true;
+    }
+    return false;
+  }, [isAuthenticated, profile?.role]);
+
   console.log('Auth Context State:', {
     hasUser: !!user,
     hasProfile: !!profile,
@@ -491,61 +499,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     userRole: profile?.role
   });
 
-return (
-  <AuthContext.Provider
-    value={{
-      user,
-      profile,
-      loading,
-      sessionLoaded,
-      isAuthenticated,
-      signUp,
-      signUpVolunteer: signUpVolunteerFunc,
-      signIn,
-      signOut,
-      hasRole,
-      getRoleBasedRedirect,
-      shouldRedirectToLogin, // Add this new helper
-      validateRegistration,
-      refreshProfile,
-    }}
-  >
-    {children}
-  </AuthContext.Provider>
-);
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        loading,
+        sessionLoaded,
+        isAuthenticated,
+        signUp,
+        signUpVolunteer: signUpVolunteerFunc,
+        signIn,
+        signOut,
+        hasRole,
+        getRoleBasedRedirect,
+        shouldRedirectToLogin,
+        validateRegistration,
+        refreshProfile,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 };
-const getRoleBasedRedirect = useCallback((role?: string) => {
-  const r = role || profile?.role;
-  
-  // Explicitly handle undefined/null roles - redirect to login
-  if (!r || r === undefined || r === null) {
-    console.warn('User role is undefined or null, redirecting to login');
-    return "/login";
-  }
-  
-  // Map all volunteer-type roles correctly
-  switch (r) {
-    case "admin":
-      return "/secure-9821panel";
-    case "sadmin":
-      return "/super-ctrl-92k1x";
-    case "team_leader":
-      return "/teamleader";
-    case "registration":
-      return "/regteam";
-    case "building":
-      return "/buildteam";
-    case "info_desk":
-      return "/infodesk";
-    case "volunteer":
-      return "/volunteer";
-    case "attendee":
-      return "/attendee";
-    default:
-      console.warn('Unknown role for redirect:', r);
-      return "/login";
-  }
-}, [profile?.role]);
+
 // Hook with better error handling
 export const useAuth = () => {
   const context = useContext(AuthContext);
