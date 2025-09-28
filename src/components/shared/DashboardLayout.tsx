@@ -381,7 +381,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-3">
                 <img 
-  src="https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/Maps/logo.png" 
+  src="https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/logo.png" 
   alt="Career Week Logo" 
   className="w-8 h-8 object-contain"
 />
