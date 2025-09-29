@@ -1148,102 +1148,7 @@ const RegistrationStatsView = ({ statsData }) => (
 
   // Event Stats View Component
 // Event Stats View Component
-const EventStatsView = ({ statsData, selectedDay }) => {
-  const dayStats = statsData?.eventStats?.[`day${selectedDay}`] || {
-    entries: 0,
-    exits: 0,
-    building_entries: 0,
-    building_exits: 0,
-    session_entries: 0,
-    registrations: 0
-  };
-
-  return (
-    <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          title={`Day ${selectedDay} Entries`}
-          value={dayStats.entries}
-          icon={<TrendingUp className="h-6 w-6" />}
-          color="green"
-        />
-        <StatCard
-          title={`Day ${selectedDay} Exits`}
-          value={dayStats.exits}
-          icon={<TrendingUp className="h-6 w-6" />}
-          color="red"
-        />
-        <StatCard
-          title="Building Entries"
-          value={dayStats.building_entries}
-          icon={<Building className="h-6 w-6" />}
-          color="blue"
-        />
-        <StatCard
-          title="Session Entries"
-          value={dayStats.session_entries}
-          icon={<Calendar className="h-6 w-6" />}
-          color="purple"
-        />
-      </div>
-
-      {/* Inside Event Statistics for Event Tab */}
-      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Inside Event Statistics</h3>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div>
-            <GenderChart 
-              data={enhancedStats.eventGenderRatio} 
-              title="Gender Ratio Inside Event"
-            />
-          </div>
-          <div>
-            <DegreeChart 
-              data={enhancedStats.eventStudentGraduateRatio}
-              title="Student/Graduate Ratio Inside Event"
-            />
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-          <div>
-            <BarChart 
-              data={enhancedStats.eventFaculties} 
-              color="blue"
-              title="Top Faculties Inside Event"
-            />
-          </div>
-          <div>
-            <BarChart 
-              data={enhancedStats.eventUniversities} 
-              color="green"
-              title="Top Universities Inside Event"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Daily Activity</h3>
-          <DailyActivityChart selectedDay={selectedDay} />
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Attendance Flow</h3>
-          <AttendanceFlowChart dayStats={dayStats} />
-        </div>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Session Popularity</h3>
-        <SessionPopularityChart selectedDay={selectedDay} />
-      </div>
-    </div>
-  );
-};
-
-  // Event Stats View Component
+// Event Stats View Component
 const EventStatsView = ({ statsData, selectedDay }) => {
   const [eventAnalytics, setEventAnalytics] = useState({
     faculties: [],
@@ -1401,6 +1306,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
     </div>
   );
 };
+  
   // Current State Widget
   const CurrentStateWidget = ({ statsData }) => (
     <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
