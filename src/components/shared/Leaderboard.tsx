@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Medal, Crown, Star, User, Heart, Shield, Users, Building, UserCheck, Chef, Camera, Megaphone, Stethoscope, Briefcase, Utensils, MessageSquare, Radio } from 'lucide-react';
+import { Trophy, Medal, Crown, Star, User, Heart, Shield, Users, Building, UserCheck, Chef, Camera, Megaphone, Stethoscope, Briefcase, Utensils, MessageSquare, Radio, ChevronDown } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface LeaderboardEntry {
@@ -25,14 +25,18 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
   const [availableTeams, setAvailableTeams] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [teamDropdownOpen, setTeamDropdownOpen] = useState(false);
 
   useEffect(() => {
     fetchAvailableTeams();
+  }, [userRole]);
+
+  useEffect(() => {
     fetchLeaderboard();
   }, [userRole, activeTab, selectedTeam]);
 
   const fetchAvailableTeams = async () => {
-    if (userRole === 'admin') {
+    if (userRole === 'admin' || userRole === 'team_leader') {
       try {
         const { data, error } = await supabase
           .from('users_profiles')
@@ -44,7 +48,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
           const uniqueTeams = [...new Set(data.map(item => item.tl_team).filter(Boolean))] as string[];
           setAvailableTeams(uniqueTeams);
           if (uniqueTeams.length > 0 && !selectedTeam) {
-            setSelectedTeam(uniqueTeams[0]);
+            setSelectedTeam(userRole === 'team_leader' ? userTeam || uniqueTeams[0] : uniqueTeams[0]);
           }
         }
       } catch (error) {
@@ -53,88 +57,110 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
     }
   };
 
-const fetchLeaderboard = async () => {
-  setLoading(true);
-  setError(null);
+  const fetchLeaderboard = async () => {
+    setLoading(true);
+    setError(null);
 
-  try {
-    let data;
-    let error;
+    try {
+      let data;
+      let error;
 
-    if (activeTab === 'team' && selectedTeam) {
-      // Use the team leaderboard function - it filters by tl_team
-      const result = await supabase.rpc('get_team_leaderboard', {
-        team_name: selectedTeam,
-        limit_param: 50
-      });
-      data = result.data;
-      error = result.error;
-    } else {
-      let query = supabase
-        .from('users_profiles')
-        .select('id, first_name, last_name, role, score, tl_team')
-        .order('score', { ascending: false });
-
-      // Determine which data to fetch based on user role and active tab
-      if (userRole === 'admin') {
-        if (activeTab === 'attendees') {
-          query = query.eq('role', 'attendee');
-        } else if (activeTab === 'volunteers') {
-          // Show all volunteer roles except admin and attendee
-          query = query.in('role', [
-            'volunteer', 'registration', 'building', 'info_desk',
-            'ushers', 'marketing', 'media', 'ER', 'BD', 'catering', 'feedback', 'stage'
-          ]);
+      if (activeTab === 'team' && selectedTeam) {
+        // Use the team leaderboard function
+        const result = await supabase.rpc('get_team_leaderboard', {
+          team_name: selectedTeam,
+          limit_param: 50
+        });
+        
+        if (result.error) {
+          console.error('RPC Error:', result.error);
+          throw result.error;
         }
-        // For team tab, we use the RPC function above
-      } else if (userRole === 'attendee') {
-        query = query.eq('role', 'attendee');
-      } else if (userRole === 'team_leader') {
-        // Team leaders see their team members
-        if (activeTab === 'team' && userTeam) {
-          // Use the RPC function to get team members by tl_team
-          const result = await supabase.rpc('get_team_leaderboard', {
-            team_name: userTeam,
-            limit_param: 50
-          });
-          data = result.data;
-          error = result.error;
-        } else {
-          // Show all team leaders
-          query = query.eq('role', 'team_leader');
+        
+        data = result.data;
+        
+        // Map the RPC response to match our interface
+        if (data) {
+          data = data.map((item: any) => ({
+            id: item.user_id,
+            first_name: item.first_name,
+            last_name: item.last_name,
+            role: item.user_role,
+            score: item.score,
+            tl_team: item.tl_team,
+            rank: item.user_rank
+          }));
         }
       } else {
-        // Other roles see only people in their specific role
-        query = query.eq('role', userRole);
+        let query = supabase
+          .from('users_profiles')
+          .select('id, first_name, last_name, role, score, tl_team')
+          .order('score', { ascending: false });
+
+        if (userRole === 'admin') {
+          if (activeTab === 'attendees') {
+            query = query.eq('role', 'attendee');
+          } else if (activeTab === 'volunteers') {
+            query = query.in('role', [
+              'volunteer', 'registration', 'building', 'info_desk',
+              'ushers', 'marketing', 'media', 'ER', 'BD', 'catering', 'feedback', 'stage'
+            ]);
+          }
+        } else if (userRole === 'attendee') {
+          query = query.eq('role', 'attendee');
+        } else if (userRole === 'team_leader') {
+          if (activeTab === 'team' && userTeam) {
+            // For team leaders viewing their team, use the RPC function
+            const result = await supabase.rpc('get_team_leaderboard', {
+              team_name: userTeam,
+              limit_param: 50
+            });
+            
+            if (result.error) throw result.error;
+            
+            data = result.data?.map((item: any) => ({
+              id: item.user_id,
+              first_name: item.first_name,
+              last_name: item.last_name,
+              role: item.user_role,
+              score: item.score,
+              tl_team: item.tl_team,
+              rank: item.user_rank
+            }));
+          } else {
+            query = query.eq('role', 'team_leader');
+          }
+        } else {
+          query = query.eq('role', userRole);
+        }
+
+        if (!data) {
+          const result = await query;
+          data = result.data;
+          error = result.error;
+        }
       }
 
-      if (!data) {
-        const result = await query;
-        data = result.data;
-        error = result.error;
+      if (error) {
+        console.error('Error fetching leaderboard:', error);
+        setError('Failed to load leaderboard');
+        return;
       }
+
+      // Add ranking if not already provided by RPC
+      const rankedData: LeaderboardEntry[] = (data || []).map((user, index) => ({
+        ...user,
+        rank: user.rank || index + 1
+      }));
+
+      setLeaderboardData(rankedData);
+    } catch (err) {
+      console.error('Error fetching leaderboard:', err);
+      setError('An error occurred while loading the leaderboard');
+    } finally {
+      setLoading(false);
     }
-
-    if (error) {
-      console.error('Error fetching leaderboard:', error);
-      setError('Failed to load leaderboard');
-      return;
-    }
-
-    // Add ranking to the data (if not already ranked by RPC)
-    const rankedData: LeaderboardEntry[] = (data || []).map((user, index) => ({
-      ...user,
-      rank: user.rank || index + 1 // Use existing rank from RPC if available
-    }));
-
-    setLeaderboardData(rankedData);
-  } catch (err) {
-    console.error('Error fetching leaderboard:', err);
-    setError('An error occurred while loading the leaderboard');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   const getRankIcon = (rank: number) => {
     switch (rank) {
@@ -255,6 +281,51 @@ const fetchLeaderboard = async () => {
     return 'Leaderboard';
   };
 
+  const TeamSelector = () => (
+    <div className="relative">
+      <button
+        onClick={() => setTeamDropdownOpen(!teamDropdownOpen)}
+        className="flex items-center justify-between w-full md:w-64 px-4 py-2 border border-gray-300 rounded-lg bg-white hover:bg-gray-50 transition-colors"
+      >
+        <span className="flex items-center">
+          <Users className="h-4 w-4 mr-2 text-gray-500" />
+          <span className="capitalize">{(selectedTeam || 'Select Team').replace('_', ' ')}</span>
+        </span>
+        <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${teamDropdownOpen ? 'rotate-180' : ''}`} />
+      </button>
+      
+      {teamDropdownOpen && (
+        <>
+          <div 
+            className="fixed inset-0 z-10" 
+            onClick={() => setTeamDropdownOpen(false)}
+          />
+          <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
+            {availableTeams.map((team) => (
+              <button
+                key={team}
+                onClick={() => {
+                  setSelectedTeam(team);
+                  setTeamDropdownOpen(false);
+                }}
+                className={`w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors ${
+                  selectedTeam === team ? 'bg-orange-50 text-orange-700' : 'text-gray-700'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-medium capitalize">{team.replace('_', ' ')}</span>
+                  {selectedTeam === team && (
+                    <div className="w-2 h-2 bg-orange-500 rounded-full" />
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+
   const currentUserData = leaderboardData.find(user => user.id === currentUserId);
 
   if (loading) {
@@ -333,23 +404,27 @@ const fetchLeaderboard = async () => {
               >
                 My Team
               </button>
+              <button
+                onClick={() => setActiveTab('volunteers')}
+                className={`py-2 px-4 font-semibold text-sm transition-all duration-300 ${
+                  activeTab === 'volunteers'
+                    ? "border-b-2 border-orange-500 text-orange-600"
+                    : "text-gray-500 hover:text-orange-600"
+                }`}
+              >
+                All Leaders
+              </button>
             </>
           )}
         </div>
 
-        {/* Team Selector for Admin */}
-        {userRole === 'admin' && activeTab === 'team' && availableTeams.length > 0 && (
-          <div className="flex items-center space-x-2">
-            <label className="text-sm font-medium text-gray-700">Select Team:</label>
-            <select
-              value={selectedTeam}
-              onChange={(e) => setSelectedTeam(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
-            >
-              {availableTeams.map(team => (
-                <option key={team} value={team}>{team}</option>
-              ))}
-            </select>
+        {/* Team Selector for Admin and Team Leader */}
+        {(userRole === 'admin' || userRole === 'team_leader') && activeTab === 'team' && availableTeams.length > 0 && (
+          <div className="flex items-center space-x-4">
+            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+              {userRole === 'admin' ? 'Select Team:' : 'Viewing Team:'}
+            </label>
+            <TeamSelector />
           </div>
         )}
       </div>
