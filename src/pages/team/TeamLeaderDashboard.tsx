@@ -959,43 +959,209 @@ const [bonusMethod, setBonusMethod] = useState<'scan' | 'search'>('scan');
             </div>
           </div>
         )}
+{/* Bonus Assignment Modal */}
+{bonusModal && (
+  <div 
+    className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[100]"
+    onClick={() => {
+      if (!showBonusConfirmCard) {
+        setBonusModal(false);
+        setSelectedUser(null);
+        setBonusSearchTerm("");
+        setShowBonusSearchResults(false);
+        setBonusAmount(5);
+      }
+    }}
+  >
+    <div 
+      className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button
+        onClick={() => {
+          setBonusModal(false);
+          setSelectedUser(null);
+          setBonusSearchTerm("");
+          setShowBonusSearchResults(false);
+          setBonusAmount(5);
+          setShowBonusConfirmCard(false);
+        }}
+        className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 z-30 transition-colors"
+      >
+        <X className="h-6 w-6" />
+      </button>
 
-        {/* Bonus Assignment Modal */}
-        {bonusModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[100]">
-            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative">
-              <button
-                onClick={() => {
-                  setBonusModal(false);
-                  setSelectedUser(null);
-                  setBonusSearchTerm("");
-                  setShowBonusSearchResults(false);
-                }}
-                className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 z-30 transition-colors"
-              >
-                <X className="h-6 w-6" />
-              </button>
+      <h2 className="text-lg font-semibold text-black mb-4 text-center">
+        Assign Bonus Points
+      </h2>
 
-              <h2 className="text-lg font-semibold text-black mb-4 text-center">
-                Assign Bonus Points
-              </h2>
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => setBonusMethod('scan')}
+          className={`flex-1 py-2 px-4 rounded-lg transition-all duration-300 ${
+            bonusMethod === 'scan' 
+              ? 'bg-green-500 text-white' 
+              : 'bg-gray-200 text-gray-700'
+          }`}
+        >
+          QR Scanner
+        </button>
+        <button
+          onClick={() => setBonusMethod('search')}
+          className={`flex-1 py-2 px-4 rounded-lg transition-all duration-300 ${
+            bonusMethod === 'search' 
+              ? 'bg-green-500 text-white' 
+              : 'bg-gray-200 text-gray-700'
+          }`}
+        >
+          Search
+        </button>
+      </div>
 
-              <div className="space-y-4">
-                {/* Bonus Input */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Bonus Points (1-30)
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="30"
-                    value={bonusAmount}
-                    onChange={(e) => setBonusAmount(Math.min(30, Math.max(1, parseInt(e.target.value) || 1)))}
-                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
-                  />
-                </div>
+      {bonusMethod === 'scan' ? (
+        <div className="space-y-4">
+          <button
+            onClick={() => {
+              setScannerOpen(true);
+              // Set a flag to know this is for bonus
+              setAttendanceMethod('scan'); // Reuse scanner
+            }}
+            className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 transition-all duration-300 font-medium"
+          >
+            Open QR Scanner
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="relative">
+            <input
+              type="text"
+              value={bonusSearchTerm}
+              onChange={(e) => {
+                setBonusSearchTerm(e.target.value);
+                handleBonusUserSearch(e.target.value);
+              }}
+              onFocus={() => setShowBonusSearchResults(true)}
+              placeholder="Search by Personal ID or Volunteer ID"
+              className="w-full border rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
+            />
+            <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
+            
+            {showBonusSearchResults && bonusSearchResults.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-40 max-h-60 overflow-y-auto">
+                {bonusSearchResults.map((user) => (
+                  <button
+                    key={user.id}
+                    onClick={() => {
+                      setSelectedUser(user);
+                      setBonusSearchTerm(`${user.first_name} ${user.last_name} (${user.volunteer_id})`);
+                      setShowBonusSearchResults(false);
+                      setShowBonusConfirmCard(true);
+                    }}
+                    className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-all duration-300"
+                  >
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {user.first_name} {user.last_name}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        ID: {user.volunteer_id} | Personal ID: {user.personal_id}
+                      </p>
+                      <p className="text-xs text-gray-500 capitalize">
+                        {user.role.replace('_', ' ')}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          {showBonusSearchResults && (
+            <div 
+              className="fixed inset-0 z-30"
+              onClick={() => setShowBonusSearchResults(false)}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
+{/* Bonus Confirmation Card */}
+{showBonusConfirmCard && selectedUser && (
+  <div 
+    className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[100]"
+    onClick={() => {
+      setShowBonusConfirmCard(false);
+      setSelectedUser(null);
+      setBonusSearchTerm("");
+      setBonusAmount(5);
+    }}
+  >
+    <div 
+      className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-xl font-bold text-gray-900">Assign Bonus</h3>
+        <button
+          onClick={() => {
+            setShowBonusConfirmCard(false);
+            setSelectedUser(null);
+            setBonusSearchTerm("");
+            setBonusAmount(5);
+          }}
+          className="text-gray-500 hover:text-gray-700 transition-colors"
+        >
+          <X className="h-6 w-6" />
+        </button>
+      </div>
+
+      <div className="space-y-3 mb-4">
+        <div className="flex justify-between">
+          <span className="font-medium">Name:</span>
+          <span>{selectedUser.first_name} {selectedUser.last_name}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="font-medium">Volunteer ID:</span>
+          <span>{selectedUser.volunteer_id}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="font-medium">Personal ID:</span>
+          <span>{selectedUser.personal_id}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="font-medium">Role:</span>
+          <span className="capitalize">{selectedUser.role.replace('_', ' ')}</span>
+        </div>
+      </div>
+
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Bonus Points (1-30)
+        </label>
+        <input
+          type="number"
+          min="1"
+          max="30"
+          value={bonusAmount}
+          onChange={(e) => setBonusAmount(Math.min(30, Math.max(1, parseInt(e.target.value) || 1)))}
+          className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
+        />
+      </div>
+
+      <button
+        onClick={handleBonusAssignment}
+        disabled={loading}
+        className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-300 font-medium"
+      >
+        {loading ? 'Assigning...' : 'Give Bonus'}
+      </button>
+    </div>
+  </div>
+)}
                 {/* User Search */}
                 <div className="relative">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
