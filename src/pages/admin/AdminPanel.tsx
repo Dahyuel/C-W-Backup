@@ -734,21 +734,31 @@ const StatisticsTab = () => {
     fetchStatistics();
   }, [timeRange, statsType, selectedDay]);
 
-  const fetchStatistics = async () => {
-    setLoading(true);
-    try {
-      if (statsType === 'registration') {
-        await fetchRegistrationStats();
-      } else {
-        await fetchEventStats();
-      }
-    } catch (error) {
-      console.error('Error fetching statistics:', error);
-    } finally {
-      setLoading(false);
+const fetchStatistics = async () => {
+  setLoading(true);
+  try {
+    if (statsType === 'registration') {
+      await fetchRegistrationStats();
+    } else {
+      await fetchEventStats();
     }
-  };
-
+  } catch (error) {
+    console.error('Error fetching statistics:', error);
+    // Set default data on error
+    setStatsData(prev => ({
+      ...prev,
+      eventStats: {
+        day1: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
+        day2: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
+        day3: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
+        day4: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
+        day5: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 }
+      }
+    }));
+  } finally {
+    setLoading(false);
+  }
+};
 const fetchRegistrationStats = async () => {
   // Get date filter based on time range
   let dateFilter = {};
