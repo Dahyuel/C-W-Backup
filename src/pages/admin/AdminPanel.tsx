@@ -1112,6 +1112,7 @@ const fetchDashboardData = async () => {
   };
 
 // Registration Stats View Component
+// Registration Stats View Component
 const RegistrationStatsView = ({ statsData }) => (
   <div className="space-y-8">
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1144,7 +1145,7 @@ const RegistrationStatsView = ({ statsData }) => (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
       <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Gender Distribution</h3>
-        <GenderChart data={statsData.genderStats} />
+        <GenderChart data={statsData.genderStats} title="Total Registrations" />
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
