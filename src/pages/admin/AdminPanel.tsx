@@ -1304,22 +1304,89 @@ const ClassYearChart = ({ data }) => {
   );
 };
 
-const DailyActivityChart = ({ statsData }) => {
-  // Mock data for daily activity - you would replace this with real data
-  const dailyData = [
-    { hour: '08:00', entries: 45, exits: 12 },
-    { hour: '10:00', entries: 120, exits: 34 },
-    { hour: '12:00', entries: 89, exits: 56 },
-    { hour: '14:00', entries: 156, exits: 78 },
-    { hour: '16:00', entries: 67, exits: 90 },
-    { hour: '18:00', entries: 34, exits: 45 },
-  ];
+const DailyActivityChart = ({ selectedDay }) => {
+  const [hourlyData, setHourlyData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const maxValue = Math.max(...dailyData.flatMap(d => [d.entries, d.exits]));
+  useEffect(() => {
+    fetchHourlyData(selectedDay);
+  }, [selectedDay]);
+
+  const fetchHourlyData = async (day) => {
+    setLoading(true);
+    try {
+      // Calculate date range for the selected day
+      const eventStartDate = new Date('2024-03-18');
+      const targetDate = new Date(eventStartDate);
+      targetDate.setDate(eventStartDate.getDate() + (day - 1));
+      
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      // Fetch attendance data grouped by hour
+      const { data: attendances, error } = await supabase
+        .from('attendances')
+        .select('scanned_at, scan_type')
+        .gte('scanned_at', startOfDay.toISOString())
+        .lte('scanned_at', endOfDay.toISOString())
+        .order('scanned_at', { ascending: true });
+
+      if (error) throw error;
+
+      // Process data into hourly buckets
+      const hourlyStats = {};
+      
+      // Initialize all hours
+      for (let hour = 8; hour <= 20; hour++) {
+        const hourKey = `${hour.toString().padStart(2, '0')}:00`;
+        hourlyStats[hourKey] = { entries: 0, exits: 0 };
+      }
+
+      // Count entries and exits by hour
+      attendances?.forEach(attendance => {
+        const date = new Date(attendance.scanned_at);
+        const hour = date.getHours();
+        const hourKey = `${hour.toString().padStart(2, '0')}:00`;
+        
+        if (attendance.scan_type === 'entry' || attendance.scan_type === 'building_entry') {
+          hourlyStats[hourKey].entries++;
+        } else if (attendance.scan_type === 'exit' || attendance.scan_type === 'building_exit') {
+          hourlyStats[hourKey].exits++;
+        }
+      });
+
+      // Convert to array format
+      const result = Object.entries(hourlyStats).map(([hour, data]) => ({
+        hour,
+        entries: data.entries,
+        exits: data.exits
+      }));
+
+      setHourlyData(result);
+    } catch (error) {
+      console.error('Error fetching hourly data:', error);
+      setHourlyData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-48">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+      </div>
+    );
+  }
+
+  const maxValue = Math.max(...hourlyData.flatMap(d => [d.entries, d.exits]), 1);
 
   return (
     <div className="space-y-4">
-      {dailyData.map((data, index) => (
+      {hourlyData.map((data, index) => (
         <div key={index} className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="font-medium text-gray-700">{data.hour}</span>
@@ -1344,58 +1411,111 @@ const DailyActivityChart = ({ statsData }) => {
   );
 };
 
-const AttendanceFlowChart = ({ dayStats }) => {
-  const flowData = [
-    { label: 'Total Entries', value: dayStats.entries, color: 'bg-green-500' },
-    { label: 'Total Exits', value: dayStats.exits, color: 'bg-red-500' },
-    { label: 'Building Entries', value: dayStats.building_entries, color: 'bg-blue-500' },
-    { label: 'Session Entries', value: dayStats.session_entries, color: 'bg-purple-500' },
-  ];
-
-  const maxValue = Math.max(...flowData.map(d => d.value), 1);
-
-  return (
-    <div className="space-y-3">
-      {flowData.map((item, index) => (
-        <div key={index} className="space-y-1">
-          <div className="flex justify-between text-sm">
-            <span className="font-medium text-gray-700">{item.label}</span>
-            <span className="text-gray-500">{item.value}</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-3">
-            <div
-              className={`${item.color} h-3 rounded-full`}
-              style={{ width: `${(item.value / maxValue) * 100}%` }}
-            ></div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-};
+// Fixed Session Popularity Chart - Real-time calculation
 const SessionPopularityChart = ({ selectedDay }) => {
-  // Mock session data - replace with real data from your sessions table
-  const sessionData = [
-    { name: 'Keynote Speech', attendees: 156 },
-    { name: 'Tech Workshop', attendees: 89 },
-    { name: 'Networking Event', attendees: 120 },
-    { name: 'Career Fair', attendees: 200 },
-    { name: 'Panel Discussion', attendees: 67 },
-  ];
+  const [sessionData, setSessionData] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const maxAttendees = Math.max(...sessionData.map(s => s.attendees));
+  useEffect(() => {
+    fetchSessionData(selectedDay);
+  }, [selectedDay]);
+
+  const fetchSessionData = async (day) => {
+    setLoading(true);
+    try {
+      // Calculate date range for the selected day
+      const eventStartDate = new Date('2024-03-18');
+      const targetDate = new Date(eventStartDate);
+      targetDate.setDate(eventStartDate.getDate() + (day - 1));
+      
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      // Fetch sessions for the day and their attendance
+      const { data: sessions, error } = await supabase
+        .from('sessions')
+        .select(`
+          id,
+          title,
+          capacity,
+          max_attendees,
+          current_attendees,
+          current_bookings,
+          start_time
+        `)
+        .gte('start_time', startOfDay.toISOString())
+        .lte('start_time', endOfDay.toISOString())
+        .order('start_time', { ascending: true });
+
+      if (error) throw error;
+
+      // Calculate popularity based on current capacity and max capacity
+      const processedSessions = sessions?.map(session => {
+        const currentAttendees = session.current_attendees || 0;
+        const maxAttendees = session.max_attendees || session.capacity || 1;
+        const popularityPercentage = (currentAttendees / maxAttendees) * 100;
+        
+        let status = 'Low';
+        if (popularityPercentage >= 80) status = 'High';
+        else if (popularityPercentage >= 50) status = 'Medium';
+        
+        return {
+          name: session.title,
+          attendees: currentAttendees,
+          capacity: maxAttendees,
+          popularity: popularityPercentage,
+          status: status
+        };
+      }) || [];
+
+      setSessionData(processedSessions);
+    } catch (error) {
+      console.error('Error fetching session data:', error);
+      setSessionData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-48">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+      </div>
+    );
+  }
+
+  const maxAttendees = Math.max(...sessionData.map(s => s.attendees), 1);
 
   return (
     <div className="space-y-3">
       {sessionData.map((session, index) => (
         <div key={index} className="space-y-1">
           <div className="flex justify-between text-sm">
-            <span className="font-medium text-gray-700 truncate flex-1 mr-2">{session.name}</span>
-            <span className="text-gray-500 whitespace-nowrap">{session.attendees} attendees</span>
+            <span className="font-medium text-gray-700 truncate flex-1 mr-2">
+              {session.name}
+            </span>
+            <div className="flex gap-2 whitespace-nowrap">
+              <span className="text-gray-500">{session.attendees}/{session.capacity}</span>
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                session.status === 'High' ? 'bg-red-100 text-red-800' :
+                session.status === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                'bg-green-100 text-green-800'
+              }`}>
+                {Math.round(session.popularity)}%
+              </span>
+            </div>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-3">
             <div
-              className="bg-orange-500 h-3 rounded-full"
+              className={`h-3 rounded-full ${
+                session.popularity >= 80 ? 'bg-red-500' :
+                session.popularity >= 50 ? 'bg-yellow-500' :
+                'bg-green-500'
+              }`}
               style={{ width: `${(session.attendees / maxAttendees) * 100}%` }}
             ></div>
           </div>
@@ -1404,7 +1524,6 @@ const SessionPopularityChart = ({ selectedDay }) => {
     </div>
   );
 };
-  
 const confirmDeleteEvent = async () => {
   if (!selectedEventDelete) return;
   
