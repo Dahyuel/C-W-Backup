@@ -1535,18 +1535,26 @@ export const addScheduleItem = async (eventData) => {
 
 const generateVolunteerId = async (role: string): Promise<string> => {
   try {
-    // Define role prefixes
+    // Define role prefixes for ALL volunteer roles
     const rolePrefixes: { [key: string]: string } = {
       'registration': 'REG',
       'building': 'BLD',
       'info_desk': 'INFDSK',
       'volunteer': 'VOL',
-      'team_leader': 'TLDR'
+      'team_leader': 'TLDR',
+      'ushers': 'USHR',
+      'marketing': 'MKTG',
+      'media': 'MEDIA',
+      'ER': 'ER',
+      'BD': 'BD',
+      'catering': 'CAT',
+      'feedback': 'FDBK',
+      'stage': 'STAGE'
     };
     
     const prefix = rolePrefixes[role] || 'VOL';
     
-    // Get the highest current counter for this role by parsing existing volunteer_ids
+    // Rest of your existing function remains the same...
     const { data: volunteers, error } = await supabase
       .from('users_profiles')
       .select('volunteer_id')
@@ -1556,7 +1564,6 @@ const generateVolunteerId = async (role: string): Promise<string> => {
 
     if (error) {
       console.error('Error fetching volunteers:', error);
-      // Fallback: use timestamp with prefix
       return `${prefix}${Date.now().toString().slice(-6)}`;
     }
 
@@ -1585,19 +1592,25 @@ const generateVolunteerId = async (role: string): Promise<string> => {
     
   } catch (error) {
     console.error('Error generating volunteer ID:', error);
-    // Fallback: use timestamp with prefix
     const rolePrefixes: { [key: string]: string } = {
       'registration': 'REG',
       'building': 'BLD',
       'info_desk': 'INFDSK',
       'volunteer': 'VOL',
-      'team_leader': 'TLDR'
+      'team_leader': 'TLDR',
+      'ushers': 'USHR',
+      'marketing': 'MKTG',
+      'media': 'MEDIA',
+      'ER': 'ER',
+      'BD': 'BD',
+      'catering': 'CAT',
+      'feedback': 'FDBK',
+      'stage': 'STAGE'
     };
     const prefix = rolePrefixes[role] || 'VOL';
     return `${prefix}${Date.now().toString().slice(-6)}`;
   }
 };
-
 
 // Add Company
 export const addCompany = async (companyData) => {
