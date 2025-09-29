@@ -702,204 +702,144 @@ const confirmDeleteSession = async () => {
 };
 
 // Enhanced StatisticsTab Component
+// Enhanced StatisticsTab Component
 const StatisticsTab = () => {
-const [statsData, setStatsData] = useState({
-  totalRegistrations: 0,
-  graduates: 0,
-  students: 0,
-  currentInEvent: 0,
-  currentInBuilding: 0,
-  universities: [],
-  faculties: [],
-  genderStats: { male: 0, female: 0 },
-  roleStats: {},
-  marketingSources: [],
-  degreeLevelStats: { student: 0, graduate: 0 },
-  classYearStats: {},
-  currentGenderStats: { male: 0, female: 0 },
-  eventStats: {
-    day1: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
-    day2: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
-    day3: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
-    day4: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
-    day5: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 }
-  }
-});
+  const [statsData, setStatsData] = useState({
+    totalRegistrations: 0,
+    graduates: 0,
+    students: 0,
+    currentInEvent: 0,
+    currentInBuilding: 0,
+    universities: [],
+    faculties: [],
+    genderStats: { male: 0, female: 0 },
+    roleStats: {},
+    marketingSources: [],
+    degreeLevelStats: { student: 0, graduate: 0 },
+    classYearStats: {},
+    currentGenderStats: { male: 0, female: 0 },
+    // NEW: Event-specific statistics
+    eventGenderStats: { male: 0, female: 0 },
+    eventFaculties: [],
+    eventUniversities: [],
+    eventDegreeStats: { student: 0, graduate: 0 },
+    eventStats: {
+      day1: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
+      day2: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
+      day3: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
+      day4: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
+      day5: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 }
+    }
+  });
+  
   const [loading, setLoading] = useState(true);
-  const [timeRange, setTimeRange] = useState('all'); // 'today', 'week', 'all'
-  const [statsType, setStatsType] = useState('registration'); // 'registration', 'event'
-  const [selectedDay, setSelectedDay] = useState(1); // For event stats
+  const [timeRange, setTimeRange] = useState('all');
+  const [statsType, setStatsType] = useState('registration');
+  const [selectedDay, setSelectedDay] = useState(1);
 
   useEffect(() => {
     fetchStatistics();
   }, [timeRange, statsType, selectedDay]);
 
-const fetchStatistics = async () => {
-  setLoading(true);
-  try {
-    if (statsType === 'registration') {
-      await fetchRegistrationStats();
-    } else {
-      await fetchEventStats();
-    }
-  } catch (error) {
-    console.error('Error fetching statistics:', error);
-    // Set default data on error
-    setStatsData(prev => ({
-      ...prev,
-      eventStats: {
-        day1: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
-        day2: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
-        day3: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
-        day4: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
-        day5: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 }
+  const fetchStatistics = async () => {
+    setLoading(true);
+    try {
+      if (statsType === 'registration') {
+        await fetchRegistrationStats();
+      } else {
+        await fetchEventStats();
       }
-    }));
-  } finally {
-    setLoading(false);
-  }
-};
-const fetchRegistrationStats = async () => {
-  // Get date filter based on time range
-  let dateFilter = {};
-  if (timeRange === 'today') {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    dateFilter = { created_at: `gte.${today.toISOString()}` };
-  } else if (timeRange === 'week') {
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    dateFilter = { created_at: `gte.${weekAgo.toISOString()}` };
-  }
-
-  // Build query based on date filter
-  let query = supabase
-    .from('users_profiles')
-    .select('*');
-
-  // Apply date filter if it exists
-  if (dateFilter.created_at) {
-    query = query.gte('created_at', dateFilter.created_at.replace('gte.', ''));
-  }
-
-  const { data: users, error } = await query;
-
-  if (error) throw error;
-
-  // Process statistics
-  const stats = processUserStatistics(users || []);
-  setStatsData(stats);
-};
-  
-// Fixed Event Stats View Component
-const EventStatsView = ({ statsData, selectedDay }) => {
-  // Safely access event stats with fallbacks
-  const dayStats = statsData?.eventStats?.[`day${selectedDay}`] || {
-    entries: 0,
-    exits: 0,
-    building_entries: 0,
-    building_exits: 0,
-    session_entries: 0,
-    registrations: 0
+    } catch (error) {
+      console.error('Error fetching statistics:', error);
+      setStatsData(prev => ({
+        ...prev,
+        eventStats: {
+          day1: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
+          day2: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
+          day3: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
+          day4: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
+          day5: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 }
+        }
+      }));
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return (
-    <div className="space-y-8">
-      {/* Event Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          title={`Day ${selectedDay} Entries`}
-          value={dayStats.entries}
-          icon={<TrendingUp className="h-6 w-6" />}
-          color="green"
-        />
-        <StatCard
-          title={`Day ${selectedDay} Exits`}
-          value={dayStats.exits}
-          icon={<TrendingUp className="h-6 w-6" />}
-          color="red"
-        />
-        <StatCard
-          title="Building Entries"
-          value={dayStats.building_entries}
-          icon={<Building className="h-6 w-6" />}
-          color="blue"
-        />
-        <StatCard
-          title="Session Entries"
-          value={dayStats.session_entries}
-          icon={<Calendar className="h-6 w-6" />}
-          color="purple"
-        />
-      </div>
+  const fetchRegistrationStats = async () => {
+    let dateFilter = {};
+    if (timeRange === 'today') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      dateFilter = { created_at: `gte.${today.toISOString()}` };
+    } else if (timeRange === 'week') {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      dateFilter = { created_at: `gte.${weekAgo.toISOString()}` };
+    }
 
-      {/* NEW: Event-Specific Statistics */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Event Gender Distribution */}
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Event Gender Distribution</h3>
-          <GenderChart data={statsData.eventGenderStats} />
-          <div className="mt-4 text-sm text-gray-600">
-            <p>Total in event: {statsData.eventGenderStats.male + statsData.eventGenderStats.female}</p>
-            <p>Male: {statsData.eventGenderStats.male} ({((statsData.eventGenderStats.male / (statsData.eventGenderStats.male + statsData.eventGenderStats.female || 1)) * 100).toFixed(1)}%)</p>
-            <p>Female: {statsData.eventGenderStats.female} ({((statsData.eventGenderStats.female / (statsData.eventGenderStats.male + statsData.eventGenderStats.female || 1)) * 100).toFixed(1)}%)</p>
-          </div>
-        </div>
+    let query = supabase
+      .from('users_profiles')
+      .select('*');
 
-        {/* Event Degree Level */}
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Event Degree Level</h3>
-          <DegreeChart data={statsData.eventDegreeStats} />
-          <div className="mt-4 text-sm text-gray-600">
-            <p>Students: {statsData.eventDegreeStats.student} ({((statsData.eventDegreeStats.student / (statsData.eventDegreeStats.student + statsData.eventDegreeStats.graduate || 1)) * 100).toFixed(1)}%)</p>
-            <p>Graduates: {statsData.eventDegreeStats.graduate} ({((statsData.eventDegreeStats.graduate / (statsData.eventDegreeStats.student + statsData.eventDegreeStats.graduate || 1)) * 100).toFixed(1)}%)</p>
-          </div>
-        </div>
-      </div>
+    if (dateFilter.created_at) {
+      query = query.gte('created_at', dateFilter.created_at.replace('gte.', ''));
+    }
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Event Universities */}
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Event Universities</h3>
-          <BarChart data={statsData.eventUniversities} color="blue" />
-          <div className="mt-4 text-sm text-gray-600">
-            <p>Total unique universities in event: {statsData.eventUniversities.length}</p>
-          </div>
-        </div>
+    const { data: users, error } = await query;
 
-        {/* Event Faculties */}
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Event Faculties</h3>
-          <BarChart data={statsData.eventFaculties} color="green" />
-          <div className="mt-4 text-sm text-gray-600">
-            <p>Total unique faculties in event: {statsData.eventFaculties.length}</p>
-          </div>
-        </div>
-      </div>
+    if (error) throw error;
 
-      {/* Event Activity Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Daily Activity Chart - FIXED */}
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Daily Activity - Day {selectedDay}</h3>
-          <DailyActivityChart selectedDay={selectedDay} />
-        </div>
+    const stats = processUserStatistics(users || []);
+    setStatsData(stats);
+  };
 
-        {/* Attendance Flow Chart */}
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Attendance Flow - Day {selectedDay}</h3>
-          <AttendanceFlowChart dayStats={dayStats} />
-        </div>
-      </div>
+  const fetchEventStats = async () => {
+    try {
+      // Calculate date range for the selected day
+      const eventStartDate = new Date('2024-03-18');
+      const targetDate = new Date(eventStartDate);
+      targetDate.setDate(eventStartDate.getDate() + (selectedDay - 1));
+      
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
 
-      {/* Session Popularity - FIXED */}
-      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Session Popularity - Day {selectedDay}</h3>
-        <SessionPopularityChart selectedDay={selectedDay} />
-      </div>
-    </div>
-  );
-};
+      // Fetch attendance data for the selected day
+      const { data: attendances, error } = await supabase
+        .from('attendances')
+        .select('*')
+        .gte('scanned_at', startOfDay.toISOString())
+        .lte('scanned_at', endOfDay.toISOString());
+
+      if (error) throw error;
+
+      // Fetch users currently in event for event-specific stats
+      const { data: eventUsers } = await supabase
+        .from('users_profiles')
+        .select('*')
+        .eq('event_entry', true);
+
+      // Process event statistics
+      const dayStats = processEventStatistics(attendances || []);
+      const eventSpecificStats = processEventSpecificStatistics(eventUsers || []);
+      
+      setStatsData(prev => ({
+        ...prev,
+        eventStats: {
+          ...prev.eventStats,
+          [`day${selectedDay}`]: dayStats
+        },
+        ...eventSpecificStats
+      }));
+    } catch (error) {
+      console.error('Error fetching event stats:', error);
+      throw error;
+    }
+  };
+
   const processUserStatistics = (users) => {
     const stats = {
       totalRegistrations: users.length,
@@ -914,7 +854,12 @@ const EventStatsView = ({ statsData, selectedDay }) => {
       marketingSources: [],
       degreeLevelStats: { student: 0, graduate: 0 },
       classYearStats: {},
-      currentGenderStats: { male: 0, female: 0 }
+      currentGenderStats: { male: 0, female: 0 },
+      // Initialize new event-specific stats
+      eventGenderStats: { male: 0, female: 0 },
+      eventFaculties: [],
+      eventUniversities: [],
+      eventDegreeStats: { student: 0, graduate: 0 }
     };
 
     const universityCount = {};
@@ -922,6 +867,10 @@ const EventStatsView = ({ statsData, selectedDay }) => {
     const roleCount = {};
     const marketingCount = {};
     const classYearCount = {};
+    
+    // NEW: Event-specific counters
+    const eventUniversityCount = {};
+    const eventFacultyCount = {};
 
     users.forEach(user => {
       // Degree level stats
@@ -932,7 +881,33 @@ const EventStatsView = ({ statsData, selectedDay }) => {
       }
 
       // Current status
-      if (user.event_entry) stats.currentInEvent++;
+      if (user.event_entry) {
+        stats.currentInEvent++;
+        // Event-specific gender stats
+        if (user.gender === 'male') {
+          stats.eventGenderStats.male++;
+        } else if (user.gender === 'female') {
+          stats.eventGenderStats.female++;
+        }
+        
+        // Event-specific university stats
+        if (user.university) {
+          eventUniversityCount[user.university] = (eventUniversityCount[user.university] || 0) + 1;
+        }
+        
+        // Event-specific faculty stats
+        if (user.faculty) {
+          eventFacultyCount[user.faculty] = (eventFacultyCount[user.faculty] || 0) + 1;
+        }
+        
+        // Event-specific degree stats
+        if (user.degree_level === 'student') {
+          stats.eventDegreeStats.student++;
+        } else if (user.degree_level === 'graduate') {
+          stats.eventDegreeStats.graduate++;
+        }
+      }
+      
       if (user.building_entry) stats.currentInBuilding++;
 
       // Gender stats (registration)
@@ -981,6 +956,17 @@ const EventStatsView = ({ statsData, selectedDay }) => {
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
+    // NEW: Event-specific arrays
+    stats.eventUniversities = Object.entries(eventUniversityCount)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    stats.eventFaculties = Object.entries(eventFacultyCount)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
     stats.roleStats = roleCount;
     stats.marketingSources = Object.entries(marketingCount)
       .map(([name, count]) => ({ name, count }))
@@ -991,20 +977,70 @@ const EventStatsView = ({ statsData, selectedDay }) => {
     return stats;
   };
 
-const processEventStatistics = (attendances) => {
-  // Process attendance data for the selected day
-  const dayStats = {
-    entries: attendances.filter(a => a.scan_type === 'entry').length,
-    exits: attendances.filter(a => a.scan_type === 'exit').length,
-    building_entries: attendances.filter(a => a.scan_type === 'building_entry').length,
-    building_exits: attendances.filter(a => a.scan_type === 'building_exit').length,
-    session_entries: attendances.filter(a => a.scan_type === 'session_entry').length,
-    registrations: 0 // This would need to be calculated separately
+  const processEventSpecificStatistics = (eventUsers) => {
+    const stats = {
+      eventGenderStats: { male: 0, female: 0 },
+      eventFaculties: [],
+      eventUniversities: [],
+      eventDegreeStats: { student: 0, graduate: 0 }
+    };
+
+    const eventUniversityCount = {};
+    const eventFacultyCount = {};
+
+    eventUsers.forEach(user => {
+      // Gender stats for event attendees
+      if (user.gender === 'male') {
+        stats.eventGenderStats.male++;
+      } else if (user.gender === 'female') {
+        stats.eventGenderStats.female++;
+      }
+
+      // University stats for event attendees
+      if (user.university) {
+        eventUniversityCount[user.university] = (eventUniversityCount[user.university] || 0) + 1;
+      }
+
+      // Faculty stats for event attendees
+      if (user.faculty) {
+        eventFacultyCount[user.faculty] = (eventFacultyCount[user.faculty] || 0) + 1;
+      }
+
+      // Degree stats for event attendees
+      if (user.degree_level === 'student') {
+        stats.eventDegreeStats.student++;
+      } else if (user.degree_level === 'graduate') {
+        stats.eventDegreeStats.graduate++;
+      }
+    });
+
+    // Convert to sorted arrays
+    stats.eventUniversities = Object.entries(eventUniversityCount)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    stats.eventFaculties = Object.entries(eventFacultyCount)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    return stats;
   };
 
-  return dayStats;
-};
-  
+  const processEventStatistics = (attendances) => {
+    const dayStats = {
+      entries: attendances.filter(a => a.scan_type === 'entry').length,
+      exits: attendances.filter(a => a.scan_type === 'exit').length,
+      building_entries: attendances.filter(a => a.scan_type === 'building_entry').length,
+      building_exits: attendances.filter(a => a.scan_type === 'building_exit').length,
+      session_entries: attendances.filter(a => a.scan_type === 'session_entry').length,
+      registrations: 0
+    };
+
+    return dayStats;
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -1105,12 +1141,11 @@ const processEventStatistics = (attendances) => {
         <EventStatsView statsData={statsData} selectedDay={selectedDay} />
       )}
 
-      {/* Current State Widget (Updated Flow Dashboard) */}
+      {/* Current State Widget */}
       <CurrentStateWidget statsData={statsData} />
     </div>
   );
 };
-
 // Registration Stats View Component
 const RegistrationStatsView = ({ statsData }) => (
   <div className="space-y-8">
