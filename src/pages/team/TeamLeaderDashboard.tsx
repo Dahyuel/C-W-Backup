@@ -44,7 +44,7 @@ export const TeamLeaderDashboard: React.FC = () => {
   const [showVolunteerCard, setShowVolunteerCard] = useState(false);
   const [attendanceChecked, setAttendanceChecked] = useState(false);
   const [alreadyAttended, setAlreadyAttended] = useState(false);
-
+const [scanPurpose, setScanPurpose] = useState<'attendance' | 'bonus'>('attendance');
   // Announcement State
   const [announcementModal, setAnnouncementModal] = useState(false);
   const [announcementTitle, setAnnouncementTitle] = useState("");
