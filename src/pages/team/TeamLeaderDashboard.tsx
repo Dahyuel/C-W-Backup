@@ -446,6 +446,9 @@ const handleBonusAssignment = async () => {
     setLoading(false);
   }
 };
+  // Add this with other Bonus State
+const [showBonusConfirmCard, setShowBonusConfirmCard] = useState(false);
+const [bonusMethod, setBonusMethod] = useState<'scan' | 'search'>('scan');
   // Get role options - for team leader, only show their team and custom
   const getRoleOptions = () => {
     const teamLeaderTeam = getTeamLeaderTeam();
