@@ -324,7 +324,6 @@ const handleAnnouncementSubmit = async () => {
     return;
   }
 
-  // ADD THESE DEBUG LINES
   console.log('=== DEBUG ANNOUNCEMENT ===');
   console.log('announcementRole:', announcementRole);
   console.log('getTeamLeaderTeam():', getTeamLeaderTeam());
@@ -338,18 +337,15 @@ const handleAnnouncementSubmit = async () => {
 
   setLoading(true);
   try {
-    let notificationData: any = {
-      title: announcementTitle,
-      message: announcementDescription,
-      created_by: profile?.id
-    };
+    let targetType: string;
+    let targetRole: string | null = null;
+    let targetUserIds: string[] | null = null;
 
-    // Determine target type and role based on selection
+    // Determine target type and parameters based on selection
     if (announcementRole === "custom") {
       // Send to custom selected users
-      notificationData.target_type = 'specific_users';
-      notificationData.target_user_ids = selectedUsers.map(user => user.id);
-      console.log('Custom notification data:', notificationData);
+      targetType = 'specific_users';
+      targetUserIds = selectedUsers.map(user => user.id);
     } else {
       // For team announcements
       const teamLeaderTeam = getTeamLeaderTeam();
@@ -357,20 +353,30 @@ const handleAnnouncementSubmit = async () => {
         showFeedback('error', 'No team assigned');
         return;
       }
-
-      notificationData.target_type = 'role';
-      notificationData.target_role = teamLeaderTeam;
-      console.log('Team notification data:', notificationData);
+      targetType = 'role';
+      targetRole = teamLeaderTeam;
     }
 
-    const { error } = await supabase
-      .from('notifications')
-      .insert([notificationData]);
+    console.log('Calling send_notification RPC with:', {
+      targetType,
+      targetRole,
+      targetUserIds
+    });
+
+    // Use the Supabase RPC function instead of direct table insertion
+    const { data, error } = await supabase.rpc('send_notification', {
+      title_param: announcementTitle,
+      message_param: announcementDescription,
+      target_type_param: targetType,
+      target_role_param: targetRole,
+      target_user_ids_param: targetUserIds
+    });
 
     if (error) {
-      console.error('Notification error:', error);
+      console.error('Notification RPC error:', error);
       showFeedback('error', 'Failed to send announcement: ' + error.message);
     } else {
+      console.log('SUCCESS - Notification sent with ID:', data);
       showFeedback('success', 'Announcement sent successfully!');
       setAnnouncementModal(false);
       setAnnouncementTitle("");
