@@ -81,10 +81,15 @@ export const TeamLeaderDashboard: React.FC = () => {
     setTimeout(() => setFeedback(null), 5000);
   };
 
-  // Get team leader's allowed roles from tl_team
+  // Get team leader's team from tl_team column
+  const getTeamLeaderTeam = (): string | null => {
+    return profile?.tl_team || null;
+  };
+
+  // Get allowed roles - for team leader, it's just their tl_team value
   const getAllowedRoles = (): string[] => {
-    if (!profile?.tl_team) return [];
-    return profile.tl_team.split(',').map(role => role.trim());
+    const team = getTeamLeaderTeam();
+    return team ? [team] : [];
   };
 
   // Fetch building stats
@@ -145,9 +150,9 @@ export const TeamLeaderDashboard: React.FC = () => {
         return;
       }
 
-      // Check if user is in allowed roles
-      const allowedRoles = getAllowedRoles();
-      if (!allowedRoles.includes(volunteerData.role)) {
+      // Check if user is in team leader's team
+      const teamLeaderTeam = getTeamLeaderTeam();
+      if (volunteerData.role !== teamLeaderTeam) {
         showFeedback('error', 'Volunteer not in your team');
         return;
       }
@@ -189,12 +194,17 @@ export const TeamLeaderDashboard: React.FC = () => {
     }
 
     try {
-      const allowedRoles = getAllowedRoles();
+      const teamLeaderTeam = getTeamLeaderTeam();
+      if (!teamLeaderTeam) {
+        showFeedback('error', 'No team assigned');
+        return;
+      }
+
       const { data, error } = await supabase
         .from('users_profiles')
         .select('*')
         .or(`personal_id.ilike.%${searchTerm}%,volunteer_id.ilike.%${searchTerm}%`)
-        .in('role', allowedRoles)
+        .eq('role', teamLeaderTeam) // Only users with same role as team leader's tl_team
         .limit(10);
 
       if (!error && data) {
@@ -249,12 +259,17 @@ export const TeamLeaderDashboard: React.FC = () => {
 
     setUserSearchLoading(true);
     try {
-      const allowedRoles = getAllowedRoles();
+      const teamLeaderTeam = getTeamLeaderTeam();
+      if (!teamLeaderTeam) {
+        setUserSearchResults([]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('users_profiles')
         .select('id, first_name, last_name, personal_id, role, email, volunteer_id, tl_team')
         .ilike('personal_id', `%${searchTerm.trim()}%`)
-        .in('role', allowedRoles)
+        .eq('role', teamLeaderTeam) // Only users with same role as team leader's tl_team
         .order('personal_id')
         .limit(10);
 
@@ -322,9 +337,9 @@ export const TeamLeaderDashboard: React.FC = () => {
         notificationData.target_type = 'specific_users';
         notificationData.target_user_ids = selectedUsers.map(user => user.id);
       } else {
-        // For role-based targeting
+        // For role-based targeting - use team leader's team
         notificationData.target_type = 'role';
-        notificationData.target_role = announcementRole;
+        notificationData.target_role = getTeamLeaderTeam();
       }
 
       const { error } = await supabase
@@ -358,12 +373,17 @@ export const TeamLeaderDashboard: React.FC = () => {
     }
 
     try {
-      const allowedRoles = getAllowedRoles();
+      const teamLeaderTeam = getTeamLeaderTeam();
+      if (!teamLeaderTeam) {
+        showFeedback('error', 'No team assigned');
+        return;
+      }
+
       const { data, error } = await supabase
         .from('users_profiles')
         .select('*')
         .or(`personal_id.ilike.%${searchTerm}%,volunteer_id.ilike.%${searchTerm}%`)
-        .in('role', allowedRoles)
+        .eq('role', teamLeaderTeam) // Only users with same role as team leader's tl_team
         .limit(10);
 
       if (!error && data) {
@@ -426,9 +446,11 @@ export const TeamLeaderDashboard: React.FC = () => {
     }
   };
 
-  // Get role options based on team leader's allowed roles
+  // Get role options - for team leader, only show their team and custom
   const getRoleOptions = () => {
-    const allowedRoles = getAllowedRoles();
+    const teamLeaderTeam = getTeamLeaderTeam();
+    if (!teamLeaderTeam) return [];
+
     const roleLabels: { [key: string]: string } = {
       'volunteer': 'Volunteers',
       'registration': 'Registration Team',
@@ -446,10 +468,7 @@ export const TeamLeaderDashboard: React.FC = () => {
     };
 
     return [
-      ...allowedRoles.map(role => ({
-        value: role,
-        label: roleLabels[role] || role.charAt(0).toUpperCase() + role.slice(1)
-      })),
+      { value: teamLeaderTeam, label: roleLabels[teamLeaderTeam] || teamLeaderTeam.charAt(0).toUpperCase() + teamLeaderTeam.slice(1) },
       { value: "custom", label: "Custom Selection" }
     ];
   };
@@ -588,9 +607,11 @@ export const TeamLeaderDashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* All Modals - Placed outside the main content to overlay everything */}
+
         {/* Attendance Modal */}
         {attendanceModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[100]">
             <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative">
               <button
                 onClick={() => {
@@ -700,17 +721,21 @@ export const TeamLeaderDashboard: React.FC = () => {
         )}
 
         {/* QR Scanner Modal */}
-        <QRScanner
-          isOpen={scannerOpen}
-          onClose={() => setScannerOpen(false)}
-          onScan={handleScan}
-          title="Scan Volunteer QR Code"
-          description="Point your camera at the volunteer's QR code"
-        />
+        {scannerOpen && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[100]">
+            <QRScanner
+              isOpen={scannerOpen}
+              onClose={() => setScannerOpen(false)}
+              onScan={handleScan}
+              title="Scan Volunteer QR Code"
+              description="Point your camera at the volunteer's QR code"
+            />
+          </div>
+        )}
 
         {/* Volunteer Card Modal */}
         {showVolunteerCard && scannedVolunteer && (
-          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[100]">
             <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-xl font-bold text-gray-900">Volunteer Information</h3>
@@ -770,7 +795,7 @@ export const TeamLeaderDashboard: React.FC = () => {
 
         {/* Announcement Modal */}
         {announcementModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[100]">
             <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto relative">
               <button
                 onClick={() => {
@@ -813,7 +838,7 @@ export const TeamLeaderDashboard: React.FC = () => {
                   }}
                   className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300"
                 >
-                  <option value="">Select Target Role</option>
+                  <option value="">Select Target</option>
                   {getRoleOptions().map(role => (
                     <option key={role.value} value={role.value}>
                       {role.label}
@@ -934,7 +959,7 @@ export const TeamLeaderDashboard: React.FC = () => {
 
         {/* Bonus Assignment Modal */}
         {bonusModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[100]">
             <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative">
               <button
                 onClick={() => {
