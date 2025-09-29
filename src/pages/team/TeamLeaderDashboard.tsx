@@ -338,15 +338,18 @@ const handleAnnouncementSubmit = async () => {
 
   setLoading(true);
   try {
-    let targetType: string;
-    let targetRole: string | null = null;
-    let targetUserIds: string[] | null = null;
+    let notificationData: any = {
+      title: announcementTitle,
+      message: announcementDescription,
+      created_by: profile?.id
+    };
 
-    // Determine target type and parameters based on selection
+    // Determine target type and role based on selection
     if (announcementRole === "custom") {
       // Send to custom selected users
-      targetType = 'specific_users';
-      targetUserIds = selectedUsers.map(user => user.id);
+      notificationData.target_type = 'specific_users';
+      notificationData.target_user_ids = selectedUsers.map(user => user.id);
+      console.log('Custom notification data:', notificationData);
     } else {
       // For team announcements
       const teamLeaderTeam = getTeamLeaderTeam();
@@ -354,41 +357,24 @@ const handleAnnouncementSubmit = async () => {
         showFeedback('error', 'No team assigned');
         return;
       }
-      targetType = 'role';
-      targetRole = teamLeaderTeam;
+
+      notificationData.target_type = 'role';
+      notificationData.target_role = teamLeaderTeam;
+      console.log('Team notification data:', notificationData);
     }
 
-    console.log('Calling send_notification RPC with:', {
-      targetType,
-      targetRole,
-      targetUserIds
-    });
+    console.log('Final notification data to insert:', JSON.stringify(notificationData, null, 2));
 
-    // Prepare parameters for RPC call
-    const rpcParams: any = {
-      title_param: announcementTitle,
-      message_param: announcementDescription,
-      target_type_param: targetType,
-    };
-
-    // Add optional parameters only if they exist
-    if (targetRole) {
-      rpcParams.target_role_param = targetRole;
-    }
-    
-    if (targetUserIds && targetUserIds.length > 0) {
-      // Convert string[] to UUID[] for the database
-      rpcParams.target_user_ids_param = targetUserIds;
-    }
-
-    // Use the Supabase RPC function
-    const { data, error } = await supabase.rpc('send_notification', rpcParams);
+    const { data, error } = await supabase
+      .from('notifications')
+      .insert([notificationData])
+      .select();
 
     if (error) {
-      console.error('Notification RPC error:', error);
+      console.error('Notification insert error:', error);
       showFeedback('error', 'Failed to send announcement: ' + error.message);
     } else {
-      console.log('SUCCESS - Notification sent with ID:', data);
+      console.log('SUCCESS - Notification inserted:', data);
       showFeedback('success', 'Announcement sent successfully!');
       setAnnouncementModal(false);
       setAnnouncementTitle("");
