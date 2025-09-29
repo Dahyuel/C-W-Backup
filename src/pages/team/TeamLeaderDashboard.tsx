@@ -959,6 +959,7 @@ const [bonusMethod, setBonusMethod] = useState<'scan' | 'search'>('scan');
             </div>
           </div>
         )}
+
 {/* Bonus Assignment Modal */}
 {bonusModal && (
   <div 
@@ -1161,114 +1162,7 @@ const [bonusMethod, setBonusMethod] = useState<'scan' | 'search'>('scan');
       </button>
     </div>
   </div>
-
-                {/* User Search */}
-                <div className="relative">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Search Volunteer
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={bonusSearchTerm}
-                      onChange={(e) => {
-                        setBonusSearchTerm(e.target.value);
-                        handleBonusUserSearch(e.target.value);
-                      }}
-                      onFocus={() => setShowBonusSearchResults(true)}
-                      placeholder="Search by Personal ID or Volunteer ID"
-                      className="w-full border rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
-                    />
-                    <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
-                    
-                    {/* Search Results - Fixed positioning */}
-                    {showBonusSearchResults && bonusSearchResults.length > 0 && (
-                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-40 max-h-60 overflow-y-auto">
-                        {bonusSearchResults.map((user) => (
-                          <button
-                            key={user.id}
-                            onClick={() => {
-                              setSelectedUser(user);
-                              setBonusSearchTerm(`${user.first_name} ${user.last_name} (${user.volunteer_id})`);
-                              setShowBonusSearchResults(false);
-                            }}
-                            className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-all duration-300"
-                          >
-                            <div>
-                              <p className="font-medium text-gray-900">
-                                {user.first_name} {user.last_name}
-                              </p>
-                              <p className="text-sm text-gray-600">
-                                ID: {user.volunteer_id} | Personal ID: {user.personal_id}
-                              </p>
-                              <p className="text-xs text-gray-500 capitalize">
-                                {user.role.replace('_', ' ')}
-                              </p>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  
-                  {/* Click outside to close search results */}
-                  {showBonusSearchResults && (
-                    <div 
-                      className="fixed inset-0 z-30"
-                      onClick={() => setShowBonusSearchResults(false)}
-                    />
-                  )}
-                </div>
-
-                {/* Selected User Display */}
-                {selectedUser && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-green-900">
-                          {selectedUser.first_name} {selectedUser.last_name}
-                        </p>
-                        <p className="text-sm text-green-700">
-                          {selectedUser.volunteer_id} • {selectedUser.personal_id}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setSelectedUser(null);
-                          setBonusSearchTerm("");
-                        }}
-                        className="text-green-600 hover:text-green-800 transition-colors"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex justify-end gap-3 mt-6">
-                <button
-                  onClick={() => {
-                    setBonusModal(false);
-                    setSelectedUser(null);
-                    setBonusSearchTerm("");
-                    setShowBonusSearchResults(false);
-                  }}
-                  className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-all duration-300"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleBonusAssignment}
-                  disabled={loading || !selectedUser}
-                  className="px-4 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 transition-all duration-300"
-                >
-                  {loading ? 'Assigning...' : 'Assign Bonus'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+)}
       </div>
     </DashboardLayout>
   );
