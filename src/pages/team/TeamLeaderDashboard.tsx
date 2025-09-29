@@ -410,7 +410,7 @@ export const TeamLeaderDashboard: React.FC = () => {
       <div className="space-y-8">
         {/* Feedback Toast */}
         {feedback && (
-          <div className={`fixed top-4 right-4 z-50 flex items-center space-x-2 px-4 py-3 rounded-lg shadow-lg message-animate ${
+          <div className={`fixed top-4 right-4 z-50 flex items-center space-x-2 px-4 py-3 rounded-lg shadow-lg fade-in-blur ${
             feedback.type === 'success' 
               ? 'bg-green-500 text-white' 
               : 'bg-red-500 text-white'
@@ -423,7 +423,7 @@ export const TeamLeaderDashboard: React.FC = () => {
             <span className="font-medium">{feedback.message}</span>
             <button
               onClick={() => setFeedback(null)}
-              className="ml-2 hover:bg-black hover:bg-opacity-20 rounded p-1"
+              className="ml-2 hover:bg-black hover:bg-opacity-20 rounded p-1 transition-colors"
             >
               <X className="h-4 w-4" />
             </button>
@@ -443,7 +443,7 @@ export const TeamLeaderDashboard: React.FC = () => {
             {/* Attendance */}
             <button
               onClick={() => setScannerOpen(true)}
-              className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all duration-300 btn-animate"
+              className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all duration-300 smooth-hover"
             >
               <QrCode className="h-8 w-8 mb-2" />
               <span className="text-base font-medium">Scan Attendance</span>
@@ -452,7 +452,7 @@ export const TeamLeaderDashboard: React.FC = () => {
             {/* Bonus */}
             <button
               onClick={() => setBonusModal(true)}
-              className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-all duration-300 btn-animate"
+              className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-all duration-300 smooth-hover"
             >
               <Gift className="h-8 w-8 mb-2" />
               <span className="text-base font-medium">Assign Bonus</span>
@@ -461,7 +461,7 @@ export const TeamLeaderDashboard: React.FC = () => {
             {/* Announcements */}
             <button
               onClick={() => setAnnouncementModal(true)}
-              className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-all duration-300 btn-animate"
+              className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-all duration-300 smooth-hover"
             >
               <Megaphone className="h-8 w-8 mb-2" />
               <span className="text-base font-medium">Send Announcement</span>
@@ -479,15 +479,15 @@ export const TeamLeaderDashboard: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-3 gap-4 px-6 py-6 text-center stagger-children">
-            <div className="bg-green-100 p-4 rounded-lg shadow-sm card-hover">
+            <div className="bg-green-100 p-4 rounded-lg shadow-sm card-hover smooth-hover">
               <p className="text-2xl font-bold text-green-900">{buildingStats.inside_building}</p>
               <p className="text-lg font-bold text-gray-700">Inside Building</p>
             </div>
-            <div className="bg-teal-100 p-4 rounded-lg shadow-sm card-hover">
+            <div className="bg-teal-100 p-4 rounded-lg shadow-sm card-hover smooth-hover">
               <p className="text-2xl font-bold text-teal-900">{buildingStats.inside_event}</p>
               <p className="text-lg font-bold text-gray-700">Inside Event</p>
             </div>
-            <div className="bg-blue-100 p-4 rounded-lg shadow-sm card-hover">
+            <div className="bg-blue-100 p-4 rounded-lg shadow-sm card-hover smooth-hover">
               <p className="text-2xl font-bold text-blue-900">{buildingStats.total_attendees}</p>
               <p className="text-lg font-bold text-gray-700">Total Attendees</p>
             </div>
@@ -555,10 +555,10 @@ export const TeamLeaderDashboard: React.FC = () => {
           }}
         >
           <div 
-            className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md modal-content-blur"
+            className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md modal-content-blur fade-in-up-blur"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 fade-in-blur">
               <h3 className="text-xl font-bold text-gray-900">Volunteer Information</h3>
               <button
                 onClick={() => {
@@ -566,13 +566,13 @@ export const TeamLeaderDashboard: React.FC = () => {
                   setScannedVolunteer(null);
                   setAttendanceChecked(false);
                 }}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700 transition-colors"
               >
                 <X className="h-6 w-6" />
               </button>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-3 fade-in-blur stagger-children">
               <div className="flex justify-between">
                 <span className="font-medium">Name:</span>
                 <span>{scannedVolunteer.first_name} {scannedVolunteer.last_name}</span>
@@ -595,7 +595,7 @@ export const TeamLeaderDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="mt-6">
+            <div className="mt-6 fade-in-blur">
               {alreadyAttended ? (
                 <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded-lg">
                   <p className="font-medium">This volunteer has already attended today.</p>
@@ -604,7 +604,7 @@ export const TeamLeaderDashboard: React.FC = () => {
                 <button
                   onClick={handleAttendanceAction}
                   disabled={loading}
-                  className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 disabled:opacity-50 transition-colors font-medium"
+                  className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-300 smooth-hover font-medium"
                 >
                   {loading ? 'Recording...' : 'Mark Attendance'}
                 </button>
@@ -624,7 +624,7 @@ export const TeamLeaderDashboard: React.FC = () => {
           }}
         >
           <div 
-            className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto relative modal-content-blur"
+            className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto relative modal-content-blur fade-in-up-blur"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -632,29 +632,29 @@ export const TeamLeaderDashboard: React.FC = () => {
                 setAnnouncementModal(false);
                 clearUserSelection();
               }}
-              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 transition-colors"
             >
               <X className="h-6 w-6" />
             </button>
 
-            <h2 className="text-lg font-semibold text-black mb-4 text-center">
+            <h2 className="text-lg font-semibold text-black mb-4 text-center fade-in-blur">
               Send Announcement
             </h2>
 
-            <div className="space-y-4">
+            <div className="space-y-4 stagger-children">
               <input
                 type="text"
                 value={announcementTitle}
                 onChange={(e) => setAnnouncementTitle(e.target.value)}
                 placeholder="Message Title"
-                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 fade-in-blur"
               />
 
               <textarea
                 value={announcementDescription}
                 onChange={(e) => setAnnouncementDescription(e.target.value)}
                 placeholder="Message Description"
-                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 fade-in-blur"
                 rows={3}
               />
 
@@ -666,7 +666,7 @@ export const TeamLeaderDashboard: React.FC = () => {
                     clearUserSelection();
                   }
                 }}
-                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 fade-in-blur"
               >
                 <option value="">Select Target Role</option>
                 {roleOptions.map(role => (
@@ -678,7 +678,7 @@ export const TeamLeaderDashboard: React.FC = () => {
 
               {/* Custom Selection UI */}
               {announcementRole === "custom" && (
-                <div className="space-y-3">
+                <div className="space-y-3 fade-in-blur">
                   <div className="relative">
                     <input
                       type="text"
@@ -688,7 +688,7 @@ export const TeamLeaderDashboard: React.FC = () => {
                         searchUsersByPersonalId(e.target.value);
                       }}
                       placeholder="Search by Personal ID..."
-                      className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
                     />
                     {userSearchLoading && (
                       <div className="absolute right-3 top-3">
@@ -699,12 +699,12 @@ export const TeamLeaderDashboard: React.FC = () => {
 
                   {/* Search Results */}
                   {userSearchResults.length > 0 && (
-                    <div className="max-h-40 overflow-y-auto border rounded-lg">
+                    <div className="max-h-40 overflow-y-auto border rounded-lg fade-in-scale">
                       {userSearchResults.map((user) => (
                         <div
                           key={user.id}
                           onClick={() => addUserToSelection(user)}
-                          className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                          className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0 transition-all duration-300 smooth-hover"
                         >
                           <div className="flex justify-between items-center">
                             <div>
@@ -724,14 +724,14 @@ export const TeamLeaderDashboard: React.FC = () => {
 
                   {/* Selected Users */}
                   {selectedUsers.length > 0 && (
-                    <div>
+                    <div className="fade-in-blur">
                       <div className="flex justify-between items-center mb-2">
                         <label className="text-sm font-medium text-gray-700">
                           Selected Users ({selectedUsers.length})
                         </label>
                         <button
                           onClick={clearUserSelection}
-                          className="text-xs text-red-500 hover:text-red-700"
+                          className="text-xs text-red-500 hover:text-red-700 transition-colors"
                         >
                           Clear All
                         </button>
@@ -740,7 +740,7 @@ export const TeamLeaderDashboard: React.FC = () => {
                         {selectedUsers.map((user) => (
                           <div
                             key={user.id}
-                            className="p-2 flex justify-between items-center border-b last:border-b-0"
+                            className="p-2 flex justify-between items-center border-b last:border-b-0 smooth-hover"
                           >
                             <div>
                               <p className="text-sm text-gray-900">
@@ -751,201 +751,200 @@ export const TeamLeaderDashboard: React.FC = () => {
                               </p>
                             </div>
                             <button
-                              onClick={() => removeUserFromSelection(user.id)}
-                              className="text-red-500 hover:text-red-700"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setAnnouncementModal(false);
-                  clearUserSelection();
-                }}
-                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAnnouncementSubmit}
-                disabled={loading}
-                className="px-4 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600 disabled:opacity-50"
-              >
-                {loading ? 'Sending...' : 'Send'}
-              </button>
-            </div>
-          </div>
+onClick={() => removeUserFromSelection(user.id)}
+className="text-red-500 hover:text-red-700 transition-colors"
+>
+<X className="h-4 w-4" />
+</button>
+</div>
+))}
+</div>
+</div>
+)}
+</div>
+)}
+</div>
+            <div className="flex justify-end gap-3 mt-6 fade-in-blur">
+          <button
+            onClick={() => {
+              setAnnouncementModal(false);
+              clearUserSelection();
+            }}
+            className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-all duration-300 smooth-hover"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleAnnouncementSubmit}
+            disabled={loading}
+            className="px-4 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600 disabled:opacity-50 transition-all duration-300 smooth-hover"
+          >
+            {loading ? 'Sending...' : 'Send'}
+          </button>
         </div>
-      )}
+      </div>
+    </div>
+  )}
 
-      {/* Bonus Assignment Modal - FIXED VERSION */}
-      {bonusModal && (
-        <div 
-          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4 modal-backdrop-blur"
+  {/* Bonus Assignment Modal */}
+  {bonusModal && (
+    <div 
+      className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4 modal-backdrop-blur"
+      onClick={() => {
+        setBonusModal(false);
+        setSelectedUser(null);
+        setSearchTerm("");
+        setShowSearchResults(false);
+      }}
+    >
+      <div 
+        className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative modal-content-blur fade-in-up-blur"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
           onClick={() => {
             setBonusModal(false);
             setSelectedUser(null);
             setSearchTerm("");
             setShowSearchResults(false);
           }}
+          className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 z-30 transition-colors"
         >
-          <div 
-            className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative modal-content-blur"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={() => {
-                setBonusModal(false);
-                setSelectedUser(null);
-                setSearchTerm("");
-                setShowSearchResults(false);
-              }}
-              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 z-30"
-            >
-              <X className="h-6 w-6" />
-            </button>
+          <X className="h-6 w-6" />
+        </button>
 
-            <h2 className="text-lg font-semibold text-black mb-4 text-center">
-              Assign Bonus Points
-            </h2>
+        <h2 className="text-lg font-semibold text-black mb-4 text-center fade-in-blur">
+          Assign Bonus Points
+        </h2>
 
-            <div className="space-y-4">
-              {/* Bonus Slider */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Bonus Points: {bonusAmount}
-                </label>
-                <div className="flex items-center space-x-3">
-                  <span>1</span>
-                  <input
-                    type="range"
-                    min="1"
-                    max="30"
-                    value={bonusAmount}
-                    onChange={(e) => setBonusAmount(parseInt(e.target.value))}
-                    className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-                  />
-                  <span>30</span>
-                </div>
-              </div>
+        <div className="space-y-4 stagger-children">
+          {/* Bonus Slider */}
+          <div className="fade-in-blur">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Bonus Points: {bonusAmount}
+            </label>
+            <div className="flex items-center space-x-3">
+              <span>1</span>
+              <input
+                type="range"
+                min="1"
+                max="30"
+                value={bonusAmount}
+                onChange={(e) => setBonusAmount(parseInt(e.target.value))}
+                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider transition-all duration-300"
+              />
+              <span>30</span>
+            </div>
+          </div>
 
-              {/* User Search */}
-              <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Search Volunteer
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => {
-                      setSearchTerm(e.target.value);
-                      handleUserSearch(e.target.value);
-                    }}
-                    onFocus={() => setShowSearchResults(true)}
-                    placeholder="Search by Personal ID or Volunteer ID"
-                    className="w-full border rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  />
-                  <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
-                  
-                  {/* Search Results - Fixed positioning */}
-                  {showSearchResults && searchResults.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-40 max-h-60 overflow-y-auto">
-                      {searchResults.map((user) => (
-                        <button
-                          key={user.id}
-                          onClick={() => {
-                            setSelectedUser(user);
-                            setSearchTerm(`${user.first_name} ${user.last_name} (${user.volunteer_id})`);
-                            setShowSearchResults(false);
-                          }}
-                          className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
-                        >
-                          <div>
-                            <p className="font-medium text-gray-900">
-                              {user.first_name} {user.last_name}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              ID: {user.volunteer_id} | Personal ID: {user.personal_id}
-                            </p>
-                            <p className="text-xs text-gray-500 capitalize">
-                              {user.role.replace('_', ' ')}
-                            </p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                
-                {/* Click outside to close search results */}
-                {showSearchResults && (
-                  <div 
-                    className="fixed inset-0 z-30"
-                    onClick={() => setShowSearchResults(false)}
-                  />
-                )}
-              </div>
-
-              {/* Selected User Display */}
-              {selectedUser && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-green-900">
-                        {selectedUser.first_name} {selectedUser.last_name}
-                      </p>
-                      <p className="text-sm text-green-700">
-                        {selectedUser.volunteer_id} • {selectedUser.personal_id}
-                      </p>
-                    </div>
+          {/* User Search */}
+          <div className="relative fade-in-blur">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Search Volunteer
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  handleUserSearch(e.target.value);
+                }}
+                onFocus={() => setShowSearchResults(true)}
+                placeholder="Search by Personal ID or Volunteer ID"
+                className="w-full border rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
+              />
+              <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
+              
+              {/* Search Results - Fixed positioning */}
+              {showSearchResults && searchResults.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-40 max-h-60 overflow-y-auto fade-in-scale">
+                  {searchResults.map((user) => (
                     <button
+                      key={user.id}
                       onClick={() => {
-                        setSelectedUser(null);
-                        setSearchTerm("");
+                        setSelectedUser(user);
+                        setSearchTerm(`${user.first_name} ${user.last_name} (${user.volunteer_id})`);
+                        setShowSearchResults(false);
                       }}
-                      className="text-green-600 hover:text-green-800"
+                      className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-all duration-300 smooth-hover"
                     >
-                      <X className="h-4 w-4" />
+                      <div>
+                        <p className="font-medium text-gray-900">
+                          {user.first_name} {user.last_name}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          ID: {user.volunteer_id} | Personal ID: {user.personal_id}
+                        </p>
+                        <p className="text-xs text-gray-500 capitalize">
+                          {user.role.replace('_', ' ')}
+                        </p>
+                      </div>
                     </button>
-                  </div>
+                  ))}
                 </div>
               )}
             </div>
-
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setBonusModal(false);
-                  setSelectedUser(null);
-                  setSearchTerm("");
-                  setShowSearchResults(false);
-                }}
-                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleBonusAssignment}
-                disabled={loading || !selectedUser}
-                className="px-4 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 disabled:opacity-50"
-              >
-                {loading ? 'Assigning...' : 'Assign Bonus'}
-              </button>
-            </div>
+            
+            {/* Click outside to close search results */}
+            {showSearchResults && (
+              <div 
+                className="fixed inset-0 z-30"
+                onClick={() => setShowSearchResults(false)}
+              />
+            )}
           </div>
+
+          {/* Selected User Display */}
+          {selectedUser && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 fade-in-blur card-hover">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-green-900">
+                    {selectedUser.first_name} {selectedUser.last_name}
+                  </p>
+                  <p className="text-sm text-green-700">
+                    {selectedUser.volunteer_id} • {selectedUser.personal_id}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedUser(null);
+                    setSearchTerm("");
+                  }}
+                  className="text-green-600 hover:text-green-800 transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+
+        <div className="flex justify-end gap-3 mt-6 fade-in-blur">
+          <button
+            onClick={() => {
+              setBonusModal(false);
+              setSelectedUser(null);
+              setSearchTerm("");
+              setShowSearchResults(false);
+            }}
+            className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-all duration-300 smooth-hover"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleBonusAssignment}
+            disabled={loading || !selectedUser}
+            className="px-4 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 transition-all duration-300 smooth-hover"
+          >
+            {loading ? 'Assigning...' : 'Assign Bonus'}
+          </button>
+        </div>
       </div>
-    </DashboardLayout>
-  );
+    </div>
+  )}
+  </div>
+</DashboardLayout>
+    );
 };
