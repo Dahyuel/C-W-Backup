@@ -881,29 +881,29 @@ const [bonusMethod, setBonusMethod] = useState<'scan' | 'search'>('scan');
                     </div>
 
                     {/* Search Results */}
-                    {userSearchResults.length > 0 && (
-                      <div className="max-h-40 overflow-y-auto border rounded-lg">
-                        {userSearchResults.map((user) => (
-                          <div
-                            key={user.id}
-                            onClick={() => addUserToSelection(user)}
-                            className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0 transition-all duration-300"
-                          >
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">
-                                  {user.first_name} {user.last_name}
-                                </p>
-                                <p className="text-xs text-gray-500">
-                                  ID: {user.personal_id} | {user.role}
-                                </p>
-                              </div>
-                              <Plus className="h-4 w-4 text-blue-500" />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                   {userSearchResults.length > 0 && (
+  <div className="max-h-40 overflow-y-auto border rounded-lg">
+    {userSearchResults.map((user) => (
+      <div
+        key={user.id}
+        onClick={() => addUserToSelection(user)}
+        className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0 transition-all duration-300"
+      >
+        <div className="flex justify-between items-center">
+          <div>
+            <p className="text-sm font-medium text-gray-900">
+              {user.first_name} {user.last_name}
+            </p>
+            <p className="text-xs text-gray-500">
+              Vol ID: {user.volunteer_id} | Personal ID: {user.personal_id}
+            </p>
+          </div>
+          <Plus className="h-4 w-4 text-blue-500" />
+        </div>
+      </div>
+    ))}
+  </div>
+)}
 
                     {/* Selected Users */}
                     {selectedUsers.length > 0 && (
