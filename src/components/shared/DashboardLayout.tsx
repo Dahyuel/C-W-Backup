@@ -760,61 +760,60 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
         </div>
       )}
 
-      {/* Notification Modal */}
-      {showNotificationModal && selectedNotification && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          onClick={() => {
-            setShowNotificationModal(false);
-            setSelectedNotification(null);
-          }}
-        >
-          <div 
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-scale-in"
-            onClick={(e) => e.stopPropagation()}
+    {/* Notification Modal */}
+{showNotificationModal && selectedNotification && (
+  <div 
+    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur"
+    onClick={() => {
+      setShowNotificationModal(false);
+      setSelectedNotification(null);
+    }}
+  >
+    <div 
+      className="bg-white rounded-2xl shadow-2xl w-full max-w-md modal-content-blur fade-in-up-blur"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="p-6 stagger-children">
+        <div className="flex items-center justify-between mb-6 fade-in-blur">
+          <h2 className="text-xl font-bold text-gray-900">Notification</h2>
+          <button
+            onClick={() => {
+              setShowNotificationModal(false);
+              setSelectedNotification(null);
+            }}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6 animate-fade-in">
-                <h2 className="text-xl font-bold text-gray-900">Notification</h2>
-                <button
-                  onClick={() => {
-                    setShowNotificationModal(false);
-                    setSelectedNotification(null);
-                  }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
+            <X className="h-6 w-6" />
+          </button>
+        </div>
 
-              <div className="space-y-4">
-                <div className="animate-fade-in" style={{animationDelay: '0.1s'}}>
-                  <h3 className="font-semibold text-gray-900">{selectedNotification.title}</h3>
-                </div>
-                <div className="animate-fade-in" style={{animationDelay: '0.2s'}}>
-                  <p className="text-gray-700">{selectedNotification.message}</p>
-                </div>
-                <div className="text-sm text-gray-500 animate-fade-in" style={{animationDelay: '0.3s'}}>
-                  <p>From: {selectedNotification.sender}</p>
-                  <p>Date: {new Date(selectedNotification.created_at).toLocaleString()}</p>
-                </div>
-              </div>
-
-              {!selectedNotification.is_read && (
-                <div className="mt-6 pt-6 border-t border-gray-200 animate-fade-in" style={{animationDelay: '0.4s'}}>
-                  <button
-                    onClick={() => markNotificationAsRead(selectedNotification.id)}
-                    className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors"
-                  >
-                    Mark as Read
-                  </button>
-                </div>
-              )}
-            </div>
+        <div className="space-y-4 fade-in-blur">
+          <div>
+            <h3 className="font-semibold text-gray-900">{selectedNotification.title}</h3>
+          </div>
+          <div>
+            <p className="text-gray-700">{selectedNotification.message}</p>
+          </div>
+          <div className="text-sm text-gray-500">
+            <p>From: {selectedNotification.sender}</p>
+            <p>Date: {new Date(selectedNotification.created_at).toLocaleString()}</p>
           </div>
         </div>
-      )}
 
+        {!selectedNotification.is_read && (
+          <div className="mt-6 pt-6 border-t border-gray-200 fade-in-blur">
+            <button
+              onClick={() => markNotificationAsRead(selectedNotification.id)}
+              className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors"
+            >
+              Mark as Read
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+)}
       {/* Leaderboard Modal */}
       {showLeaderboard && (
         <div 
