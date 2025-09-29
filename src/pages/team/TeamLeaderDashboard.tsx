@@ -339,18 +339,19 @@ const handleAnnouncementSubmit = async () => {
 
     // Determine target type and role based on selection
     if (announcementRole === "custom") {
-      // Send to custom selected users - use 'specific_users' enum value
-      notificationData.target_type = 'specific_users';
+      // Send to custom selected users
+      notificationData.target_type = 'specific_users'; // Use enum value
       notificationData.target_user_ids = selectedUsers.map(user => user.id);
+      // Don't set target_role for specific_users
     } else {
-      // For team announcements - use 'role' enum value
+      // For team announcements
       const teamLeaderTeam = getTeamLeaderTeam();
       if (!teamLeaderTeam) {
         showFeedback('error', 'No team assigned');
         return;
       }
 
-      notificationData.target_type = 'role'; // Use the enum value 'role'
+      notificationData.target_type = 'role'; // Use enum value 'role'
       notificationData.target_role = teamLeaderTeam; // This can be 'volunteers', 'ushers', etc.
     }
 
@@ -378,6 +379,7 @@ const handleAnnouncementSubmit = async () => {
     setLoading(false);
   }
 };
+  
   // Handle User Search for Bonus
   const handleBonusUserSearch = async (searchTerm: string) => {
     if (!searchTerm.trim()) {
