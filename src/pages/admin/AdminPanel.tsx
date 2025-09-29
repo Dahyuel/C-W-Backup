@@ -1161,63 +1161,6 @@ const clearUserSelection = () => {
               </div>
             </div>
 
-            {/* Flow Dashboard Widget */}
-            <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
-                <h2 className="text-3xl font-bold text-black-800 flex items-center gap-2 mx-auto">
-                  <Building className="h-7 w-7 text-orange-500" />
-                  Flow Dashboard
-                </h2>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4 px-6 py-6 text-center">
-                <div className="bg-green-100 p-4 rounded-lg shadow-sm">
-                  <p className="text-2xl font-bold text-green-900">{buildingStats.inside_building}</p>
-                  <p className="text-lg font-bold text-gray-700">Inside Building</p>
-                </div>
-                <div className="bg-teal-100 p-4 rounded-lg shadow-sm">
-                  <p className="text-2xl font-bold text-teal-900">{buildingStats.inside_event}</p>
-                  <p className="text-lg font-bold text-gray-700">Inside Event</p>
-                </div>
-                <div className="bg-blue-100 p-4 rounded-lg shadow-sm">
-                  <p className="text-2xl font-bold text-blue-900">{buildingStats.total_attendees}</p>
-                  <p className="text-lg font-bold text-gray-700">Total Attendees</p>
-                </div>
-              </div>
-
-              <div className="p-6">
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-lg font-bold text-left border border-gray-200 rounded-lg overflow-hidden">
-                    <thead className="bg-gray-100 text-gray-800 text-xl font-extrabold">
-                      <tr>
-                        <th className="px-4 py-3">Site</th>
-                        <th className="px-4 py-3">Maximum Capacity</th>
-                        <th className="px-4 py-3">Current Capacity</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-t">
-                        <td className="px-4 py-3">Building</td>
-                        <td className="px-4 py-3 text-red-600">500</td>
-                        <td className="px-4 py-3">{buildingStats.inside_building > 0 ? Math.round((buildingStats.inside_building / 500) * 100) : 0}%</td>
-                      </tr>
-                      <tr className="border-t">
-                        <td className="px-4 py-3">Event</td>
-                        <td className="px-4 py-3 text-red-600">4000</td>
-                        <td className="px-4 py-3">{buildingStats.inside_event > 0 ? Math.round((buildingStats.inside_event / 4000) * 100) : 0}%</td>
-                      </tr>
-                      <tr className="border-t">
-                        <td className="px-4 py-3">Total</td>
-                        <td className="px-4 py-3 text-red-600">4500</td>
-                        <td className="px-4 py-3">{(buildingStats.inside_building + buildingStats.inside_event) > 0 ? Math.round(((buildingStats.inside_building + buildingStats.inside_event) / 4500) * 100) : 0}%</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
       {/* Sessions Tab */}
 {activeTab === "sessions" && (
