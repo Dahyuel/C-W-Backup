@@ -318,8 +318,7 @@ const searchUsersByPersonalId = async (searchTerm: string) => {
     setUserSearchResults([]);
   };
 
-  // Handle Announcement
- const handleAnnouncementSubmit = async () => {
+const handleAnnouncementSubmit = async () => {
   if (!announcementTitle || !announcementDescription || !announcementRole) {
     showFeedback('error', 'Please fill all required fields!');
     return;
@@ -340,20 +339,19 @@ const searchUsersByPersonalId = async (searchTerm: string) => {
 
     // Determine target type and role based on selection
     if (announcementRole === "custom") {
-      // Send to custom selected users
+      // Send to custom selected users - use 'specific_users' enum value
       notificationData.target_type = 'specific_users';
       notificationData.target_user_ids = selectedUsers.map(user => user.id);
-      // Don't set target_role for specific_users
     } else {
-      // For role-based targeting - use team leader's team
+      // For team announcements - use 'role' enum value
       const teamLeaderTeam = getTeamLeaderTeam();
       if (!teamLeaderTeam) {
         showFeedback('error', 'No team assigned');
         return;
       }
 
-      notificationData.target_type = 'role';
-      notificationData.target_role = teamLeaderTeam; // This should be like 'ushers', 'marketing', etc.
+      notificationData.target_type = 'role'; // Use the enum value 'role'
+      notificationData.target_role = teamLeaderTeam; // This can be 'volunteers', 'ushers', etc.
     }
 
     console.log('Sending notification:', notificationData);
