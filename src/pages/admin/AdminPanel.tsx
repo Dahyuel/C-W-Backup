@@ -912,27 +912,20 @@ const fetchEventStats = async () => {
     return stats;
   };
 
-  const processEventStatistics = (attendances) => {
-    const eventStats = {
-      day1: { registrations: 0, entries: 0, exits: 0 },
-      day2: { registrations: 0, entries: 0, exits: 0 },
-      day3: { registrations: 0, entries: 0, exits: 0 },
-      day4: { registrations: 0, entries: 0, exits: 0 },
-      day5: { registrations: 0, entries: 0, exits: 0 }
-    };
-
-    // Process attendance data for the selected day
-    const dayStats = {
-      entries: attendances.filter(a => a.scan_type === 'entry').length,
-      exits: attendances.filter(a => a.scan_type === 'exit').length,
-      building_entries: attendances.filter(a => a.scan_type === 'building_entry').length,
-      building_exits: attendances.filter(a => a.scan_type === 'building_exit').length,
-      session_entries: attendances.filter(a => a.scan_type === 'session_entry').length
-    };
-
-    return { eventStats: { ...eventStats, [`day${selectedDay}`]: dayStats } };
+const processEventStatistics = (attendances) => {
+  // Process attendance data for the selected day
+  const dayStats = {
+    entries: attendances.filter(a => a.scan_type === 'entry').length,
+    exits: attendances.filter(a => a.scan_type === 'exit').length,
+    building_entries: attendances.filter(a => a.scan_type === 'building_entry').length,
+    building_exits: attendances.filter(a => a.scan_type === 'building_exit').length,
+    session_entries: attendances.filter(a => a.scan_type === 'session_entry').length,
+    registrations: 0 // This would need to be calculated separately
   };
 
+  return dayStats;
+};
+  
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
