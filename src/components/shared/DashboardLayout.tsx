@@ -406,7 +406,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                   )}
                 </button>
 
-               {/* Notification Dropdown - Fixed mobile positioning */}
+{/* Notification Dropdown - Fixed mobile positioning */}
 {showNotificationDropdown && (
   <div className="fixed sm:absolute right-0 left-0 sm:left-auto mt-2 mx-4 sm:mx-0 sm:w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-y-auto fade-in-up-blur modal-content-blur">
     <div className="p-4 border-b border-gray-200 fade-in-blur">
@@ -445,6 +445,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
     </div>
   </div>
 )}
+              </div>
+
               {/* Profile Menu */}
               <div className="relative" ref={profileDropdownRef}>
                 <button
