@@ -908,6 +908,7 @@ const confirmDeleteSession = async () => {
 
 
 // Enhanced StatisticsTab Component with proper function order
+// Enhanced StatisticsTab Component with proper loading state management
 const StatisticsTab = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -943,10 +944,13 @@ const StatisticsTab = () => {
       }
 
       const stats = processUserStatistics(users || []);
-      setStatsData(stats);
+      setStatsData(prev => ({
+        ...prev,
+        ...stats
+      }));
     } catch (error) {
       console.error('Error in fetchRegistrationStats:', error);
-      // Set empty stats on error
+      // Set empty stats on error but don't throw to prevent infinite loading
       setStatsData(prev => ({
         ...prev,
         totalRegistrations: 0,
@@ -1008,7 +1012,7 @@ const StatisticsTab = () => {
       }));
     } catch (error) {
       console.error('Error fetching event stats:', error);
-      throw error;
+      // Don't throw, just log the error
     }
   };
 
@@ -1090,19 +1094,74 @@ const StatisticsTab = () => {
       console.error('Error fetching statistics:', err);
       setError('Failed to load statistics. Please try again.');
     } finally {
+      // Always set loading to false, even if there's an error
       setLoading(false);
     }
   };
-
+useEffect(() => {
+  // Initialize statsData with proper structure if it's empty
+  if (!statsData || Object.keys(statsData).length === 0) {
+    setStatsData({
+      totalRegistrations: 0,
+      graduates: 0,
+      students: 0,
+      currentInEvent: 0,
+      currentInBuilding: 0,
+      universities: [],
+      faculties: [],
+      genderStats: { male: 0, female: 0 },
+      roleStats: {},
+      marketingSources: [],
+      degreeLevelStats: { student: 0, graduate: 0 },
+      classYearStats: {},
+      currentGenderStats: { male: 0, female: 0 },
+      eventGenderStats: { male: 0, female: 0 },
+      eventFaculties: [],
+      eventUniversities: [],
+      eventDegreeStats: { student: 0, graduate: 0 },
+      eventStats: {
+        day1: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
+        day2: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
+        day3: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
+        day4: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
+        day5: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 }
+      }
+    });
+  }
+}, []);
   useEffect(() => {
     fetchStatistics();
   }, [timeRange, statsType, selectedDay]);
+
+  // Add a safety timeout to prevent infinite loading
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        console.warn('Statistics loading timeout - forcing loading state to false');
+        setLoading(false);
+        setError('Statistics loading timed out. Please try again.');
+      }
+    }, 10000); // 10 second timeout
+
+    return () => clearTimeout(timeoutId);
+  }, [loading]);
+
+  // Debug logging to help identify the issue
+  useEffect(() => {
+    console.log('StatisticsTab state:', { loading, error, statsType, selectedDay });
+  }, [loading, error, statsType, selectedDay]);
 
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mb-4"></div>
         <p className="text-gray-600">Loading statistics...</p>
+        <button
+          onClick={() => setLoading(false)}
+          className="mt-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"
+        >
+          Cancel Loading
+        </button>
       </div>
     );
   }
@@ -1221,7 +1280,7 @@ const StatisticsTab = () => {
       <CurrentStateWidget statsData={statsData} />
     </div>
   );
-}; 
+};
 // Registration Stats View Component
 const RegistrationStatsView = ({ statsData }) => (
   <div className="space-y-8">
@@ -1493,68 +1552,109 @@ const DailyActivityChart = ({ selectedDay }) => {
     fetchHourlyData(selectedDay);
   }, [selectedDay]);
 
-  const fetchHourlyData = async (day) => {
-    setLoading(true);
-    try {
-      // Calculate date range for the selected day
-      const eventStartDate = new Date('2024-03-18');
-      const targetDate = new Date(eventStartDate);
-      targetDate.setDate(eventStartDate.getDate() + (day - 1));
-      
-      const startOfDay = new Date(targetDate);
-      startOfDay.setHours(0, 0, 0, 0);
-      
-      const endOfDay = new Date(targetDate);
-      endOfDay.setHours(23, 59, 59, 999);
+const fetchHourlyData = async (day) => {
+  setLoading(true);
+  try {
+    // Calculate date range for the selected day - FIXED VERSION
+    const eventStartDate = new Date('2024-03-18');
+    
+    // Validate the date to ensure it's valid
+    if (isNaN(eventStartDate.getTime())) {
+      throw new Error('Invalid event start date');
+    }
+    
+    const targetDate = new Date(eventStartDate);
+    targetDate.setDate(eventStartDate.getDate() + (day - 1));
+    
+    // Validate target date
+    if (isNaN(targetDate.getTime())) {
+      throw new Error('Invalid target date calculation');
+    }
+    
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
 
-      // Fetch attendance data grouped by hour
-      const { data: attendances, error } = await supabase
-        .from('attendances')
-        .select('scanned_at, scan_type')
-        .gte('scanned_at', startOfDay.toISOString())
-        .lte('scanned_at', endOfDay.toISOString())
-        .order('scanned_at', { ascending: true });
+    // Validate the dates before using them
+    if (isNaN(startOfDay.getTime()) || isNaN(endOfDay.getTime())) {
+      throw new Error('Invalid date range calculation');
+    }
 
-      if (error) throw error;
+    console.log('Fetching hourly data for day:', day, 'Date range:', {
+      start: startOfDay.toISOString(),
+      end: endOfDay.toISOString()
+    });
 
-      // Process data into hourly buckets
-      const hourlyStats = {};
+    // Fetch attendance data grouped by hour
+    const { data: attendances, error } = await supabase
+      .from('attendances')
+      .select('scanned_at, scan_type')
+      .gte('scanned_at', startOfDay.toISOString())
+      .lte('scanned_at', endOfDay.toISOString())
+      .order('scanned_at', { ascending: true });
+
+    if (error) {
+      console.error('Supabase error:', error);
+      throw error;
+    }
+
+    console.log('Fetched attendances:', attendances?.length);
+
+    // Process data into hourly buckets
+    const hourlyStats = {};
+    
+    // Initialize all hours
+    for (let hour = 8; hour <= 20; hour++) {
+      const hourKey = `${hour.toString().padStart(2, '0')}:00`;
+      hourlyStats[hourKey] = { entries: 0, exits: 0 };
+    }
+
+    // Count entries and exits by hour
+    attendances?.forEach(attendance => {
+      if (!attendance.scanned_at) return;
       
-      // Initialize all hours
-      for (let hour = 8; hour <= 20; hour++) {
-        const hourKey = `${hour.toString().padStart(2, '0')}:00`;
-        hourlyStats[hourKey] = { entries: 0, exits: 0 };
+      const date = new Date(attendance.scanned_at);
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid scanned_at date:', attendance.scanned_at);
+        return;
       }
-
-      // Count entries and exits by hour
-      attendances?.forEach(attendance => {
-        const date = new Date(attendance.scanned_at);
-        const hour = date.getHours();
-        const hourKey = `${hour.toString().padStart(2, '0')}:00`;
-        
+      
+      const hour = date.getHours();
+      const hourKey = `${hour.toString().padStart(2, '0')}:00`;
+      
+      if (hourlyStats[hourKey]) {
         if (attendance.scan_type === 'entry' || attendance.scan_type === 'building_entry') {
           hourlyStats[hourKey].entries++;
         } else if (attendance.scan_type === 'exit' || attendance.scan_type === 'building_exit') {
           hourlyStats[hourKey].exits++;
         }
-      });
+      }
+    });
 
-      // Convert to array format
-      const result = Object.entries(hourlyStats).map(([hour, data]) => ({
-        hour,
-        entries: data.entries,
-        exits: data.exits
-      }));
+    // Convert to array format
+    const result = Object.entries(hourlyStats).map(([hour, data]) => ({
+      hour,
+      entries: data.entries,
+      exits: data.exits
+    }));
 
-      setHourlyData(result);
-    } catch (error) {
-      console.error('Error fetching hourly data:', error);
-      setHourlyData([]);
-    } finally {
-      setLoading(false);
+    console.log('Processed hourly data:', result);
+    setHourlyData(result);
+  } catch (error) {
+    console.error('Error fetching hourly data:', error);
+    // Set empty data instead of crashing
+    const emptyData = [];
+    for (let hour = 8; hour <= 20; hour++) {
+      const hourKey = `${hour.toString().padStart(2, '0')}:00`;
+      emptyData.push({ hour: hourKey, entries: 0, exits: 0 });
     }
-  };
-
+    setHourlyData(emptyData);
+  } finally {
+    setLoading(false);
+  }
+};
   if (loading) {
     return (
       <div className="flex items-center justify-center h-48">
