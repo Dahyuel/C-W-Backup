@@ -2002,7 +2002,63 @@ const tabItems = [
                 </div>
               </div>
             </div>
+{/* In the Dashboard Tab, add these new stat cards */}
+<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+  <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">Inside Event</p>
+        <p className="text-3xl font-bold text-purple-600">
+          {buildingStats?.inside_event || 0}
+        </p>
+        <p className="text-xs text-gray-500 mt-1">
+          {statsData.eventGenderStats?.male + statsData.eventGenderStats?.female || 0} attendees
+        </p>
+      </div>
+      <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+        <Activity className="h-6 w-6 text-purple-600" />
+      </div>
+    </div>
+  </div>
 
+  <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">Event Male/Female</p>
+        <div className="text-xs text-gray-600 mt-1">
+          <span className="text-blue-600">♂ {statsData.eventGenderStats?.male || 0}</span>
+          {' / '}
+          <span className="text-pink-600">♀ {statsData.eventGenderStats?.female || 0}</span>
+        </div>
+        <p className="text-xs text-gray-500">
+          {statsData.eventGenderStats?.male + statsData.eventGenderStats?.female || 0} total
+        </p>
+      </div>
+      <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+        <Users className="h-6 w-6 text-blue-600" />
+      </div>
+    </div>
+  </div>
+
+  <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">Event Students/Graduates</p>
+        <div className="text-xs text-gray-600 mt-1">
+          <span className="text-green-600">🎓 {statsData.eventDegreeStats?.student || 0}</span>
+          {' / '}
+          <span className="text-blue-600">📜 {statsData.eventDegreeStats?.graduate || 0}</span>
+        </div>
+        <p className="text-xs text-gray-500">
+          {statsData.eventDegreeStats?.student + statsData.eventDegreeStats?.graduate || 0} total
+        </p>
+      </div>
+      <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+        <Building className="h-6 w-6 text-green-600" />
+      </div>
+    </div>
+  </div>
+</div>
             {/* Quick Actions */}
             <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 text-center">
               <h1 className="text-3xl font-bold text-black-800 flex items-center justify-center gap-2 mb-6">
