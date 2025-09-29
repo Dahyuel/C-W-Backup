@@ -461,34 +461,34 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                   <ChevronDown className="h-4 w-4 text-gray-400" />
                 </button>
 
-                {showProfileDropdown && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-50">
-                    <div className="p-2">
-                      <button
-                        onClick={handleProfileClick}
-                        className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                      >
-                        <User className="h-4 w-4 mr-3" />
-                        Profile
-                      </button>
-                      <button
-                        onClick={handleLeaderboardClick}
-                        className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                      >
-                        <Trophy className="h-4 w-4 mr-3" />
-                        Leaderboard
-                      </button>
-                      <button
-                        onClick={handleSignOut}
-                        disabled={loggingOut}
-                        className="w-full flex items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <LogOut className="h-4 w-4 mr-3" />
-                        {loggingOut ? 'Logging out...' : 'Logout'}
-                      </button>
-                    </div>
-                  </div>
-                )}
+               {showProfileDropdown && (
+  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50 fade-in-up-blur modal-content-blur">
+    <div className="p-2 stagger-children">
+      <button
+        onClick={handleProfileClick}
+        className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-all duration-300 smooth-hover"
+      >
+        <User className="h-4 w-4 mr-3" />
+        Profile
+      </button>
+      <button
+        onClick={handleLeaderboardClick}
+        className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-all duration-300 smooth-hover"
+      >
+        <Trophy className="h-4 w-4 mr-3" />
+        Leaderboard
+      </button>
+      <button
+        onClick={handleSignOut}
+        disabled={loggingOut}
+        className="w-full flex items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-all duration-300 smooth-hover disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        <LogOut className="h-4 w-4 mr-3" />
+        {loggingOut ? 'Logging out...' : 'Logout'}
+      </button>
+    </div>
+  </div>
+)}
               </div>
             </div>
           </div>
