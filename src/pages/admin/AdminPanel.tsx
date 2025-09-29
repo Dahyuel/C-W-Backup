@@ -390,7 +390,176 @@ const handleEditCompany = (company) => {
   });
   setEditCompanyModal(true);
 };
+// Reusable Stat Card Component
+const StatCard = ({ title, value, icon, color }) => {
+  const colorClasses = {
+    blue: 'bg-blue-500',
+    green: 'bg-green-500',
+    purple: 'bg-purple-500',
+    orange: 'bg-orange-500',
+    red: 'bg-red-500'
+  };
 
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-600">{title}</p>
+          <p className="text-3xl font-bold text-gray-900">{value}</p>
+        </div>
+        <div className={`w-12 h-12 ${colorClasses[color]} bg-opacity-10 rounded-lg flex items-center justify-center`}>
+          <div className={colorClasses[color].replace('bg-', 'text-')}>
+            {icon}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Gender Chart Component
+const GenderChart = ({ data }) => {
+  const total = data.male + data.female;
+  const malePercentage = total > 0 ? (data.male / total) * 100 : 0;
+  const femalePercentage = total > 0 ? (data.female / total) * 100 : 0;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex justify-between text-sm">
+        <span className="text-blue-600 font-medium">Male: {data.male} ({malePercentage.toFixed(1)}%)</span>
+        <span className="text-pink-600 font-medium">Female: {data.female} ({femalePercentage.toFixed(1)}%)</span>
+      </div>
+      <div className="w-full bg-gray-200 rounded-full h-3">
+        <div
+          className="bg-blue-600 h-3 rounded-full"
+          style={{ width: `${malePercentage}%` }}
+        ></div>
+        <div
+          className="bg-pink-600 h-3 rounded-full -mt-3"
+          style={{ width: `${femalePercentage}%`, marginLeft: `${malePercentage}%` }}
+        ></div>
+      </div>
+    </div>
+  );
+};
+
+// Role Chart Component
+const RoleChart = ({ data }) => {
+  const roles = Object.entries(data).sort((a, b) => b[1] - a[1]);
+  const total = roles.reduce((sum, [_, count]) => sum + count, 0);
+
+  return (
+    <div className="space-y-3">
+      {roles.map(([role, count]) => {
+        const percentage = total > 0 ? (count / total) * 100 : 0;
+        return (
+          <div key={role} className="space-y-1">
+            <div className="flex justify-between text-sm">
+              <span className="font-medium text-gray-700 capitalize">{role.replace('_', ' ')}</span>
+              <span className="text-gray-500">{count} ({percentage.toFixed(1)}%)</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-orange-500 h-2 rounded-full"
+                style={{ width: `${percentage}%` }}
+              ></div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// Bar Chart Component
+const BarChart = ({ data, color }) => {
+  const maxCount = Math.max(...data.map(item => item.count), 1);
+  const colorClasses = {
+    blue: 'bg-blue-500',
+    green: 'bg-green-500',
+    purple: 'bg-purple-500',
+    orange: 'bg-orange-500'
+  };
+
+  return (
+    <div className="space-y-3">
+      {data.slice(0, 8).map((item, index) => {
+        const percentage = (item.count / maxCount) * 100;
+        return (
+          <div key={index} className="space-y-1">
+            <div className="flex justify-between text-sm">
+              <span className="font-medium text-gray-700 truncate flex-1 mr-2">{item.name}</span>
+              <span className="text-gray-500 whitespace-nowrap">{item.count}</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <div
+                className={`${colorClasses[color]} h-3 rounded-full`}
+                style={{ width: `${percentage}%` }}
+              ></div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// Marketing Chart Component
+const MarketingChart = ({ data }) => {
+  const total = data.reduce((sum, item) => sum + item.count, 0);
+
+  return (
+    <div className="space-y-3">
+      {data.map((item, index) => {
+        const percentage = total > 0 ? (item.count / total) * 100 : 0;
+        const formattedName = item.name.split('_').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ');
+
+        return (
+          <div key={index} className="space-y-1">
+            <div className="flex justify-between text-sm">
+              <span className="font-medium text-gray-700">{formattedName}</span>
+              <span className="text-gray-500">{item.count} ({percentage.toFixed(1)}%)</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-purple-500 h-2 rounded-full"
+                style={{ width: `${percentage}%` }}
+              ></div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// Degree Chart Component
+const DegreeChart = ({ data }) => {
+  const total = data.student + data.graduate;
+  const studentPercentage = total > 0 ? (data.student / total) * 100 : 0;
+  const graduatePercentage = total > 0 ? (data.graduate / total) * 100 : 0;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between text-sm">
+        <span className="text-green-600 font-medium">Students: {data.student} ({studentPercentage.toFixed(1)}%)</span>
+        <span className="text-blue-600 font-medium">Graduates: {data.graduate} ({graduatePercentage.toFixed(1)}%)</span>
+      </div>
+      <div className="w-full bg-gray-200 rounded-full h-4">
+        <div
+          className="bg-green-500 h-4 rounded-full"
+          style={{ width: `${studentPercentage}%` }}
+        ></div>
+        <div
+          className="bg-blue-500 h-4 rounded-full -mt-4"
+          style={{ width: `${graduatePercentage}%`, marginLeft: `${studentPercentage}%` }}
+        ></div>
+      </div>
+    </div>
+  );
+};
 // Handle company update
 const handleCompanyUpdate = async () => {
   if (!editCompany.name || !editCompany.website || !editCompany.boothNumber) {
