@@ -1062,41 +1062,7 @@ const fetchDashboardData = async () => {
           )}
         </div>
 
-        {/* Inside Event Statistics Section */}
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Inside Event Statistics</h3>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div>
-              <GenderChart 
-                data={enhancedStats.eventGenderRatio} 
-                title="Gender Ratio Inside Event"
-              />
-            </div>
-            <div>
-              <DegreeChart 
-                data={enhancedStats.eventStudentGraduateRatio}
-                title="Student/Graduate Ratio Inside Event"
-              />
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-            <div>
-              <BarChart 
-                data={enhancedStats.eventFaculties} 
-                color="blue"
-                title="Top Faculties Inside Event"
-              />
-            </div>
-            <div>
-              <BarChart 
-                data={enhancedStats.eventUniversities} 
-                color="green"
-                title="Top Universities Inside Event"
-              />
-            </div>
-          </div>
-        </div>
+      
 
         {/* Conditional Content based on Stats Type */}
         {statsType === 'registration' ? (
