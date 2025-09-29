@@ -782,7 +782,8 @@ const fetchRegistrationStats = async () => {
 };
   
 
-  const fetchEventStats = async () => {
+const fetchEventStats = async () => {
+  try {
     // Calculate date range for the selected day
     const eventStartDate = new Date('2024-03-18'); // Adjust this to your event start date
     const targetDate = new Date(eventStartDate);
@@ -804,9 +805,21 @@ const fetchRegistrationStats = async () => {
     if (error) throw error;
 
     // Process event statistics
-    const stats = processEventStatistics(attendances || []);
-    setStatsData(prev => ({ ...prev, ...stats }));
-  };
+    const dayStats = processEventStatistics(attendances || []);
+    
+    // Update statsData with the new event stats
+    setStatsData(prev => ({
+      ...prev,
+      eventStats: {
+        ...prev.eventStats,
+        [`day${selectedDay}`]: dayStats
+      }
+    }));
+  } catch (error) {
+    console.error('Error fetching event stats:', error);
+    throw error;
+  }
+};
 
   const processUserStatistics = (users) => {
     const stats = {
