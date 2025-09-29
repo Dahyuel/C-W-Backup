@@ -622,25 +622,28 @@ const GenderChart = ({ data }) => {
   const femalePercentage = total > 0 ? (data.female / total) * 100 : 0;
 
   return (
-    <div className="space-y-2">
-      <div className="flex justify-between text-sm">
-        <span className="text-blue-600 font-medium">Male: {data.male} ({malePercentage.toFixed(1)}%)</span>
-        <span className="text-pink-600 font-medium">Female: {data.female} ({femalePercentage.toFixed(1)}%)</span>
+    <div className="space-y-4">
+      <div className="flex justify-between text-sm font-medium">
+        <span className="text-blue-600">Male: {data.male}</span>
+        <span className="text-pink-600">Female: {data.female}</span>
       </div>
-      <div className="w-full bg-gray-200 rounded-full h-3">
+      <div className="w-full bg-gray-200 rounded-full h-4 relative">
         <div
-          className="bg-blue-600 h-3 rounded-full"
+          className="bg-blue-600 h-4 rounded-full transition-all duration-500"
           style={{ width: `${malePercentage}%` }}
         ></div>
         <div
-          className="bg-pink-600 h-3 rounded-full -mt-3"
-          style={{ width: `${femalePercentage}%`, marginLeft: `${malePercentage}%` }}
+          className="bg-pink-600 h-4 rounded-full absolute top-0 transition-all duration-500"
+          style={{ width: `${femalePercentage}%`, left: `${malePercentage}%` }}
         ></div>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500">
+        <span>{malePercentage.toFixed(1)}%</span>
+        <span>{femalePercentage.toFixed(1)}%</span>
       </div>
     </div>
   );
 };
-
 // Role Chart Component
 const RoleChart = ({ data }) => {
   const roles = Object.entries(data).sort((a, b) => b[1] - a[1]);
