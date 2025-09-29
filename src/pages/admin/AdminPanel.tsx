@@ -891,7 +891,8 @@ const confirmDeleteSession = async () => {
 // Enhanced StatisticsTab Component
 // Enhanced StatisticsTab Component
 const StatisticsTab = () => {
-  const [loading, setLoading] = useState(true);
+ const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [timeRange, setTimeRange] = useState('all');
   const [statsType, setStatsType] = useState('registration');
   const [selectedDay, setSelectedDay] = useState(1);
@@ -902,18 +903,21 @@ const StatisticsTab = () => {
 
   const fetchStatistics = async () => {
     setLoading(true);
+    setError(null);
     try {
       if (statsType === 'registration') {
         await fetchRegistrationStats();
       } else {
         await fetchEventStats();
       }
-    } catch (error) {
-      console.error('Error fetching statistics:', error);
+    } catch (err) {
+      console.error('Error fetching statistics:', err);
+      setError('Failed to load statistics. Please try again.');
     } finally {
       setLoading(false);
     }
   };
+
 
 // Fix the fetchRegistrationStats function in StatisticsTab component
 const fetchRegistrationStats = async () => {
