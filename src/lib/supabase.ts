@@ -380,7 +380,7 @@ export const signUpVolunteer = async (email: string, password: string, userData:
   try {
     console.log('Starting volunteer registration with edge function validation...');
     
-    // STEP 1: Use Edge Function for comprehensive validation with gender
+    // STEP 1: Use Edge Function for comprehensive validation with gender and tl_team
     const validation = await validateRegistrationWithEdgeFunction(
       userData.personal_id,
       email,
@@ -390,7 +390,8 @@ export const signUpVolunteer = async (email: string, password: string, userData:
       userData.phone,
       'volunteer',
       userData.role,
-      userData.gender // Pass gender to validation
+      userData.gender,
+      userData.tl_team  // Add this parameter
     );
 
     if (!validation.isValid) {
@@ -440,7 +441,8 @@ export const signUpVolunteer = async (email: string, password: string, userData:
         university: 'Ain Shams University',
         role: userData.role || 'volunteer',
         gender: userData.gender?.toLowerCase() === 'male' ? 'male' : 
-                userData.gender?.toLowerCase() === 'female' ? 'female' : null, // Added gender field
+                userData.gender?.toLowerCase() === 'female' ? 'female' : null,
+        tl_team: userData.tl_team || null,  // Make sure this is included
         score: 0,
         building_entry: false,
         event_entry: false
@@ -463,6 +465,8 @@ export const signUpVolunteer = async (email: string, password: string, userData:
       }
 
       console.log('Volunteer registration completed successfully with ID:', volunteerId);
+      console.log('Team leader team assignment:', userData.tl_team);
+      
       return { 
         data: { 
           ...authData, 
@@ -487,7 +491,6 @@ export const signUpVolunteer = async (email: string, password: string, userData:
     return { data: null, error: { message: error.message || 'Volunteer registration failed' } };
   }
 };
-
 const cleanupOrphanedAuthUser = async (userId: string, email: string) => {
   try {
     console.log('Attempting to clean up orphaned auth user:', email);
