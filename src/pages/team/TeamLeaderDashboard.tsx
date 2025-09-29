@@ -406,7 +406,7 @@ export const TeamLeaderDashboard: React.FC = () => {
       title="Team Leader Dashboard"
       subtitle="Manage your team, track attendance, and assign bonuses"
     >
-      <div className="fade-in-up-blur">
+      <div className="fade-in-up-blur relative">
       <div className="space-y-8">
         {/* Feedback Toast */}
         {feedback && (
