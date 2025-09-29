@@ -139,13 +139,13 @@ export const TeamLeaderDashboard: React.FC = () => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
-      const { data: attendance, error } = await supabase
-        .from('attendances')
-        .select('*')
-        .eq('user_id', volunteerData.id)
-        .eq('scan_type', 'attendance')
-        .gte('scanned_at', today.toISOString())
-        .limit(1);
+const { data: attendance, error } = await supabase
+  .from('attendances')
+  .select('*')
+  .eq('user_id', volunteerData.id)
+  .eq('scan_type', 'vol_attendance') // NEW
+  .gte('scanned_at', today.toISOString())
+  .limit(1);
 
       if (!error && attendance && attendance.length > 0) {
         setAlreadyAttended(true);
