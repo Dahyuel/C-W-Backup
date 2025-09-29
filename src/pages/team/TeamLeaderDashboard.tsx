@@ -259,47 +259,46 @@ const handleScan = async (qrData: string) => {
   };
 
   // Handle User Search for Announcements
-  const searchUsersByPersonalId = async (searchTerm: string) => {
-    if (!searchTerm || searchTerm.trim().length < 2) {
+const searchUsersByPersonalId = async (searchTerm: string) => {
+  if (!searchTerm || searchTerm.trim().length < 2) {
+    setUserSearchResults([]);
+    return;
+  }
+
+  setUserSearchLoading(true);
+  try {
+    const teamLeaderTeam = getTeamLeaderTeam();
+    if (!teamLeaderTeam) {
       setUserSearchResults([]);
       return;
     }
 
-    setUserSearchLoading(true);
-    try {
-      const teamLeaderTeam = getTeamLeaderTeam();
-      if (!teamLeaderTeam) {
-        setUserSearchResults([]);
-        return;
-      }
+    const { data, error } = await supabase
+      .from('users_profiles')
+      .select('id, first_name, last_name, personal_id, role, email, volunteer_id, tl_team')
+      .or(`personal_id.ilike.%${searchTerm.trim()}%,volunteer_id.ilike.%${searchTerm.trim()}%`)
+      .eq('role', teamLeaderTeam)
+      .order('volunteer_id')
+      .limit(10);
 
-      const { data, error } = await supabase
-        .from('users_profiles')
-        .select('id, first_name, last_name, personal_id, role, email, volunteer_id, tl_team')
-        .ilike('personal_id', `%${searchTerm.trim()}%`)
-        .eq('role', teamLeaderTeam) // Only users with same role as team leader's tl_team
-        .order('personal_id')
-        .limit(10);
-
-      if (error) {
-        console.error('Search error:', error);
-        setUserSearchResults([]);
-      } else {
-        // Filter out already selected users and exclude current user
-        const filteredResults = (data || []).filter(user => 
-          !selectedUsers.some(selected => selected.id === user.id) &&
-          user.id !== profile?.id // Exclude current user
-        );
-        setUserSearchResults(filteredResults);
-      }
-    } catch (error) {
-      console.error('Search exception:', error);
+    if (error) {
+      console.error('Search error:', error);
       setUserSearchResults([]);
-    } finally {
-      setUserSearchLoading(false);
+    } else {
+      // Filter out already selected users and exclude current user
+      const filteredResults = (data || []).filter(user => 
+        !selectedUsers.some(selected => selected.id === user.id) &&
+        user.id !== profile?.id
+      );
+      setUserSearchResults(filteredResults);
     }
-  };
-
+  } catch (error) {
+    console.error('Search exception:', error);
+    setUserSearchResults([]);
+  } finally {
+    setUserSearchLoading(false);
+  }
+};
   // Add user to selected list for announcements
   const addUserToSelection = (user: Volunteer) => {
     setSelectedUsers(prev => [...prev, user]);
