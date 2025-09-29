@@ -749,31 +749,38 @@ const StatisticsTab = () => {
     }
   };
 
-  const fetchRegistrationStats = async () => {
-    // Get date filter based on time range
-    let dateFilter = {};
-    if (timeRange === 'today') {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      dateFilter = { created_at: `gte.${today.toISOString()}` };
-    } else if (timeRange === 'week') {
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      dateFilter = { created_at: `gte.${weekAgo.toISOString()}` };
-    }
+const fetchRegistrationStats = async () => {
+  // Get date filter based on time range
+  let dateFilter = {};
+  if (timeRange === 'today') {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    dateFilter = { created_at: `gte.${today.toISOString()}` };
+  } else if (timeRange === 'week') {
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    dateFilter = { created_at: `gte.${weekAgo.toISOString()}` };
+  }
 
-    // Fetch all users with their data
-    const { data: users, error } = await supabase
-      .from('users_profiles')
-      .select('*')
-      .match(dateFilter);
+  // Build query based on date filter
+  let query = supabase
+    .from('users_profiles')
+    .select('*');
 
-    if (error) throw error;
+  // Apply date filter if it exists
+  if (dateFilter.created_at) {
+    query = query.gte('created_at', dateFilter.created_at.replace('gte.', ''));
+  }
 
-    // Process statistics
-    const stats = processUserStatistics(users || []);
-    setStatsData(stats);
-  };
+  const { data: users, error } = await query;
+
+  if (error) throw error;
+
+  // Process statistics
+  const stats = processUserStatistics(users || []);
+  setStatsData(stats);
+};
+  
 
   const fetchEventStats = async () => {
     // Calculate date range for the selected day
