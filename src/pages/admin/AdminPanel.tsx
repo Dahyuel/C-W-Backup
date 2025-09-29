@@ -919,6 +919,32 @@ const StatisticsTab = () => {
   };
 
 
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mb-4"></div>
+        <p className="text-gray-600">Loading statistics...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <div className="text-red-500 text-center">
+          <XCircle className="h-12 w-12 mx-auto mb-4" />
+          <p className="text-lg font-medium mb-2">Error Loading Statistics</p>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={fetchStatistics}
+            className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 // Fix the fetchRegistrationStats function in StatisticsTab component
 const fetchRegistrationStats = async () => {
   let dateFilter = {};
