@@ -2924,7 +2924,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
           </div>
         )}
 
-       {/* Announcement Modal - Admin Version */}
+{/* Announcement Modal - Admin Version with Team Leader Enhancement */}
 {announcementModal && (
   <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
     <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto relative">
@@ -2932,6 +2932,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
         onClick={() => {
           setAnnouncementModal(false);
           clearUserSelection();
+          setTeamLeaderOfRole("");
         }}
         className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
       >
@@ -2963,6 +2964,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
           value={announcementRole}
           onChange={(e) => {
             setAnnouncementRole(e.target.value);
+            setTeamLeaderOfRole(""); // Reset team leader selection when role changes
             if (e.target.value !== "custom") {
               clearUserSelection();
             }
@@ -2976,6 +2978,33 @@ const searchUsersByPersonalId = async (searchTerm) => {
           ))}
         </select>
 
+        {/* Team Leader Of Selection */}
+        {announcementRole === "team_leader" && (
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Team Leader Of
+            </label>
+            <select
+              value={teamLeaderOfRole}
+              onChange={(e) => setTeamLeaderOfRole(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Select which team leaders...</option>
+              {getTeamLeaderOfOptions().map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500">
+              {teamLeaderOfRole === "all" 
+                ? "Will send to all team leaders regardless of their assigned team"
+                : `Will send only to team leaders of ${teamLeaderOfRole} team`}
+            </p>
+          </div>
+        )}
+
+        {/* Custom Selection UI */}
         {announcementRole === "custom" && (
           <div className="space-y-3">
             <div className="relative">
@@ -3071,6 +3100,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
           onClick={() => {
             setAnnouncementModal(false);
             clearUserSelection();
+            setTeamLeaderOfRole("");
           }}
           className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
         >
@@ -3078,7 +3108,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
         </button>
         <button
           onClick={handleAnnouncementSubmit}
-          disabled={loading}
+          disabled={loading || (announcementRole === "team_leader" && !teamLeaderOfRole)}
           className="px-4 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600 disabled:opacity-50"
         >
           {loading ? 'Sending...' : 'Send'}
@@ -3087,6 +3117,8 @@ const searchUsersByPersonalId = async (searchTerm) => {
     </div>
   </div>
 )}
+
+        
         {/* Session Detail Modal */}
         {sessionDetailModal && selectedSessionDetail && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
