@@ -1710,13 +1710,14 @@ const clearUserSelection = () => {
     }
   };
 
-  const tabItems = [
-    { key: "dashboard", label: "Dashboard" },
-    { key: "sessions", label: "Sessions" },
-    { key: "events", label: "Events" },
-    { key: "maps", label: "Maps" },
-    { key: "employers", label: "Employers" },
-  ];
+const tabItems = [
+  { key: "dashboard", label: "Dashboard" },
+  { key: "statistics", label: "Statistics" }, // Add this line
+  { key: "sessions", label: "Sessions" },
+  { key: "events", label: "Events" },
+  { key: "maps", label: "Maps" },
+  { key: "employers", label: "Employers" },
+];
 
   if (loadingData) {
     return (
