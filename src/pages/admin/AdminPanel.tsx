@@ -1334,14 +1334,12 @@ const DailyActivityChart = ({ statsData }) => {
   );
 };
 
-const AttendanceFlowChart = ({ statsData, selectedDay }) => {
-  const dayStats = statsData.eventStats[`day${selectedDay}`] || {};
-  
+const AttendanceFlowChart = ({ dayStats }) => {
   const flowData = [
-    { label: 'Total Entries', value: dayStats.entries || 0, color: 'bg-green-500' },
-    { label: 'Total Exits', value: dayStats.exits || 0, color: 'bg-red-500' },
-    { label: 'Building Entries', value: dayStats.building_entries || 0, color: 'bg-blue-500' },
-    { label: 'Session Entries', value: dayStats.session_entries || 0, color: 'bg-purple-500' },
+    { label: 'Total Entries', value: dayStats.entries, color: 'bg-green-500' },
+    { label: 'Total Exits', value: dayStats.exits, color: 'bg-red-500' },
+    { label: 'Building Entries', value: dayStats.building_entries, color: 'bg-blue-500' },
+    { label: 'Session Entries', value: dayStats.session_entries, color: 'bg-purple-500' },
   ];
 
   const maxValue = Math.max(...flowData.map(d => d.value), 1);
@@ -1365,7 +1363,6 @@ const AttendanceFlowChart = ({ statsData, selectedDay }) => {
     </div>
   );
 };
-
 const SessionPopularityChart = ({ selectedDay }) => {
   // Mock session data - replace with real data from your sessions table
   const sessionData = [
