@@ -19,6 +19,7 @@ interface Volunteer {
   role: string;
   faculty?: string;
   phone?: string;
+  tl_team?: string;
 }
 
 interface AttendanceRecord {
@@ -32,8 +33,13 @@ export const TeamLeaderDashboard: React.FC = () => {
   const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  // QR Scanner State
+  // Attendance State
+  const [attendanceModal, setAttendanceModal] = useState(false);
+  const [attendanceMethod, setAttendanceMethod] = useState<'scan' | 'search'>('scan');
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<Volunteer[]>([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
   const [scannedVolunteer, setScannedVolunteer] = useState<Volunteer | null>(null);
   const [showVolunteerCard, setShowVolunteerCard] = useState(false);
   const [attendanceChecked, setAttendanceChecked] = useState(false);
@@ -52,10 +58,10 @@ export const TeamLeaderDashboard: React.FC = () => {
   // Bonus State
   const [bonusModal, setBonusModal] = useState(false);
   const [bonusAmount, setBonusAmount] = useState<number>(5);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [searchResults, setSearchResults] = useState<Volunteer[]>([]);
+  const [bonusSearchTerm, setBonusSearchTerm] = useState("");
+  const [bonusSearchResults, setBonusSearchResults] = useState<Volunteer[]>([]);
   const [selectedUser, setSelectedUser] = useState<Volunteer | null>(null);
-  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [showBonusSearchResults, setShowBonusSearchResults] = useState(false);
 
   // Flow Dashboard State
   const [buildingStats, setBuildingStats] = useState({
@@ -73,6 +79,12 @@ export const TeamLeaderDashboard: React.FC = () => {
   const showFeedback = (type: 'success' | 'error', message: string) => {
     setFeedback({ type, message });
     setTimeout(() => setFeedback(null), 5000);
+  };
+
+  // Get team leader's allowed roles from tl_team
+  const getAllowedRoles = (): string[] => {
+    if (!profile?.tl_team) return [];
+    return profile.tl_team.split(',').map(role => role.trim());
   };
 
   // Fetch building stats
@@ -133,9 +145,10 @@ export const TeamLeaderDashboard: React.FC = () => {
         return;
       }
 
-      // Check if user is attendee or admin
-      if (volunteerData.role === 'attendee' || volunteerData.role === 'admin') {
-        showFeedback('error', 'You Are Not A Volunteer');
+      // Check if user is in allowed roles
+      const allowedRoles = getAllowedRoles();
+      if (!allowedRoles.includes(volunteerData.role)) {
+        showFeedback('error', 'Volunteer not in your team');
         return;
       }
 
@@ -160,10 +173,37 @@ export const TeamLeaderDashboard: React.FC = () => {
       setScannedVolunteer(volunteerData);
       setAttendanceChecked(true);
       setShowVolunteerCard(true);
+      setScannerOpen(false);
       
     } catch (error) {
       console.error("QR scan error:", error);
       showFeedback('error', 'Failed to process QR code');
+    }
+  };
+
+  // Handle manual search for attendance
+  const handleAttendanceSearch = async (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    try {
+      const allowedRoles = getAllowedRoles();
+      const { data, error } = await supabase
+        .from('users_profiles')
+        .select('*')
+        .or(`personal_id.ilike.%${searchTerm}%,volunteer_id.ilike.%${searchTerm}%`)
+        .in('role', allowedRoles)
+        .limit(10);
+
+      if (!error && data) {
+        setSearchResults(data);
+        setShowSearchResults(true);
+      }
+    } catch (error) {
+      console.error("Search error:", error);
+      setSearchResults([]);
     }
   };
 
@@ -190,6 +230,7 @@ export const TeamLeaderDashboard: React.FC = () => {
       setShowVolunteerCard(false);
       setScannedVolunteer(null);
       setAttendanceChecked(false);
+      setAttendanceModal(false);
       
     } catch (error) {
       console.error("Attendance action error:", error);
@@ -208,10 +249,12 @@ export const TeamLeaderDashboard: React.FC = () => {
 
     setUserSearchLoading(true);
     try {
+      const allowedRoles = getAllowedRoles();
       const { data, error } = await supabase
         .from('users_profiles')
-        .select('id, first_name, last_name, personal_id, role, email, volunteer_id')
+        .select('id, first_name, last_name, personal_id, role, email, volunteer_id, tl_team')
         .ilike('personal_id', `%${searchTerm.trim()}%`)
+        .in('role', allowedRoles)
         .order('personal_id')
         .limit(10);
 
@@ -219,11 +262,9 @@ export const TeamLeaderDashboard: React.FC = () => {
         console.error('Search error:', error);
         setUserSearchResults([]);
       } else {
-        // Filter out already selected users, exclude admin/attendees, and exclude current user
+        // Filter out already selected users and exclude current user
         const filteredResults = (data || []).filter(user => 
           !selectedUsers.some(selected => selected.id === user.id) &&
-          user.role !== 'admin' && 
-          user.role !== 'attendee' &&
           user.id !== profile?.id // Exclude current user
         );
         setUserSearchResults(filteredResults);
@@ -276,17 +317,11 @@ export const TeamLeaderDashboard: React.FC = () => {
       };
 
       // Determine target type and role based on selection
-      if (announcementRole === "all") {
-        // Send to all users except admin/attendees
-        notificationData.target_type = 'role';
-        notificationData.target_role = 'all_except_admin_attendees';
-      } 
-      else if (announcementRole === "custom") {
+      if (announcementRole === "custom") {
         // Send to custom selected users
         notificationData.target_type = 'specific_users';
         notificationData.target_user_ids = selectedUsers.map(user => user.id);
-      }
-      else {
+      } else {
         // For role-based targeting
         notificationData.target_type = 'role';
         notificationData.target_role = announcementRole;
@@ -316,36 +351,36 @@ export const TeamLeaderDashboard: React.FC = () => {
   };
 
   // Handle User Search for Bonus
-  const handleUserSearch = async (searchTerm: string) => {
+  const handleBonusUserSearch = async (searchTerm: string) => {
     if (!searchTerm.trim()) {
-      setSearchResults([]);
+      setBonusSearchResults([]);
       return;
     }
 
     try {
+      const allowedRoles = getAllowedRoles();
       const { data, error } = await supabase
         .from('users_profiles')
         .select('*')
         .or(`personal_id.ilike.%${searchTerm}%,volunteer_id.ilike.%${searchTerm}%`)
-        .neq('role', 'admin')
-        .neq('role', 'attendee')
+        .in('role', allowedRoles)
         .limit(10);
 
       if (!error && data) {
         // Filter out current user from search results
         const filteredResults = data.filter(user => user.id !== profile?.id);
-        setSearchResults(filteredResults);
-        setShowSearchResults(true);
+        setBonusSearchResults(filteredResults);
+        setShowBonusSearchResults(true);
       }
     } catch (error) {
       console.error("Search error:", error);
-      setSearchResults([]);
+      setBonusSearchResults([]);
     }
   };
 
   const handleBonusAssignment = async () => {
-    if (!selectedUser || bonusAmount < 1) {
-      showFeedback('error', 'Please select a user and set bonus amount');
+    if (!selectedUser || bonusAmount < 1 || bonusAmount > 30) {
+      showFeedback('error', 'Please select a user and set bonus amount (1-30)');
       return;
     }
 
@@ -381,7 +416,7 @@ export const TeamLeaderDashboard: React.FC = () => {
         showFeedback('success', `Bonus of ${bonusAmount} points assigned successfully!`);
         setBonusModal(false);
         setSelectedUser(null);
-        setSearchTerm("");
+        setBonusSearchTerm("");
         setBonusAmount(5);
       }
     } catch (err) {
@@ -391,15 +426,33 @@ export const TeamLeaderDashboard: React.FC = () => {
     }
   };
 
-  const roleOptions = [
-    { value: "all", label: "All Volunteers & Team Leaders" },
-    { value: "volunteer", label: "Volunteers" },
-    { value: "registration", label: "Registration Team" },
-    { value: "building", label: "Building Team" },
-    { value: "info_desk", label: "Info Desk Team" },
-    { value: "team_leader", label: "Team Leaders" },
-    { value: "custom", label: "Custom Selection" }
-  ];
+  // Get role options based on team leader's allowed roles
+  const getRoleOptions = () => {
+    const allowedRoles = getAllowedRoles();
+    const roleLabels: { [key: string]: string } = {
+      'volunteer': 'Volunteers',
+      'registration': 'Registration Team',
+      'building': 'Building Team',
+      'info_desk': 'Info Desk Team',
+      'team_leader': 'Team Leaders',
+      'ushers': 'Ushers',
+      'marketing': 'Marketing Team',
+      'media': 'Media Team',
+      'ER': 'ER Team',
+      'BD': 'BD Team',
+      'catering': 'Catering Team',
+      'feedback': 'Feedback Team',
+      'stage': 'Stage Team'
+    };
+
+    return [
+      ...allowedRoles.map(role => ({
+        value: role,
+        label: roleLabels[role] || role.charAt(0).toUpperCase() + role.slice(1)
+      })),
+      { value: "custom", label: "Custom Selection" }
+    ];
+  };
 
   return (
     <DashboardLayout
@@ -407,547 +460,622 @@ export const TeamLeaderDashboard: React.FC = () => {
       subtitle="Manage your team, track attendance, and assign bonuses"
     >
       <div className="fade-in-up-blur relative">
-      <div className="space-y-8">
-        {/* Feedback Toast */}
-        {feedback && (
-          <div className={`fixed top-4 right-4 z-50 flex items-center space-x-2 px-4 py-3 rounded-lg shadow-lg fade-in-blur ${
-            feedback.type === 'success' 
-              ? 'bg-green-500 text-white' 
-              : 'bg-red-500 text-white'
-          }`}>
-            {feedback.type === 'success' ? (
-              <CheckCircle className="h-5 w-5" />
-            ) : (
-              <AlertCircle className="h-5 w-5" />
-            )}
-            <span className="font-medium">{feedback.message}</span>
-            <button
-              onClick={() => setFeedback(null)}
-              className="ml-2 hover:bg-black hover:bg-opacity-20 rounded p-1 transition-colors"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        )}
-
-        {/* Quick Actions */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 fade-in-blur card-hover dashboard-card">
-          <div className="flex justify-center">
-            <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2 mb-8">
-              <Users className="h-8 w-8 text-orange-500" />
-              Manage Your Team
-            </h2>
-          </div>
-
-          <div className="flex flex-col md:flex-row gap-4 justify-center stagger-children">
-            {/* Attendance */}
-            <button
-              onClick={() => setScannerOpen(true)}
-              className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all duration-300 smooth-hover"
-            >
-              <QrCode className="h-8 w-8 mb-2" />
-              <span className="text-base font-medium">Scan Attendance</span>
-            </button>
-
-            {/* Bonus */}
-            <button
-              onClick={() => setBonusModal(true)}
-              className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-all duration-300 smooth-hover"
-            >
-              <Gift className="h-8 w-8 mb-2" />
-              <span className="text-base font-medium">Assign Bonus</span>
-            </button>
-
-            {/* Announcements */}
-            <button
-              onClick={() => setAnnouncementModal(true)}
-              className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-all duration-300 smooth-hover"
-            >
-              <Megaphone className="h-8 w-8 mb-2" />
-              <span className="text-base font-medium">Send Announcement</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Flow Dashboard Widget */}
-        <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden fade-in-blur card-hover dashboard-card">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
-            <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2 mx-auto">
-              <Building className="h-7 w-7 text-orange-500" />
-              Flow Dashboard
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4 px-6 py-6 text-center stagger-children">
-            <div className="bg-green-100 p-4 rounded-lg shadow-sm card-hover smooth-hover">
-              <p className="text-2xl font-bold text-green-900">{buildingStats.inside_building}</p>
-              <p className="text-lg font-bold text-gray-700">Inside Building</p>
-            </div>
-            <div className="bg-teal-100 p-4 rounded-lg shadow-sm card-hover smooth-hover">
-              <p className="text-2xl font-bold text-teal-900">{buildingStats.inside_event}</p>
-              <p className="text-lg font-bold text-gray-700">Inside Event</p>
-            </div>
-            <div className="bg-blue-100 p-4 rounded-lg shadow-sm card-hover smooth-hover">
-              <p className="text-2xl font-bold text-blue-900">{buildingStats.total_attendees}</p>
-              <p className="text-lg font-bold text-gray-700">Total Attendees</p>
-            </div>
-          </div>
-
-          <div className="p-6">
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-lg font-bold text-left border border-gray-200 rounded-lg overflow-hidden">
-                <thead className="bg-gray-100 text-gray-800 text-xl font-extrabold">
-                  <tr>
-                    <th className="px-4 py-3">Site</th>
-                    <th className="px-4 py-3">Maximum Capacity</th>
-                    <th className="px-4 py-3">Current Capacity</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-t">
-                    <td className="px-4 py-3">Building</td>
-                    <td className="px-4 py-3 text-red-600">500</td>
-                    <td className="px-4 py-3">
-                      {buildingStats.inside_building > 0 ? 
-                        Math.round((buildingStats.inside_building / 500) * 100) : 0}%
-                    </td>
-                  </tr>
-                  <tr className="border-t">
-                    <td className="px-4 py-3">Event</td>
-                    <td className="px-4 py-3 text-red-600">4000</td>
-                    <td className="px-4 py-3">
-                      {buildingStats.inside_event > 0 ? 
-                        Math.round((buildingStats.inside_event / 4000) * 100) : 0}%
-                    </td>
-                  </tr>
-                  <tr className="border-t">
-                    <td className="px-4 py-3">Total</td>
-                    <td className="px-4 py-3 text-red-600">4500</td>
-                    <td className="px-4 py-3">
-                      {(buildingStats.inside_building + buildingStats.inside_event) > 0 ? 
-                        Math.round(((buildingStats.inside_building + buildingStats.inside_event) / 4500) * 100) : 0}%
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* QR Scanner Modal */}
-<QRScanner
-  isOpen={scannerOpen}
-  onClose={() => setScannerOpen(false)}
-  onScan={handleScan}
-  title="Scan Volunteer QR Code"
-  description="Point your camera at the volunteer's QR code"
-/>
-
-{/* Volunteer Card Modal */}
-{showVolunteerCard && scannedVolunteer && (
-  <div 
-    className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 modal-backdrop-blur"
-    style={{ zIndex: 9999 }}
-    onClick={() => {
-      setShowVolunteerCard(false);
-      setScannedVolunteer(null);
-      setAttendanceChecked(false);
-    }}
-  >
-    <div 
-      className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md modal-content-blur fade-in-up-blur"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div className="flex items-center justify-between mb-4 fade-in-blur">
-        <h3 className="text-xl font-bold text-gray-900">Volunteer Information</h3>
-        <button
-          onClick={() => {
-            setShowVolunteerCard(false);
-            setScannedVolunteer(null);
-            setAttendanceChecked(false);
-          }}
-          className="text-gray-500 hover:text-gray-700 transition-colors"
-        >
-          <X className="h-6 w-6" />
-        </button>
-      </div>
-
-      <div className="space-y-3 fade-in-blur stagger-children">
-        <div className="flex justify-between">
-          <span className="font-medium">Name:</span>
-          <span>{scannedVolunteer.first_name} {scannedVolunteer.last_name}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="font-medium">Volunteer ID:</span>
-          <span>{scannedVolunteer.volunteer_id}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="font-medium">Email:</span>
-          <span>{scannedVolunteer.email}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="font-medium">Personal ID:</span>
-          <span>{scannedVolunteer.personal_id}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="font-medium">Role:</span>
-          <span className="capitalize">{scannedVolunteer.role.replace('_', ' ')}</span>
-        </div>
-      </div>
-
-      <div className="mt-6 fade-in-blur">
-        {alreadyAttended ? (
-          <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded-lg">
-            <p className="font-medium">This volunteer has already attended today.</p>
-          </div>
-        ) : (
-          <button
-            onClick={handleAttendanceAction}
-            disabled={loading}
-            className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-300 smooth-hover font-medium"
-          >
-            {loading ? 'Recording...' : 'Mark Attendance'}
-          </button>
-        )}
-      </div>
-    </div>
-  </div>
-)}
-
-{/* Announcement Modal */}
-{announcementModal && (
-  <div 
-    className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 p-4 modal-backdrop-blur"
-    style={{ zIndex: 9999 }}
-    onClick={() => {
-      setAnnouncementModal(false);
-      clearUserSelection();
-    }}
-  >
-    <div 
-      className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto relative modal-content-blur fade-in-up-blur"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <button
-        onClick={() => {
-          setAnnouncementModal(false);
-          clearUserSelection();
-        }}
-        className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 transition-colors"
-      >
-        <X className="h-6 w-6" />
-      </button>
-
-      <h2 className="text-lg font-semibold text-black mb-4 text-center fade-in-blur">
-        Send Announcement
-      </h2>
-
-      <div className="space-y-4 stagger-children">
-        <input
-          type="text"
-          value={announcementTitle}
-          onChange={(e) => setAnnouncementTitle(e.target.value)}
-          placeholder="Message Title"
-          className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 fade-in-blur"
-        />
-
-        <textarea
-          value={announcementDescription}
-          onChange={(e) => setAnnouncementDescription(e.target.value)}
-          placeholder="Message Description"
-          className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 fade-in-blur"
-          rows={3}
-        />
-
-        <select
-          value={announcementRole}
-          onChange={(e) => {
-            setAnnouncementRole(e.target.value);
-            if (e.target.value !== "custom") {
-              clearUserSelection();
-            }
-          }}
-          className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 fade-in-blur"
-        >
-          <option value="">Select Target Role</option>
-          {roleOptions.map(role => (
-            <option key={role.value} value={role.value}>
-              {role.label}
-            </option>
-          ))}
-        </select>
-
-        {/* Custom Selection UI */}
-        {announcementRole === "custom" && (
-          <div className="space-y-3 fade-in-blur">
-            <div className="relative">
-              <input
-                type="text"
-                value={userSearch}
-                onChange={(e) => {
-                  setUserSearch(e.target.value);
-                  searchUsersByPersonalId(e.target.value);
-                }}
-                placeholder="Search by Personal ID..."
-                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
-              />
-              {userSearchLoading && (
-                <div className="absolute right-3 top-3">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                </div>
+        <div className="space-y-8">
+          {/* Feedback Toast */}
+          {feedback && (
+            <div className={`fixed top-4 right-4 z-50 flex items-center space-x-2 px-4 py-3 rounded-lg shadow-lg fade-in-blur ${
+              feedback.type === 'success' 
+                ? 'bg-green-500 text-white' 
+                : 'bg-red-500 text-white'
+            }`}>
+              {feedback.type === 'success' ? (
+                <CheckCircle className="h-5 w-5" />
+              ) : (
+                <AlertCircle className="h-5 w-5" />
               )}
-            </div>
-
-            {/* Search Results */}
-            {userSearchResults.length > 0 && (
-              <div className="max-h-40 overflow-y-auto border rounded-lg fade-in-scale">
-                {userSearchResults.map((user) => (
-                  <div
-                    key={user.id}
-                    onClick={() => addUserToSelection(user)}
-                    className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0 transition-all duration-300 smooth-hover"
-                  >
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          {user.first_name} {user.last_name}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          ID: {user.personal_id} | {user.role}
-                        </p>
-                      </div>
-                      <Plus className="h-4 w-4 text-blue-500" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Selected Users */}
-            {selectedUsers.length > 0 && (
-              <div className="fade-in-blur">
-                <div className="flex justify-between items-center mb-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Selected Users ({selectedUsers.length})
-                  </label>
-                  <button
-                    onClick={clearUserSelection}
-                    className="text-xs text-red-500 hover:text-red-700 transition-colors"
-                  >
-                    Clear All
-                  </button>
-                </div>
-                <div className="max-h-32 overflow-y-auto border rounded-lg bg-gray-50">
-                  {selectedUsers.map((user) => (
-                    <div
-                      key={user.id}
-                      className="p-2 flex justify-between items-center border-b last:border-b-0 smooth-hover"
-                    >
-                      <div>
-                        <p className="text-sm text-gray-900">
-                          {user.first_name} {user.last_name}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          ID: {user.personal_id}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => removeUserFromSelection(user.id)}
-                        className="text-red-500 hover:text-red-700 transition-colors"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <div className="flex justify-end gap-3 mt-6 fade-in-blur">
-        <button
-          onClick={() => {
-            setAnnouncementModal(false);
-            clearUserSelection();
-          }}
-          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-all duration-300 smooth-hover"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleAnnouncementSubmit}
-          disabled={loading}
-          className="px-4 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600 disabled:opacity-50 transition-all duration-300 smooth-hover"
-        >
-          {loading ? 'Sending...' : 'Send'}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
-{/* Bonus Assignment Modal */}
-{bonusModal && (
-  <div 
-    className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 p-4 modal-backdrop-blur"
-    style={{ zIndex: 9999 }}
-    onClick={() => {
-      setBonusModal(false);
-      setSelectedUser(null);
-      setSearchTerm("");
-      setShowSearchResults(false);
-    }}
-  >
-    <div 
-      className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative modal-content-blur fade-in-up-blur"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <button
-        onClick={() => {
-          setBonusModal(false);
-          setSelectedUser(null);
-          setSearchTerm("");
-          setShowSearchResults(false);
-        }}
-        className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 z-30 transition-colors"
-      >
-        <X className="h-6 w-6" />
-      </button>
-
-      <h2 className="text-lg font-semibold text-black mb-4 text-center fade-in-blur">
-        Assign Bonus Points
-      </h2>
-
-      <div className="space-y-4 stagger-children">
-        {/* Bonus Slider */}
-        <div className="fade-in-blur">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Bonus Points: {bonusAmount}
-          </label>
-          <div className="flex items-center space-x-3">
-            <span>1</span>
-            <input
-              type="range"
-              min="1"
-              max="30"
-              value={bonusAmount}
-              onChange={(e) => setBonusAmount(parseInt(e.target.value))}
-              className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider transition-all duration-300"
-            />
-            <span>30</span>
-          </div>
-        </div>
-
-        {/* User Search */}
-        <div className="relative fade-in-blur">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Search Volunteer
-          </label>
-          <div className="relative">
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                handleUserSearch(e.target.value);
-              }}
-              onFocus={() => setShowSearchResults(true)}
-              placeholder="Search by Personal ID or Volunteer ID"
-              className="w-full border rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
-            />
-            <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
-            
-            {/* Search Results - Fixed positioning */}
-            {showSearchResults && searchResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-40 max-h-60 overflow-y-auto fade-in-scale">
-                {searchResults.map((user) => (
-                  <button
-                    key={user.id}
-                    onClick={() => {
-                      setSelectedUser(user);
-                      setSearchTerm(`${user.first_name} ${user.last_name} (${user.volunteer_id})`);
-                      setShowSearchResults(false);
-                    }}
-                    className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-all duration-300 smooth-hover"
-                  >
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {user.first_name} {user.last_name}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        ID: {user.volunteer_id} | Personal ID: {user.personal_id}
-                      </p>
-                      <p className="text-xs text-gray-500 capitalize">
-                        {user.role.replace('_', ' ')}
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          
-          {/* Click outside to close search results */}
-          {showSearchResults && (
-            <div 
-              className="fixed inset-0 z-30"
-              onClick={() => setShowSearchResults(false)}
-            />
-          )}
-        </div>
-
-        {/* Selected User Display */}
-        {selectedUser && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-3 fade-in-blur card-hover">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-green-900">
-                  {selectedUser.first_name} {selectedUser.last_name}
-                </p>
-                <p className="text-sm text-green-700">
-                  {selectedUser.volunteer_id} • {selectedUser.personal_id}
-                </p>
-              </div>
+              <span className="font-medium">{feedback.message}</span>
               <button
-                onClick={() => {
-                  setSelectedUser(null);
-                  setSearchTerm("");
-                }}
-                className="text-green-600 hover:text-green-800 transition-colors"
+                onClick={() => setFeedback(null)}
+                className="ml-2 hover:bg-black hover:bg-opacity-20 rounded p-1 transition-colors"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
+          )}
+
+          {/* Quick Actions */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 fade-in-blur card-hover dashboard-card">
+            <div className="flex justify-center">
+              <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2 mb-8">
+                <Users className="h-8 w-8 text-orange-500" />
+                Manage Your Team
+              </h2>
+            </div>
+
+            <div className="flex flex-col md:flex-row gap-4 justify-center stagger-children">
+              {/* Attendance */}
+              <button
+                onClick={() => setAttendanceModal(true)}
+                className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all duration-300 smooth-hover"
+              >
+                <QrCode className="h-8 w-8 mb-2" />
+                <span className="text-base font-medium">Mark Attendance</span>
+              </button>
+
+              {/* Bonus */}
+              <button
+                onClick={() => setBonusModal(true)}
+                className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-all duration-300 smooth-hover"
+              >
+                <Gift className="h-8 w-8 mb-2" />
+                <span className="text-base font-medium">Assign Bonus</span>
+              </button>
+
+              {/* Announcements */}
+              <button
+                onClick={() => setAnnouncementModal(true)}
+                className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-all duration-300 smooth-hover"
+              >
+                <Megaphone className="h-8 w-8 mb-2" />
+                <span className="text-base font-medium">Send Announcement</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Flow Dashboard Widget */}
+          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden fade-in-blur card-hover dashboard-card">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+              <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2 mx-auto">
+                <Building className="h-7 w-7 text-orange-500" />
+                Flow Dashboard
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4 px-6 py-6 text-center stagger-children">
+              <div className="bg-green-100 p-4 rounded-lg shadow-sm card-hover smooth-hover">
+                <p className="text-2xl font-bold text-green-900">{buildingStats.inside_building}</p>
+                <p className="text-lg font-bold text-gray-700">Inside Building</p>
+              </div>
+              <div className="bg-teal-100 p-4 rounded-lg shadow-sm card-hover smooth-hover">
+                <p className="text-2xl font-bold text-teal-900">{buildingStats.inside_event}</p>
+                <p className="text-lg font-bold text-gray-700">Inside Event</p>
+              </div>
+              <div className="bg-blue-100 p-4 rounded-lg shadow-sm card-hover smooth-hover">
+                <p className="text-2xl font-bold text-blue-900">{buildingStats.total_attendees}</p>
+                <p className="text-lg font-bold text-gray-700">Total Attendees</p>
+              </div>
+            </div>
+
+            <div className="p-6">
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-lg font-bold text-left border border-gray-200 rounded-lg overflow-hidden">
+                  <thead className="bg-gray-100 text-gray-800 text-xl font-extrabold">
+                    <tr>
+                      <th className="px-4 py-3">Site</th>
+                      <th className="px-4 py-3">Maximum Capacity</th>
+                      <th className="px-4 py-3">Current Capacity</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-t">
+                      <td className="px-4 py-3">Building</td>
+                      <td className="px-4 py-3 text-red-600">500</td>
+                      <td className="px-4 py-3">
+                        {buildingStats.inside_building > 0 ? 
+                          Math.round((buildingStats.inside_building / 500) * 100) : 0}%
+                      </td>
+                    </tr>
+                    <tr className="border-t">
+                      <td className="px-4 py-3">Event</td>
+                      <td className="px-4 py-3 text-red-600">4000</td>
+                      <td className="px-4 py-3">
+                        {buildingStats.inside_event > 0 ? 
+                          Math.round((buildingStats.inside_event / 4000) * 100) : 0}%
+                      </td>
+                    </tr>
+                    <tr className="border-t">
+                      <td className="px-4 py-3">Total</td>
+                      <td className="px-4 py-3 text-red-600">4500</td>
+                      <td className="px-4 py-3">
+                        {(buildingStats.inside_building + buildingStats.inside_event) > 0 ? 
+                          Math.round(((buildingStats.inside_building + buildingStats.inside_event) / 4500) * 100) : 0}%
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Attendance Modal */}
+        {attendanceModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative">
+              <button
+                onClick={() => {
+                  setAttendanceModal(false);
+                  setScannedVolunteer(null);
+                  setAttendanceChecked(false);
+                  setSearchTerm("");
+                  setSearchResults([]);
+                }}
+                className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+
+              <h2 className="text-lg font-semibold text-black mb-4 text-center">
+                Mark Attendance
+              </h2>
+
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={() => setAttendanceMethod('scan')}
+                  className={`flex-1 py-2 px-4 rounded-lg transition-all duration-300 ${
+                    attendanceMethod === 'scan' 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-gray-200 text-gray-700'
+                  }`}
+                >
+                  QR Scanner
+                </button>
+                <button
+                  onClick={() => setAttendanceMethod('search')}
+                  className={`flex-1 py-2 px-4 rounded-lg transition-all duration-300 ${
+                    attendanceMethod === 'search' 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-gray-200 text-gray-700'
+                  }`}
+                >
+                  Search
+                </button>
+              </div>
+
+              {attendanceMethod === 'scan' ? (
+                <div className="space-y-4">
+                  <button
+                    onClick={() => setScannerOpen(true)}
+                    className="w-full bg-blue-500 text-white py-3 px-4 rounded-lg hover:bg-blue-600 transition-all duration-300 font-medium"
+                  >
+                    Open QR Scanner
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        handleAttendanceSearch(e.target.value);
+                      }}
+                      onFocus={() => setShowSearchResults(true)}
+                      placeholder="Search by Personal ID or Volunteer ID"
+                      className="w-full border rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
+                    />
+                    <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
+                    
+                    {showSearchResults && searchResults.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-40 max-h-60 overflow-y-auto">
+                        {searchResults.map((user) => (
+                          <button
+                            key={user.id}
+                            onClick={() => {
+                              setScannedVolunteer(user);
+                              setSearchTerm(`${user.first_name} ${user.last_name} (${user.volunteer_id})`);
+                              setShowSearchResults(false);
+                              setShowVolunteerCard(true);
+                            }}
+                            className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-all duration-300"
+                          >
+                            <div>
+                              <p className="font-medium text-gray-900">
+                                {user.first_name} {user.last_name}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                ID: {user.volunteer_id} | Personal ID: {user.personal_id}
+                              </p>
+                              <p className="text-xs text-gray-500 capitalize">
+                                {user.role.replace('_', ' ')}
+                              </p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {showSearchResults && (
+                    <div 
+                      className="fixed inset-0 z-30"
+                      onClick={() => setShowSearchResults(false)}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* QR Scanner Modal */}
+        <QRScanner
+          isOpen={scannerOpen}
+          onClose={() => setScannerOpen(false)}
+          onScan={handleScan}
+          title="Scan Volunteer QR Code"
+          description="Point your camera at the volunteer's QR code"
+        />
+
+        {/* Volunteer Card Modal */}
+        {showVolunteerCard && scannedVolunteer && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-gray-900">Volunteer Information</h3>
+                <button
+                  onClick={() => {
+                    setShowVolunteerCard(false);
+                    setScannedVolunteer(null);
+                    setAttendanceChecked(false);
+                  }}
+                  className="text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="font-medium">Name:</span>
+                  <span>{scannedVolunteer.first_name} {scannedVolunteer.last_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Volunteer ID:</span>
+                  <span>{scannedVolunteer.volunteer_id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Email:</span>
+                  <span>{scannedVolunteer.email}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Personal ID:</span>
+                  <span>{scannedVolunteer.personal_id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Role:</span>
+                  <span className="capitalize">{scannedVolunteer.role.replace('_', ' ')}</span>
+                </div>
+              </div>
+
+              <div className="mt-6">
+                {alreadyAttended ? (
+                  <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded-lg">
+                    <p className="font-medium">This volunteer has already attended today.</p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleAttendanceAction}
+                    disabled={loading}
+                    className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-300 font-medium"
+                  >
+                    {loading ? 'Recording...' : 'Mark Attendance'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Announcement Modal */}
+        {announcementModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto relative">
+              <button
+                onClick={() => {
+                  setAnnouncementModal(false);
+                  clearUserSelection();
+                }}
+                className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+
+              <h2 className="text-lg font-semibold text-black mb-4 text-center">
+                Send Announcement
+              </h2>
+
+              <div className="space-y-4">
+                <input
+                  type="text"
+                  value={announcementTitle}
+                  onChange={(e) => setAnnouncementTitle(e.target.value)}
+                  placeholder="Message Title"
+                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300"
+                />
+
+                <textarea
+                  value={announcementDescription}
+                  onChange={(e) => setAnnouncementDescription(e.target.value)}
+                  placeholder="Message Description"
+                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300"
+                  rows={3}
+                />
+
+                <select
+                  value={announcementRole}
+                  onChange={(e) => {
+                    setAnnouncementRole(e.target.value);
+                    if (e.target.value !== "custom") {
+                      clearUserSelection();
+                    }
+                  }}
+                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300"
+                >
+                  <option value="">Select Target Role</option>
+                  {getRoleOptions().map(role => (
+                    <option key={role.value} value={role.value}>
+                      {role.label}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Custom Selection UI */}
+                {announcementRole === "custom" && (
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={userSearch}
+                        onChange={(e) => {
+                          setUserSearch(e.target.value);
+                          searchUsersByPersonalId(e.target.value);
+                        }}
+                        placeholder="Search by Personal ID..."
+                        className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
+                      />
+                      {userSearchLoading && (
+                        <div className="absolute right-3 top-3">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Search Results */}
+                    {userSearchResults.length > 0 && (
+                      <div className="max-h-40 overflow-y-auto border rounded-lg">
+                        {userSearchResults.map((user) => (
+                          <div
+                            key={user.id}
+                            onClick={() => addUserToSelection(user)}
+                            className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0 transition-all duration-300"
+                          >
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {user.first_name} {user.last_name}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  ID: {user.personal_id} | {user.role}
+                                </p>
+                              </div>
+                              <Plus className="h-4 w-4 text-blue-500" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Selected Users */}
+                    {selectedUsers.length > 0 && (
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="text-sm font-medium text-gray-700">
+                            Selected Users ({selectedUsers.length})
+                          </label>
+                          <button
+                            onClick={clearUserSelection}
+                            className="text-xs text-red-500 hover:text-red-700 transition-colors"
+                          >
+                            Clear All
+                          </button>
+                        </div>
+                        <div className="max-h-32 overflow-y-auto border rounded-lg bg-gray-50">
+                          {selectedUsers.map((user) => (
+                            <div
+                              key={user.id}
+                              className="p-2 flex justify-between items-center border-b last:border-b-0"
+                            >
+                              <div>
+                                <p className="text-sm text-gray-900">
+                                  {user.first_name} {user.last_name}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  ID: {user.personal_id}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => removeUserFromSelection(user.id)}
+                                className="text-red-500 hover:text-red-700 transition-colors"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setAnnouncementModal(false);
+                    clearUserSelection();
+                  }}
+                  className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-all duration-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAnnouncementSubmit}
+                  disabled={loading}
+                  className="px-4 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600 disabled:opacity-50 transition-all duration-300"
+                >
+                  {loading ? 'Sending...' : 'Send'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Bonus Assignment Modal */}
+        {bonusModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative">
+              <button
+                onClick={() => {
+                  setBonusModal(false);
+                  setSelectedUser(null);
+                  setBonusSearchTerm("");
+                  setShowBonusSearchResults(false);
+                }}
+                className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 z-30 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+
+              <h2 className="text-lg font-semibold text-black mb-4 text-center">
+                Assign Bonus Points
+              </h2>
+
+              <div className="space-y-4">
+                {/* Bonus Input */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Bonus Points (1-30)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="30"
+                    value={bonusAmount}
+                    onChange={(e) => setBonusAmount(Math.min(30, Math.max(1, parseInt(e.target.value) || 1)))}
+                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
+                  />
+                </div>
+
+                {/* User Search */}
+                <div className="relative">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Search Volunteer
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={bonusSearchTerm}
+                      onChange={(e) => {
+                        setBonusSearchTerm(e.target.value);
+                        handleBonusUserSearch(e.target.value);
+                      }}
+                      onFocus={() => setShowBonusSearchResults(true)}
+                      placeholder="Search by Personal ID or Volunteer ID"
+                      className="w-full border rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
+                    />
+                    <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
+                    
+                    {/* Search Results - Fixed positioning */}
+                    {showBonusSearchResults && bonusSearchResults.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-40 max-h-60 overflow-y-auto">
+                        {bonusSearchResults.map((user) => (
+                          <button
+                            key={user.id}
+                            onClick={() => {
+                              setSelectedUser(user);
+                              setBonusSearchTerm(`${user.first_name} ${user.last_name} (${user.volunteer_id})`);
+                              setShowBonusSearchResults(false);
+                            }}
+                            className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-all duration-300"
+                          >
+                            <div>
+                              <p className="font-medium text-gray-900">
+                                {user.first_name} {user.last_name}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                ID: {user.volunteer_id} | Personal ID: {user.personal_id}
+                              </p>
+                              <p className="text-xs text-gray-500 capitalize">
+                                {user.role.replace('_', ' ')}
+                              </p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Click outside to close search results */}
+                  {showBonusSearchResults && (
+                    <div 
+                      className="fixed inset-0 z-30"
+                      onClick={() => setShowBonusSearchResults(false)}
+                    />
+                  )}
+                </div>
+
+                {/* Selected User Display */}
+                {selectedUser && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-green-900">
+                          {selectedUser.first_name} {selectedUser.last_name}
+                        </p>
+                        <p className="text-sm text-green-700">
+                          {selectedUser.volunteer_id} • {selectedUser.personal_id}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setSelectedUser(null);
+                          setBonusSearchTerm("");
+                        }}
+                        className="text-green-600 hover:text-green-800 transition-colors"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setBonusModal(false);
+                    setSelectedUser(null);
+                    setBonusSearchTerm("");
+                    setShowBonusSearchResults(false);
+                  }}
+                  className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-all duration-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleBonusAssignment}
+                  disabled={loading || !selectedUser}
+                  className="px-4 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 transition-all duration-300"
+                >
+                  {loading ? 'Assigning...' : 'Assign Bonus'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
-
-      <div className="flex justify-end gap-3 mt-6 fade-in-blur">
-        <button
-          onClick={() => {
-            setBonusModal(false);
-            setSelectedUser(null);
-            setSearchTerm("");
-            setShowSearchResults(false);
-          }}
-          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-all duration-300 smooth-hover"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleBonusAssignment}
-          disabled={loading || !selectedUser}
-          className="px-4 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 transition-all duration-300 smooth-hover"
-        >
-          {loading ? 'Assigning...' : 'Assign Bonus'}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-</div>
-</DashboardLayout>  );
+    </DashboardLayout>
+  );
 };
