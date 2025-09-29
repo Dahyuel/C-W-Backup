@@ -1880,6 +1880,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
   };
 
   // Handle Announcement Submit
+// Handle Announcement Submit - Updated for Admin
 const handleAnnouncementSubmit = async () => {
   if (!announcementTitle || !announcementDescription || !announcementRole) {
     showNotification("Please fill all required fields!", "error");
@@ -1909,6 +1910,7 @@ const handleAnnouncementSubmit = async () => {
 
     // Handle different target types
     if (announcementRole === "all") {
+      // Send to all users
       notificationData.target_type = 'all';
       notificationData.target_role = null;
       notificationData.target_user_ids = null;
@@ -1920,12 +1922,13 @@ const handleAnnouncementSubmit = async () => {
       notificationData.target_user_ids = null;
     }
     else if (announcementRole === "custom") {
+      // Send to custom selected users
       notificationData.target_type = 'specific_users';
       notificationData.target_role = null;
       notificationData.target_user_ids = selectedUsers.map(user => user.id);
     }
     else {
-      // For specific roles (including new volunteer roles)
+      // For specific roles (including team_leader and all volunteer roles)
       notificationData.target_type = 'role';
       notificationData.target_role = announcementRole;
       notificationData.target_user_ids = null;
@@ -1951,6 +1954,65 @@ const handleAnnouncementSubmit = async () => {
     showNotification("Failed to send announcement", "error");
   } finally {
     setLoading(false);
+  }
+};
+
+// Get role options for Admin - All roles including team_leader
+const getAdminRoleOptions = () => {
+  return [
+    { value: "", label: "Select Target" },
+    { value: "all", label: "All Users" },
+    { value: "volunteer", label: "Volunteers (All except Admin/Team Leader/Attendee)" },
+    { value: "team_leader", label: "Team Leaders" },
+    { value: "admin", label: "Admins" },
+    { value: "attendee", label: "Attendees" },
+    // Volunteer roles
+    { value: "registration", label: "Registration Team" },
+    { value: "building", label: "Building Team" },
+    { value: "info_desk", label: "Info Desk" },
+    { value: "ushers", label: "Ushers" },
+    { value: "marketing", label: "Marketing" },
+    { value: "media", label: "Media" },
+    { value: "ER", label: "ER Team" },
+    { value: "BD", label: "Business Development" },
+    { value: "catering", label: "Catering" },
+    { value: "feedback", label: "Feedback Team" },
+    { value: "stage", label: "Stage Team" },
+    { value: "custom", label: "Custom Selection" }
+  ];
+};
+
+// User search function for Admin - searches all users
+const searchUsersByPersonalId = async (searchTerm) => {
+  if (!searchTerm || searchTerm.trim().length < 2) {
+    setSearchResults([]);
+    return;
+  }
+
+  setSearchLoading(true);
+  try {
+    const { data, error } = await supabase
+      .from('users_profiles')
+      .select('id, first_name, last_name, personal_id, role, email, volunteer_id')
+      .or(`personal_id.ilike.%${searchTerm.trim()}%,volunteer_id.ilike.%${searchTerm.trim()}%`)
+      .order('personal_id')
+      .limit(10);
+
+    if (error) {
+      console.error('Search error:', error);
+      setSearchResults([]);
+    } else {
+      // Filter out already selected users
+      const filteredResults = (data || []).filter(user => 
+        !selectedUsers.some(selected => selected.id === user.id)
+      );
+      setSearchResults(filteredResults);
+    }
+  } catch (error) {
+    console.error('Search exception:', error);
+    setSearchResults([]);
+  } finally {
+    setSearchLoading(false);
   }
 };
   const searchUsersByPersonalId = async (searchTerm) => {
