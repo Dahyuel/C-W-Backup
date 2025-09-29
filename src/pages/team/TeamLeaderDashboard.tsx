@@ -319,59 +319,67 @@ const searchUsersByPersonalId = async (searchTerm: string) => {
   };
 
   // Handle Announcement
-  const handleAnnouncementSubmit = async () => {
-    if (!announcementTitle || !announcementDescription || !announcementRole) {
-      showFeedback('error', 'Please fill all required fields!');
-      return;
-    }
+ const handleAnnouncementSubmit = async () => {
+  if (!announcementTitle || !announcementDescription || !announcementRole) {
+    showFeedback('error', 'Please fill all required fields!');
+    return;
+  }
 
-    if (announcementRole === "custom" && selectedUsers.length === 0) {
-      showFeedback('error', 'Please select at least one user for custom announcements!');
-      return;
-    }
+  if (announcementRole === "custom" && selectedUsers.length === 0) {
+    showFeedback('error', 'Please select at least one user for custom announcements!');
+    return;
+  }
 
-    setLoading(true);
-    try {
-      let notificationData: any = {
-        title: announcementTitle,
-        message: announcementDescription,
-        created_by: profile?.id
-      };
+  setLoading(true);
+  try {
+    let notificationData: any = {
+      title: announcementTitle,
+      message: announcementDescription,
+      created_by: profile?.id
+    };
 
-      // Determine target type and role based on selection
-      if (announcementRole === "custom") {
-        // Send to custom selected users
-        notificationData.target_type = 'specific_users';
-        notificationData.target_user_ids = selectedUsers.map(user => user.id);
-      } else {
-        // For role-based targeting - use team leader's team
-        notificationData.target_type = 'role';
-        notificationData.target_role = getTeamLeaderTeam();
+    // Determine target type and role based on selection
+    if (announcementRole === "custom") {
+      // Send to custom selected users
+      notificationData.target_type = 'specific_users';
+      notificationData.target_user_ids = selectedUsers.map(user => user.id);
+      // Don't set target_role for specific_users
+    } else {
+      // For role-based targeting - use team leader's team
+      const teamLeaderTeam = getTeamLeaderTeam();
+      if (!teamLeaderTeam) {
+        showFeedback('error', 'No team assigned');
+        return;
       }
 
-      const { error } = await supabase
-        .from('notifications')
-        .insert([notificationData]);
-
-      if (error) {
-        console.error('Notification error:', error);
-        showFeedback('error', 'Failed to send announcement');
-      } else {
-        showFeedback('success', 'Announcement sent successfully!');
-        setAnnouncementModal(false);
-        setAnnouncementTitle("");
-        setAnnouncementDescription("");
-        setAnnouncementRole("");
-        clearUserSelection();
-      }
-    } catch (err) {
-      console.error('Send announcement error:', err);
-      showFeedback('error', 'Failed to send announcement');
-    } finally {
-      setLoading(false);
+      notificationData.target_type = 'role';
+      notificationData.target_role = teamLeaderTeam; // This should be like 'ushers', 'marketing', etc.
     }
-  };
 
+    console.log('Sending notification:', notificationData);
+
+    const { error } = await supabase
+      .from('notifications')
+      .insert([notificationData]);
+
+    if (error) {
+      console.error('Notification error:', error);
+      showFeedback('error', 'Failed to send announcement: ' + error.message);
+    } else {
+      showFeedback('success', 'Announcement sent successfully!');
+      setAnnouncementModal(false);
+      setAnnouncementTitle("");
+      setAnnouncementDescription("");
+      setAnnouncementRole("");
+      clearUserSelection();
+    }
+  } catch (err) {
+    console.error('Send announcement error:', err);
+    showFeedback('error', 'Failed to send announcement');
+  } finally {
+    setLoading(false);
+  }
+};
   // Handle User Search for Bonus
   const handleBonusUserSearch = async (searchTerm: string) => {
     if (!searchTerm.trim()) {
