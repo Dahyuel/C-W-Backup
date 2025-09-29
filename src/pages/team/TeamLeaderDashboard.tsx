@@ -319,7 +319,90 @@ const searchUsersByPersonalId = async (searchTerm: string) => {
   };
 
 
+const handleAnnouncementSubmit = async () => {
+  if (!announcementTitle || !announcementDescription || !announcementRole) {
+    showFeedback('error', 'Please fill all required fields!');
+    return;
+  }
 
+  console.log('=== DEBUG ANNOUNCEMENT ===');
+  console.log('announcementRole:', announcementRole);
+  console.log('getTeamLeaderTeam():', getTeamLeaderTeam());
+  console.log('selectedUsers count:', selectedUsers.length);
+  console.log('======================');
+
+  if (announcementRole === "custom" && selectedUsers.length === 0) {
+    showFeedback('error', 'Please select at least one user for custom announcements!');
+    return;
+  }
+
+  setLoading(true);
+  try {
+    let targetType: string;
+    let targetRole: string | null = null;
+    let targetUserIds: string[] | null = null;
+
+    // Determine target type and parameters based on selection
+    if (announcementRole === "custom") {
+      // Send to custom selected users
+      targetType = 'specific_users';
+      targetUserIds = selectedUsers.map(user => user.id);
+    } else {
+      // For team announcements
+      const teamLeaderTeam = getTeamLeaderTeam();
+      if (!teamLeaderTeam) {
+        showFeedback('error', 'No team assigned');
+        return;
+      }
+      targetType = 'role';
+      targetRole = teamLeaderTeam;
+    }
+
+    console.log('Calling send_notification RPC with:', {
+      targetType,
+      targetRole,
+      targetUserIds
+    });
+
+    // Prepare parameters for RPC call
+    const rpcParams: any = {
+      title_param: announcementTitle,
+      message_param: announcementDescription,
+      target_type_param: targetType,
+    };
+
+    // Add optional parameters only if they exist
+    if (targetRole) {
+      rpcParams.target_role_param = targetRole;
+    }
+    
+    if (targetUserIds && targetUserIds.length > 0) {
+      // Convert string[] to UUID[] for the database
+      rpcParams.target_user_ids_param = targetUserIds;
+    }
+
+    // Use the Supabase RPC function
+    const { data, error } = await supabase.rpc('send_notification', rpcParams);
+
+    if (error) {
+      console.error('Notification RPC error:', error);
+      showFeedback('error', 'Failed to send announcement: ' + error.message);
+    } else {
+      console.log('SUCCESS - Notification sent with ID:', data);
+      showFeedback('success', 'Announcement sent successfully!');
+      setAnnouncementModal(false);
+      setAnnouncementTitle("");
+      setAnnouncementDescription("");
+      setAnnouncementRole("");
+      clearUserSelection();
+    }
+  } catch (err) {
+    console.error('Send announcement error:', err);
+    showFeedback('error', 'Failed to send announcement');
+  } finally {
+    setLoading(false);
+  }
+};
   
   // Handle User Search for Bonus
   const handleBonusUserSearch = async (searchTerm: string) => {
