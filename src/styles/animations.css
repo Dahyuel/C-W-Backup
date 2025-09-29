@@ -1,0 +1,651 @@
+/* Animation System for Career Week Dashboard */
+
+/* Base Animation Classes */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 20px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translate3d(-30px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) translate3d(0, 0, 0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05) translate3d(0, 0, 0);
+  }
+  70% {
+    transform: scale(0.9) translate3d(0, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+}
+
+/* Core Animation Classes */
+.fade-in-up {
+  animation: fadeInUp 0.5s ease-out forwards;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.fade-in-left {
+  animation: fadeInLeft 0.4s ease-out forwards;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.fade-in-scale {
+  animation: fadeInScale 0.3s ease-out forwards;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.slide-down {
+  animation: slideDown 0.3s ease-out forwards;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+.bounce-in {
+  animation: bounceIn 0.6s ease-out forwards;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+/* Staggered Animation Delays */
+.stagger-children > * {
+  opacity: 0;
+  animation: fadeInUp 0.5s ease-out forwards;
+  will-change: transform, opacity;
+}
+
+.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+.stagger-children > *:nth-child(2) { animation-delay: 100ms; }
+.stagger-children > *:nth-child(3) { animation-delay: 200ms; }
+.stagger-children > *:nth-child(4) { animation-delay: 300ms; }
+.stagger-children > *:nth-child(5) { animation-delay: 400ms; }
+.stagger-children > *:nth-child(6) { animation-delay: 500ms; }
+.stagger-children > *:nth-child(7) { animation-delay: 600ms; }
+.stagger-children > *:nth-child(8) { animation-delay: 700ms; }
+.stagger-children > *:nth-child(9) { animation-delay: 800ms; }
+.stagger-children > *:nth-child(10) { animation-delay: 900ms; }
+
+/* Table Row Staggered Animation */
+.stagger-rows tbody tr {
+  opacity: 0;
+  animation: fadeInUp 0.4s ease-out forwards;
+  will-change: transform, opacity;
+}
+
+.stagger-rows tbody tr:nth-child(1) { animation-delay: 0ms; }
+.stagger-rows tbody tr:nth-child(2) { animation-delay: 50ms; }
+.stagger-rows tbody tr:nth-child(3) { animation-delay: 100ms; }
+.stagger-rows tbody tr:nth-child(4) { animation-delay: 150ms; }
+.stagger-rows tbody tr:nth-child(5) { animation-delay: 200ms; }
+.stagger-rows tbody tr:nth-child(6) { animation-delay: 250ms; }
+.stagger-rows tbody tr:nth-child(7) { animation-delay: 300ms; }
+.stagger-rows tbody tr:nth-child(8) { animation-delay: 350ms; }
+.stagger-rows tbody tr:nth-child(9) { animation-delay: 400ms; }
+.stagger-rows tbody tr:nth-child(10) { animation-delay: 450ms; }
+
+/* Interactive Hover Effects */
+.card-hover {
+  transition: all 0.3s ease-out;
+  will-change: transform, box-shadow;
+}
+
+.card-hover:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.smooth-hover {
+  transition: all 0.2s ease-out;
+  will-change: transform, background-color, color;
+}
+
+.smooth-hover:hover {
+  transform: translateY(-1px);
+}
+
+/* Button Animations */
+.btn-animate {
+  transition: all 0.2s ease-out;
+  will-change: transform, background-color, box-shadow;
+}
+
+.btn-animate:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.btn-animate:active {
+  transform: translateY(0) scale(0.98);
+  transition-duration: 0.1s;
+}
+
+/* Modal Animations */
+.modal-backdrop {
+  animation: fadeIn 0.3s ease-out forwards;
+  opacity: 0;
+}
+
+.modal-content {
+  animation: fadeInScale 0.3s ease-out forwards;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Dropdown Animations */
+.dropdown-enter {
+  animation: slideDown 0.2s ease-out forwards;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+/* Tab Content Transitions */
+.tab-content {
+  transition: opacity 0.3s ease-out;
+  will-change: opacity;
+}
+
+.tab-content-enter {
+  opacity: 0;
+  animation: fadeInUp 0.4s ease-out forwards;
+  will-change: transform, opacity;
+}
+
+/* Loading Spinner Enhancement */
+.loading-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Progress Bar Animation */
+.progress-bar {
+  transition: width 0.8s ease-out;
+  will-change: width;
+}
+
+/* Toast Notification Animation */
+.toast-enter {
+  animation: slideInRight 0.3s ease-out forwards;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translate3d(100%, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* Form Section Transitions */
+.form-section {
+  transition: all 0.4s ease-out;
+  will-change: transform, opacity;
+}
+
+.form-section-enter {
+  opacity: 0;
+  transform: translateX(20px);
+  animation: slideInFromRight 0.4s ease-out forwards;
+}
+
+@keyframes slideInFromRight {
+  from {
+    opacity: 0;
+    transform: translate3d(20px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/* QR Scanner Animations */
+.qr-scanner-enter {
+  animation: fadeInScale 0.3s ease-out forwards;
+  opacity: 0;
+}
+
+.qr-frame {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* Statistics Card Animations */
+.stat-card {
+  transition: all 0.3s ease-out;
+  will-change: transform, box-shadow;
+}
+
+.stat-card:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+/* List Item Animations */
+.list-item {
+  transition: all 0.2s ease-out;
+  will-change: background-color, transform;
+}
+
+.list-item:hover {
+  transform: translateX(4px);
+  background-color: rgba(249, 115, 22, 0.05);
+}
+
+/* Search Results Animation */
+.search-results {
+  animation: slideDown 0.2s ease-out forwards;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+/* Badge/Chip Animations */
+.badge-animate {
+  transition: all 0.2s ease-out;
+  will-change: transform, background-color;
+}
+
+.badge-animate:hover {
+  transform: scale(1.05);
+}
+
+/* Accessibility: Respect user preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .fade-in-up,
+  .fade-in-left,
+  .fade-in-scale,
+  .slide-down,
+  .bounce-in {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  
+  .stagger-children > * {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* Performance Optimizations */
+.animate-optimized {
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Header Animation */
+.header-animate {
+  animation: fadeInUp 0.4s ease-out forwards;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+/* Sidebar Animation */
+.sidebar-animate {
+  animation: fadeInLeft 0.4s ease-out forwards;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+/* Content Area Animation */
+.content-animate {
+  animation: fadeInUp 0.5s ease-out forwards;
+  animation-delay: 0.2s;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+/* Grid Item Staggered Animation */
+.grid-stagger > * {
+  opacity: 0;
+  animation: fadeInUp 0.4s ease-out forwards;
+  will-change: transform, opacity;
+}
+
+.grid-stagger > *:nth-child(1) { animation-delay: 0ms; }
+.grid-stagger > *:nth-child(2) { animation-delay: 100ms; }
+.grid-stagger > *:nth-child(3) { animation-delay: 200ms; }
+.grid-stagger > *:nth-child(4) { animation-delay: 300ms; }
+.grid-stagger > *:nth-child(5) { animation-delay: 400ms; }
+.grid-stagger > *:nth-child(6) { animation-delay: 500ms; }
+.grid-stagger > *:nth-child(7) { animation-delay: 600ms; }
+.grid-stagger > *:nth-child(8) { animation-delay: 700ms; }
+.grid-stagger > *:nth-child(9) { animation-delay: 800ms; }
+
+/* Enhanced Button Hover Effects */
+.btn-primary {
+  transition: all 0.2s ease-out;
+  will-change: transform, background-color, box-shadow;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(249, 115, 22, 0.3);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+  transition-duration: 0.1s;
+}
+
+/* Enhanced Card Animations */
+.dashboard-card {
+  transition: all 0.3s ease-out;
+  will-change: transform, box-shadow, background-color;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+}
+
+/* Tab Animation */
+.tab-animate {
+  transition: all 0.3s ease-out;
+  will-change: color, border-color, background-color;
+}
+
+.tab-content-animate {
+  animation: fadeInUp 0.4s ease-out forwards;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+/* Input Focus Animations */
+.input-animate {
+  transition: all 0.2s ease-out;
+  will-change: border-color, box-shadow;
+}
+
+.input-animate:focus {
+  transform: scale(1.01);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+}
+
+/* Loading State Animations */
+.loading-fade {
+  animation: fadeInUp 0.3s ease-out forwards;
+  opacity: 0;
+}
+
+/* Success/Error Message Animations */
+.message-animate {
+  animation: bounceIn 0.5s ease-out forwards;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+/* Chart/Graph Animation */
+.chart-animate {
+  animation: fadeInUp 0.6s ease-out forwards;
+  animation-delay: 0.3s;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+/* Navigation Animation */
+.nav-animate {
+  animation: fadeInUp 0.4s ease-out forwards;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+/* Profile Avatar Animation */
+.avatar-animate {
+  transition: all 0.3s ease-out;
+  will-change: transform, box-shadow;
+}
+
+.avatar-animate:hover {
+  transform: scale(1.1);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Notification Badge Animation */
+.badge-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Enhanced Dropdown Animation */
+.dropdown-animate {
+  animation: slideDown 0.25s ease-out forwards;
+  opacity: 0;
+  transform-origin: top;
+  will-change: transform, opacity;
+}
+
+/* Search Results Animation */
+.search-animate {
+  animation: slideDown 0.2s ease-out forwards;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+/* Progress Indicator Animation */
+.progress-animate {
+  transition: width 0.8s ease-out;
+  will-change: width;
+}
+
+/* Skeleton Loading Animation */
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Enhanced Modal Backdrop */
+.modal-backdrop-animate {
+  animation: fadeIn 0.3s ease-out forwards;
+  opacity: 0;
+  will-change: opacity;
+}
+
+/* Form Step Animation */
+.form-step {
+  transition: all 0.4s ease-out;
+  will-change: transform, opacity;
+}
+
+.form-step-enter {
+  opacity: 0;
+  transform: translateX(30px);
+  animation: slideInFromRight 0.4s ease-out forwards;
+}
+
+.form-step-exit {
+  opacity: 1;
+  transform: translateX(0);
+  animation: slideOutToLeft 0.4s ease-out forwards;
+}
+
+@keyframes slideOutToLeft {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(-30px, 0, 0);
+  }
+}
+
+/* Enhanced Hover States */
+.interactive-hover {
+  transition: all 0.2s ease-out;
+  will-change: transform, background-color, color, box-shadow;
+}
+
+.interactive-hover:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Status Indicator Animation */
+.status-indicator {
+  transition: all 0.3s ease-out;
+  will-change: background-color, transform;
+}
+
+.status-indicator.active {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Enhanced Focus States */
+.focus-animate:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2);
+  transform: scale(1.01);
+  transition: all 0.2s ease-out;
+}
+
+/* Micro-interactions */
+.micro-bounce {
+  transition: transform 0.1s ease-out;
+}
+
+.micro-bounce:active {
+  transform: scale(0.95);
+}
+
+/* Enhanced Loading States */
+.loading-container {
+  animation: fadeInUp 0.4s ease-out forwards;
+  opacity: 0;
+}
+
+.loading-spinner-enhanced {
+  animation: spin 1s linear infinite;
+  will-change: transform;
+}
+
+/* Success State Animation */
+.success-animate {
+  animation: bounceIn 0.6s ease-out forwards;
+  opacity: 0;
+}
+
+/* Error State Animation */
+.error-animate {
+  animation: fadeInScale 0.4s ease-out forwards;
+  opacity: 0;
+}
+
+/* Enhanced Transitions for State Changes */
+.state-transition {
+  transition: all 0.3s ease-out;
+  will-change: opacity, transform;
+}
+
+/* Responsive Animation Adjustments */
+@media (max-width: 768px) {
+  .fade-in-up,
+  .fade-in-left,
+  .fade-in-scale {
+    animation-duration: 0.3s;
+  }
+  
+  .stagger-children > * {
+    animation-duration: 0.3s;
+  }
+  
+  .card-hover:hover {
+    transform: translateY(-1px) scale(1.01);
+  }
+}
+
+/* High Performance Mode */
+@media (prefers-reduced-motion: no-preference) {
+  .performance-mode {
+    will-change: transform, opacity;
+    transform: translate3d(0, 0, 0);
+  }
+}
