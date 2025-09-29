@@ -5,7 +5,7 @@ import {
   Building,
   Calendar,
   Megaphone,
-  XCircle,
+  XCircle, // Make sure this is imported
   CheckCircle2,
   Sparkles,
   Plus,
@@ -16,7 +16,7 @@ import {
   Link,
   Eye,
   Trash2,
-  TrendingUp, // Make sure this is imported
+  TrendingUp,
   BarChart3
 } from "lucide-react";
 import DashboardLayout from "../../components/shared/DashboardLayout";
