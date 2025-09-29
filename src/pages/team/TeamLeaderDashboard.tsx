@@ -617,7 +617,7 @@ export const TeamLeaderDashboard: React.FC = () => {
       {/* Announcement Modal */}
       {announcementModal && (
         <div 
-          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4 modal-backdrop-blur"
+         className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4 modal-backdrop-blur"
           onClick={() => {
             setAnnouncementModal(false);
             clearUserSelection();
