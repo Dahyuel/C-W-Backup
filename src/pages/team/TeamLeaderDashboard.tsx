@@ -536,271 +536,396 @@ export const TeamLeaderDashboard: React.FC = () => {
       </div>
 
       {/* QR Scanner Modal */}
-      <QRScanner
-        isOpen={scannerOpen}
-        onClose={() => setScannerOpen(false)}
-        onScan={handleScan}
-        title="Scan Volunteer QR Code"
-        description="Point your camera at the volunteer's QR code"
-      />
+<QRScanner
+  isOpen={scannerOpen}
+  onClose={() => setScannerOpen(false)}
+  onScan={handleScan}
+  title="Scan Volunteer QR Code"
+  description="Point your camera at the volunteer's QR code"
+/>
 
-      {/* Volunteer Card Modal */}
-      {showVolunteerCard && scannedVolunteer && (
-<div 
-  className="fixed inset-0 flex items-center justify-center z-50 p-4"
-  onClick={() => {
-    setShowVolunteerCard(false);
-    setScannedVolunteer(null);
-    setAttendanceChecked(false);
-  }}
->
-          <div 
-            className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md modal-content-blur fade-in-up-blur"
-            onClick={(e) => e.stopPropagation()}
+{/* Volunteer Card Modal */}
+{showVolunteerCard && scannedVolunteer && (
+  <div 
+    className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 modal-backdrop-blur"
+    style={{ zIndex: 9999 }}
+    onClick={() => {
+      setShowVolunteerCard(false);
+      setScannedVolunteer(null);
+      setAttendanceChecked(false);
+    }}
+  >
+    <div 
+      className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md modal-content-blur fade-in-up-blur"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="flex items-center justify-between mb-4 fade-in-blur">
+        <h3 className="text-xl font-bold text-gray-900">Volunteer Information</h3>
+        <button
+          onClick={() => {
+            setShowVolunteerCard(false);
+            setScannedVolunteer(null);
+            setAttendanceChecked(false);
+          }}
+          className="text-gray-500 hover:text-gray-700 transition-colors"
+        >
+          <X className="h-6 w-6" />
+        </button>
+      </div>
+
+      <div className="space-y-3 fade-in-blur stagger-children">
+        <div className="flex justify-between">
+          <span className="font-medium">Name:</span>
+          <span>{scannedVolunteer.first_name} {scannedVolunteer.last_name}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="font-medium">Volunteer ID:</span>
+          <span>{scannedVolunteer.volunteer_id}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="font-medium">Email:</span>
+          <span>{scannedVolunteer.email}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="font-medium">Personal ID:</span>
+          <span>{scannedVolunteer.personal_id}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="font-medium">Role:</span>
+          <span className="capitalize">{scannedVolunteer.role.replace('_', ' ')}</span>
+        </div>
+      </div>
+
+      <div className="mt-6 fade-in-blur">
+        {alreadyAttended ? (
+          <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded-lg">
+            <p className="font-medium">This volunteer has already attended today.</p>
+          </div>
+        ) : (
+          <button
+            onClick={handleAttendanceAction}
+            disabled={loading}
+            className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-300 smooth-hover font-medium"
           >
-            <div className="flex items-center justify-between mb-4 fade-in-blur">
-              <h3 className="text-xl font-bold text-gray-900">Volunteer Information</h3>
-              <button
-                onClick={() => {
-                  setShowVolunteerCard(false);
-                  setScannedVolunteer(null);
-                  setAttendanceChecked(false);
+            {loading ? 'Recording...' : 'Mark Attendance'}
+          </button>
+        )}
+      </div>
+    </div>
+  </div>
+)}
+
+{/* Announcement Modal */}
+{announcementModal && (
+  <div 
+    className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 p-4 modal-backdrop-blur"
+    style={{ zIndex: 9999 }}
+    onClick={() => {
+      setAnnouncementModal(false);
+      clearUserSelection();
+    }}
+  >
+    <div 
+      className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto relative modal-content-blur fade-in-up-blur"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button
+        onClick={() => {
+          setAnnouncementModal(false);
+          clearUserSelection();
+        }}
+        className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 transition-colors"
+      >
+        <X className="h-6 w-6" />
+      </button>
+
+      <h2 className="text-lg font-semibold text-black mb-4 text-center fade-in-blur">
+        Send Announcement
+      </h2>
+
+      <div className="space-y-4 stagger-children">
+        <input
+          type="text"
+          value={announcementTitle}
+          onChange={(e) => setAnnouncementTitle(e.target.value)}
+          placeholder="Message Title"
+          className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 fade-in-blur"
+        />
+
+        <textarea
+          value={announcementDescription}
+          onChange={(e) => setAnnouncementDescription(e.target.value)}
+          placeholder="Message Description"
+          className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 fade-in-blur"
+          rows={3}
+        />
+
+        <select
+          value={announcementRole}
+          onChange={(e) => {
+            setAnnouncementRole(e.target.value);
+            if (e.target.value !== "custom") {
+              clearUserSelection();
+            }
+          }}
+          className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 fade-in-blur"
+        >
+          <option value="">Select Target Role</option>
+          {roleOptions.map(role => (
+            <option key={role.value} value={role.value}>
+              {role.label}
+            </option>
+          ))}
+        </select>
+
+        {/* Custom Selection UI */}
+        {announcementRole === "custom" && (
+          <div className="space-y-3 fade-in-blur">
+            <div className="relative">
+              <input
+                type="text"
+                value={userSearch}
+                onChange={(e) => {
+                  setUserSearch(e.target.value);
+                  searchUsersByPersonalId(e.target.value);
                 }}
-                className="text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-
-            <div className="space-y-3 fade-in-blur stagger-children">
-              <div className="flex justify-between">
-                <span className="font-medium">Name:</span>
-                <span>{scannedVolunteer.first_name} {scannedVolunteer.last_name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium">Volunteer ID:</span>
-                <span>{scannedVolunteer.volunteer_id}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium">Email:</span>
-                <span>{scannedVolunteer.email}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium">Personal ID:</span>
-                <span>{scannedVolunteer.personal_id}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium">Role:</span>
-                <span className="capitalize">{scannedVolunteer.role.replace('_', ' ')}</span>
-              </div>
-            </div>
-
-            <div className="mt-6 fade-in-blur">
-              {alreadyAttended ? (
-                <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded-lg">
-                  <p className="font-medium">This volunteer has already attended today.</p>
+                placeholder="Search by Personal ID..."
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
+              />
+              {userSearchLoading && (
+                <div className="absolute right-3 top-3">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
                 </div>
-              ) : (
-                <button
-                  onClick={handleAttendanceAction}
-                  disabled={loading}
-                  className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-300 smooth-hover font-medium"
-                >
-                  {loading ? 'Recording...' : 'Mark Attendance'}
-                </button>
               )}
             </div>
-          </div>
-        </div>
-      )}
 
-      {/* Announcement Modal */}
-      {announcementModal && (
-        <div 
-         className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4 modal-backdrop-blur"
+            {/* Search Results */}
+            {userSearchResults.length > 0 && (
+              <div className="max-h-40 overflow-y-auto border rounded-lg fade-in-scale">
+                {userSearchResults.map((user) => (
+                  <div
+                    key={user.id}
+                    onClick={() => addUserToSelection(user)}
+                    className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0 transition-all duration-300 smooth-hover"
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {user.first_name} {user.last_name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          ID: {user.personal_id} | {user.role}
+                        </p>
+                      </div>
+                      <Plus className="h-4 w-4 text-blue-500" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Selected Users */}
+            {selectedUsers.length > 0 && (
+              <div className="fade-in-blur">
+                <div className="flex justify-between items-center mb-2">
+                  <label className="text-sm font-medium text-gray-700">
+                    Selected Users ({selectedUsers.length})
+                  </label>
+                  <button
+                    onClick={clearUserSelection}
+                    className="text-xs text-red-500 hover:text-red-700 transition-colors"
+                  >
+                    Clear All
+                  </button>
+                </div>
+                <div className="max-h-32 overflow-y-auto border rounded-lg bg-gray-50">
+                  {selectedUsers.map((user) => (
+                    <div
+                      key={user.id}
+                      className="p-2 flex justify-between items-center border-b last:border-b-0 smooth-hover"
+                    >
+                      <div>
+                        <p className="text-sm text-gray-900">
+                          {user.first_name} {user.last_name}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          ID: {user.personal_id}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => removeUserFromSelection(user.id)}
+                        className="text-red-500 hover:text-red-700 transition-colors"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-end gap-3 mt-6 fade-in-blur">
+        <button
           onClick={() => {
             setAnnouncementModal(false);
             clearUserSelection();
           }}
+          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-all duration-300 smooth-hover"
         >
-          <div 
-            className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto relative modal-content-blur fade-in-up-blur"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              onClick={() => {
-                setAnnouncementModal(false);
-                clearUserSelection();
-              }}
-              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 transition-colors"
-            >
-              <X className="h-6 w-6" />
-            </button>
-
-            <h2 className="text-lg font-semibold text-black mb-4 text-center fade-in-blur">
-              Send Announcement
-            </h2>
-
-            <div className="space-y-4 stagger-children">
-              <input
-                type="text"
-                value={announcementTitle}
-                onChange={(e) => setAnnouncementTitle(e.target.value)}
-                placeholder="Message Title"
-                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 fade-in-blur"
-              />
-
-              <textarea
-                value={announcementDescription}
-                onChange={(e) => setAnnouncementDescription(e.target.value)}
-                placeholder="Message Description"
-                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 fade-in-blur"
-                rows={3}
-              />
-
-              <select
-                value={announcementRole}
-                onChange={(e) => {
-                  setAnnouncementRole(e.target.value);
-                  if (e.target.value !== "custom") {
-                    clearUserSelection();
-                  }
-                }}
-                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 fade-in-blur"
-              >
-                <option value="">Select Target Role</option>
-                {roleOptions.map(role => (
-                  <option key={role.value} value={role.value}>
-                    {role.label}
-                  </option>
-                ))}
-              </select>
-
-              {/* Custom Selection UI */}
-              {announcementRole === "custom" && (
-                <div className="space-y-3 fade-in-blur">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={userSearch}
-                      onChange={(e) => {
-                        setUserSearch(e.target.value);
-                        searchUsersByPersonalId(e.target.value);
-                      }}
-                      placeholder="Search by Personal ID..."
-                      className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
-                    />
-                    {userSearchLoading && (
-                      <div className="absolute right-3 top-3">
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Search Results */}
-                  {userSearchResults.length > 0 && (
-                    <div className="max-h-40 overflow-y-auto border rounded-lg fade-in-scale">
-                      {userSearchResults.map((user) => (
-                        <div
-                          key={user.id}
-                          onClick={() => addUserToSelection(user)}
-                          className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0 transition-all duration-300 smooth-hover"
-                        >
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">
-                                {user.first_name} {user.last_name}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                ID: {user.personal_id} | {user.role}
-                              </p>
-                            </div>
-                            <Plus className="h-4 w-4 text-blue-500" />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Selected Users */}
-                  {selectedUsers.length > 0 && (
-                    <div className="fade-in-blur">
-                      <div className="flex justify-between items-center mb-2">
-                        <label className="text-sm font-medium text-gray-700">
-                          Selected Users ({selectedUsers.length})
-                        </label>
-                        <button
-                          onClick={clearUserSelection}
-                          className="text-xs text-red-500 hover:text-red-700 transition-colors"
-                        >
-                          Clear All
-                        </button>
-                      </div>
-                      <div className="max-h-32 overflow-y-auto border rounded-lg bg-gray-50">
-                        {selectedUsers.map((user) => (
-                          <div
-                            key={user.id}
-                            className="p-2 flex justify-between items-center border-b last:border-b-0 smooth-hover"
-                          >
-                            <div>
-                              <p className="text-sm text-gray-900">
-                                {user.first_name} {user.last_name}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                ID: {user.personal_id}
-                              </p>
-                            </div>
-                            <button
-onClick={() => removeUserFromSelection(user.id)}
-className="text-red-500 hover:text-red-700 transition-colors"
->
-<X className="h-4 w-4" />
-</button>
-</div>
-))}
-</div>
-</div>
-)}
-</div>
-)}
-</div>
-            <div className="flex justify-end gap-3 mt-6 fade-in-blur">
-          <button
-            onClick={() => {
-              setAnnouncementModal(false);
-              clearUserSelection();
-            }}
-            className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-all duration-300 smooth-hover"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleAnnouncementSubmit}
-            disabled={loading}
-            className="px-4 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600 disabled:opacity-50 transition-all duration-300 smooth-hover"
-          >
-            {loading ? 'Sending...' : 'Send'}
-          </button>
-        </div>
+          Cancel
+        </button>
+        <button
+          onClick={handleAnnouncementSubmit}
+          disabled={loading}
+          className="px-4 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600 disabled:opacity-50 transition-all duration-300 smooth-hover"
+        >
+          {loading ? 'Sending...' : 'Send'}
+        </button>
       </div>
     </div>
-  )}
+  </div>
+)}
 
-  {/* Bonus Assignment Modal */}
-  {bonusModal && (
-<div 
-  className="fixed inset-0 flex items-center justify-center z-50 p-4"
-  onClick={() => {
-    setBonusModal(false);
-    setSelectedUser(null);
-    setSearchTerm("");
-    setShowSearchResults(false);
-  }}
->
-      <div 
-        className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative modal-content-blur fade-in-up-blur"
-        onClick={(e) => e.stopPropagation()}
+{/* Bonus Assignment Modal */}
+{bonusModal && (
+  <div 
+    className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 p-4 modal-backdrop-blur"
+    style={{ zIndex: 9999 }}
+    onClick={() => {
+      setBonusModal(false);
+      setSelectedUser(null);
+      setSearchTerm("");
+      setShowSearchResults(false);
+    }}
+  >
+    <div 
+      className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative modal-content-blur fade-in-up-blur"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <button
+        onClick={() => {
+          setBonusModal(false);
+          setSelectedUser(null);
+          setSearchTerm("");
+          setShowSearchResults(false);
+        }}
+        className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 z-30 transition-colors"
       >
+        <X className="h-6 w-6" />
+      </button>
+
+      <h2 className="text-lg font-semibold text-black mb-4 text-center fade-in-blur">
+        Assign Bonus Points
+      </h2>
+
+      <div className="space-y-4 stagger-children">
+        {/* Bonus Slider */}
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Bonus Points: {bonusAmount}
+          </label>
+          <div className="flex items-center space-x-3">
+            <span>1</span>
+            <input
+              type="range"
+              min="1"
+              max="30"
+              value={bonusAmount}
+              onChange={(e) => setBonusAmount(parseInt(e.target.value))}
+              className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider transition-all duration-300"
+            />
+            <span>30</span>
+          </div>
+        </div>
+
+        {/* User Search */}
+        <div className="relative fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Search Volunteer
+          </label>
+          <div className="relative">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                handleUserSearch(e.target.value);
+              }}
+              onFocus={() => setShowSearchResults(true)}
+              placeholder="Search by Personal ID or Volunteer ID"
+              className="w-full border rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
+            />
+            <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
+            
+            {/* Search Results - Fixed positioning */}
+            {showSearchResults && searchResults.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-40 max-h-60 overflow-y-auto fade-in-scale">
+                {searchResults.map((user) => (
+                  <button
+                    key={user.id}
+                    onClick={() => {
+                      setSelectedUser(user);
+                      setSearchTerm(`${user.first_name} ${user.last_name} (${user.volunteer_id})`);
+                      setShowSearchResults(false);
+                    }}
+                    className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-all duration-300 smooth-hover"
+                  >
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {user.first_name} {user.last_name}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        ID: {user.volunteer_id} | Personal ID: {user.personal_id}
+                      </p>
+                      <p className="text-xs text-gray-500 capitalize">
+                        {user.role.replace('_', ' ')}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          {/* Click outside to close search results */}
+          {showSearchResults && (
+            <div 
+              className="fixed inset-0 z-30"
+              onClick={() => setShowSearchResults(false)}
+            />
+          )}
+        </div>
+
+        {/* Selected User Display */}
+        {selectedUser && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3 fade-in-blur card-hover">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-green-900">
+                  {selectedUser.first_name} {selectedUser.last_name}
+                </p>
+                <p className="text-sm text-green-700">
+                  {selectedUser.volunteer_id} • {selectedUser.personal_id}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedUser(null);
+                  setSearchTerm("");
+                }}
+                className="text-green-600 hover:text-green-800 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-end gap-3 mt-6 fade-in-blur">
         <button
           onClick={() => {
             setBonusModal(false);
@@ -808,143 +933,20 @@ className="text-red-500 hover:text-red-700 transition-colors"
             setSearchTerm("");
             setShowSearchResults(false);
           }}
-          className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 z-30 transition-colors"
+          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-all duration-300 smooth-hover"
         >
-          <X className="h-6 w-6" />
+          Cancel
         </button>
-
-        <h2 className="text-lg font-semibold text-black mb-4 text-center fade-in-blur">
-          Assign Bonus Points
-        </h2>
-
-        <div className="space-y-4 stagger-children">
-          {/* Bonus Slider */}
-          <div className="fade-in-blur">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Bonus Points: {bonusAmount}
-            </label>
-            <div className="flex items-center space-x-3">
-              <span>1</span>
-              <input
-                type="range"
-                min="1"
-                max="30"
-                value={bonusAmount}
-                onChange={(e) => setBonusAmount(parseInt(e.target.value))}
-                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider transition-all duration-300"
-              />
-              <span>30</span>
-            </div>
-          </div>
-
-          {/* User Search */}
-          <div className="relative fade-in-blur">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Search Volunteer
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  handleUserSearch(e.target.value);
-                }}
-                onFocus={() => setShowSearchResults(true)}
-                placeholder="Search by Personal ID or Volunteer ID"
-                className="w-full border rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
-              />
-              <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
-              
-              {/* Search Results - Fixed positioning */}
-              {showSearchResults && searchResults.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-40 max-h-60 overflow-y-auto fade-in-scale">
-                  {searchResults.map((user) => (
-                    <button
-                      key={user.id}
-                      onClick={() => {
-                        setSelectedUser(user);
-                        setSearchTerm(`${user.first_name} ${user.last_name} (${user.volunteer_id})`);
-                        setShowSearchResults(false);
-                      }}
-                      className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-all duration-300 smooth-hover"
-                    >
-                      <div>
-                        <p className="font-medium text-gray-900">
-                          {user.first_name} {user.last_name}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          ID: {user.volunteer_id} | Personal ID: {user.personal_id}
-                        </p>
-                        <p className="text-xs text-gray-500 capitalize">
-                          {user.role.replace('_', ' ')}
-                        </p>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            
-            {/* Click outside to close search results */}
-            {showSearchResults && (
-              <div 
-                className="fixed inset-0 z-30"
-                onClick={() => setShowSearchResults(false)}
-              />
-            )}
-          </div>
-
-          {/* Selected User Display */}
-          {selectedUser && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3 fade-in-blur card-hover">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-green-900">
-                    {selectedUser.first_name} {selectedUser.last_name}
-                  </p>
-                  <p className="text-sm text-green-700">
-                    {selectedUser.volunteer_id} • {selectedUser.personal_id}
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    setSelectedUser(null);
-                    setSearchTerm("");
-                  }}
-                  className="text-green-600 hover:text-green-800 transition-colors"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="flex justify-end gap-3 mt-6 fade-in-blur">
-          <button
-            onClick={() => {
-              setBonusModal(false);
-              setSelectedUser(null);
-              setSearchTerm("");
-              setShowSearchResults(false);
-            }}
-            className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300 transition-all duration-300 smooth-hover"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleBonusAssignment}
-            disabled={loading || !selectedUser}
-            className="px-4 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 transition-all duration-300 smooth-hover"
-          >
-            {loading ? 'Assigning...' : 'Assign Bonus'}
-          </button>
-        </div>
+        <button
+          onClick={handleBonusAssignment}
+          disabled={loading || !selectedUser}
+          className="px-4 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 transition-all duration-300 smooth-hover"
+        >
+          {loading ? 'Assigning...' : 'Assign Bonus'}
+        </button>
       </div>
     </div>
-  )}
   </div>
+)}
+</div>
 </DashboardLayout>
-    );
-};
