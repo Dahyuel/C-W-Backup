@@ -263,15 +263,15 @@ const { error } = await supabase
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('user_scores')
-        .insert([{
-          user_id: selectedUser.id,
-          points: bonusAmount,
-          activity_type: 'bonus_assignment',
-          activity_description: `Bonus points assigned by team leader`,
-          awarded_by: profile?.id
-        }]);
+ const { error } = await supabase
+  .from('user_scores')
+  .insert([{
+    user_id: selectedUser.id,
+    points: bonusAmount,
+    activity_type: 'vol_bonus', // NEW
+    activity_description: `Bonus points assigned by team leader`,
+    awarded_by: profile?.id
+  }]);
 
       if (error) {
         showFeedback('error', 'Failed to assign bonus');
