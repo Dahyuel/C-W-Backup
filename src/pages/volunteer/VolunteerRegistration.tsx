@@ -73,20 +73,20 @@ export const VolunteerRegistration: React.FC = () => {
 
 
   // Team options for team leaders
-  const teamOptions = [
-    { value: 'registration', label: 'Registration Team' },
-    { value: 'building', label: 'Building Team' },
-    { value: 'info_desk', label: 'Info Desk Team' },
-    { value: 'ushers', label: 'Ushers Team' },
-    { value: 'marketing', label: 'Marketing Team' },
-    { value: 'media', label: 'Media Team' },
-    { value: 'ER', label: 'ER Team' },
-    { value: 'BD', label: 'Business Development Team' },
-    { value: 'catering', label: 'Catering Team' },
-    { value: 'feedback', label: 'Feedback Team' },
-    { value: 'stage', label: 'Stage Team' },
-    { value: 'general', label: 'General Volunteers Team' }
-  ];
+const teamOptions = [
+  { value: 'registration', label: 'Registration Team' },
+  { value: 'building', label: 'Building Team' },
+  { value: 'info_desk', label: 'Info Desk Team' },
+  { value: 'ushers', label: 'Ushers Team' },
+  { value: 'marketing', label: 'Marketing Team' },
+  { value: 'media', label: 'Media Team' },
+  { value: 'ER', label: 'ER Team' },
+  { value: 'BD', label: 'Business Development Team' },
+  { value: 'catering', label: 'Catering Team' },
+  { value: 'feedback', label: 'Feedback Team' },
+  { value: 'stage', label: 'Stage Team' }
+  // Removed: { value: 'general', label: 'General Volunteers Team' }
+];
 
   const genderOptions = [
     { value: 'male', label: 'Male' },
