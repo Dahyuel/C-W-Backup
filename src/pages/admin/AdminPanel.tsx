@@ -791,46 +791,115 @@ const fetchRegistrationStats = async () => {
   setStatsData(stats);
 };
   
+// Fixed Event Stats View Component
+const EventStatsView = ({ statsData, selectedDay }) => {
+  // Safely access event stats with fallbacks
+  const dayStats = statsData?.eventStats?.[`day${selectedDay}`] || {
+    entries: 0,
+    exits: 0,
+    building_entries: 0,
+    building_exits: 0,
+    session_entries: 0,
+    registrations: 0
+  };
 
-const fetchEventStats = async () => {
-  try {
-    // Calculate date range for the selected day
-    const eventStartDate = new Date('2024-03-18'); // Adjust this to your event start date
-    const targetDate = new Date(eventStartDate);
-    targetDate.setDate(eventStartDate.getDate() + (selectedDay - 1));
-    
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
+  return (
+    <div className="space-y-8">
+      {/* Event Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          title={`Day ${selectedDay} Entries`}
+          value={dayStats.entries}
+          icon={<TrendingUp className="h-6 w-6" />}
+          color="green"
+        />
+        <StatCard
+          title={`Day ${selectedDay} Exits`}
+          value={dayStats.exits}
+          icon={<TrendingUp className="h-6 w-6" />}
+          color="red"
+        />
+        <StatCard
+          title="Building Entries"
+          value={dayStats.building_entries}
+          icon={<Building className="h-6 w-6" />}
+          color="blue"
+        />
+        <StatCard
+          title="Session Entries"
+          value={dayStats.session_entries}
+          icon={<Calendar className="h-6 w-6" />}
+          color="purple"
+        />
+      </div>
 
-    // Fetch attendance data for the selected day
-    const { data: attendances, error } = await supabase
-      .from('attendances')
-      .select('*')
-      .gte('scanned_at', startOfDay.toISOString())
-      .lte('scanned_at', endOfDay.toISOString());
+      {/* NEW: Event-Specific Statistics */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Event Gender Distribution */}
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Event Gender Distribution</h3>
+          <GenderChart data={statsData.eventGenderStats} />
+          <div className="mt-4 text-sm text-gray-600">
+            <p>Total in event: {statsData.eventGenderStats.male + statsData.eventGenderStats.female}</p>
+            <p>Male: {statsData.eventGenderStats.male} ({((statsData.eventGenderStats.male / (statsData.eventGenderStats.male + statsData.eventGenderStats.female || 1)) * 100).toFixed(1)}%)</p>
+            <p>Female: {statsData.eventGenderStats.female} ({((statsData.eventGenderStats.female / (statsData.eventGenderStats.male + statsData.eventGenderStats.female || 1)) * 100).toFixed(1)}%)</p>
+          </div>
+        </div>
 
-    if (error) throw error;
+        {/* Event Degree Level */}
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Event Degree Level</h3>
+          <DegreeChart data={statsData.eventDegreeStats} />
+          <div className="mt-4 text-sm text-gray-600">
+            <p>Students: {statsData.eventDegreeStats.student} ({((statsData.eventDegreeStats.student / (statsData.eventDegreeStats.student + statsData.eventDegreeStats.graduate || 1)) * 100).toFixed(1)}%)</p>
+            <p>Graduates: {statsData.eventDegreeStats.graduate} ({((statsData.eventDegreeStats.graduate / (statsData.eventDegreeStats.student + statsData.eventDegreeStats.graduate || 1)) * 100).toFixed(1)}%)</p>
+          </div>
+        </div>
+      </div>
 
-    // Process event statistics
-    const dayStats = processEventStatistics(attendances || []);
-    
-    // Update statsData with the new event stats
-    setStatsData(prev => ({
-      ...prev,
-      eventStats: {
-        ...prev.eventStats,
-        [`day${selectedDay}`]: dayStats
-      }
-    }));
-  } catch (error) {
-    console.error('Error fetching event stats:', error);
-    throw error;
-  }
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Event Universities */}
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Event Universities</h3>
+          <BarChart data={statsData.eventUniversities} color="blue" />
+          <div className="mt-4 text-sm text-gray-600">
+            <p>Total unique universities in event: {statsData.eventUniversities.length}</p>
+          </div>
+        </div>
+
+        {/* Event Faculties */}
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Event Faculties</h3>
+          <BarChart data={statsData.eventFaculties} color="green" />
+          <div className="mt-4 text-sm text-gray-600">
+            <p>Total unique faculties in event: {statsData.eventFaculties.length}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Event Activity Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Daily Activity Chart - FIXED */}
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Daily Activity - Day {selectedDay}</h3>
+          <DailyActivityChart selectedDay={selectedDay} />
+        </div>
+
+        {/* Attendance Flow Chart */}
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Attendance Flow - Day {selectedDay}</h3>
+          <AttendanceFlowChart dayStats={dayStats} />
+        </div>
+      </div>
+
+      {/* Session Popularity - FIXED */}
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Session Popularity - Day {selectedDay}</h3>
+        <SessionPopularityChart selectedDay={selectedDay} />
+      </div>
+    </div>
+  );
 };
-
   const processUserStatistics = (users) => {
     const stats = {
       totalRegistrations: users.length,
