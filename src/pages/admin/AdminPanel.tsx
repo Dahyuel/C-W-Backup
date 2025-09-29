@@ -703,28 +703,28 @@ const confirmDeleteSession = async () => {
 
 // Enhanced StatisticsTab Component
 const StatisticsTab = () => {
-  const [statsData, setStatsData] = useState({
-    totalRegistrations: 0,
-    graduates: 0,
-    students: 0,
-    currentInEvent: 0,
-    currentInBuilding: 0,
-    universities: [],
-    faculties: [],
-    genderStats: { male: 0, female: 0 },
-    roleStats: {},
-    marketingSources: [],
-    degreeLevelStats: { student: 0, graduate: 0 },
-    classYearStats: {},
-    currentGenderStats: { male: 0, female: 0 },
-    eventStats: {
-      day1: { registrations: 0, entries: 0, exits: 0 },
-      day2: { registrations: 0, entries: 0, exits: 0 },
-      day3: { registrations: 0, entries: 0, exits: 0 },
-      day4: { registrations: 0, entries: 0, exits: 0 },
-      day5: { registrations: 0, entries: 0, exits: 0 }
-    }
-  });
+const [statsData, setStatsData] = useState({
+  totalRegistrations: 0,
+  graduates: 0,
+  students: 0,
+  currentInEvent: 0,
+  currentInBuilding: 0,
+  universities: [],
+  faculties: [],
+  genderStats: { male: 0, female: 0 },
+  roleStats: {},
+  marketingSources: [],
+  degreeLevelStats: { student: 0, graduate: 0 },
+  classYearStats: {},
+  currentGenderStats: { male: 0, female: 0 },
+  eventStats: {
+    day1: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
+    day2: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
+    day3: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
+    day4: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
+    day5: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 }
+  }
+});
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('all'); // 'today', 'week', 'all'
   const [statsType, setStatsType] = useState('registration'); // 'registration', 'event'
