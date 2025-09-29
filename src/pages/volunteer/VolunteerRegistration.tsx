@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Lock, ChevronRight, CheckCircle, AlertCircle, Heart } from 'lucide-react';
+import { User, Lock, ChevronRight, CheckCircle, AlertCircle, Heart, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import {  
   ValidationError,
@@ -15,13 +15,14 @@ import {
   validatePersonalId,
   validatePassword,
   validateConfirmPassword,
-  validateGender // Add this import
+  validateGender
 } from '../../utils/validation';
 import { useAuth } from '../../contexts/AuthContext';
 
-// Extended interface to include gender
+// Extended interface to include gender and team
 interface ExtendedVolunteerRegistrationData extends VolunteerRegistrationData {
   gender: string;
+  tl_team?: string;
 }
 
 export const VolunteerRegistration: React.FC = () => {
@@ -39,7 +40,8 @@ export const VolunteerRegistration: React.FC = () => {
     password: '',
     confirmPassword: '',
     role: '',
-    gender: '' // Added gender field
+    gender: '',
+    tl_team: ''
   });
   
   const [errors, setErrors] = useState<ValidationError[]>([]);
@@ -52,12 +54,37 @@ export const VolunteerRegistration: React.FC = () => {
     { id: 3, title: 'Account Security', icon: Lock }
   ];
 
+  // Updated role options with all new roles
   const roleOptions = [
     { value: 'registration', label: 'Registration Desk' },
     { value: 'building', label: 'Building Assistance' },
     { value: 'info_desk', label: 'Info Desk' },
-    { value: 'volunteer', label: 'Other Volunteer' },
+    { value: 'ushers', label: 'Ushers' },
+    { value: 'marketing', label: 'Marketing' },
+    { value: 'media', label: 'Media' },
+    { value: 'ER', label: 'ER Team' },
+    { value: 'BD', label: 'Business Development' },
+    { value: 'catering', label: 'Catering' },
+    { value: 'feedback', label: 'Feedback Team' },
+    { value: 'stage', label: 'Stage Team' },
+    { value: 'volunteer', label: 'General Volunteer' },
     { value: 'team_leader', label: 'Team Leader' }
+  ];
+
+  // Team options for team leaders
+  const teamOptions = [
+    { value: 'registration', label: 'Registration Team' },
+    { value: 'building', label: 'Building Team' },
+    { value: 'info_desk', label: 'Info Desk Team' },
+    { value: 'ushers', label: 'Ushers Team' },
+    { value: 'marketing', label: 'Marketing Team' },
+    { value: 'media', label: 'Media Team' },
+    { value: 'ER', label: 'ER Team' },
+    { value: 'BD', label: 'Business Development Team' },
+    { value: 'catering', label: 'Catering Team' },
+    { value: 'feedback', label: 'Feedback Team' },
+    { value: 'stage', label: 'Stage Team' },
+    { value: 'general', label: 'General Volunteers Team' }
   ];
 
   const genderOptions = [
@@ -78,61 +105,73 @@ export const VolunteerRegistration: React.FC = () => {
     setErrors(prev => prev.filter(error => error.field !== field));
   };
 
- const validateGender = (gender: string): string | null => {
-  if (!gender || !gender.trim()) {
-    return 'Gender is required';
-  }
-
-  const validGenders = ['male', 'female'];
-  if (!validGenders.includes(gender.trim().toLowerCase())) {
-    return 'Please select a valid gender';
-  }
-
-  return null;
-};
-
-const validateSection = (section: number): ValidationError[] => {
-  const validationErrors: ValidationError[] = [];
-
-  if (section === 1) {
-    const firstNameError = validateName(formData.firstName, 'First name');
-    if (firstNameError) validationErrors.push({ field: 'firstName', message: firstNameError });
-
-    const lastNameError = validateName(formData.lastName, 'Last name');
-    if (lastNameError) validationErrors.push({ field: 'lastName', message: lastNameError });
-
-    const emailError = validateEmail(formData.email);
-    if (emailError) validationErrors.push({ field: 'email', message: emailError });
-
-    const phoneError = validatePhone(formData.phone);
-    if (phoneError) validationErrors.push({ field: 'phone', message: phoneError });
-
-    const personalIdError = validatePersonalId(formData.personalId);
-    if (personalIdError) validationErrors.push({ field: 'personalId', message: personalIdError });
-
-    if (!formData.faculty) validationErrors.push({ field: 'faculty', message: 'Faculty is required' });
-    
-    // Add gender validation
-    const genderError = validateGender(formData.gender);
-    if (genderError) validationErrors.push({ field: 'gender', message: genderError });
-  }
-
-  if (section === 2) {
-    if (!formData.role) {
-      validationErrors.push({ field: 'role', message: 'Please select a volunteer role' });
+  // Reset team selection when role changes from team_leader
+  useEffect(() => {
+    if (formData.role !== 'team_leader') {
+      setFormData(prev => ({ ...prev, tl_team: '' }));
     }
-  }
+  }, [formData.role]);
 
-  if (section === 3) {
-    const passwordError = validatePassword(formData.password);
-    if (passwordError) validationErrors.push({ field: 'password', message: passwordError });
+  const validateGender = (gender: string): string | null => {
+    if (!gender || !gender.trim()) {
+      return 'Gender is required';
+    }
 
-    const confirmPasswordError = validateConfirmPassword(formData.password, formData.confirmPassword);
-    if (confirmPasswordError) validationErrors.push({ field: 'confirmPassword', message: confirmPasswordError });
-  }
+    const validGenders = ['male', 'female'];
+    if (!validGenders.includes(gender.trim().toLowerCase())) {
+      return 'Please select a valid gender';
+    }
 
-  return validationErrors;
-};
+    return null;
+  };
+
+  const validateSection = (section: number): ValidationError[] => {
+    const validationErrors: ValidationError[] = [];
+
+    if (section === 1) {
+      const firstNameError = validateName(formData.firstName, 'First name');
+      if (firstNameError) validationErrors.push({ field: 'firstName', message: firstNameError });
+
+      const lastNameError = validateName(formData.lastName, 'Last name');
+      if (lastNameError) validationErrors.push({ field: 'lastName', message: lastNameError });
+
+      const emailError = validateEmail(formData.email);
+      if (emailError) validationErrors.push({ field: 'email', message: emailError });
+
+      const phoneError = validatePhone(formData.phone);
+      if (phoneError) validationErrors.push({ field: 'phone', message: phoneError });
+
+      const personalIdError = validatePersonalId(formData.personalId);
+      if (personalIdError) validationErrors.push({ field: 'personalId', message: personalIdError });
+
+      if (!formData.faculty) validationErrors.push({ field: 'faculty', message: 'Faculty is required' });
+      
+      // Add gender validation
+      const genderError = validateGender(formData.gender);
+      if (genderError) validationErrors.push({ field: 'gender', message: genderError });
+    }
+
+    if (section === 2) {
+      if (!formData.role) {
+        validationErrors.push({ field: 'role', message: 'Please select a volunteer role' });
+      }
+
+      // Validate team selection for team leaders
+      if (formData.role === 'team_leader' && !formData.tl_team) {
+        validationErrors.push({ field: 'tl_team', message: 'Please select which team you will lead' });
+      }
+    }
+
+    if (section === 3) {
+      const passwordError = validatePassword(formData.password);
+      if (passwordError) validationErrors.push({ field: 'password', message: passwordError });
+
+      const confirmPasswordError = validateConfirmPassword(formData.password, formData.confirmPassword);
+      if (confirmPasswordError) validationErrors.push({ field: 'confirmPassword', message: confirmPasswordError });
+    }
+
+    return validationErrors;
+  };
 
   const nextSection = () => {
     const sectionErrors = validateSection(currentSection);
@@ -162,7 +201,7 @@ const validateSection = (section: number): ValidationError[] => {
       setErrors(allErrors);
       const firstErrorSection = Math.min(...allErrors.map(error => {
         if (['firstName', 'lastName', 'email', 'phone', 'personalId', 'faculty', 'gender'].includes(error.field)) return 1;
-        if (['role'].includes(error.field)) return 2;
+        if (['role', 'tl_team'].includes(error.field)) return 2;
         if (['password', 'confirmPassword'].includes(error.field)) return 3;
         return 1;
       }));
@@ -174,7 +213,7 @@ const validateSection = (section: number): ValidationError[] => {
     setErrors([]);
 
     try {
-      // Include gender in profile data
+      // Include gender and team in profile data
       const profileData = {
         first_name: formData.firstName.trim(),
         last_name: formData.lastName.trim(),
@@ -182,7 +221,8 @@ const validateSection = (section: number): ValidationError[] => {
         personal_id: formData.personalId.trim(),
         faculty: formData.faculty,
         role: formData.role,
-        gender: formData.gender, // Added gender to profile data
+        gender: formData.gender,
+        tl_team: formData.tl_team || null // Add team for team leaders
       };
 
       // Use signUpVolunteer which now generates volunteer ID
@@ -409,9 +449,43 @@ const validateSection = (section: number): ValidationError[] => {
         )}
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-800">
-          <strong>Note:</strong> Specific role assignments will be communicated after registration.
+      {/* Team Selection for Team Leaders */}
+      {formData.role === 'team_leader' && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <div className="flex items-center mb-4">
+            <Users className="h-6 w-6 text-blue-600 mr-2" />
+            <h3 className="text-lg font-semibold text-blue-900">Team Leadership</h3>
+          </div>
+          <p className="text-blue-800 mb-4">
+            As a Team Leader, please select which team you will be leading. This helps us organize the volunteer structure.
+          </p>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Select Team to Lead *
+            </label>
+            <select
+              value={formData.tl_team}
+              onChange={(e) => updateField('tl_team', e.target.value)}
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
+                getFieldError('tl_team') ? 'border-red-500' : 'border-gray-300'
+              }`}
+            >
+              <option value="">Select team</option>
+              {teamOptions.map(option => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+            {getFieldError('tl_team') && (
+              <p className="mt-1 text-sm text-red-600">{getFieldError('tl_team')}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+        <p className="text-sm text-green-800">
+          <strong>Note:</strong> Specific role assignments and team placements will be confirmed by the event organizers after registration.
         </p>
       </div>
     </div>
@@ -519,7 +593,7 @@ const validateSection = (section: number): ValidationError[] => {
     );
   }
 
-return (
+  return (
     <div className="min-h-screen relative">
       {/* Background Image */}
       <div 
@@ -541,9 +615,7 @@ return (
             </div>
             <p className="text-white drop-shadow">Join our amazing volunteer team and help make Career Week unforgettable!</p>
           </div>
-          </div>
-          
-
+        </div>
 
         {/* Progress Steps */}
         <div className="mb-8">
