@@ -906,10 +906,7 @@ const confirmDeleteSession = async () => {
   }
 };
 
-
-// Enhanced StatisticsTab Component with proper function order
-
-// Enhanced StatisticsTab Component with proper function order and error handling
+// Enhanced StatisticsTab Component with proper error handling
 const StatisticsTab = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -919,18 +916,20 @@ const StatisticsTab = () => {
 
   // Define functions first before they are used
   const fetchRegistrationStats = async () => {
+    console.log('Fetching registration stats...');
     let dateFilter = {};
-    if (timeRange === 'today') {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      dateFilter = { created_at: `gte.${today.toISOString()}` };
-    } else if (timeRange === 'week') {
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      dateFilter = { created_at: `gte.${weekAgo.toISOString()}` };
-    }
-
+    
     try {
+      if (timeRange === 'today') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        dateFilter = { created_at: `gte.${today.toISOString()}` };
+      } else if (timeRange === 'week') {
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        dateFilter = { created_at: `gte.${weekAgo.toISOString()}` };
+      }
+
       let query = supabase.from('users_profiles').select('*');
 
       if (dateFilter.created_at) {
@@ -944,11 +943,14 @@ const StatisticsTab = () => {
         throw error;
       }
 
+      console.log('Fetched users for registration stats:', users?.length || 0);
+      
       const stats = processUserStatistics(users || []);
       setStatsData(prev => ({
         ...prev,
         ...stats
       }));
+      
     } catch (error) {
       console.error('Error in fetchRegistrationStats:', error);
       // Set empty stats on error but don't throw to prevent infinite loading
@@ -972,22 +974,19 @@ const StatisticsTab = () => {
   };
 
   const fetchEventStats = async () => {
+    console.log('Fetching event stats for day:', selectedDay);
+    
     try {
-      // Calculate date range for the selected day - FIXED VERSION
+      // Calculate date range for the selected day - SIMPLIFIED VERSION
       const eventStartDate = new Date('2024-03-18');
       
-      // Validate the date to ensure it's valid
       if (isNaN(eventStartDate.getTime())) {
+        console.error('Invalid event start date');
         throw new Error('Invalid event start date');
       }
       
       const targetDate = new Date(eventStartDate);
       targetDate.setDate(eventStartDate.getDate() + (selectedDay - 1));
-      
-      // Validate target date
-      if (isNaN(targetDate.getTime())) {
-        throw new Error('Invalid target date calculation');
-      }
       
       const startOfDay = new Date(targetDate);
       startOfDay.setHours(0, 0, 0, 0);
@@ -995,25 +994,36 @@ const StatisticsTab = () => {
       const endOfDay = new Date(targetDate);
       endOfDay.setHours(23, 59, 59, 999);
 
-      // Validate the dates before using them
-      if (isNaN(startOfDay.getTime()) || isNaN(endOfDay.getTime())) {
-        throw new Error('Invalid date range calculation');
-      }
+      console.log('Date range for event stats:', {
+        start: startOfDay.toISOString(),
+        end: endOfDay.toISOString()
+      });
 
       // Fetch attendance data for the selected day
-      const { data: attendances, error } = await supabase
+      const { data: attendances, error: attendanceError } = await supabase
         .from('attendances')
         .select('*')
         .gte('scanned_at', startOfDay.toISOString())
         .lte('scanned_at', endOfDay.toISOString());
 
-      if (error) throw error;
+      if (attendanceError) {
+        console.error('Error fetching attendances:', attendanceError);
+        throw attendanceError;
+      }
+
+      console.log('Fetched attendances:', attendances?.length || 0);
 
       // Fetch users currently in event for event-specific stats
-      const { data: eventUsers } = await supabase
+      const { data: eventUsers, error: eventUsersError } = await supabase
         .from('users_profiles')
         .select('*')
         .eq('event_entry', true);
+
+      if (eventUsersError) {
+        console.error('Error fetching event users:', eventUsersError);
+      }
+
+      console.log('Fetched event users:', eventUsers?.length || 0);
 
       // Process event statistics
       const dayStats = processEventStatistics(attendances || []);
@@ -1027,13 +1037,34 @@ const StatisticsTab = () => {
         },
         ...eventSpecificStats
       }));
+      
     } catch (error) {
       console.error('Error fetching event stats:', error);
-      // Don't throw, just log the error
+      // Set default event stats on error
+      setStatsData(prev => ({
+        ...prev,
+        eventStats: {
+          ...prev.eventStats,
+          [`day${selectedDay}`]: {
+            entries: 0,
+            exits: 0,
+            building_entries: 0,
+            building_exits: 0,
+            session_entries: 0,
+            registrations: 0
+          }
+        },
+        eventGenderStats: { male: 0, female: 0 },
+        eventFaculties: [],
+        eventUniversities: [],
+        eventDegreeStats: { student: 0, graduate: 0 }
+      }));
     }
   };
 
   const processEventSpecificStatistics = (eventUsers) => {
+    console.log('Processing event specific stats for:', eventUsers.length, 'users');
+    
     const stats = {
       eventGenderStats: { male: 0, female: 0 },
       eventFaculties: [],
@@ -1085,6 +1116,8 @@ const StatisticsTab = () => {
   };
 
   const processEventStatistics = (attendances) => {
+    console.log('Processing event statistics for:', attendances.length, 'attendances');
+    
     // Ensure attendances is an array
     const safeAttendances = Array.isArray(attendances) ? attendances : [];
     
@@ -1097,24 +1130,30 @@ const StatisticsTab = () => {
       registrations: 0
     };
 
+    console.log('Processed day stats:', dayStats);
     return dayStats;
   };
 
   // Now define fetchStatistics after all the functions it depends on
   const fetchStatistics = async () => {
+    console.log('Starting fetchStatistics...', { statsType, timeRange, selectedDay });
+    
     setLoading(true);
     setError(null);
+    
     try {
       if (statsType === 'registration') {
         await fetchRegistrationStats();
       } else {
         await fetchEventStats();
       }
+      console.log('fetchStatistics completed successfully');
     } catch (err) {
-      console.error('Error fetching statistics:', err);
+      console.error('Error in fetchStatistics:', err);
       setError('Failed to load statistics. Please try again.');
     } finally {
       // Always set loading to false, even if there's an error
+      console.log('Setting loading to false');
       setLoading(false);
     }
   };
@@ -1127,7 +1166,7 @@ const StatisticsTab = () => {
         setLoading(false);
         setError('Statistics loading timed out. Please try again.');
       }
-    }, 15000); // 15 second timeout
+    }, 10000); // 10 second timeout
 
     return () => clearTimeout(timeoutId);
   }, [loading]);
@@ -1135,6 +1174,7 @@ const StatisticsTab = () => {
   useEffect(() => {
     // Initialize statsData with proper structure if it's empty
     if (!statsData || Object.keys(statsData).length === 0) {
+      console.log('Initializing empty statsData');
       setStatsData({
         totalRegistrations: 0,
         graduates: 0,
@@ -1165,6 +1205,7 @@ const StatisticsTab = () => {
   }, []);
 
   useEffect(() => {
+    console.log('useEffect triggered for fetchStatistics');
     fetchStatistics();
   }, [timeRange, statsType, selectedDay]);
 
@@ -1178,12 +1219,6 @@ const StatisticsTab = () => {
       <div className="flex flex-col items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mb-4"></div>
         <p className="text-gray-600">Loading statistics...</p>
-        <button
-          onClick={() => setLoading(false)}
-          className="mt-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"
-        >
-          Cancel Loading
-        </button>
       </div>
     );
   }
@@ -1198,6 +1233,7 @@ const StatisticsTab = () => {
           <button
             onClick={() => {
               setError(null);
+              setLoading(true);
               fetchStatistics();
             }}
             className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
@@ -1307,6 +1343,7 @@ const StatisticsTab = () => {
   );
 };
 
+  
 // Fixed Daily Activity Chart Component
 const DailyActivityChart = ({ selectedDay }) => {
   const [hourlyData, setHourlyData] = useState([]);
