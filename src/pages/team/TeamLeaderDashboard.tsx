@@ -398,54 +398,54 @@ export const TeamLeaderDashboard: React.FC = () => {
     }
   };
 
-  const handleBonusAssignment = async () => {
-    if (!selectedUser || bonusAmount < 1 || bonusAmount > 30) {
-      showFeedback('error', 'Please select a user and set bonus amount (1-30)');
-      return;
-    }
+const handleBonusAssignment = async () => {
+  if (!selectedUser || bonusAmount < 1 || bonusAmount > 30) {
+    showFeedback('error', 'Please select a user and set bonus amount (1-30)');
+    return;
+  }
 
-    setLoading(true);
-    try {
-      const { error } = await supabase
-        .from('user_scores')
-        .insert([{
-          user_id: selectedUser.id,
-          points: bonusAmount,
-          activity_type: 'vol_bonus',
-          activity_description: `Bonus points assigned by team leader`,
-          awarded_by: profile?.id
-        }]);
+  setLoading(true);
+  try {
+    const { error } = await supabase
+      .from('user_scores')
+      .insert([{
+        user_id: selectedUser.id,
+        points: bonusAmount,
+        activity_type: 'vol_bonus',
+        activity_description: `Bonus points assigned by team leader`
+        // Remove awarded_by - column doesn't exist
+      }]);
 
-      if (error) {
-        showFeedback('error', 'Failed to assign bonus');
-      } else {
-        // Update user's total score
-        const { data: userProfile } = await supabase
-          .from('users_profiles')
-          .select('score')
-          .eq('id', selectedUser.id)
-          .single();
-
-        if (userProfile) {
-          await supabase
-            .from('users_profiles')
-            .update({ score: (userProfile.score || 0) + bonusAmount })
-            .eq('id', selectedUser.id);
-        }
-
-        showFeedback('success', `Bonus of ${bonusAmount} points assigned successfully!`);
-        setBonusModal(false);
-        setSelectedUser(null);
-        setBonusSearchTerm("");
-        setBonusAmount(5);
-      }
-    } catch (err) {
+    if (error) {
       showFeedback('error', 'Failed to assign bonus');
-    } finally {
-      setLoading(false);
-    }
-  };
+    } else {
+      // Update user's total score
+      const { data: userProfile } = await supabase
+        .from('users_profiles')
+        .select('score')
+        .eq('id', selectedUser.id)
+        .single();
 
+      if (userProfile) {
+        await supabase
+          .from('users_profiles')
+          .update({ score: (userProfile.score || 0) + bonusAmount })
+          .eq('id', selectedUser.id);
+      }
+
+      showFeedback('success', `Bonus of ${bonusAmount} points assigned successfully!`);
+      setBonusModal(false);
+      setSelectedUser(null);
+      setBonusSearchTerm("");
+      setBonusAmount(5);
+      setShowBonusConfirmCard(false);
+    }
+  } catch (err) {
+    showFeedback('error', 'Failed to assign bonus');
+  } finally {
+    setLoading(false);
+  }
+};
   // Get role options - for team leader, only show their team and custom
   const getRoleOptions = () => {
     const teamLeaderTeam = getTeamLeaderTeam();
