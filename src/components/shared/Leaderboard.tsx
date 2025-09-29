@@ -36,7 +36,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
   }, [userRole, activeTab, selectedTeam]);
 
   const fetchAvailableTeams = async () => {
-    if (userRole === 'admin' || userRole === 'team_leader') {
+    if (userRole === 'admin') {
       try {
         const { data, error } = await supabase
           .from('users_profiles')
@@ -48,7 +48,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
           const uniqueTeams = [...new Set(data.map(item => item.tl_team).filter(Boolean))] as string[];
           setAvailableTeams(uniqueTeams);
           if (uniqueTeams.length > 0 && !selectedTeam) {
-            setSelectedTeam(userRole === 'team_leader' ? userTeam || uniqueTeams[0] : uniqueTeams[0]);
+            setSelectedTeam(uniqueTeams[0]);
           }
         }
       } catch (error) {
@@ -68,8 +68,8 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
       if (activeTab === 'team' && selectedTeam) {
         // Use the team leaderboard function
         const result = await supabase.rpc('get_team_leaderboard', {
-          team_name: selectedTeam,
-          limit_param: 50
+          p_team_name: selectedTeam,
+          p_limit_param: 50
         });
         
         if (result.error) {
@@ -87,7 +87,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
             last_name: item.last_name,
             role: item.user_role,
             score: item.score,
-            tl_team: item.tl_team,
+            tl_team: item.team_name,
             rank: item.user_rank
           }));
         }
@@ -109,11 +109,11 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
         } else if (userRole === 'attendee') {
           query = query.eq('role', 'attendee');
         } else if (userRole === 'team_leader') {
-          if (activeTab === 'team' && userTeam) {
-            // For team leaders viewing their team, use the RPC function
+          // Team leaders only see their team - no leaderboard for team leaders themselves
+          if (userTeam) {
             const result = await supabase.rpc('get_team_leaderboard', {
-              team_name: userTeam,
-              limit_param: 50
+              p_team_name: userTeam,
+              p_limit_param: 50
             });
             
             if (result.error) throw result.error;
@@ -124,11 +124,9 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
               last_name: item.last_name,
               role: item.user_role,
               score: item.score,
-              tl_team: item.tl_team,
+              tl_team: item.team_name,
               rank: item.user_rank
             }));
-          } else {
-            query = query.eq('role', 'team_leader');
           }
         } else {
           query = query.eq('role', userRole);
@@ -273,8 +271,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
     } else if (userRole === 'attendee') {
       return 'Top Attendees';
     } else if (userRole === 'team_leader') {
-      if (activeTab === 'team') return `My Team: ${userTeam}`;
-      return 'Top Team Leaders';
+      return `My Team: ${userTeam}`;
     } else {
       return `Top ${userRole?.replace('_', ' ')}s`;
     }
@@ -391,38 +388,19 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
             </>
           )}
           
-          {/* Team Leader Tabs */}
+          {/* Team Leader - Only show "My Team" */}
           {userRole === 'team_leader' && (
-            <>
-              <button
-                onClick={() => setActiveTab('team')}
-                className={`py-2 px-4 font-semibold text-sm transition-all duration-300 ${
-                  activeTab === 'team'
-                    ? "border-b-2 border-orange-500 text-orange-600"
-                    : "text-gray-500 hover:text-orange-600"
-                }`}
-              >
-                My Team
-              </button>
-              <button
-                onClick={() => setActiveTab('volunteers')}
-                className={`py-2 px-4 font-semibold text-sm transition-all duration-300 ${
-                  activeTab === 'volunteers'
-                    ? "border-b-2 border-orange-500 text-orange-600"
-                    : "text-gray-500 hover:text-orange-600"
-                }`}
-              >
-                All Leaders
-              </button>
-            </>
+            <div className="text-lg font-semibold text-orange-600">
+              My Team: {userTeam}
+            </div>
           )}
         </div>
 
-        {/* Team Selector for Admin and Team Leader */}
-        {(userRole === 'admin' || userRole === 'team_leader') && activeTab === 'team' && availableTeams.length > 0 && (
+        {/* Team Selector for Admin only */}
+        {userRole === 'admin' && activeTab === 'team' && availableTeams.length > 0 && (
           <div className="flex items-center space-x-4">
             <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
-              {userRole === 'admin' ? 'Select Team:' : 'Viewing Team:'}
+              Select Team:
             </label>
             <TeamSelector />
           </div>
