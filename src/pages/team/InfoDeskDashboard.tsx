@@ -1,21 +1,6 @@
 // src/pages/infodesk/InfoDeskDashboard.tsx
 import React, { useState, useEffect } from "react";
-import {
-  Calendar,
-  Users,
-  QrCode,
-  Search,
-  Edit,
-  Clock,
-  User,
-  MapPin,
-  UserPlus,
-  UserX,
-  AlertCircle,
-  CheckCircle,
-  XCircle,
-  X,
-} from "lucide-react";
+import { Calendar, Users, QrCode, Search, CreditCard as Edit, Clock, User, MapPin, UserPlus, UserX, AlertCircle, CheckCircle, XCircle, X } from "lucide-react";
 import DashboardLayout from "../../components/shared/DashboardLayout";
 import { QRScanner } from "../../components/shared/QRScanner";
 import { useAuth } from "../../contexts/AuthContext";
