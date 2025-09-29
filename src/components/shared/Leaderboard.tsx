@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Medal, Crown, Star, User, Heart, Shield, Users, Building, UserCheck } from 'lucide-react';
+import { Trophy, Medal, Crown, Star, User, Heart, Shield, Users, Building, UserCheck, Chef, Camera, Megaphone, Stethoscope, Briefcase, Utensils, MessageSquare, Radio } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface LeaderboardEntry {
@@ -9,58 +9,110 @@ interface LeaderboardEntry {
   role: string;
   score: number;
   rank: number;
+  tl_team?: string;
 }
 
 interface LeaderboardProps {
   userRole?: string;
   currentUserId?: string;
+  userTeam?: string;
 }
 
-const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId }) => {
+const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, userTeam }) => {
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
-  const [activeTab, setActiveTab] = useState<'attendees' | 'volunteers' | 'team_leaders'>('attendees');
+  const [activeTab, setActiveTab] = useState<'attendees' | 'volunteers' | 'team'>('attendees');
+  const [selectedTeam, setSelectedTeam] = useState<string>(userTeam || '');
+  const [availableTeams, setAvailableTeams] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    fetchAvailableTeams();
     fetchLeaderboard();
-  }, [userRole, activeTab]);
+  }, [userRole, activeTab, selectedTeam]);
+
+  const fetchAvailableTeams = async () => {
+    if (userRole === 'admin') {
+      try {
+        const { data, error } = await supabase
+          .from('users_profiles')
+          .select('tl_team')
+          .not('tl_team', 'is', null)
+          .neq('tl_team', '');
+
+        if (!error && data) {
+          const uniqueTeams = [...new Set(data.map(item => item.tl_team).filter(Boolean))] as string[];
+          setAvailableTeams(uniqueTeams);
+          if (uniqueTeams.length > 0 && !selectedTeam) {
+            setSelectedTeam(uniqueTeams[0]);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching teams:', error);
+      }
+    }
+  };
 
   const fetchLeaderboard = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      let query = supabase
-        .from('users_profiles')
-        .select('id, first_name, last_name, role, score')
-        .order('score', { ascending: false });
+      let data;
+      let error;
 
-      // Determine which data to fetch based on user role and active tab
-      if (userRole === 'admin') {
-        // Admin can see all three tabs
-        if (activeTab === 'attendees') {
-          // Show only attendees
-          query = query.eq('role', 'attendee');
-        } else if (activeTab === 'volunteers') {
-          // Show volunteers tab: all roles except admin, attendee, and team_leader
-          query = query.in('role', ['volunteer', 'registration', 'building', 'info_desk']);
-        } else {
-          // Show team leaders tab
-          query = query.eq('role', 'team_leader');
-        }
-      } else if (userRole === 'attendee') {
-        // Attendees only see other attendees
-        query = query.eq('role', 'attendee');
-      } else if (userRole === 'team_leader') {
-        // Team leaders see only other team leaders
-        query = query.eq('role', 'team_leader');
+      if (activeTab === 'team' && selectedTeam) {
+        // Use the team leaderboard function
+        const result = await supabase.rpc('get_team_leaderboard', {
+          team_name: selectedTeam,
+          limit_param: 50
+        });
+        data = result.data;
+        error = result.error;
       } else {
-        // Other roles (volunteer, registration, building, info_desk) see all non-attendees and non-admins, but exclude team_leader
-        query = query.in('role', ['volunteer', 'registration', 'building', 'info_desk']);
-      }
+        let query = supabase
+          .from('users_profiles')
+          .select('id, first_name, last_name, role, score, tl_team')
+          .order('score', { ascending: false });
 
-      const { data, error } = await query;
+        // Determine which data to fetch based on user role and active tab
+        if (userRole === 'admin') {
+          if (activeTab === 'attendees') {
+            query = query.eq('role', 'attendee');
+          } else if (activeTab === 'volunteers') {
+            // Show all volunteer roles except admin and attendee
+            query = query.in('role', [
+              'volunteer', 'registration', 'building', 'info_desk',
+              'ushers', 'marketing', 'media', 'ER', 'BD', 'catering', 'feedback', 'stage'
+            ]);
+          }
+          // For team tab, we use the RPC function above
+        } else if (userRole === 'attendee') {
+          query = query.eq('role', 'attendee');
+        } else if (userRole === 'team_leader') {
+          // Team leaders see their team members
+          if (activeTab === 'team' && userTeam) {
+            const result = await supabase.rpc('get_team_leaderboard', {
+              team_name: userTeam,
+              limit_param: 50
+            });
+            data = result.data;
+            error = result.error;
+          } else {
+            // Show all volunteers in their specific role
+            query = query.eq('role', userRole);
+          }
+        } else {
+          // Other roles see only people in their specific role
+          query = query.eq('role', userRole);
+        }
+
+        if (!data) {
+          const result = await query;
+          data = result.data;
+          error = result.error;
+        }
+      }
 
       if (error) {
         console.error('Error fetching leaderboard:', error);
@@ -112,6 +164,22 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId }) =>
         return <Shield className="h-4 w-4" />;
       case 'info_desk':
         return <User className="h-4 w-4" />;
+      case 'ushers':
+        return <Users className="h-4 w-4" />;
+      case 'marketing':
+        return <Megaphone className="h-4 w-4" />;
+      case 'media':
+        return <Camera className="h-4 w-4" />;
+      case 'ER':
+        return <Stethoscope className="h-4 w-4" />;
+      case 'BD':
+        return <Briefcase className="h-4 w-4" />;
+      case 'catering':
+        return <Utensils className="h-4 w-4" />;
+      case 'feedback':
+        return <MessageSquare className="h-4 w-4" />;
+      case 'stage':
+        return <Radio className="h-4 w-4" />;
       default:
         return <User className="h-4 w-4" />;
     }
@@ -133,6 +201,22 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId }) =>
         return 'bg-red-100 text-red-800';
       case 'info_desk':
         return 'bg-orange-100 text-orange-800';
+      case 'ushers':
+        return 'bg-teal-100 text-teal-800';
+      case 'marketing':
+        return 'bg-cyan-100 text-cyan-800';
+      case 'media':
+        return 'bg-violet-100 text-violet-800';
+      case 'ER':
+        return 'bg-rose-100 text-rose-800';
+      case 'BD':
+        return 'bg-amber-100 text-amber-800';
+      case 'catering':
+        return 'bg-lime-100 text-lime-800';
+      case 'feedback':
+        return 'bg-emerald-100 text-emerald-800';
+      case 'stage':
+        return 'bg-fuchsia-100 text-fuchsia-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -158,14 +242,16 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId }) =>
     if (userRole === 'admin') {
       if (activeTab === 'attendees') return 'Top Attendees';
       if (activeTab === 'volunteers') return 'Top Volunteers';
-      return 'Top Team Leaders';
+      if (activeTab === 'team') return `Team: ${selectedTeam}`;
     } else if (userRole === 'attendee') {
       return 'Top Attendees';
     } else if (userRole === 'team_leader') {
+      if (activeTab === 'team') return `My Team: ${userTeam}`;
       return 'Top Team Leaders';
     } else {
-      return 'Top Performers';
+      return `Top ${userRole?.replace('_', ' ')}s`;
     }
+    return 'Leaderboard';
   };
 
   const currentUserData = leaderboardData.find(user => user.id === currentUserId);
@@ -194,41 +280,78 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId }) =>
 
   return (
     <div className="w-full fade-in-up-blur">
-      {/* Admin Tab Controls */}
-      {userRole === 'admin' && (
-        <div className="flex space-x-4 mb-6 border-b fade-in-left">
-          <button
-            onClick={() => setActiveTab('attendees')}
-            className={`py-2 px-4 font-semibold text-sm transition-all duration-300 ${
-              activeTab === 'attendees'
-                ? "border-b-2 border-orange-500 text-orange-600"
-                : "text-gray-500 hover:text-orange-600"
-            }`}
-          >
-            Attendees
-          </button>
-          <button
-            onClick={() => setActiveTab('volunteers')}
-            className={`py-2 px-4 font-semibold text-sm transition-all duration-300 ${
-              activeTab === 'volunteers'
-                ? "border-b-2 border-orange-500 text-orange-600"
-                : "text-gray-500 hover:text-orange-600"
-            }`}
-          >
-            Volunteers
-          </button>
-          <button
-            onClick={() => setActiveTab('team_leaders')}
-            className={`py-2 px-4 font-semibold text-sm transition-all duration-300 ${
-              activeTab === 'team_leaders'
-                ? "border-b-2 border-orange-500 text-orange-600"
-                : "text-gray-500 hover:text-orange-600"
-            }`}
-          >
-            Team Leaders
-          </button>
+      {/* Tab Controls */}
+      <div className="flex flex-col space-y-4 mb-6 border-b pb-4 fade-in-left">
+        <div className="flex space-x-4">
+          {/* Admin Tabs */}
+          {userRole === 'admin' && (
+            <>
+              <button
+                onClick={() => setActiveTab('attendees')}
+                className={`py-2 px-4 font-semibold text-sm transition-all duration-300 ${
+                  activeTab === 'attendees'
+                    ? "border-b-2 border-orange-500 text-orange-600"
+                    : "text-gray-500 hover:text-orange-600"
+                }`}
+              >
+                Attendees
+              </button>
+              <button
+                onClick={() => setActiveTab('volunteers')}
+                className={`py-2 px-4 font-semibold text-sm transition-all duration-300 ${
+                  activeTab === 'volunteers'
+                    ? "border-b-2 border-orange-500 text-orange-600"
+                    : "text-gray-500 hover:text-orange-600"
+                }`}
+              >
+                Volunteers
+              </button>
+              <button
+                onClick={() => setActiveTab('team')}
+                className={`py-2 px-4 font-semibold text-sm transition-all duration-300 ${
+                  activeTab === 'team'
+                    ? "border-b-2 border-orange-500 text-orange-600"
+                    : "text-gray-500 hover:text-orange-600"
+                }`}
+              >
+                Teams
+              </button>
+            </>
+          )}
+          
+          {/* Team Leader Tabs */}
+          {userRole === 'team_leader' && (
+            <>
+              <button
+                onClick={() => setActiveTab('team')}
+                className={`py-2 px-4 font-semibold text-sm transition-all duration-300 ${
+                  activeTab === 'team'
+                    ? "border-b-2 border-orange-500 text-orange-600"
+                    : "text-gray-500 hover:text-orange-600"
+                }`}
+              >
+                My Team
+              </button>
+            </>
+          )}
         </div>
-      )}
+
+        {/* Team Selector for Admin */}
+        {userRole === 'admin' && activeTab === 'team' && availableTeams.length > 0 && (
+          <div className="flex items-center space-x-2">
+            <label className="text-sm font-medium text-gray-700">Select Team:</label>
+            <select
+              value={selectedTeam}
+              onChange={(e) => setSelectedTeam(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+            >
+              {availableTeams.map(team => (
+                <option key={team} value={team}>{team}</option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
 
       {/* Current User Highlight */}
       {currentUserData && (
@@ -303,10 +426,17 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId }) =>
                           {isCurrentUser && <span className="text-orange-600 text-sm ml-2">(You)</span>}
                         </p>
                       </div>
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium mt-1 ${getRoleColor(user.role)}`}>
-                        {getRoleIcon(user.role)}
-                        <span className="ml-1 capitalize">{user.role.replace('_', ' ')}</span>
-                      </span>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
+                          {getRoleIcon(user.role)}
+                          <span className="ml-1 capitalize">{user.role.replace('_', ' ')}</span>
+                        </span>
+                        {user.tl_team && activeTab === 'team' && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                            Team: {user.tl_team}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="text-right">
