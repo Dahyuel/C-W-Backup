@@ -1317,6 +1317,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
 };
 
 // Current State Widget (Replaces Flow Dashboard)
+// Current State Widget (Replaces Flow Dashboard)
 const CurrentStateWidget = ({ statsData }) => (
   <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
     <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
