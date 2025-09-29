@@ -530,6 +530,678 @@ const confirmDeleteSession = async () => {
   }
 };
 
+// Enhanced StatisticsTab Component
+const StatisticsTab = () => {
+  const [statsData, setStatsData] = useState({
+    totalRegistrations: 0,
+    graduates: 0,
+    students: 0,
+    currentInEvent: 0,
+    currentInBuilding: 0,
+    universities: [],
+    faculties: [],
+    genderStats: { male: 0, female: 0 },
+    roleStats: {},
+    marketingSources: [],
+    degreeLevelStats: { student: 0, graduate: 0 },
+    classYearStats: {},
+    currentGenderStats: { male: 0, female: 0 },
+    eventStats: {
+      day1: { registrations: 0, entries: 0, exits: 0 },
+      day2: { registrations: 0, entries: 0, exits: 0 },
+      day3: { registrations: 0, entries: 0, exits: 0 },
+      day4: { registrations: 0, entries: 0, exits: 0 },
+      day5: { registrations: 0, entries: 0, exits: 0 }
+    }
+  });
+  const [loading, setLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState('all'); // 'today', 'week', 'all'
+  const [statsType, setStatsType] = useState('registration'); // 'registration', 'event'
+  const [selectedDay, setSelectedDay] = useState(1); // For event stats
+
+  useEffect(() => {
+    fetchStatistics();
+  }, [timeRange, statsType, selectedDay]);
+
+  const fetchStatistics = async () => {
+    setLoading(true);
+    try {
+      if (statsType === 'registration') {
+        await fetchRegistrationStats();
+      } else {
+        await fetchEventStats();
+      }
+    } catch (error) {
+      console.error('Error fetching statistics:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchRegistrationStats = async () => {
+    // Get date filter based on time range
+    let dateFilter = {};
+    if (timeRange === 'today') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      dateFilter = { created_at: `gte.${today.toISOString()}` };
+    } else if (timeRange === 'week') {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      dateFilter = { created_at: `gte.${weekAgo.toISOString()}` };
+    }
+
+    // Fetch all users with their data
+    const { data: users, error } = await supabase
+      .from('users_profiles')
+      .select('*')
+      .match(dateFilter);
+
+    if (error) throw error;
+
+    // Process statistics
+    const stats = processUserStatistics(users || []);
+    setStatsData(stats);
+  };
+
+  const fetchEventStats = async () => {
+    // Calculate date range for the selected day
+    const eventStartDate = new Date('2024-03-18'); // Adjust this to your event start date
+    const targetDate = new Date(eventStartDate);
+    targetDate.setDate(eventStartDate.getDate() + (selectedDay - 1));
+    
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    // Fetch attendance data for the selected day
+    const { data: attendances, error } = await supabase
+      .from('attendances')
+      .select('*')
+      .gte('scanned_at', startOfDay.toISOString())
+      .lte('scanned_at', endOfDay.toISOString());
+
+    if (error) throw error;
+
+    // Process event statistics
+    const stats = processEventStatistics(attendances || []);
+    setStatsData(prev => ({ ...prev, ...stats }));
+  };
+
+  const processUserStatistics = (users) => {
+    const stats = {
+      totalRegistrations: users.length,
+      graduates: 0,
+      students: 0,
+      currentInEvent: 0,
+      currentInBuilding: 0,
+      universities: [],
+      faculties: [],
+      genderStats: { male: 0, female: 0 },
+      roleStats: {},
+      marketingSources: [],
+      degreeLevelStats: { student: 0, graduate: 0 },
+      classYearStats: {},
+      currentGenderStats: { male: 0, female: 0 }
+    };
+
+    const universityCount = {};
+    const facultyCount = {};
+    const roleCount = {};
+    const marketingCount = {};
+    const classYearCount = {};
+
+    users.forEach(user => {
+      // Degree level stats
+      if (user.degree_level === 'graduate') {
+        stats.graduates++;
+      } else if (user.degree_level === 'student') {
+        stats.students++;
+      }
+
+      // Current status
+      if (user.event_entry) stats.currentInEvent++;
+      if (user.building_entry) stats.currentInBuilding++;
+
+      // Gender stats (registration)
+      if (user.gender === 'male') {
+        stats.genderStats.male++;
+        if (user.event_entry) stats.currentGenderStats.male++;
+      } else if (user.gender === 'female') {
+        stats.genderStats.female++;
+        if (user.event_entry) stats.currentGenderStats.female++;
+      }
+
+      // University stats
+      if (user.university) {
+        universityCount[user.university] = (universityCount[user.university] || 0) + 1;
+      }
+
+      // Faculty stats
+      if (user.faculty) {
+        facultyCount[user.faculty] = (facultyCount[user.faculty] || 0) + 1;
+      }
+
+      // Role stats
+      if (user.role) {
+        roleCount[user.role] = (roleCount[user.role] || 0) + 1;
+      }
+
+      // Marketing source stats
+      if (user.how_did_hear_about_event) {
+        marketingCount[user.how_did_hear_about_event] = (marketingCount[user.how_did_hear_about_event] || 0) + 1;
+      }
+
+      // Class year stats
+      if (user.class) {
+        classYearCount[user.class] = (classYearCount[user.class] || 0) + 1;
+      }
+    });
+
+    // Convert counts to sorted arrays
+    stats.universities = Object.entries(universityCount)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    stats.faculties = Object.entries(facultyCount)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    stats.roleStats = roleCount;
+    stats.marketingSources = Object.entries(marketingCount)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+
+    stats.classYearStats = classYearCount;
+
+    return stats;
+  };
+
+  const processEventStatistics = (attendances) => {
+    const eventStats = {
+      day1: { registrations: 0, entries: 0, exits: 0 },
+      day2: { registrations: 0, entries: 0, exits: 0 },
+      day3: { registrations: 0, entries: 0, exits: 0 },
+      day4: { registrations: 0, entries: 0, exits: 0 },
+      day5: { registrations: 0, entries: 0, exits: 0 }
+    };
+
+    // Process attendance data for the selected day
+    const dayStats = {
+      entries: attendances.filter(a => a.scan_type === 'entry').length,
+      exits: attendances.filter(a => a.scan_type === 'exit').length,
+      building_entries: attendances.filter(a => a.scan_type === 'building_entry').length,
+      building_exits: attendances.filter(a => a.scan_type === 'building_exit').length,
+      session_entries: attendances.filter(a => a.scan_type === 'session_entry').length
+    };
+
+    return { eventStats: { ...eventStats, [`day${selectedDay}`]: dayStats } };
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Stats Type and Time Range Filter */}
+      <div className="space-y-4">
+        {/* Stats Type Selection */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setStatsType('registration')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              statsType === 'registration' 
+                ? 'bg-orange-500 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Registration
+          </button>
+          <button
+            onClick={() => setStatsType('event')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              statsType === 'event' 
+                ? 'bg-orange-500 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Event
+          </button>
+        </div>
+
+        {/* Time Range Filter - Disabled for Event stats */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setTimeRange('today')}
+            disabled={statsType === 'event'}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              timeRange === 'today' 
+                ? 'bg-orange-500 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            } ${statsType === 'event' ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            Today
+          </button>
+          <button
+            onClick={() => setTimeRange('week')}
+            disabled={statsType === 'event'}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              timeRange === 'week' 
+                ? 'bg-orange-500 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            } ${statsType === 'event' ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            Last 7 Days
+          </button>
+          <button
+            onClick={() => setTimeRange('all')}
+            disabled={statsType === 'event'}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              timeRange === 'all' 
+                ? 'bg-orange-500 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            } ${statsType === 'event' ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            All Time
+          </button>
+        </div>
+
+        {/* Day Selection for Event Stats */}
+        {statsType === 'event' && (
+          <div className="flex flex-wrap gap-2">
+            {[1, 2, 3, 4, 5].map((day) => (
+              <button
+                key={day}
+                onClick={() => setSelectedDay(day)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  selectedDay === day 
+                    ? 'bg-orange-500 text-white' 
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Day {day}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Conditional Content based on Stats Type */}
+      {statsType === 'registration' ? (
+        <RegistrationStatsView statsData={statsData} />
+      ) : (
+        <EventStatsView statsData={statsData} selectedDay={selectedDay} />
+      )}
+
+      {/* Current State Widget (Updated Flow Dashboard) */}
+      <CurrentStateWidget statsData={statsData} />
+    </div>
+  );
+};
+
+// Registration Stats View Component
+const RegistrationStatsView = ({ statsData }) => (
+  <div className="space-y-8">
+    {/* Overview Cards */}
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <StatCard
+        title="Total Registrations"
+        value={statsData.totalRegistrations}
+        icon={<Users className="h-6 w-6" />}
+        color="blue"
+      />
+      <StatCard
+        title="Students"
+        value={statsData.students}
+        icon={<Users className="h-6 w-6" />}
+        color="green"
+      />
+      <StatCard
+        title="Graduates"
+        value={statsData.graduates}
+        icon={<Users className="h-6 w-6" />}
+        color="purple"
+      />
+      <StatCard
+        title="Currently in Event"
+        value={statsData.currentInEvent}
+        icon={<Activity className="h-6 w-6" />}
+        color="orange"
+      />
+    </div>
+
+    {/* Charts Grid */}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* Gender Distribution */}
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Gender Distribution</h3>
+        <div className="space-y-4">
+          <div>
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Registration</h4>
+            <GenderChart data={statsData.genderStats} />
+          </div>
+          <div>
+            <h4 className="text-sm font-medium text-gray-700 mb-2">Currently in Event</h4>
+            <GenderChart data={statsData.currentGenderStats} />
+          </div>
+        </div>
+      </div>
+
+      {/* Role Distribution */}
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Role Distribution</h3>
+        <RoleChart data={statsData.roleStats} />
+      </div>
+    </div>
+
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* Top Universities */}
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Universities</h3>
+        <BarChart data={statsData.universities} color="blue" />
+      </div>
+
+      {/* Top Faculties */}
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Faculties</h3>
+        <BarChart data={statsData.faculties} color="green" />
+      </div>
+    </div>
+
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* Marketing Sources */}
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Marketing Sources</h3>
+        <MarketingChart data={statsData.marketingSources} />
+      </div>
+
+      {/* Degree Level Distribution */}
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Degree Level</h3>
+        <DegreeChart data={statsData.degreeLevelStats} />
+      </div>
+    </div>
+
+    {/* Class Year Distribution */}
+    <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Class Year Distribution</h3>
+      <ClassYearChart data={statsData.classYearStats} />
+    </div>
+  </div>
+);
+
+// Event Stats View Component
+const EventStatsView = ({ statsData, selectedDay }) => (
+  <div className="space-y-8">
+    {/* Event Overview Cards */}
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <StatCard
+        title={`Day ${selectedDay} Entries`}
+        value={statsData.eventStats[`day${selectedDay}`]?.entries || 0}
+        icon={<TrendingUp className="h-6 w-6" />}
+        color="green"
+      />
+      <StatCard
+        title={`Day ${selectedDay} Exits`}
+        value={statsData.eventStats[`day${selectedDay}`]?.exits || 0}
+        icon={<TrendingUp className="h-6 w-6" />}
+        color="red"
+      />
+      <StatCard
+        title="Building Entries"
+        value={statsData.eventStats[`day${selectedDay}`]?.building_entries || 0}
+        icon={<Building className="h-6 w-6" />}
+        color="blue"
+      />
+      <StatCard
+        title="Session Entries"
+        value={statsData.eventStats[`day${selectedDay}`]?.session_entries || 0}
+        icon={<Calendar className="h-6 w-6" />}
+        color="purple"
+      />
+    </div>
+
+    {/* Event Activity Charts */}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      {/* Daily Activity Chart */}
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Daily Activity</h3>
+        <DailyActivityChart statsData={statsData} />
+      </div>
+
+      {/* Attendance Flow Chart */}
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Attendance Flow</h3>
+        <AttendanceFlowChart statsData={statsData} selectedDay={selectedDay} />
+      </div>
+    </div>
+
+    {/* Session Popularity */}
+    <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Session Popularity</h3>
+      <SessionPopularityChart selectedDay={selectedDay} />
+    </div>
+  </div>
+);
+
+// Current State Widget (Replaces Flow Dashboard)
+const CurrentStateWidget = ({ statsData }) => (
+  <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+    <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+      <h2 className="text-3xl font-bold text-black-800 flex items-center gap-2 mx-auto">
+        <Activity className="h-7 w-7 text-orange-500" />
+        Current State
+      </h2>
+    </div>
+
+    <div className="p-6">
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-lg font-bold text-left border border-gray-200 rounded-lg overflow-hidden">
+          <thead className="bg-gray-100 text-gray-800 text-xl font-extrabold">
+            <tr>
+              <th className="px-4 py-3">Site</th>
+              <th className="px-4 py-3">Maximum Capacity</th>
+              <th className="px-4 py-3">Current Capacity</th>
+              <th className="px-4 py-3">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="border-t">
+              <td className="px-4 py-3">Building</td>
+              <td className="px-4 py-3 text-red-600">500</td>
+              <td className="px-4 py-3">{statsData.currentInBuilding}</td>
+              <td className="px-4 py-3">
+                <span className={`px-2 py-1 rounded-full text-sm font-medium ${
+                  statsData.currentInBuilding < 400 
+                    ? 'bg-green-100 text-green-800' 
+                    : statsData.currentInBuilding < 450 
+                    ? 'bg-yellow-100 text-yellow-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {statsData.currentInBuilding > 0 ? Math.round((statsData.currentInBuilding / 500) * 100) : 0}%
+                </span>
+              </td>
+            </tr>
+            <tr className="border-t">
+              <td className="px-4 py-3">Event</td>
+              <td className="px-4 py-3 text-red-600">4000</td>
+              <td className="px-4 py-3">{statsData.currentInEvent}</td>
+              <td className="px-4 py-3">
+                <span className={`px-2 py-1 rounded-full text-sm font-medium ${
+                  statsData.currentInEvent < 3000 
+                    ? 'bg-green-100 text-green-800' 
+                    : statsData.currentInEvent < 3500 
+                    ? 'bg-yellow-100 text-yellow-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {statsData.currentInEvent > 0 ? Math.round((statsData.currentInEvent / 4000) * 100) : 0}%
+                </span>
+              </td>
+            </tr>
+            <tr className="border-t">
+              <td className="px-4 py-3">Total Capacity</td>
+              <td className="px-4 py-3 text-red-600">4500</td>
+              <td className="px-4 py-3">{statsData.currentInBuilding + statsData.currentInEvent}</td>
+              <td className="px-4 py-3">
+                <span className={`px-2 py-1 rounded-full text-sm font-medium ${
+                  (statsData.currentInBuilding + statsData.currentInEvent) < 3500 
+                    ? 'bg-green-100 text-green-800' 
+                    : (statsData.currentInBuilding + statsData.currentInEvent) < 4000 
+                    ? 'bg-yellow-100 text-yellow-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {(statsData.currentInBuilding + statsData.currentInEvent) > 0 ? Math.round(((statsData.currentInBuilding + statsData.currentInEvent) / 4500) * 100) : 0}%
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+);
+
+// New Chart Components
+const ClassYearChart = ({ data }) => {
+  const classYears = Object.entries(data).sort((a, b) => a[0] - b[0]);
+  const total = classYears.reduce((sum, [_, count]) => sum + count, 0);
+
+  return (
+    <div className="space-y-3">
+      {classYears.map(([classYear, count]) => {
+        const percentage = total > 0 ? (count / total) * 100 : 0;
+        return (
+          <div key={classYear} className="space-y-1">
+            <div className="flex justify-between text-sm">
+              <span className="font-medium text-gray-700">Year {classYear}</span>
+              <span className="text-gray-500">{count} ({percentage.toFixed(1)}%)</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-indigo-500 h-2 rounded-full"
+                style={{ width: `${percentage}%` }}
+              ></div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+const DailyActivityChart = ({ statsData }) => {
+  // Mock data for daily activity - you would replace this with real data
+  const dailyData = [
+    { hour: '08:00', entries: 45, exits: 12 },
+    { hour: '10:00', entries: 120, exits: 34 },
+    { hour: '12:00', entries: 89, exits: 56 },
+    { hour: '14:00', entries: 156, exits: 78 },
+    { hour: '16:00', entries: 67, exits: 90 },
+    { hour: '18:00', entries: 34, exits: 45 },
+  ];
+
+  const maxValue = Math.max(...dailyData.flatMap(d => [d.entries, d.exits]));
+
+  return (
+    <div className="space-y-4">
+      {dailyData.map((data, index) => (
+        <div key={index} className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="font-medium text-gray-700">{data.hour}</span>
+            <div className="flex gap-4">
+              <span className="text-green-600">Entries: {data.entries}</span>
+              <span className="text-red-600">Exits: {data.exits}</span>
+            </div>
+          </div>
+          <div className="flex gap-1 h-4">
+            <div
+              className="bg-green-500 rounded-l"
+              style={{ width: `${(data.entries / maxValue) * 100}%` }}
+            ></div>
+            <div
+              className="bg-red-500 rounded-r"
+              style={{ width: `${(data.exits / maxValue) * 100}%` }}
+            ></div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const AttendanceFlowChart = ({ statsData, selectedDay }) => {
+  const dayStats = statsData.eventStats[`day${selectedDay}`] || {};
+  
+  const flowData = [
+    { label: 'Total Entries', value: dayStats.entries || 0, color: 'bg-green-500' },
+    { label: 'Total Exits', value: dayStats.exits || 0, color: 'bg-red-500' },
+    { label: 'Building Entries', value: dayStats.building_entries || 0, color: 'bg-blue-500' },
+    { label: 'Session Entries', value: dayStats.session_entries || 0, color: 'bg-purple-500' },
+  ];
+
+  const maxValue = Math.max(...flowData.map(d => d.value), 1);
+
+  return (
+    <div className="space-y-3">
+      {flowData.map((item, index) => (
+        <div key={index} className="space-y-1">
+          <div className="flex justify-between text-sm">
+            <span className="font-medium text-gray-700">{item.label}</span>
+            <span className="text-gray-500">{item.value}</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-3">
+            <div
+              className={`${item.color} h-3 rounded-full`}
+              style={{ width: `${(item.value / maxValue) * 100}%` }}
+            ></div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const SessionPopularityChart = ({ selectedDay }) => {
+  // Mock session data - replace with real data from your sessions table
+  const sessionData = [
+    { name: 'Keynote Speech', attendees: 156 },
+    { name: 'Tech Workshop', attendees: 89 },
+    { name: 'Networking Event', attendees: 120 },
+    { name: 'Career Fair', attendees: 200 },
+    { name: 'Panel Discussion', attendees: 67 },
+  ];
+
+  const maxAttendees = Math.max(...sessionData.map(s => s.attendees));
+
+  return (
+    <div className="space-y-3">
+      {sessionData.map((session, index) => (
+        <div key={index} className="space-y-1">
+          <div className="flex justify-between text-sm">
+            <span className="font-medium text-gray-700 truncate flex-1 mr-2">{session.name}</span>
+            <span className="text-gray-500 whitespace-nowrap">{session.attendees} attendees</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-3">
+            <div
+              className="bg-orange-500 h-3 rounded-full"
+              style={{ width: `${(session.attendees / maxAttendees) * 100}%` }}
+            ></div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+  
 const confirmDeleteEvent = async () => {
   if (!selectedEventDelete) return;
   
