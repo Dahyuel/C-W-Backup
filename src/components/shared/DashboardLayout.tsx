@@ -19,7 +19,8 @@ import {
   EyeOff,
   CheckCircle,
   AlertCircle,
-  Trophy
+  Trophy,
+  Crown
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import QRCode from 'qrcode';
@@ -369,6 +370,26 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
     }
   };
 
+  const getTeamLabel = (team: string) => {
+    const teamLabels: { [key: string]: string } = {
+      'volunteer': 'Volunteers',
+      'registration': 'Registration Team',
+      'building': 'Building Team',
+      'info_desk': 'Info Desk Team',
+      'team_leader': 'Team Leaders',
+      'ushers': 'Ushers',
+      'marketing': 'Marketing Team',
+      'media': 'Media Team',
+      'ER': 'ER Team',
+      'BD': 'BD Team',
+      'catering': 'Catering Team',
+      'feedback': 'Feedback Team',
+      'stage': 'Stage Team'
+    };
+    
+    return teamLabels[team] || team.charAt(0).toUpperCase() + team.slice(1);
+  };
+
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
@@ -603,13 +624,18 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
             </div>
           )}
           
-          {/* Leader Of Team - Show only for team leaders */}
-          {profile?.role === 'team_leader' && profile?.tl_team && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Leader Of Team</label>
-              <p className="mt-1 text-sm text-gray-900 font-medium">
-                {profile.tl_team}
-              </p>
+          {/* Team Leader Section */}
+          {profile?.tl_team && (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 fade-in-blur card-hover">
+              <div className="flex items-center justify-center mb-2">
+                <Crown className="h-5 w-5 text-indigo-600 mr-2" />
+                <span className="text-md font-semibold text-indigo-900">Leader Of Team</span>
+              </div>
+              <div className="text-center">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
+                  {getTeamLabel(profile.tl_team)}
+                </span>
+              </div>
             </div>
           )}
           
