@@ -195,7 +195,6 @@ export const getVolunteerByVolunteerId = async (volunteerId: string) => {
 
 // Replace validateRegistrationWithVolunteer with this:
 
-
 export const validateRegistrationWithEdgeFunction = async (
   personalId: string,
   email: string,
@@ -205,7 +204,8 @@ export const validateRegistrationWithEdgeFunction = async (
   phone?: string,
   userType: 'attendee' | 'volunteer' = 'attendee',
   role?: string,
-  gender?: string // Added gender parameter
+  gender?: string,
+  tl_team?: string  // Add this parameter
 ): Promise<{ 
   isValid: boolean; 
   errors: string[]; 
@@ -231,7 +231,8 @@ export const validateRegistrationWithEdgeFunction = async (
         phone: phone?.trim() || null,
         userType,
         role: role || null,
-        gender: gender || null // Added gender to request body
+        gender: gender || null,
+        tl_team: tl_team || null  // Add this to request body
       })
     });
 
