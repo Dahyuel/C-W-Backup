@@ -95,74 +95,73 @@ export const TeamLeaderDashboard: React.FC = () => {
   }, []);
 
   // Handle QR Scan for Attendance
-  const handleScan = async (qrData: string) => {
-    try {
-      console.log('Processing QR data:', qrData);
+const handleScan = async (qrData: string) => {
+  try {
+    console.log('Processing QR data:', qrData);
+    
+    // Check if it's a UUID or volunteer ID
+    let volunteerData: Volunteer | null = null;
+    
+    if (qrData.includes('-')) { // Likely UUID
+      const { data, error } = await supabase
+        .from('users_profiles')
+        .select('*')
+        .eq('id', qrData.trim())
+        .single();
       
-      // Check if it's a UUID or volunteer ID
-      let volunteerData: Volunteer | null = null;
+      if (!error && data) {
+        volunteerData = data;
+      }
+    } else { // Likely volunteer ID
+      const { data, error } = await supabase
+        .from('users_profiles')
+        .select('*')
+        .eq('volunteer_id', qrData.trim())
+        .single();
       
-      if (qrData.includes('-')) { // Likely UUID
-        const { data, error } = await supabase
-          .from('users_profiles')
-          .select('*')
-          .eq('id', qrData.trim())
-          .single();
-        
-        if (!error && data) {
-          volunteerData = data;
-        }
-      } else { // Likely volunteer ID
-        const { data, error } = await supabase
-          .from('users_profiles')
-          .select('*')
-          .eq('volunteer_id', qrData.trim())
-          .single();
-        
-        if (!error && data) {
-          volunteerData = data;
-        }
+      if (!error && data) {
+        volunteerData = data;
       }
-
-      if (!volunteerData) {
-        showFeedback('error', 'Volunteer not found');
-        return;
-      }
-
-      // Check if user is attendee or admin
-      if (volunteerData.role === 'attendee' || volunteerData.role === 'admin') {
-        showFeedback('error', 'You Are Not A Volunteer');
-        return;
-      }
-
-      // Check today's attendance
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-const { data: attendance, error } = await supabase
-  .from('attendances')
-  .select('*')
-  .eq('user_id', volunteerData.id)
-  .eq('scan_type', 'vol_attendance') // NEW
-  .gte('scanned_at', today.toISOString())
-  .limit(1);
-
-      if (!error && attendance && attendance.length > 0) {
-        setAlreadyAttended(true);
-      } else {
-        setAlreadyAttended(false);
-      }
-
-      setScannedVolunteer(volunteerData);
-      setAttendanceChecked(true);
-      setShowVolunteerCard(true);
-      
-    } catch (error) {
-      console.error("QR scan error:", error);
-      showFeedback('error', 'Failed to process QR code');
     }
-  };
 
+    if (!volunteerData) {
+      showFeedback('error', 'Volunteer not found');
+      return;
+    }
+
+    // Check if user is attendee or admin
+    if (volunteerData.role === 'attendee' || volunteerData.role === 'admin') {
+      showFeedback('error', 'You Are Not A Volunteer');
+      return;
+    }
+
+    // Check today's attendance using vol_attendance scan_type
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const { data: attendance, error } = await supabase
+      .from('attendances')
+      .select('*')
+      .eq('user_id', volunteerData.id)
+      .eq('scan_type', 'vol_attendance') // UPDATED
+      .gte('scanned_at', today.toISOString())
+      .limit(1);
+
+    if (!error && attendance && attendance.length > 0) {
+      setAlreadyAttended(true);
+    } else {
+      setAlreadyAttended(false);
+    }
+
+    setScannedVolunteer(volunteerData);
+    setAttendanceChecked(true);
+    setShowVolunteerCard(true);
+    
+  } catch (error) {
+    console.error("QR scan error:", error);
+    showFeedback('error', 'Failed to process QR code');
+  }
+};
   // Handle Attendance Action
   const handleAttendanceAction = async () => {
     if (!scannedVolunteer) return;
