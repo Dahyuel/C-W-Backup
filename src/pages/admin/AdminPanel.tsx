@@ -1880,72 +1880,79 @@ const EventStatsView = ({ statsData, selectedDay }) => {
   };
 
   // Handle Announcement Submit
-  const handleAnnouncementSubmit = async () => {
-    if (!announcementTitle || !announcementDescription || !announcementRole) {
-      showNotification("Please fill all required fields!", "error");
-      return;
-    }
+const handleAnnouncementSubmit = async () => {
+  if (!announcementTitle || !announcementDescription || !announcementRole) {
+    showNotification("Please fill all required fields!", "error");
+    return;
+  }
 
-    if (announcementRole === "custom" && selectedUsers.length === 0) {
-      showNotification("Please select at least one user for custom notifications!", "error");
-      return;
-    }
+  if (announcementRole === "custom" && selectedUsers.length === 0) {
+    showNotification("Please select at least one user for custom notifications!", "error");
+    return;
+  }
 
-    setLoading(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session?.user?.id) {
-        showNotification("User not authenticated", "error");
-        setLoading(false);
-        return;
-      }
-
-      let notificationData = {
-        title: announcementTitle,
-        message: announcementDescription,
-        created_by: session.user.id
-      };
-
-      if (announcementRole === "all") {
-        notificationData.target_type = 'all';
-        notificationData.target_role = null;
-        notificationData.target_user_ids = null;
-      } 
-      else if (announcementRole === "custom") {
-        notificationData.target_type = 'specific_users';
-        notificationData.target_role = null;
-        notificationData.target_user_ids = selectedUsers.map(user => user.id);
-      }
-      else {
-        notificationData.target_type = 'role';
-        notificationData.target_role = announcementRole;
-        notificationData.target_user_ids = null;
-      }
-
-      const { error } = await supabase
-        .from('notifications')
-        .insert([notificationData]);
-
-      if (error) {
-        console.error('Notification error:', error);
-        showNotification("Failed to send announcement", "error");
-      } else {
-        showNotification("Announcement sent successfully!", "success");
-        setAnnouncementTitle("");
-        setAnnouncementDescription("");
-        setAnnouncementRole("");
-        clearUserSelection();
-        setAnnouncementModal(false);
-      }
-    } catch (err) {
-      console.error('Send announcement error:', err);
-      showNotification("Failed to send announcement", "error");
-    } finally {
+  setLoading(true);
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session?.user?.id) {
+      showNotification("User not authenticated", "error");
       setLoading(false);
+      return;
     }
-  };
 
+    let notificationData = {
+      title: announcementTitle,
+      message: announcementDescription,
+      created_by: session.user.id
+    };
+
+    // Handle different target types
+    if (announcementRole === "all") {
+      notificationData.target_type = 'all';
+      notificationData.target_role = null;
+      notificationData.target_user_ids = null;
+    } 
+    else if (announcementRole === "volunteer") {
+      // Special case: send to all volunteers except admin, team_leader, attendee
+      notificationData.target_type = 'volunteers';
+      notificationData.target_role = null;
+      notificationData.target_user_ids = null;
+    }
+    else if (announcementRole === "custom") {
+      notificationData.target_type = 'specific_users';
+      notificationData.target_role = null;
+      notificationData.target_user_ids = selectedUsers.map(user => user.id);
+    }
+    else {
+      // For specific roles (including new volunteer roles)
+      notificationData.target_type = 'role';
+      notificationData.target_role = announcementRole;
+      notificationData.target_user_ids = null;
+    }
+
+    const { error } = await supabase
+      .from('notifications')
+      .insert([notificationData]);
+
+    if (error) {
+      console.error('Notification error:', error);
+      showNotification("Failed to send announcement", "error");
+    } else {
+      showNotification("Announcement sent successfully!", "success");
+      setAnnouncementTitle("");
+      setAnnouncementDescription("");
+      setAnnouncementRole("");
+      clearUserSelection();
+      setAnnouncementModal(false);
+    }
+  } catch (err) {
+    console.error('Send announcement error:', err);
+    showNotification("Failed to send announcement", "error");
+  } finally {
+    setLoading(false);
+  }
+};
   const searchUsersByPersonalId = async (searchTerm) => {
     if (!searchTerm || searchTerm.trim().length < 2) {
       setSearchResults([]);
