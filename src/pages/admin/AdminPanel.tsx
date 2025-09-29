@@ -2288,131 +2288,154 @@ const tabItems = [
           ))}
         </div>
 
-        {/* Dashboard Tab */}
-        {activeTab === "dashboard" && (
-          <div className="space-y-8">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Total Users</p>
-                    <p className="text-3xl font-bold text-orange-600">
-                      {stats?.total_users || 0}
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                    <Users className="h-6 w-6 text-orange-600" />
-                  </div>
-                </div>
-              </div>
+      {/* Dashboard Tab */}
+{activeTab === "dashboard" && (
+  <div className="space-y-8">
+    {/* Updated Stats Cards */}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Total Users Card */}
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">Total Users</p>
+            <p className="text-3xl font-bold text-orange-600">
+              {stats?.total_users || 0}
+            </p>
+          </div>
+          <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+            <Users className="h-6 w-6 text-orange-600" />
+          </div>
+        </div>
+      </div>
 
-              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Active Sessions</p>
-                    <p className="text-3xl font-bold text-blue-600">
-                      {stats?.total_sessions || 0}
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Activity className="h-6 w-6 text-blue-600" />
-                  </div>
-                </div>
+      {/* Number of Attendees Card */}
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">Number of Attendees</p>
+            <p className="text-3xl font-bold text-blue-600">
+              {statsData.roleStats?.attendee || 0}
+            </p>
+          </div>
+          <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+            <Users className="h-6 w-6 text-blue-600" />
+          </div>
+        </div>
+      </div>
+
+      {/* Number of Volunteers Card */}
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">Number of Volunteers</p>
+            <p className="text-3xl font-bold text-green-600">
+              {Object.entries(statsData.roleStats || {}).reduce((total, [role, count]) => {
+                if (role !== 'admin' && role !== 'attendee') {
+                  return total + count;
+                }
+                return total;
+              }, 0)}
+            </p>
+          </div>
+          <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+            <Users className="h-6 w-6 text-green-600" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* Enhanced Event Statistics Cards */}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Event Gender Distribution Card */}
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Event Gender Distribution</h3>
+          <Users className="h-5 w-5 text-gray-400" />
+        </div>
+        <div className="space-y-4">
+          <GenderChart data={statsData.eventGenderStats} />
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="text-center p-3 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">{statsData.eventGenderStats.male}</div>
+              <div className="text-blue-700 font-medium">Male</div>
+              <div className="text-xs text-blue-600">
+                {((statsData.eventGenderStats.male / (statsData.eventGenderStats.male + statsData.eventGenderStats.female || 1)) * 100).toFixed(1)}%
               </div>
             </div>
-{/* In the Dashboard Tab, add these new stat cards */}
-<div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-  <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-gray-600">Inside Event</p>
-        <p className="text-3xl font-bold text-purple-600">
-          {buildingStats?.inside_event || 0}
-        </p>
-        <p className="text-xs text-gray-500 mt-1">
-          {statsData.eventGenderStats?.male + statsData.eventGenderStats?.female || 0} attendees
-        </p>
-      </div>
-      <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-        <Activity className="h-6 w-6 text-purple-600" />
-      </div>
-    </div>
-  </div>
-
-  <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-gray-600">Event Male/Female</p>
-        <div className="text-xs text-gray-600 mt-1">
-          <span className="text-blue-600">♂ {statsData.eventGenderStats?.male || 0}</span>
-          {' / '}
-          <span className="text-pink-600">♀ {statsData.eventGenderStats?.female || 0}</span>
-        </div>
-        <p className="text-xs text-gray-500">
-          {statsData.eventGenderStats?.male + statsData.eventGenderStats?.female || 0} total
-        </p>
-      </div>
-      <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-        <Users className="h-6 w-6 text-blue-600" />
-      </div>
-    </div>
-  </div>
-
-  <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-    <div className="flex items-center justify-between">
-      <div>
-        <p className="text-sm font-medium text-gray-600">Event Students/Graduates</p>
-        <div className="text-xs text-gray-600 mt-1">
-          <span className="text-green-600">🎓 {statsData.eventDegreeStats?.student || 0}</span>
-          {' / '}
-          <span className="text-blue-600">📜 {statsData.eventDegreeStats?.graduate || 0}</span>
-        </div>
-        <p className="text-xs text-gray-500">
-          {statsData.eventDegreeStats?.student + statsData.eventDegreeStats?.graduate || 0} total
-        </p>
-      </div>
-      <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-        <Building className="h-6 w-6 text-green-600" />
-      </div>
-    </div>
-  </div>
-</div>
-            {/* Quick Actions */}
-            <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 text-center">
-              <h1 className="text-3xl font-bold text-black-800 flex items-center justify-center gap-2 mb-6">
-                <Sparkles className="h-7 w-7 text-orange-500" />
-                Quick Actions
-              </h1>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <button
-                  onClick={() => setCompanyModal(true)}
-                  className="flex flex-col items-center justify-center py-6 px-4 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors"
-                >
-                  <Building className="h-8 w-8 mb-2" />
-                  <span className="text-base font-medium">Add Company</span>
-                </button>
-
-                <button
-                  onClick={() => setSessionModal(true)}
-                  className="flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
-                >
-                  <Calendar className="h-8 w-8 mb-2" />
-                  <span className="text-base font-medium">Add Session</span>
-                </button>
-
-                <button
-                  onClick={() => setAnnouncementModal(true)}
-                  className="flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-700 transition-colors"
-                >
-                  <Megaphone className="h-8 w-8 mb-2" />
-                  <span className="text-base font-medium">Send Announcement</span>
-                </button>
+            <div className="text-center p-3 bg-pink-50 rounded-lg">
+              <div className="text-2xl font-bold text-pink-600">{statsData.eventGenderStats.female}</div>
+              <div className="text-pink-700 font-medium">Female</div>
+              <div className="text-xs text-pink-600">
+                {((statsData.eventGenderStats.female / (statsData.eventGenderStats.male + statsData.eventGenderStats.female || 1)) * 100).toFixed(1)}%
               </div>
             </div>
-             </div>
-        )}
+          </div>
+        </div>
+      </div>
+
+      {/* Event Degree Level Card */}
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Event Students/Graduates</h3>
+          <Building className="h-5 w-5 text-gray-400" />
+        </div>
+        <div className="space-y-4">
+          <DegreeChart data={statsData.eventDegreeStats} />
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div className="text-center p-3 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">{statsData.eventDegreeStats.student}</div>
+              <div className="text-green-700 font-medium">Students</div>
+              <div className="text-xs text-green-600">
+                {((statsData.eventDegreeStats.student / (statsData.eventDegreeStats.student + statsData.eventDegreeStats.graduate || 1)) * 100).toFixed(1)}%
+              </div>
+            </div>
+            <div className="text-center p-3 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">{statsData.eventDegreeStats.graduate}</div>
+              <div className="text-blue-700 font-medium">Graduates</div>
+              <div className="text-xs text-blue-600">
+                {((statsData.eventDegreeStats.graduate / (statsData.eventDegreeStats.student + statsData.eventDegreeStats.graduate || 1)) * 100).toFixed(1)}%
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* Quick Actions */}
+    <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 text-center">
+      <h1 className="text-3xl font-bold text-black-800 flex items-center justify-center gap-2 mb-6">
+        <Sparkles className="h-7 w-7 text-orange-500" />
+        Quick Actions
+      </h1>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <button
+          onClick={() => setCompanyModal(true)}
+          className="flex flex-col items-center justify-center py-6 px-4 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors"
+        >
+          <Building className="h-8 w-8 mb-2" />
+          <span className="text-base font-medium">Add Company</span>
+        </button>
+
+        <button
+          onClick={() => setSessionModal(true)}
+          className="flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
+        >
+          <Calendar className="h-8 w-8 mb-2" />
+          <span className="text-base font-medium">Add Session</span>
+        </button>
+
+        <button
+          onClick={() => setAnnouncementModal(true)}
+          className="flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-700 transition-colors"
+        >
+          <Megaphone className="h-8 w-8 mb-2" />
+          <span className="text-base font-medium">Send Announcement</span>
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 {/* Statistics Tab */}
 {activeTab === "statistics" && (
   <StatisticsTab />
