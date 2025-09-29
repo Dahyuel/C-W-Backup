@@ -1149,6 +1149,7 @@ const RegistrationStatsView = ({ statsData }) => (
   // Event Stats View Component
 // Event Stats View Component
 // Event Stats View Component
+// Event Stats View Component
 const EventStatsView = ({ statsData, selectedDay }) => {
   const [eventAnalytics, setEventAnalytics] = useState({
     faculties: [],
@@ -1224,6 +1225,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
 
   return (
     <div className="space-y-8">
+      {/* Day Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title={`Day ${selectedDay} Entries`}
@@ -1268,25 +1270,36 @@ const EventStatsView = ({ statsData, selectedDay }) => {
             />
           </div>
         </div>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-          <div>
-            <BarChart 
-              data={eventAnalytics.faculties} 
-              color="blue"
-              title="Top Faculties Inside Event"
-            />
-          </div>
-          <div>
-            <BarChart 
-              data={eventAnalytics.universities} 
-              color="green"
-              title="Top Universities Inside Event"
-            />
-          </div>
+      </div>
+
+      {/* NEW: Faculty and University Analysis Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <BarChart3 className="h-5 w-5 mr-2 text-blue-600" />
+            Top Faculties Inside Event
+          </h3>
+          <BarChart 
+            data={eventAnalytics.faculties} 
+            color="blue"
+            title=""
+          />
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+            <BarChart3 className="h-5 w-5 mr-2 text-green-600" />
+            Top Universities Inside Event
+          </h3>
+          <BarChart 
+            data={eventAnalytics.universities} 
+            color="green"
+            title=""
+          />
         </div>
       </div>
 
+      {/* Activity Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Daily Activity</h3>
@@ -1299,6 +1312,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
         </div>
       </div>
 
+      {/* Session Popularity */}
       <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Session Popularity</h3>
         <SessionPopularityChart selectedDay={selectedDay} />
