@@ -1124,58 +1124,70 @@ const RegistrationStatsView = ({ statsData }) => (
 );
 
 // Event Stats View Component
-const EventStatsView = ({ statsData, selectedDay }) => (
-  <div className="space-y-8">
-    {/* Event Overview Cards */}
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      <StatCard
-        title={`Day ${selectedDay} Entries`}
-        value={statsData.eventStats[`day${selectedDay}`]?.entries || 0}
-        icon={<TrendingUp className="h-6 w-6" />}
-        color="green"
-      />
-      <StatCard
-        title={`Day ${selectedDay} Exits`}
-        value={statsData.eventStats[`day${selectedDay}`]?.exits || 0}
-        icon={<TrendingUp className="h-6 w-6" />}
-        color="red"
-      />
-      <StatCard
-        title="Building Entries"
-        value={statsData.eventStats[`day${selectedDay}`]?.building_entries || 0}
-        icon={<Building className="h-6 w-6" />}
-        color="blue"
-      />
-      <StatCard
-        title="Session Entries"
-        value={statsData.eventStats[`day${selectedDay}`]?.session_entries || 0}
-        icon={<Calendar className="h-6 w-6" />}
-        color="purple"
-      />
-    </div>
+const EventStatsView = ({ statsData, selectedDay }) => {
+  // Safely access event stats with fallbacks
+  const dayStats = statsData?.eventStats?.[`day${selectedDay}`] || {
+    entries: 0,
+    exits: 0,
+    building_entries: 0,
+    building_exits: 0,
+    session_entries: 0,
+    registrations: 0
+  };
 
-    {/* Event Activity Charts */}
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      {/* Daily Activity Chart */}
-      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Daily Activity</h3>
-        <DailyActivityChart statsData={statsData} />
+  return (
+    <div className="space-y-8">
+      {/* Event Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          title={`Day ${selectedDay} Entries`}
+          value={dayStats.entries}
+          icon={<TrendingUp className="h-6 w-6" />}
+          color="green"
+        />
+        <StatCard
+          title={`Day ${selectedDay} Exits`}
+          value={dayStats.exits}
+          icon={<TrendingUp className="h-6 w-6" />}
+          color="red"
+        />
+        <StatCard
+          title="Building Entries"
+          value={dayStats.building_entries}
+          icon={<Building className="h-6 w-6" />}
+          color="blue"
+        />
+        <StatCard
+          title="Session Entries"
+          value={dayStats.session_entries}
+          icon={<Calendar className="h-6 w-6" />}
+          color="purple"
+        />
       </div>
 
-      {/* Attendance Flow Chart */}
+      {/* Event Activity Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Daily Activity Chart */}
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Daily Activity</h3>
+          <DailyActivityChart statsData={statsData} />
+        </div>
+
+        {/* Attendance Flow Chart */}
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Attendance Flow</h3>
+          <AttendanceFlowChart dayStats={dayStats} />
+        </div>
+      </div>
+
+      {/* Session Popularity */}
       <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Attendance Flow</h3>
-        <AttendanceFlowChart statsData={statsData} selectedDay={selectedDay} />
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Session Popularity</h3>
+        <SessionPopularityChart selectedDay={selectedDay} />
       </div>
     </div>
-
-    {/* Session Popularity */}
-    <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Session Popularity</h3>
-      <SessionPopularityChart selectedDay={selectedDay} />
-    </div>
-  </div>
-);
+  );
+};
 
 // Current State Widget (Replaces Flow Dashboard)
 const CurrentStateWidget = ({ statsData }) => (
