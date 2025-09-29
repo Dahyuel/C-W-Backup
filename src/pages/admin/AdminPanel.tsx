@@ -1881,9 +1881,16 @@ const EventStatsView = ({ statsData, selectedDay }) => {
 
   // Handle Announcement Submit
 // Handle Announcement Submit - Updated for Admin
+// Handle Announcement Submit - Updated for Admin with Team Leader enhancement
 const handleAnnouncementSubmit = async () => {
   if (!announcementTitle || !announcementDescription || !announcementRole) {
     showNotification("Please fill all required fields!", "error");
+    return;
+  }
+
+  // Additional validation for team leader selection
+  if (announcementRole === "team_leader" && !teamLeaderOfRole) {
+    showNotification("Please select which team leaders to target!", "error");
     return;
   }
 
@@ -1921,6 +1928,35 @@ const handleAnnouncementSubmit = async () => {
       notificationData.target_role = null;
       notificationData.target_user_ids = null;
     }
+    else if (announcementRole === "team_leader") {
+      // Special handling for team leaders - get all team leaders of selected role
+      if (teamLeaderOfRole === "all") {
+        // Get all team leaders
+        const { data: allTeamLeaders, error } = await supabase
+          .from('users_profiles')
+          .select('id')
+          .eq('role', 'team_leader');
+
+        if (error) throw error;
+
+        notificationData.target_type = 'specific_users';
+        notificationData.target_role = null;
+        notificationData.target_user_ids = allTeamLeaders?.map(tl => tl.id) || [];
+      } else {
+        // Get team leaders of specific volunteer role
+        const { data: teamLeaders, error } = await supabase
+          .from('users_profiles')
+          .select('id')
+          .eq('role', 'team_leader')
+          .eq('tl_team', teamLeaderOfRole);
+
+        if (error) throw error;
+
+        notificationData.target_type = 'specific_users';
+        notificationData.target_role = null;
+        notificationData.target_user_ids = teamLeaders?.map(tl => tl.id) || [];
+      }
+    }
     else if (announcementRole === "custom") {
       // Send to custom selected users
       notificationData.target_type = 'specific_users';
@@ -1928,7 +1964,7 @@ const handleAnnouncementSubmit = async () => {
       notificationData.target_user_ids = selectedUsers.map(user => user.id);
     }
     else {
-      // For specific roles (including team_leader and all volunteer roles)
+      // For specific roles (including volunteer roles)
       notificationData.target_type = 'role';
       notificationData.target_role = announcementRole;
       notificationData.target_user_ids = null;
@@ -1946,6 +1982,7 @@ const handleAnnouncementSubmit = async () => {
       setAnnouncementTitle("");
       setAnnouncementDescription("");
       setAnnouncementRole("");
+      setTeamLeaderOfRole(""); // Reset team leader selection
       clearUserSelection();
       setAnnouncementModal(false);
     }
@@ -1956,6 +1993,9 @@ const handleAnnouncementSubmit = async () => {
     setLoading(false);
   }
 };
+
+// Add this state for team leader selection
+const [teamLeaderOfRole, setTeamLeaderOfRole] = useState("");
 
 // Get role options for Admin - All roles including team_leader
 const getAdminRoleOptions = () => {
@@ -1982,6 +2022,23 @@ const getAdminRoleOptions = () => {
   ];
 };
 
+// Get team leader sub-options
+const getTeamLeaderOfOptions = () => {
+  return [
+    { value: "all", label: "All Team Leaders" },
+    { value: "registration", label: "Registration Team Leaders" },
+    { value: "building", label: "Building Team Leaders" },
+    { value: "info_desk", label: "Info Desk Team Leaders" },
+    { value: "ushers", label: "Ushers Team Leaders" },
+    { value: "marketing", label: "Marketing Team Leaders" },
+    { value: "media", label: "Media Team Leaders" },
+    { value: "ER", label: "ER Team Leaders" },
+    { value: "BD", label: "Business Development Team Leaders" },
+    { value: "catering", label: "Catering Team Leaders" },
+    { value: "feedback", label: "Feedback Team Leaders" },
+    { value: "stage", label: "Stage Team Leaders" }
+  ];
+};
 // User search function for Admin - searches all users
 const searchUsersByPersonalId = async (searchTerm) => {
   if (!searchTerm || searchTerm.trim().length < 2) {
