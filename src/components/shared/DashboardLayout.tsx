@@ -374,17 +374,17 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-orange-100">
+      <header className="bg-white shadow-sm border-b border-orange-100 fade-in-blur">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo and Title */}
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4 fade-in-left">
               <div className="flex items-center space-x-3">
                 <img 
-  src="https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/logo.png" 
-  alt="Career Week Logo" 
-  className="w-8 h-8 object-contain"
-/>
+                  src="https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/logo.png" 
+                  alt="Career Week Logo" 
+                  className="w-8 h-8 object-contain"
+                />
                 <span className="text-xl font-bold text-gray-900">ASU Career Week</span>
               </div>
             </div>
@@ -392,10 +392,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
             {/* User Menu */}
             <div className="flex items-center space-x-4">
               {/* Notifications */}
-              <div className="relative" ref={notificationDropdownRef}>
+              <div className="relative fade-in-left" ref={notificationDropdownRef}>
                 <button 
                   onClick={() => setShowNotificationDropdown(!showNotificationDropdown)}
-                  className="relative p-2 text-gray-400 hover:text-orange-600 transition-colors"
+                  className="relative p-2 text-gray-400 hover:text-orange-600 transition-colors btn-animate"
                   aria-label="Notifications"
                 >
                   <Bell className="h-5 w-5" />
@@ -408,19 +408,20 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
 
                 {/* Notification Dropdown - Fixed mobile positioning */}
                 {showNotificationDropdown && (
-                  <div className="fixed sm:absolute right-0 left-0 sm:left-auto mt-2 mx-4 sm:mx-0 sm:w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-y-auto">
+                  <div className="fixed sm:absolute right-0 left-0 sm:left-auto mt-2 mx-4 sm:mx-0 sm:w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-y-auto fade-in-up-blur">
                     <div className="p-4 border-b border-gray-200">
                       <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
                     </div>
                     <div className="max-h-64 overflow-y-auto">
                       {notifications.length > 0 ? (
-                        notifications.map((notification) => (
+                        notifications.map((notification, index) => (
                           <button
                             key={notification.id}
                             onClick={() => handleNotificationClick(notification)}
-                            className={`w-full text-left p-4 hover:bg-gray-50 border-b border-gray-100 transition-colors ${
+                            className={`w-full text-left p-4 hover:bg-gray-50 border-b border-gray-100 transition-colors smooth-hover ${
                               !notification.is_read ? 'bg-orange-50' : ''
                             }`}
+                            style={{ animationDelay: `${index * 0.1}s` }}
                           >
                             <div className="flex items-start justify-between">
                               <div className="flex-1">
@@ -437,7 +438,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                           </button>
                         ))
                       ) : (
-                        <div className="p-8 text-center text-gray-500">
+                        <div className="p-8 text-center text-gray-500 fade-in-scale">
                           <Bell className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                           <p>No notifications yet</p>
                         </div>
@@ -448,10 +449,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
               </div>
 
               {/* Profile Menu */}
-              <div className="relative" ref={profileDropdownRef}>
+              <div className="relative fade-in-left" style={{animationDelay: '0.1s'}} ref={profileDropdownRef}>
                 <button
                   onClick={() => setShowProfileDropdown(!showProfileDropdown)}
-                  className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 transition-colors smooth-hover"
                   aria-label="Profile menu"
                 >
                   <div className="w-8 h-8 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center">
@@ -463,18 +464,18 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                 </button>
 
                 {showProfileDropdown && (
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
-                    <div className="p-2">
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50 fade-in-up-blur">
+                    <div className="p-2 stagger-children">
                       <button
                         onClick={handleProfileClick}
-                        className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                        className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors smooth-hover"
                       >
                         <User className="h-4 w-4 mr-3" />
                         Profile
                       </button>
                       <button
                         onClick={handleLeaderboardClick}
-                        className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
+                        className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors smooth-hover"
                       >
                         <Trophy className="h-4 w-4 mr-3" />
                         Leaderboard
@@ -482,7 +483,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                       <button
                         onClick={handleSignOut}
                         disabled={loggingOut}
-                        className="w-full flex items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full flex items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors smooth-hover disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <LogOut className="h-4 w-4 mr-3" />
                         {loggingOut ? 'Logging out...' : 'Logout'}
@@ -497,151 +498,152 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 fade-in-up-blur">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
+          <h1 className="text-3xl font-bold text-gray-900 fade-in-left">{title}</h1>
           {subtitle && (
-            <p className="mt-2 text-gray-600">{subtitle}</p>
+            <p className="mt-2 text-gray-600 fade-in-left" style={{animationDelay: '0.1s'}}>{subtitle}</p>
           )}
         </div>
         {children}
       </main>
 
-{/* Profile Modal */}
-{showProfileModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
-    <div 
-      ref={profileModalRef}
-      className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto fade-in-scale"
-    >
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-6 fade-in-left">
-          <h2 className="text-xl font-bold text-gray-900">Profile Information</h2>
-          <button
-            onClick={() => {
-              setShowProfileModal(false);
-              setQrCodeUrl('');
-            }}
-            className="text-gray-400 hover:text-gray-600 transition-colors btn-animate"
+      {/* Profile Modal */}
+      {showProfileModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+          <div 
+            ref={profileModalRef}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto fade-in-scale"
           >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-
-        {/* QR Code Section */}
-        <div className="text-center mb-6 fade-in-up-blur">
-          <div className="w-48 h-48 bg-white border-2 border-gray-200 rounded-lg mx-auto mb-4 flex items-center justify-center overflow-hidden smooth-hover">
-            {qrCodeLoading ? (
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
-                <p className="text-xs text-gray-500">Generating QR Code...</p>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6 fade-in-left">
+                <h2 className="text-xl font-bold text-gray-900">Profile Information</h2>
+                <button
+                  onClick={() => {
+                    setShowProfileModal(false);
+                    setQrCodeUrl('');
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors btn-animate"
+                >
+                  <X className="h-6 w-6" />
+                </button>
               </div>
-            ) : qrCodeUrl ? (
-              <img 
-                src={qrCodeUrl} 
-                alt="Profile QR Code" 
-                className="w-full h-full object-contain"
-              />
-            ) : (
-              <div className="text-center">
-                <QrCode className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                <p className="text-xs text-gray-500">QR Code unavailable</p>
+
+              {/* QR Code Section */}
+              <div className="text-center mb-6 fade-in-up-blur">
+                <div className="w-48 h-48 bg-white border-2 border-gray-200 rounded-lg mx-auto mb-4 flex items-center justify-center overflow-hidden smooth-hover card-hover">
+                  {qrCodeLoading ? (
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
+                      <p className="text-xs text-gray-500">Generating QR Code...</p>
+                    </div>
+                  ) : qrCodeUrl ? (
+                    <img 
+                      src={qrCodeUrl} 
+                      alt="Profile QR Code" 
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <div className="text-center">
+                      <QrCode className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                      <p className="text-xs text-gray-500">QR Code unavailable</p>
+                    </div>
+                  )}
+                </div>
+                <p className="text-sm text-gray-600">Show this QR code for check-ins</p>
+                {profile?.id && (
+                  <p className="text-xs text-gray-400 mt-1 font-mono break-all px-4">
+                    ID: {profile.id}
+                  </p>
+                )}
               </div>
-            )}
-          </div>
-          <p className="text-sm text-gray-600">Show this QR code for check-ins</p>
-          {profile?.id && (
-            <p className="text-xs text-gray-400 mt-1 font-mono break-all px-4">
-              ID: {profile.id}
-            </p>
-          )}
-        </div>
 
-        {/* Score Display */}
-        <div className="bg-orange-50 rounded-lg p-4 mb-6 text-center fade-in-up-blur card-hover">
-          <div className="flex items-center justify-center mb-2">
-            <Trophy className="h-6 w-6 text-orange-600 mr-2" />
-            <span className="text-lg font-semibold text-orange-900">Your Score</span>
-          </div>
-          <div className="text-3xl font-bold text-orange-600">{userScore}</div>
-        </div>
+              {/* Score Display */}
+              <div className="bg-orange-50 rounded-lg p-4 mb-6 text-center fade-in-up-blur card-hover">
+                <div className="flex items-center justify-center mb-2">
+                  <Trophy className="h-6 w-6 text-orange-600 mr-2" />
+                  <span className="text-lg font-semibold text-orange-900">Your Score</span>
+                </div>
+                <div className="text-3xl font-bold text-orange-600">{userScore}</div>
+              </div>
 
-        {/* Profile Information */}
-        <div className="space-y-4 stagger-children">
-          <div className="fade-in-left">
-            <label className="block text-sm font-medium text-gray-700">First Name</label>
-            <p className="mt-1 text-sm text-gray-900">{profile?.first_name}</p>
-          </div>
-          <div className="fade-in-left" style={{animationDelay: '0.1s'}}>
-            <label className="block text-sm font-medium text-gray-700">Last Name</label>
-            <p className="mt-1 text-sm text-gray-900">{profile?.last_name}</p>
-          </div>
-          <div className="fade-in-left" style={{animationDelay: '0.2s'}}>
-            <label className="block text-sm font-medium text-gray-700">Email</label>
-            <p className="mt-1 text-sm text-gray-900 break-all">{profile?.email || 'Not provided'}</p>
-          </div>
-          <div className="fade-in-left" style={{animationDelay: '0.3s'}}>
-            <label className="block text-sm font-medium text-gray-700">Phone</label>
-            <p className="mt-1 text-sm text-gray-900">{profile?.phone || 'Not provided'}</p>
-          </div>
-          <div className="fade-in-left" style={{animationDelay: '0.4s'}}>
-            <label className="block text-sm font-medium text-gray-700">Personal ID</label>
-            <p className="mt-1 text-sm text-gray-900">{profile?.personal_id || 'Not provided'}</p>
-          </div>
-          
-          {/* Volunteer ID - Show only for non-admin and non-attendee roles */}
-          {profile?.role && !['admin', 'attendee'].includes(profile.role) && (
-            <div className="fade-in-left" style={{animationDelay: '0.5s'}}>
-              <label className="block text-sm font-medium text-gray-700">Volunteer ID</label>
-              <p className="mt-1 text-sm text-gray-900 font-mono">
-                {profile?.volunteer_id || 'Not assigned'}
-              </p>
-              {!profile?.volunteer_id && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Your volunteer ID will be assigned by the event organizers
-                </p>
-              )}
+              {/* Profile Information */}
+              <div className="space-y-4 stagger-children">
+                <div className="fade-in-left">
+                  <label className="block text-sm font-medium text-gray-700">First Name</label>
+                  <p className="mt-1 text-sm text-gray-900">{profile?.first_name}</p>
+                </div>
+                <div className="fade-in-left" style={{animationDelay: '0.1s'}}>
+                  <label className="block text-sm font-medium text-gray-700">Last Name</label>
+                  <p className="mt-1 text-sm text-gray-900">{profile?.last_name}</p>
+                </div>
+                <div className="fade-in-left" style={{animationDelay: '0.2s'}}>
+                  <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <p className="mt-1 text-sm text-gray-900 break-all">{profile?.email || 'Not provided'}</p>
+                </div>
+                <div className="fade-in-left" style={{animationDelay: '0.3s'}}>
+                  <label className="block text-sm font-medium text-gray-700">Phone</label>
+                  <p className="mt-1 text-sm text-gray-900">{profile?.phone || 'Not provided'}</p>
+                </div>
+                <div className="fade-in-left" style={{animationDelay: '0.4s'}}>
+                  <label className="block text-sm font-medium text-gray-700">Personal ID</label>
+                  <p className="mt-1 text-sm text-gray-900">{profile?.personal_id || 'Not provided'}</p>
+                </div>
+                
+                {/* Volunteer ID - Show only for non-admin and non-attendee roles */}
+                {profile?.role && !['admin', 'attendee'].includes(profile.role) && (
+                  <div className="fade-in-left" style={{animationDelay: '0.5s'}}>
+                    <label className="block text-sm font-medium text-gray-700">Volunteer ID</label>
+                    <p className="mt-1 text-sm text-gray-900 font-mono">
+                      {profile?.volunteer_id || 'Not assigned'}
+                    </p>
+                    {!profile?.volunteer_id && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Your volunteer ID will be assigned by the event organizers
+                      </p>
+                    )}
+                  </div>
+                )}
+                
+                <div className="fade-in-left" style={{animationDelay: '0.6s'}}>
+                  <label className="block text-sm font-medium text-gray-700">Role</label>
+                  <div className="mt-1 flex items-center">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor()} smooth-hover`}>
+                      {getRoleIcon()}
+                      <span className="ml-1 capitalize">{profile?.role?.replace('_', ' ')}</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="mt-6 pt-6 border-t border-gray-200 space-y-3 fade-in-up-blur">
+                <button
+                  onClick={() => setShowPasswordModal(true)}
+                  className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors btn-animate"
+                >
+                  Change Password
+                </button>
+                
+                {qrCodeUrl && (
+                  <button
+                    onClick={() => {
+                      const link = document.createElement('a');
+                      link.download = `qr-code-${profile?.first_name}-${profile?.last_name}.png`;
+                      link.href = qrCodeUrl;
+                      link.click();
+                    }}
+                    className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors btn-animate"
+                  >
+                    Download QR Code
+                  </button>
+                )}
+              </div>
             </div>
-          )}
-          
-          <div className="fade-in-left" style={{animationDelay: '0.6s'}}>
-            <label className="block text-sm font-medium text-gray-700">Role</label>
-            <div className="mt-1 flex items-center">
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor(profile?.role)} smooth-hover`}>
-                {getRoleIcon()}
-                <span className="ml-1 capitalize">{profile?.role?.replace('_', ' ')}</span>
-              </span>
-            </div>
           </div>
         </div>
+      )}
 
-        {/* Action Buttons */}
-        <div className="mt-6 pt-6 border-t border-gray-200 space-y-3 fade-in-up-blur">
-          <button
-            onClick={() => setShowPasswordModal(true)}
-            className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors btn-animate"
-          >
-            Change Password
-          </button>
-          
-          {qrCodeUrl && (
-            <button
-              onClick={() => {
-                const link = document.createElement('a');
-                link.download = `qr-code-${profile?.first_name}-${profile?.last_name}.png`;
-                link.href = qrCodeUrl;
-                link.click();
-              }}
-              className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors btn-animate"
-            >
-              Download QR Code
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  </div>
-)}
       {/* Change Password Modal */}
       {showPasswordModal && (
         <div 
@@ -654,11 +656,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
           }}
         >
           <div 
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-md modal-content-blur"
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md modal-content-blur fade-in-scale"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-6 fade-in-left">
                 <h2 className="text-xl font-bold text-gray-900">Change Password</h2>
                 <button
                   onClick={() => {
@@ -667,7 +669,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                     setError(null);
                     setSuccess(null);
                   }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-gray-400 hover:text-gray-600 transition-colors btn-animate"
                 >
                   <X className="h-6 w-6" />
                 </button>
@@ -675,19 +677,19 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
 
               <form onSubmit={handlePasswordChange} className="space-y-4">
                 {error && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center error-animate">
                     <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
                     <p className="text-red-700 text-sm">{error}</p>
                   </div>
                 )}
                 {success && (
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center">
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center fade-in-scale">
                     <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
                     <p className="text-green-700 text-sm">{success}</p>
                   </div>
                 )}
 
-                <div>
+                <div className="fade-in-left" style={{animationDelay: '0.1s'}}>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     New Password
                   </label>
@@ -703,14 +705,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                     <button
                       type="button"
                       onClick={() => setShowPasswords(prev => ({ ...prev, new: !prev.new }))}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 btn-animate"
                     >
                       {showPasswords.new ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
 
-                <div>
+                <div className="fade-in-left" style={{animationDelay: '0.2s'}}>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Confirm New Password
                   </label>
@@ -726,14 +728,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                     <button
                       type="button"
                       onClick={() => setShowPasswords(prev => ({ ...prev, confirm: !prev.confirm }))}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 btn-animate"
                     >
                       {showPasswords.confirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
                 </div>
 
-                <div className="flex space-x-3 pt-4">
+                <div className="flex space-x-3 pt-4 fade-in-up-blur">
                   <button
                     type="button"
                     onClick={() => {
@@ -742,14 +744,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                       setError(null);
                       setSuccess(null);
                     }}
-                    className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors"
+                    className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors btn-animate"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={loading}
-                    className="flex-1 bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors btn-animate disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? 'Updating...' : 'Save Changes'}
                   </button>
@@ -760,51 +762,51 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
         </div>
       )}
 
-     {/* Notification Modal */}
-{showNotificationModal && selectedNotification && (
-  <div 
-    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur"
-    onClick={() => {
-      setShowNotificationModal(false);
-      setSelectedNotification(null);
-    }}
-  >
-    <div 
-      className="bg-white rounded-2xl shadow-2xl w-full max-w-md modal-content-blur fade-in-scale"
-      onClick={(e) => e.stopPropagation()}
-    >
+      {/* Notification Modal */}
+      {showNotificationModal && selectedNotification && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur"
+          onClick={() => {
+            setShowNotificationModal(false);
+            setSelectedNotification(null);
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md modal-content-blur fade-in-scale"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-6 fade-in-left">
                 <h2 className="text-xl font-bold text-gray-900">Notification</h2>
                 <button
                   onClick={() => {
                     setShowNotificationModal(false);
                     setSelectedNotification(null);
                   }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-gray-400 hover:text-gray-600 transition-colors btn-animate"
                 >
                   <X className="h-6 w-6" />
                 </button>
               </div>
 
-              <div className="space-y-4">
-                <div>
+              <div className="space-y-4 stagger-children">
+                <div className="fade-in-left">
                   <h3 className="font-semibold text-gray-900">{selectedNotification.title}</h3>
                 </div>
-                <div>
+                <div className="fade-in-left" style={{animationDelay: '0.1s'}}>
                   <p className="text-gray-700">{selectedNotification.message}</p>
                 </div>
-                <div className="text-sm text-gray-500">
+                <div className="text-sm text-gray-500 fade-in-left" style={{animationDelay: '0.2s'}}>
                   <p>From: {selectedNotification.sender}</p>
                   <p>Date: {new Date(selectedNotification.created_at).toLocaleString()}</p>
                 </div>
               </div>
 
               {!selectedNotification.is_read && (
-                <div className="mt-6 pt-6 border-t border-gray-200">
+                <div className="mt-6 pt-6 border-t border-gray-200 fade-in-up-blur">
                   <button
                     onClick={() => markNotificationAsRead(selectedNotification.id)}
-                    className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors"
+                    className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors btn-animate"
                   >
                     Mark as Read
                   </button>
@@ -822,29 +824,29 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
           onClick={() => setShowLeaderboard(false)}
         >
           <div 
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden modal-content-blur"
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden modal-content-blur fade-in-scale"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-6 fade-in-left">
                 <h2 className="text-2xl font-bold text-gray-900 flex items-center">
                   <Trophy className="h-6 w-6 mr-3 text-orange-600" />
                   Leaderboard
                 </h2>
                 <button
                   onClick={() => setShowLeaderboard(false)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-gray-400 hover:text-gray-600 transition-colors btn-animate"
                 >
                   <X className="h-6 w-6" />
                 </button>
               </div>
 
               <div className="max-h-[70vh] overflow-y-auto fade-in-blur">
-<Leaderboard 
-  userRole={profile?.role} 
-  currentUserId={profile?.id}
-  userTeam={profile?.tl_team}
-/>
+                <Leaderboard 
+                  userRole={profile?.role} 
+                  currentUserId={profile?.id}
+                  userTeam={profile?.tl_team}
+                />
               </div>
             </div>
           </div>
