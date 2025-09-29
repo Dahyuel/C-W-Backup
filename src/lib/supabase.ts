@@ -1638,7 +1638,7 @@ export const addCompany = async (companyData) => {
   }
 };
 
-export const sendAnnouncement = async (announcementData) => {
+export const sendAnnouncement2 = async (announcementData) => {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     
