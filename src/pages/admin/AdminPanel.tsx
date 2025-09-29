@@ -1161,6 +1161,8 @@ const clearUserSelection = () => {
               </div>
             </div>
 
+ 
+        )}
 
       {/* Sessions Tab */}
 {activeTab === "sessions" && (
