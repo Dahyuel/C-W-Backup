@@ -906,114 +906,66 @@ const confirmDeleteSession = async () => {
   }
 };
 
-// Enhanced StatisticsTab Component
-// Enhanced StatisticsTab Component
-// Enhanced StatisticsTab Component
+
+// Enhanced StatisticsTab Component with proper function order
 const StatisticsTab = () => {
- const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [timeRange, setTimeRange] = useState('all');
   const [statsType, setStatsType] = useState('registration');
   const [selectedDay, setSelectedDay] = useState(1);
 
-  useEffect(() => {
-    fetchStatistics();
-  }, [timeRange, statsType, selectedDay]);
+  // Define functions first before they are used
+  const fetchRegistrationStats = async () => {
+    let dateFilter = {};
+    if (timeRange === 'today') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      dateFilter = { created_at: `gte.${today.toISOString()}` };
+    } else if (timeRange === 'week') {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      dateFilter = { created_at: `gte.${weekAgo.toISOString()}` };
+    }
 
-  const fetchStatistics = async () => {
-    setLoading(true);
-    setError(null);
     try {
-      if (statsType === 'registration') {
-        await fetchRegistrationStats();
-      } else {
-        await fetchEventStats();
+      let query = supabase.from('users_profiles').select('*');
+
+      if (dateFilter.created_at) {
+        query = query.gte('created_at', dateFilter.created_at.replace('gte.', ''));
       }
-    } catch (err) {
-      console.error('Error fetching statistics:', err);
-      setError('Failed to load statistics. Please try again.');
-    } finally {
-      setLoading(false);
+
+      const { data: users, error } = await query;
+
+      if (error) {
+        console.error('Error fetching registration stats:', error);
+        throw error;
+      }
+
+      const stats = processUserStatistics(users || []);
+      setStatsData(stats);
+    } catch (error) {
+      console.error('Error in fetchRegistrationStats:', error);
+      // Set empty stats on error
+      setStatsData(prev => ({
+        ...prev,
+        totalRegistrations: 0,
+        graduates: 0,
+        students: 0,
+        currentInEvent: 0,
+        currentInBuilding: 0,
+        universities: [],
+        faculties: [],
+        genderStats: { male: 0, female: 0 },
+        roleStats: {},
+        marketingSources: [],
+        degreeLevelStats: { student: 0, graduate: 0 },
+        classYearStats: {},
+        currentGenderStats: { male: 0, female: 0 }
+      }));
     }
   };
 
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mb-4"></div>
-        <p className="text-gray-600">Loading statistics...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64">
-        <div className="text-red-500 text-center">
-          <XCircle className="h-12 w-12 mx-auto mb-4" />
-          <p className="text-lg font-medium mb-2">Error Loading Statistics</p>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <button
-            onClick={fetchStatistics}
-            className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-// Fix the fetchRegistrationStats function in StatisticsTab component
-const fetchRegistrationStats = async () => {
-  let dateFilter = {};
-  if (timeRange === 'today') {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    dateFilter = { created_at: `gte.${today.toISOString()}` };
-  } else if (timeRange === 'week') {
-    const weekAgo = new Date();
-    weekAgo.setDate(weekAgo.getDate() - 7);
-    dateFilter = { created_at: `gte.${weekAgo.toISOString()}` };
-  }
-
-  try {
-    let query = supabase.from('users_profiles').select('*');
-
-    if (dateFilter.created_at) {
-      query = query.gte('created_at', dateFilter.created_at.replace('gte.', ''));
-    }
-
-    const { data: users, error } = await query;
-
-    if (error) {
-      console.error('Error fetching registration stats:', error);
-      throw error;
-    }
-
-    const stats = processUserStatistics(users || []);
-    setStatsData(stats);
-  } catch (error) {
-    console.error('Error in fetchRegistrationStats:', error);
-    // Set empty stats on error
-    setStatsData(prev => ({
-      ...prev,
-      totalRegistrations: 0,
-      graduates: 0,
-      students: 0,
-      currentInEvent: 0,
-      currentInBuilding: 0,
-      universities: [],
-      faculties: [],
-      genderStats: { male: 0, female: 0 },
-      roleStats: {},
-      marketingSources: [],
-      degreeLevelStats: { student: 0, graduate: 0 },
-      classYearStats: {},
-      currentGenderStats: { male: 0, female: 0 }
-    }));
-  }
-};
   const fetchEventStats = async () => {
     try {
       // Calculate date range for the selected day
@@ -1124,10 +1076,51 @@ const fetchRegistrationStats = async () => {
     return dayStats;
   };
 
+  // Now define fetchStatistics after all the functions it depends on
+  const fetchStatistics = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (statsType === 'registration') {
+        await fetchRegistrationStats();
+      } else {
+        await fetchEventStats();
+      }
+    } catch (err) {
+      console.error('Error fetching statistics:', err);
+      setError('Failed to load statistics. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStatistics();
+  }, [timeRange, statsType, selectedDay]);
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+      <div className="flex flex-col items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mb-4"></div>
+        <p className="text-gray-600">Loading statistics...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64">
+        <div className="text-red-500 text-center">
+          <XCircle className="h-12 w-12 mx-auto mb-4" />
+          <p className="text-lg font-medium mb-2">Error Loading Statistics</p>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button
+            onClick={fetchStatistics}
+            className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
@@ -1228,8 +1221,7 @@ const fetchRegistrationStats = async () => {
       <CurrentStateWidget statsData={statsData} />
     </div>
   );
-};
-  
+}; 
 // Registration Stats View Component
 const RegistrationStatsView = ({ statsData }) => (
   <div className="space-y-8">
