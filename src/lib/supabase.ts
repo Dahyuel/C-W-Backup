@@ -263,51 +263,32 @@ export const validateRegistrationWithEdgeFunction = async (
 // Updated signUpUser function using Edge Function validation
 export const signUpUser = async (email: string, password: string, userData: any) => {
   try {
-    console.log('Starting attendee registration...');
+    console.log('Starting attendee registration with edge function validation...');
     
-    // STEP 1: Basic validation using existing RPC functions
-    const errors: string[] = [];
-    
-    // Check email uniqueness
-    const emailCheck = await checkEmailUnique(email);
-    if (!emailCheck.isValid) {
-      errors.push(emailCheck.error || 'Email already exists');
-    }
-    
-    // Check personal ID uniqueness
-    const personalIdCheck = await checkPersonalIdUnique(userData.personal_id);
-    if (!personalIdCheck.isValid) {
-      errors.push(personalIdCheck.error || 'Personal ID already exists');
-    }
-    
-    // Validate volunteer ID if provided (optional)
-    let volunteerUuid = null;
-    if (userData.volunteer_id && userData.volunteer_id.trim()) {
-      const volunteerCheck = await checkVolunteerIdExists(userData.volunteer_id);
-      if (!volunteerCheck.isValid) {
-        errors.push(volunteerCheck.error || 'Invalid volunteer ID');
-      } else {
-        // Get volunteer UUID
-        const { data: volunteer } = await getVolunteerByVolunteerId(userData.volunteer_id);
-        if (volunteer) {
-          volunteerUuid = volunteer.id;
-        }
-      }
-    }
-    
-    if (errors.length > 0) {
+    // STEP 1: Use Edge Function for comprehensive validation
+    const validation = await validateRegistrationWithEdgeFunction(
+      userData.personal_id,
+      email,
+      userData.first_name,
+      userData.last_name,
+      userData.volunteer_id,
+      userData.phone,
+      'attendee'
+    );
+
+    if (!validation.isValid) {
       return { 
         data: null, 
         error: { 
-          message: errors.join('. '),
-          validationErrors: errors
+          message: validation.errors.join('. '),
+          validationErrors: validation.errors
         }
       };
     }
 
-    console.log('Validation passed, creating auth user...');
+    console.log('Edge function validation passed, creating auth user...');
 
-    // STEP 2: Create auth user
+    // STEP 2: Create auth user (validation already done by Edge Function)
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
       password,
@@ -323,64 +304,60 @@ export const signUpUser = async (email: string, password: string, userData: any)
 
     console.log('Auth user created successfully:', authData.user.id);
 
-    // STEP 3: Create profile using the insert_attendee_profile RPC function
+    // STEP 3: Create profile (should succeed since validation passed)
     try {
+      // Small delay to ensure auth user is committed
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Use the existing RPC function for inserting attendee profile
-      const { data: insertResult, error: profileError } = await supabase.rpc('insert_attendee_profile', {
-        p_id: authData.user.id,
-        p_email: email.trim().toLowerCase(),
-        p_first_name: userData.first_name?.trim() || '',
-        p_last_name: userData.last_name?.trim() || '',
-        p_personal_id: userData.personal_id?.trim(),
-        p_university: userData.university?.trim() || '',
-        p_faculty: userData.faculty?.trim() || '',
-        p_program: userData.program?.trim() || '',
-        p_nationality: userData.nationality?.trim() || '',
-        p_phone: userData.phone?.trim() || null,
-        p_reg_id: volunteerUuid,
-        p_gender: userData.gender?.toLowerCase() || null,
-        p_degree_level: userData.degree_level?.toLowerCase() || null,
-        p_class: userData.class?.toString() || null,
-        p_how_did_hear: userData.how_did_hear_about_event?.toLowerCase() || null,
-        p_university_id_path: userData.university_id_path || null,
-        p_cv_path: userData.cv_path || null
-      });
+      const profileData = {
+        id: authData.user.id,
+        email: email.trim().toLowerCase(),
+        first_name: userData.first_name?.trim() || '',
+        last_name: userData.last_name?.trim() || '',
+        personal_id: userData.personal_id?.trim(),
+        university: userData.university?.trim() || '',
+        faculty: userData.faculty?.trim() || '',
+        program: userData.program?.trim() || '',
+        nationality: userData.nationality?.trim() || '',
+        phone: userData.phone?.trim() || null,
+        reg_id: validation.volunteerUuid || null,
+        volunteer_id: null, // Always null for attendees
+        role: 'attendee',
+        gender: userData.gender?.toLowerCase() === 'male' ? 'male' : 
+                userData.gender?.toLowerCase() === 'female' ? 'female' : null,
+        degree_level: userData.degree_level?.toLowerCase() === 'student' ? 'student' :
+                      userData.degree_level?.toLowerCase() === 'graduate' ? 'graduate' : null,
+        class: ['1', '2', '3', '4', '5'].includes(userData.class?.toString()) ? userData.class?.toString() : null,
+        how_did_hear_about_event: ['linkedin', 'facebook', 'instagram', 'friends', 'banners_in_street', 'information_session_at_faculty', 'campus_marketing', 'other'].includes(userData.how_did_hear_about_event?.toLowerCase()) ? userData.how_did_hear_about_event?.toLowerCase() : null,
+        university_id_path: userData.university_id_path || null,
+        cv_path: userData.cv_path || null,
+        score: 0,
+        building_entry: false,
+        event_entry: false
+      };
+
+      const { data: insertedProfile, error: profileError } = await supabase
+        .from('users_profiles')
+        .insert([profileData])
+        .select()
+        .single();
 
       if (profileError) {
-        console.error('Profile creation failed via RPC:', profileError);
+        console.error('Profile creation failed despite validation:', profileError);
         console.error(`ORPHANED AUTH USER: ${authData.user.id} (${email})`);
         
         return { 
           data: null, 
-          error: { 
-            message: `Profile creation failed: ${profileError.message}`,
-            details: profileError
-          }
+          error: { message: 'Profile creation failed unexpectedly. Please contact support.' }
         };
       }
 
-      // Get the created profile
-      const { data: createdProfile, error: fetchError } = await supabase
-        .from('users_profiles')
-        .select('*')
-        .eq('id', authData.user.id)
-        .single();
-
-      if (fetchError) {
-        console.error('Failed to fetch created profile:', fetchError);
-        return { 
-          data: { ...authData, profile: null }, 
-          error: null 
-        };
-      }
-
-      console.log('Attendee profile created successfully:', createdProfile.id);
+      console.log('Attendee profile created successfully:', insertedProfile.id);
       return { 
         data: { 
           ...authData, 
-          profile: createdProfile
+          profile: insertedProfile,
+          referredBy: validation.volunteerInfo
         }, 
         error: null 
       };
