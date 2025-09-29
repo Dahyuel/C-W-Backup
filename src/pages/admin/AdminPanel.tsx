@@ -915,21 +915,21 @@ const StatisticsTab = () => {
     }
   };
 
-  const fetchRegistrationStats = async () => {
-    let dateFilter = {};
-    if (timeRange === 'today') {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      dateFilter = { created_at: `gte.${today.toISOString()}` };
-    } else if (timeRange === 'week') {
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      dateFilter = { created_at: `gte.${weekAgo.toISOString()}` };
-    }
+// Fix the fetchRegistrationStats function in StatisticsTab component
+const fetchRegistrationStats = async () => {
+  let dateFilter = {};
+  if (timeRange === 'today') {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    dateFilter = { created_at: `gte.${today.toISOString()}` };
+  } else if (timeRange === 'week') {
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    dateFilter = { created_at: `gte.${weekAgo.toISOString()}` };
+  }
 
-    let query = supabase
-      .from('users_profiles')
-      .select('*');
+  try {
+    let query = supabase.from('users_profiles').select('*');
 
     if (dateFilter.created_at) {
       query = query.gte('created_at', dateFilter.created_at.replace('gte.', ''));
@@ -937,12 +937,34 @@ const StatisticsTab = () => {
 
     const { data: users, error } = await query;
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching registration stats:', error);
+      throw error;
+    }
 
     const stats = processUserStatistics(users || []);
     setStatsData(stats);
-  };
-
+  } catch (error) {
+    console.error('Error in fetchRegistrationStats:', error);
+    // Set empty stats on error
+    setStatsData(prev => ({
+      ...prev,
+      totalRegistrations: 0,
+      graduates: 0,
+      students: 0,
+      currentInEvent: 0,
+      currentInBuilding: 0,
+      universities: [],
+      faculties: [],
+      genderStats: { male: 0, female: 0 },
+      roleStats: {},
+      marketingSources: [],
+      degreeLevelStats: { student: 0, graduate: 0 },
+      classYearStats: {},
+      currentGenderStats: { male: 0, female: 0 }
+    }));
+  }
+};
   const fetchEventStats = async () => {
     try {
       // Calculate date range for the selected day
