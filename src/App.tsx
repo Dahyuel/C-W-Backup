@@ -185,10 +185,25 @@ const AppRouter: React.FC = () => {
         element={<LazyRoute component={AttendeeDashboard} requiredRole="attendee" />}
       />
       
-      <Route 
-        path="/volunteer" 
-        element={<LazyRoute component={VolunteerDashboard} requiredRole="volunteer" />}
-      />
+<Route 
+  path="/volunteer" 
+  element={
+    <LazyRoute 
+      component={VolunteerDashboard} 
+      requiredRole={[
+        'volunteer',
+        'ushers',
+        'marketing', 
+        'media',
+        'ER',
+        'BD',
+        'catering',
+        'feedback',
+        'stage'
+      ]} 
+    />
+  }
+/>
       
       <Route 
         path="/regteam" 
