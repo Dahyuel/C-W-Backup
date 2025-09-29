@@ -110,9 +110,10 @@ export const VolunteerDashboard: React.FC = () => {
       title="Volunteer Dashboard" 
       subtitle={`Welcome back, ${profile?.first_name}!`}
     >
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+      <div className="fade-in-up-blur">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto grid-stagger-blur">
         {/* Points Card */}
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 card-hover-enhanced dashboard-card">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Points Earned</p>
@@ -125,7 +126,7 @@ export const VolunteerDashboard: React.FC = () => {
         </div>
 
         {/* Leaderboard Rank Card */}
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 card-hover-enhanced dashboard-card">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Your Rank</p>
@@ -143,7 +144,7 @@ export const VolunteerDashboard: React.FC = () => {
         </div>
 
         {/* Recent Activities Card */}
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 card-hover-enhanced dashboard-card">
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-sm font-medium text-gray-600">Recent Activity</p>
@@ -163,18 +164,18 @@ export const VolunteerDashboard: React.FC = () => {
 
       {/* Recent Activities List */}
       <div className="max-w-4xl mx-auto mt-8">
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover dashboard-card">
           <div className="flex items-center gap-2 mb-4">
             <Clock className="h-5 w-5 text-gray-600" />
             <h3 className="text-lg font-semibold text-gray-900">Recent Activities</h3>
           </div>
           
           {recentActivities.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-3 stagger-children">
               {recentActivities.map((activity) => (
                 <div 
                   key={activity.id} 
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg smooth-hover"
                 >
                   <div className="flex-1">
                     <p className="font-medium text-gray-900">
@@ -202,7 +203,7 @@ export const VolunteerDashboard: React.FC = () => {
               ))}
             </div>
           ) : (
-            <div className="text-center py-8">
+            <div className="text-center py-8 fade-in-scale">
               <Activity className="h-12 w-12 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500">No recent activities</p>
               <p className="text-sm text-gray-400">
@@ -215,7 +216,7 @@ export const VolunteerDashboard: React.FC = () => {
 
       {/* Volunteer Information */}
       <div className="max-w-4xl mx-auto mt-8 text-center">
-        <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-xl p-6 border border-orange-200">
+        <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-xl p-6 border border-orange-200 fade-in-blur card-hover">
           <h3 className="text-lg font-semibold text-gray-900 mb-3">Volunteer Information</h3>
           <p className="text-gray-700 leading-relaxed">
             Thank you for your dedication and hard work! Your contributions make this event possible.
@@ -228,6 +229,7 @@ export const VolunteerDashboard: React.FC = () => {
             </div>
           )}
         </div>
+      </div>
       </div>
     </DashboardLayout>
   );

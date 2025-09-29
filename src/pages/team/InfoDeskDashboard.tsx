@@ -400,10 +400,11 @@ export const InfoDeskDashboard: React.FC = () => {
       title="Info Desk Dashboard"
       subtitle="Manage session attendance and bookings"
     >
+      <div className="fade-in-up-blur">
       <div className="space-y-8">
         {/* Error Display */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 message-animate">
             <div className="flex items-center">
               <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
               <span className="text-red-700">{error}</span>
@@ -419,9 +420,9 @@ export const InfoDeskDashboard: React.FC = () => {
 
         {/* Session List */}
         {!selectedSession && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 grid-stagger-blur">
             {sessions.length === 0 ? (
-              <div className="col-span-full text-center py-12">
+              <div className="col-span-full text-center py-12 fade-in-scale">
                 <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">No Sessions Found</h3>
                 <p className="text-gray-500">There are no sessions available at the moment.</p>
@@ -430,7 +431,7 @@ export const InfoDeskDashboard: React.FC = () => {
               sessions.map((session) => (
                 <div
                   key={session.id}
-                  className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-md transition-shadow"
+                  className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 card-hover-enhanced dashboard-card"
                 >
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">
@@ -488,7 +489,7 @@ export const InfoDeskDashboard: React.FC = () => {
 
         {/* Session Selected - Booking Manager */}
         {selectedSession && showBookingManager && !selectedAttendee && (
-          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 space-y-6">
+          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 space-y-6 fade-in-blur card-hover dashboard-card">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-bold text-gray-900">
@@ -509,13 +510,13 @@ export const InfoDeskDashboard: React.FC = () => {
             </div>
 
             {/* Mode Switch */}
-            <div className="flex space-x-4">
+            <div className="flex space-x-4 stagger-children">
               <button
                 onClick={() => {
                   setSearchMode("manual");
                   setSearchId("");
                 }}
-                className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+                className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 btn-animate ${
                   searchMode === "manual"
                     ? "bg-orange-500 text-white shadow-md"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -529,7 +530,7 @@ export const InfoDeskDashboard: React.FC = () => {
                   setSearchMode("qr");
                   setSearchId("");
                 }}
-                className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+                className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 btn-animate ${
                   searchMode === "qr"
                     ? "bg-orange-500 text-white shadow-md"
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -542,7 +543,7 @@ export const InfoDeskDashboard: React.FC = () => {
 
             {/* Manual Search with Dynamic Results */}
             {searchMode === "manual" && (
-              <div className="space-y-4">
+              <div className="space-y-4 fade-in-blur">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Search Attendees by Personal ID
@@ -668,7 +669,7 @@ export const InfoDeskDashboard: React.FC = () => {
 
             {/* QR Scanner */}
             {searchMode === "qr" && (
-              <div className="text-center">
+              <div className="text-center fade-in-blur">
                 <QrCode className="h-16 w-16 text-orange-500 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
                   QR Code Scanner
@@ -690,7 +691,7 @@ export const InfoDeskDashboard: React.FC = () => {
 
         {/* Attendee Details with Session Booking Actions */}
         {selectedSession && selectedAttendee && (
-          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 space-y-6">
+          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 space-y-6 fade-in-blur card-hover dashboard-card">
             {/* Header */}
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">Attendee Details</h2>
@@ -840,6 +841,7 @@ export const InfoDeskDashboard: React.FC = () => {
             </div>
           </div>
         )}
+      </div>
       </div>
 
       {/* QR Scanner Modal */}

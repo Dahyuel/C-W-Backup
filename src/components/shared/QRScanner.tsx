@@ -268,8 +268,8 @@ export const QRScanner: React.FC<QRScannerProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden modal-content-blur">
         {/* Header */}
         <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -286,10 +286,10 @@ export const QRScanner: React.FC<QRScannerProps> = ({
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-6 fade-in-blur">
           {scanSuccess ? (
             /* Success State */
-            <div className="text-center space-y-4">
+            <div className="text-center space-y-4 success-animate">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
                 <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
@@ -300,7 +300,7 @@ export const QRScanner: React.FC<QRScannerProps> = ({
             </div>
           ) : error ? (
             /* Error State */
-            <div className="text-center space-y-4">
+            <div className="text-center space-y-4 error-animate">
               <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
                 <AlertCircle className="w-8 h-8 text-red-600" />
               </div>
@@ -342,11 +342,11 @@ export const QRScanner: React.FC<QRScannerProps> = ({
             </div>
           ) : (
             /* Scanner View */
-            <div className="space-y-4">
+            <div className="space-y-4 fade-in-scale">
               <p className="text-center text-gray-600 text-sm">{description}</p>
               
               {/* Camera View */}
-              <div className="relative bg-gray-900 rounded-lg overflow-hidden aspect-square flex items-center justify-center">
+              <div className="relative bg-gray-900 rounded-lg overflow-hidden aspect-square flex items-center justify-center qr-scanner-enter">
                 <video
                   ref={videoRef}
                   className="w-full h-full object-cover"
@@ -362,8 +362,8 @@ export const QRScanner: React.FC<QRScannerProps> = ({
                 />
                 
                 {/* Scanning frame overlay */}
-                <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                  <div className="border-2 border-white border-dashed rounded-lg w-64 h-64 flex items-center justify-center">
+                <div className="absolute inset-0 pointer-events-none flex items-center justify-center qr-frame">
+                  <div className="border-2 border-white border-dashed rounded-lg w-64 h-64 flex items-center justify-center qr-frame">
                     <div className="w-full h-full relative">
                       {/* Corner markers */}
                       <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-white"></div>

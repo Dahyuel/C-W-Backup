@@ -645,8 +645,19 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
 
       {/* Change Password Modal */}
       {showPasswordModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur"
+          onClick={() => {
+            setShowPasswordModal(false);
+            setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
+            setError(null);
+            setSuccess(null);
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md modal-content-blur"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-gray-900">Change Password</h2>
@@ -752,8 +763,17 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
 
       {/* Notification Modal */}
       {showNotificationModal && selectedNotification && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur"
+          onClick={() => {
+            setShowNotificationModal(false);
+            setSelectedNotification(null);
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md modal-content-blur"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-gray-900">Notification</h2>
@@ -798,8 +818,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
 
       {/* Leaderboard Modal */}
       {showLeaderboard && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur"
+          onClick={() => setShowLeaderboard(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden modal-content-blur"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900 flex items-center">
@@ -814,7 +840,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                 </button>
               </div>
 
-              <div className="max-h-[70vh] overflow-y-auto">
+              <div className="max-h-[70vh] overflow-y-auto fade-in-blur">
                 <Leaderboard 
                   userRole={profile?.role} 
                   currentUserId={profile?.id}

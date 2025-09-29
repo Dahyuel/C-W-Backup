@@ -172,7 +172,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId }) =>
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center h-64 fade-in-blur">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
       </div>
     );
@@ -180,11 +180,11 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId }) =>
 
   if (error) {
     return (
-      <div className="text-center py-8">
+      <div className="text-center py-8 error-animate">
         <p className="text-red-600">{error}</p>
         <button 
           onClick={fetchLeaderboard}
-          className="mt-4 bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
+          className="mt-4 bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-all duration-300 btn-animate"
         >
           Try Again
         </button>
@@ -193,13 +193,13 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId }) =>
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full fade-in-up-blur">
       {/* Admin Tab Controls */}
       {userRole === 'admin' && (
-        <div className="flex space-x-4 mb-6 border-b">
+        <div className="flex space-x-4 mb-6 border-b fade-in-left">
           <button
             onClick={() => setActiveTab('attendees')}
-            className={`py-2 px-4 font-semibold text-sm ${
+            className={`py-2 px-4 font-semibold text-sm transition-all duration-300 ${
               activeTab === 'attendees'
                 ? "border-b-2 border-orange-500 text-orange-600"
                 : "text-gray-500 hover:text-orange-600"
@@ -209,7 +209,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId }) =>
           </button>
           <button
             onClick={() => setActiveTab('volunteers')}
-            className={`py-2 px-4 font-semibold text-sm ${
+            className={`py-2 px-4 font-semibold text-sm transition-all duration-300 ${
               activeTab === 'volunteers'
                 ? "border-b-2 border-orange-500 text-orange-600"
                 : "text-gray-500 hover:text-orange-600"
@@ -219,7 +219,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId }) =>
           </button>
           <button
             onClick={() => setActiveTab('team_leaders')}
-            className={`py-2 px-4 font-semibold text-sm ${
+            className={`py-2 px-4 font-semibold text-sm transition-all duration-300 ${
               activeTab === 'team_leaders'
                 ? "border-b-2 border-orange-500 text-orange-600"
                 : "text-gray-500 hover:text-orange-600"
@@ -232,7 +232,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId }) =>
 
       {/* Current User Highlight */}
       {currentUserData && (
-        <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+        <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg fade-in-blur card-hover">
           <h3 className="text-sm font-medium text-orange-800 mb-2 flex items-center">
             <Star className="h-4 w-4 mr-2" />
             Your Position
@@ -274,18 +274,18 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId }) =>
         </div>
 
         {leaderboardData.length === 0 ? (
-          <div className="text-center py-8">
+          <div className="text-center py-8 fade-in-scale">
             <Trophy className="h-12 w-12 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">No data available</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3 stagger-children">
             {leaderboardData.map((user) => {
               const isCurrentUser = user.id === currentUserId;
               return (
                 <div
                   key={user.id}
-                  className={`flex items-center justify-between p-4 rounded-lg border transition-all ${getRankBackgroundColor(user.rank, isCurrentUser)} ${
+                  className={`flex items-center justify-between p-4 rounded-lg border transition-all duration-300 smooth-hover ${getRankBackgroundColor(user.rank, isCurrentUser)} ${
                     isCurrentUser ? 'ring-2 ring-orange-300' : ''
                   }`}
                 >

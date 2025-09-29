@@ -406,10 +406,11 @@ export const TeamLeaderDashboard: React.FC = () => {
       title="Team Leader Dashboard"
       subtitle="Manage your team, track attendance, and assign bonuses"
     >
+      <div className="fade-in-up-blur">
       <div className="space-y-8">
         {/* Feedback Toast */}
         {feedback && (
-          <div className={`fixed top-4 right-4 z-50 flex items-center space-x-2 px-4 py-3 rounded-lg shadow-lg ${
+          <div className={`fixed top-4 right-4 z-50 flex items-center space-x-2 px-4 py-3 rounded-lg shadow-lg message-animate ${
             feedback.type === 'success' 
               ? 'bg-green-500 text-white' 
               : 'bg-red-500 text-white'
@@ -430,7 +431,7 @@ export const TeamLeaderDashboard: React.FC = () => {
         )}
 
         {/* Quick Actions */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 fade-in-blur card-hover dashboard-card">
           <div className="flex justify-center">
             <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2 mb-8">
               <Users className="h-8 w-8 text-orange-500" />
@@ -438,11 +439,11 @@ export const TeamLeaderDashboard: React.FC = () => {
             </h2>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-4 justify-center">
+          <div className="flex flex-col md:flex-row gap-4 justify-center stagger-children">
             {/* Attendance */}
             <button
               onClick={() => setScannerOpen(true)}
-              className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
+              className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all duration-300 btn-animate"
             >
               <QrCode className="h-8 w-8 mb-2" />
               <span className="text-base font-medium">Scan Attendance</span>
@@ -451,7 +452,7 @@ export const TeamLeaderDashboard: React.FC = () => {
             {/* Bonus */}
             <button
               onClick={() => setBonusModal(true)}
-              className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors"
+              className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-all duration-300 btn-animate"
             >
               <Gift className="h-8 w-8 mb-2" />
               <span className="text-base font-medium">Assign Bonus</span>
@@ -460,7 +461,7 @@ export const TeamLeaderDashboard: React.FC = () => {
             {/* Announcements */}
             <button
               onClick={() => setAnnouncementModal(true)}
-              className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-colors"
+              className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-all duration-300 btn-animate"
             >
               <Megaphone className="h-8 w-8 mb-2" />
               <span className="text-base font-medium">Send Announcement</span>
@@ -469,7 +470,7 @@ export const TeamLeaderDashboard: React.FC = () => {
         </div>
 
         {/* Flow Dashboard Widget */}
-        <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden fade-in-blur card-hover dashboard-card">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
             <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2 mx-auto">
               <Building className="h-7 w-7 text-orange-500" />
@@ -477,16 +478,16 @@ export const TeamLeaderDashboard: React.FC = () => {
             </h2>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 px-6 py-6 text-center">
-            <div className="bg-green-100 p-4 rounded-lg shadow-sm">
+          <div className="grid grid-cols-3 gap-4 px-6 py-6 text-center stagger-children">
+            <div className="bg-green-100 p-4 rounded-lg shadow-sm card-hover">
               <p className="text-2xl font-bold text-green-900">{buildingStats.inside_building}</p>
               <p className="text-lg font-bold text-gray-700">Inside Building</p>
             </div>
-            <div className="bg-teal-100 p-4 rounded-lg shadow-sm">
+            <div className="bg-teal-100 p-4 rounded-lg shadow-sm card-hover">
               <p className="text-2xl font-bold text-teal-900">{buildingStats.inside_event}</p>
               <p className="text-lg font-bold text-gray-700">Inside Event</p>
             </div>
-            <div className="bg-blue-100 p-4 rounded-lg shadow-sm">
+            <div className="bg-blue-100 p-4 rounded-lg shadow-sm card-hover">
               <p className="text-2xl font-bold text-blue-900">{buildingStats.total_attendees}</p>
               <p className="text-lg font-bold text-gray-700">Total Attendees</p>
             </div>
@@ -545,8 +546,18 @@ export const TeamLeaderDashboard: React.FC = () => {
 
       {/* Volunteer Card Modal */}
       {showVolunteerCard && scannedVolunteer && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur"
+          onClick={() => {
+            setShowVolunteerCard(false);
+            setScannedVolunteer(null);
+            setAttendanceChecked(false);
+          }}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md modal-content-blur"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-bold text-gray-900">Volunteer Information</h3>
               <button
@@ -605,8 +616,17 @@ export const TeamLeaderDashboard: React.FC = () => {
 
       {/* Announcement Modal */}
       {announcementModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto relative">
+        <div 
+          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4 modal-backdrop-blur"
+          onClick={() => {
+            setAnnouncementModal(false);
+            clearUserSelection();
+          }}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto relative modal-content-blur"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               onClick={() => {
                 setAnnouncementModal(false);
@@ -769,8 +789,19 @@ export const TeamLeaderDashboard: React.FC = () => {
 
       {/* Bonus Assignment Modal - FIXED VERSION */}
       {bonusModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative">
+        <div 
+          className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4 modal-backdrop-blur"
+          onClick={() => {
+            setBonusModal(false);
+            setSelectedUser(null);
+            setSearchTerm("");
+            setShowSearchResults(false);
+          }}
+        >
+          <div 
+            className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative modal-content-blur"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               onClick={() => {
                 setBonusModal(false);
@@ -914,6 +945,7 @@ export const TeamLeaderDashboard: React.FC = () => {
           </div>
         </div>
       )}
+      </div>
     </DashboardLayout>
   );
 };

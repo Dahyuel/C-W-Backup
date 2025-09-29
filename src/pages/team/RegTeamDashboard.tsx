@@ -264,9 +264,10 @@ export const RegTeamDashboard: React.FC = () => {
       title="Registration Team Dashboard"
       subtitle="Manage attendee registrations and check-ins"
     >
+      <div className="fade-in-up-blur">
       {/* Feedback Toast */}
       {feedback && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center space-x-2 px-4 py-3 rounded-lg shadow-lg ${
+        <div className={`fixed top-4 right-4 z-50 flex items-center space-x-2 px-4 py-3 rounded-lg shadow-lg message-animate ${
           feedback.type === 'success' 
             ? 'bg-green-500 text-white' 
             : 'bg-red-500 text-white'
@@ -288,13 +289,13 @@ export const RegTeamDashboard: React.FC = () => {
 
       <div className="space-y-6">
         {/* Mode Switch */}
-        <div className="flex space-x-4">
+        <div className="flex space-x-4 fade-in-left">
           <button
             onClick={() => {
               setSearchMode("manual");
               clearSearch();
             }}
-            className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+            className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 btn-animate ${
               searchMode === "manual"
                 ? "bg-orange-500 text-white shadow-md"
                 : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -308,7 +309,7 @@ export const RegTeamDashboard: React.FC = () => {
               setSearchMode("qr");
               clearSearch();
             }}
-            className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+            className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 btn-animate ${
               searchMode === "qr"
                 ? "bg-orange-500 text-white shadow-md"
                 : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -321,7 +322,7 @@ export const RegTeamDashboard: React.FC = () => {
 
         {/* Manual Search - Personal ID Only */}
         {searchMode === "manual" && (
-          <div className="bg-white rounded-xl shadow-sm p-6">
+          <div className="bg-white rounded-xl shadow-sm p-6 fade-in-blur card-hover dashboard-card">
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -425,7 +426,7 @@ export const RegTeamDashboard: React.FC = () => {
 
         {/* QR Scanner */}
         {searchMode === "qr" && (
-          <div className="bg-white rounded-xl shadow-sm p-6 text-center">
+          <div className="bg-white rounded-xl shadow-sm p-6 text-center fade-in-blur card-hover dashboard-card">
             <QrCode className="h-16 w-16 text-orange-500 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
               QR Code Scanner
@@ -442,16 +443,29 @@ export const RegTeamDashboard: React.FC = () => {
             </button>
           </div>
         )}
-      </div>
-
-      {/* QR Scanner Modal */}
-      <QRScanner
-        isOpen={showScanner}
-        onClose={handleScannerClose}
-        onScan={handleQRScan}
-        title="Scan Attendee QR Code"
-        description="Point your camera at the attendee's QR code"
-      />
+      {showAttendeeCard && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur"
+          onClick={() => {
+            setShowAttendeeCard(false);
+            setSelectedAttendee(null);
+          }}
+        >
+          <div onClick={(e) => e.stopPropagation()}>
+            <AttendeeCard
+              isOpen={showAttendeeCard}
+              onClose={() => {
+                setShowAttendeeCard(false);
+                setSelectedAttendee(null);
+              }}
+              attendee={selectedAttendee}
+              onAction={handleAttendanceAction}
+              loading={actionLoading}
+              mode="registration"
+            />
+          </div>
+        </div>
+      )}
 
 {/* Attendee Card Modal */}
 <AttendeeCard

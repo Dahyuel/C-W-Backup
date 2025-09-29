@@ -2087,19 +2087,21 @@ const EventStatsView = ({ statsData, selectedDay }) => {
             {announcement.type === "success" ? (
               <CheckCircle2 className="h-5 w-5" />
             ) : (
-              <XCircle className="h-5 w-5" />
+    <DashboardLayout title="Admin Panel" subtitle="System administration and analytics">
+      <div className="fade-in-up-blur">
             )}
             <span>{announcement.message}</span>
-          </div>
+        <div className="flex space-x-6 border-b border-gray-200 fade-in-left">
         )}
 
+            { key: 'stage-activities', label: 'Stage Activities', icon: Calendar },
         {/* Tabs */}
         <div className="flex space-x-1 sm:space-x-4 border-b mb-6 overflow-x-auto scrollbar-hide">
           {tabItems.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`py-2 px-2 sm:px-4 font-semibold text-sm sm:text-base whitespace-nowrap ${
+              className={`flex items-center pb-2 px-2 text-sm font-medium transition-all duration-300 ${
                 activeTab === tab.key
                   ? "border-b-2 border-orange-500 text-orange-600"
                   : "text-gray-500 hover:text-orange-600"
@@ -2112,7 +2114,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
 
    {/* Dashboard Tab */}
 {activeTab === "dashboard" && (
-  <div className="space-y-8">
+            className="ml-auto flex items-center text-sm text-gray-500 hover:text-orange-600 transition-all duration-300 disabled:opacity-50"
     {/* Quick Actions - Now at the top */}
     <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 text-center">
       <h1 className="text-3xl font-bold text-black-800 flex items-center justify-center gap-2 mb-6">
@@ -2782,10 +2784,10 @@ const EventStatsView = ({ statsData, selectedDay }) => {
                   />
                   
                   {mapForm.image && (
-                    <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+          <div className="space-y-8 tab-content-animate">
                       <p className="text-sm text-gray-600 mb-2">Preview:</p>
-                      <img 
-                        src={URL.createObjectURL(mapForm.image)} 
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 grid-stagger-blur">
+              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 card-hover-enhanced dashboard-card">
                         alt="Map preview" 
                         className="max-w-full h-32 object-contain mx-auto rounded"
                       />
@@ -3419,7 +3421,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
                 />
               </div>
               <div className="flex justify-end space-x-3 mt-6">
-                <button
+              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 card-hover-enhanced dashboard-card">
                   onClick={() => setEditCompanyModal(false)}
                   className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
                 >
@@ -3431,7 +3433,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
                   className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50"
                 >
                   {loading ? 'Updating...' : 'Update Company'}
-                </button>
+              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 card-hover-enhanced dashboard-card">
               </div>
             </div>
           </div>
@@ -3443,7 +3445,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-xl font-bold text-gray-900">Event Details</h2>
+              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 card-hover-enhanced dashboard-card">
                   <button
                     onClick={() => {
                       setEventDetailModal(false);
@@ -3457,8 +3459,8 @@ const EventStatsView = ({ statsData, selectedDay }) => {
 
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{selectedEventDetail.title}</h3>
-                    <p className="text-gray-600 mt-2">{selectedEventDetail.description}</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 stagger-children">
+              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 card-hover-enhanced dashboard-card">
                   </div>
 
                   <div>
@@ -3471,7 +3473,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
                       <p className="text-gray-500 text-sm">
                         Ends at {new Date(selectedEventDetail.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                       </p>
-                    )}
+              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 card-hover-enhanced dashboard-card">
                   </div>
 
                   <div>
@@ -3484,7 +3486,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
                     <span className="inline-flex items-center px-2 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
                       {selectedEventDetail.item_type}
                     </span>
-                  </div>
+              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 card-hover-enhanced dashboard-card">
 
                   <div className="pt-4 border-t border-gray-200">
                     <button
@@ -3500,12 +3502,55 @@ const EventStatsView = ({ statsData, selectedDay }) => {
           </div>
         )}
 
+        {/* Stage Activities Tab */}
+        {activeTab === 'stage-activities' && (
+          <div className="tab-content-animate">
+            <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur">
+              <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                <Calendar className="h-5 w-5 mr-2 text-orange-600" />
+                Stage Activities Management
+              </h2>
+              <p className="text-gray-600 mb-6">
+                Manage and monitor all stage activities and events throughout Career Week.
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-6 card-hover-enhanced">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-blue-900">Total Events</h3>
+                    <Calendar className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <p className="text-3xl font-bold text-blue-600">{stats?.total_events || 0}</p>
+                  <p className="text-sm text-blue-700 mt-2">Scheduled activities</p>
+                </div>
+
+                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-6 card-hover-enhanced">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-green-900">Active Sessions</h3>
+                    <Users className="h-6 w-6 text-green-600" />
+                  </div>
+                  <p className="text-3xl font-bold text-green-600">{stats?.total_sessions || 0}</p>
+                  <p className="text-sm text-green-700 mt-2">Interactive sessions</p>
+                </div>
         {/* Delete Company Confirmation Modal */}
+                <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-6 card-hover-enhanced">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-purple-900">Total Bookings</h3>
+                    <Trophy className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <p className="text-3xl font-bold text-purple-600">{stats?.total_bookings || 0}</p>
+                  <p className="text-sm text-purple-700 mt-2">Session registrations</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {deleteCompanyModal && selectedCompanyDelete && (
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+          <div className="space-y-8 tab-content-animate">
               <h3 className="text-xl font-bold mb-4 text-red-600">Delete Company</h3>
-              <p className="text-gray-700 mb-6">
+              <div className="flex items-center justify-center py-8 fade-in-blur">
                 Are you sure you want to delete <strong>{selectedCompanyDelete.name}</strong>? 
                 This action cannot be undone.
               </p>
@@ -3514,16 +3559,16 @@ const EventStatsView = ({ statsData, selectedDay }) => {
                   onClick={() => {
                     setDeleteCompanyModal(false);
                     setSelectedCompanyDelete(null);
-                  }}
+            <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur">
                   className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDeleteCompany}
-                  disabled={loading}
+                <div className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar stagger-children">
                   className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
-                >
+                    <div key={activity.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg smooth-hover">
                   {loading ? 'Deleting...' : 'Delete Company'}
                 </button>
               </div>
@@ -3548,7 +3593,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
                   }}
                   className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
                 >
-                  Cancel
+                <div className="text-center py-8 fade-in-scale">
                 </button>
                 <button
                   onClick={confirmDeleteSession}
@@ -3556,16 +3601,16 @@ const EventStatsView = ({ statsData, selectedDay }) => {
                   className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
                 >
                   {loading ? 'Deleting...' : 'Delete Session'}
-                </button>
+            <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur">
               </div>
             </div>
           </div>
         )}
 
         {/* Delete Event Confirmation Modal */}
-        {deleteEventModal && selectedEventDelete && (
+                <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar stagger-children">
           <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+                    <div key={`${trend.date}-${trend.role}`} className="flex items-center justify-between p-2 hover:bg-gray-50 rounded smooth-hover">
               <h3 className="text-xl font-bold mb-4 text-red-600">Delete Event</h3>
               <p className="text-gray-700 mb-6">
                 Are you sure you want to delete the event <strong>"{selectedEventDelete.title}"</strong>? 
@@ -3577,7 +3622,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
                     setDeleteEventModal(false);
                     setSelectedEventDelete(null);
                   }}
-                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                <div className="text-center py-8 fade-in-scale">
                 >
                   Cancel
                 </button>
@@ -3588,10 +3633,11 @@ const EventStatsView = ({ statsData, selectedDay }) => {
                 >
                   {loading ? 'Deleting...' : 'Delete Event'}
                 </button>
-              </div>
+          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 tab-content-animate fade-in-blur">
             </div>
           </div>
         )}
+      </div>
       </div>
     </DashboardLayout>
   );
