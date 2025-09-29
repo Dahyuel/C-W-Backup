@@ -409,13 +409,45 @@
 
 /* Enhanced Card Animations */
 .dashboard-card {
-  transition: all 0.3s ease-out;
-  will-change: transform, box-shadow, background-color;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, box-shadow, background-color, filter;
 }
 
 .dashboard-card:hover {
-  transform: translateY(-4px) scale(1.02);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+  transform: translateY(-6px) scale(1.03);
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+  filter: brightness(1.02);
+}
+
+/* Enhanced Grid Stagger with Blur */
+.grid-stagger-blur > * {
+  opacity: 0;
+  filter: blur(5px);
+  animation: fadeInUpBlur 0.6s ease-out forwards;
+  will-change: transform, opacity, filter;
+}
+
+.grid-stagger-blur > *:nth-child(1) { animation-delay: 0ms; }
+.grid-stagger-blur > *:nth-child(2) { animation-delay: 150ms; }
+.grid-stagger-blur > *:nth-child(3) { animation-delay: 300ms; }
+.grid-stagger-blur > *:nth-child(4) { animation-delay: 450ms; }
+.grid-stagger-blur > *:nth-child(5) { animation-delay: 600ms; }
+.grid-stagger-blur > *:nth-child(6) { animation-delay: 750ms; }
+.grid-stagger-blur > *:nth-child(7) { animation-delay: 900ms; }
+.grid-stagger-blur > *:nth-child(8) { animation-delay: 1050ms; }
+.grid-stagger-blur > *:nth-child(9) { animation-delay: 1200ms; }
+
+@keyframes fadeInUpBlur {
+  from {
+    opacity: 0;
+    filter: blur(5px);
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(0);
+  }
 }
 
 /* Tab Animation */

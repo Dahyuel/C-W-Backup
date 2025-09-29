@@ -5,6 +5,93 @@
 /* Import animation system */
 @import './styles/animations.css';
 
+/* Enhanced fade and blur animations */
+.fade-in-blur {
+  animation: fadeInBlur 0.6s ease-out forwards;
+  opacity: 0;
+  filter: blur(10px);
+  will-change: transform, opacity, filter;
+}
+
+.fade-in-up-blur {
+  animation: fadeInUpBlur 0.7s ease-out forwards;
+  opacity: 0;
+  filter: blur(8px);
+  transform: translateY(30px);
+  will-change: transform, opacity, filter;
+}
+
+.card-hover-enhanced {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, box-shadow, filter;
+}
+
+.card-hover-enhanced:hover {
+  transform: translateY(-8px) scale(1.03);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  filter: brightness(1.05);
+}
+
+.modal-backdrop-blur {
+  backdrop-filter: blur(8px);
+  animation: backdropFadeIn 0.3s ease-out forwards;
+  opacity: 0;
+}
+
+.modal-content-blur {
+  animation: modalSlideInBlur 0.4s ease-out forwards;
+  opacity: 0;
+  filter: blur(5px);
+  transform: translateY(20px) scale(0.95);
+  will-change: transform, opacity, filter;
+}
+
+@keyframes fadeInBlur {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0px);
+  }
+}
+
+@keyframes fadeInUpBlur {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(0);
+  }
+}
+
+@keyframes backdropFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalSlideInBlur {
+  from {
+    opacity: 0;
+    filter: blur(5px);
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(0) scale(1);
+  }
+}
+
 /* Enhanced scrollbar styling */
 .scrollbar-hide {
   -ms-overflow-style: none;
