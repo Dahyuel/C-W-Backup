@@ -1218,7 +1218,10 @@ const tabItems = [
             </div>
           </div>
         )}
-
+{/* Statistics Tab */}
+{activeTab === "statistics" && (
+  <StatisticsTab />
+)}
       {/* Sessions Tab */}
 {activeTab === "sessions" && (
   <div>
