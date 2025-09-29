@@ -546,9 +546,10 @@ export const TeamLeaderDashboard: React.FC = () => {
 
       {/* Volunteer Card Modal */}
       {showVolunteerCard && scannedVolunteer && (
-        <div 
-         className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur"
-          onClick={() => {
+<div 
+  className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 modal-backdrop-blur"
+  style={{ zIndex: 9999 }}
+  onClick={() => {
             setShowVolunteerCard(false);
             setScannedVolunteer(null);
             setAttendanceChecked(false);
