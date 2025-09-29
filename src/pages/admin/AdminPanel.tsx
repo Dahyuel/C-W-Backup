@@ -67,15 +67,27 @@ export function AdminPanel() {
   const [eventDetailModal, setEventDetailModal] = useState(false);
   const [selectedEventDetail, setSelectedEventDetail] = useState(null);
   
-  const announcementRoleOptions = [
-    { value: "", label: "Select Target" },
-    { value: "all", label: "All Users" },
-    { value: "volunteer", label: "Volunteers" },
-    { value: "team_leader", label: "Team Leaders" },
-    { value: "admin", label: "Admins" },
-    { value: "attendee", label: "Attendees" },
-    { value: "custom", label: "Custom Selection" }
-  ];
+ const announcementRoleOptions = [
+  { value: "", label: "Select Target" },
+  { value: "all", label: "All Users" },
+  { value: "volunteer", label: "Volunteers (All except Admin/Team Leader/Attendee)" },
+  { value: "team_leader", label: "Team Leaders" },
+  { value: "admin", label: "Admins" },
+  { value: "attendee", label: "Attendees" },
+  // New volunteer roles
+  { value: "registration", label: "Registration Team" },
+  { value: "building", label: "Building Team" },
+  { value: "info_desk", label: "Info Desk" },
+  { value: "ushers", label: "Ushers" },
+  { value: "marketing", label: "Marketing" },
+  { value: "media", label: "Media" },
+  { value: "ER", label: "ER Team" },
+  { value: "BD", label: "Business Development" },
+  { value: "catering", label: "Catering" },
+  { value: "feedback", label: "Feedback Team" },
+  { value: "stage", label: "Stage Team" },
+  { value: "custom", label: "Custom Selection" }
+];
   
   const [editCompany, setEditCompany] = useState({
     id: "",
