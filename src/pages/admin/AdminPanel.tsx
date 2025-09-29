@@ -1067,18 +1067,21 @@ const StatisticsTab = () => {
     return stats;
   };
 
-  const processEventStatistics = (attendances) => {
-    const dayStats = {
-      entries: attendances.filter(a => a.scan_type === 'entry').length,
-      exits: attendances.filter(a => a.scan_type === 'exit').length,
-      building_entries: attendances.filter(a => a.scan_type === 'building_entry').length,
-      building_exits: attendances.filter(a => a.scan_type === 'building_exit').length,
-      session_entries: attendances.filter(a => a.scan_type === 'session_entry').length,
-      registrations: 0
-    };
-
-    return dayStats;
+const processEventStatistics = (attendances) => {
+  // Ensure attendances is an array
+  const safeAttendances = Array.isArray(attendances) ? attendances : [];
+  
+  const dayStats = {
+    entries: safeAttendances.filter(a => a && a.scan_type === 'entry').length,
+    exits: safeAttendances.filter(a => a && a.scan_type === 'exit').length,
+    building_entries: safeAttendances.filter(a => a && a.scan_type === 'building_entry').length,
+    building_exits: safeAttendances.filter(a => a && a.scan_type === 'building_exit').length,
+    session_entries: safeAttendances.filter(a => a && a.scan_type === 'session_entry').length,
+    registrations: 0
   };
+
+  return dayStats;
+};
 
   // Now define fetchStatistics after all the functions it depends on
   const fetchStatistics = async () => {
