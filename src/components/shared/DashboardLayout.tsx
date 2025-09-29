@@ -19,7 +19,8 @@ import {
   EyeOff,
   CheckCircle,
   AlertCircle,
-  Trophy
+  Trophy,
+  Crown
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import QRCode from 'qrcode';
@@ -369,10 +370,30 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
     }
   };
 
+  const getTeamLabel = (team: string) => {
+    const teamLabels: { [key: string]: string } = {
+      'volunteer': 'Volunteers',
+      'registration': 'Registration Team',
+      'building': 'Building Team',
+      'info_desk': 'Info Desk Team',
+      'team_leader': 'Team Leaders',
+      'ushers': 'Ushers',
+      'marketing': 'Marketing Team',
+      'media': 'Media Team',
+      'ER': 'ER Team',
+      'BD': 'BD Team',
+      'catering': 'Catering Team',
+      'feedback': 'Feedback Team',
+      'stage': 'Stage Team'
+    };
+    
+    return teamLabels[team] || team.charAt(0).toUpperCase() + team.slice(1);
+  };
+
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white relative z-10">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-orange-100 relative z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -405,45 +426,46 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                     </span>
                   )}
                 </button>
-{/* Notification Dropdown - Fixed mobile positioning */}
-{showNotificationDropdown && (
-  <div className="fixed sm:absolute right-0 left-0 sm:left-auto mt-2 mx-4 sm:mx-0 sm:w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-y-auto fade-in-up-blur modal-content-blur">
-    <div className="p-4 border-b border-gray-200">
-      <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
-    </div>
-    <div className="max-h-64 overflow-y-auto stagger-children">
-      {notifications.length > 0 ? (
-        notifications.map((notification) => (
-          <button
-            key={notification.id}
-            onClick={() => handleNotificationClick(notification)}
-            className={`w-full text-left p-4 hover:bg-gray-50 border-b border-gray-100 transition-all duration-300 smooth-hover ${
-              !notification.is_read ? 'bg-orange-50' : ''
-            }`}
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <h4 className="font-medium text-gray-900 text-sm">{notification.title}</h4>
-                <p className="text-sm text-gray-600 mt-1 line-clamp-2">{notification.message}</p>
-                <p className="text-xs text-gray-500 mt-2">
-                  {new Date(notification.created_at).toLocaleDateString()}
-                </p>
-              </div>
-              {!notification.is_read && (
-                <div className="w-2 h-2 bg-orange-500 rounded-full ml-2 mt-1 flex-shrink-0"></div>
-              )}
-            </div>
-          </button>
-        ))
-      ) : (
-        <div className="p-8 text-center text-gray-500 fade-in-scale">
-          <Bell className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-          <p>No notifications yet</p>
-        </div>
-      )}
-    </div>
-  </div>
-)}
+
+                {/* Notification Dropdown */}
+                {showNotificationDropdown && (
+                  <div className="fixed sm:absolute right-0 left-0 sm:left-auto mt-2 mx-4 sm:mx-0 sm:w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-y-auto">
+                    <div className="p-4 border-b border-gray-200">
+                      <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto">
+                      {notifications.length > 0 ? (
+                        notifications.map((notification) => (
+                          <button
+                            key={notification.id}
+                            onClick={() => handleNotificationClick(notification)}
+                            className={`w-full text-left p-4 hover:bg-gray-50 border-b border-gray-100 transition-all duration-300 ${
+                              !notification.is_read ? 'bg-orange-50' : ''
+                            }`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h4 className="font-medium text-gray-900 text-sm">{notification.title}</h4>
+                                <p className="text-sm text-gray-600 mt-1 line-clamp-2">{notification.message}</p>
+                                <p className="text-xs text-gray-500 mt-2">
+                                  {new Date(notification.created_at).toLocaleDateString()}
+                                </p>
+                              </div>
+                              {!notification.is_read && (
+                                <div className="w-2 h-2 bg-orange-500 rounded-full ml-2 mt-1 flex-shrink-0"></div>
+                              )}
+                            </div>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="p-8 text-center text-gray-500">
+                          <Bell className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                          <p>No notifications yet</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Profile Menu */}
@@ -461,34 +483,34 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                   <ChevronDown className="h-4 w-4 text-gray-400" />
                 </button>
 
-               {showProfileDropdown && (
-  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50 fade-in-up-blur modal-content-blur">
-    <div className="p-2 stagger-children">
-      <button
-        onClick={handleProfileClick}
-        className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-all duration-300 smooth-hover"
-      >
-        <User className="h-4 w-4 mr-3" />
-        Profile
-      </button>
-      <button
-        onClick={handleLeaderboardClick}
-        className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-all duration-300 smooth-hover"
-      >
-        <Trophy className="h-4 w-4 mr-3" />
-        Leaderboard
-      </button>
-      <button
-        onClick={handleSignOut}
-        disabled={loggingOut}
-        className="w-full flex items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-all duration-300 smooth-hover disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <LogOut className="h-4 w-4 mr-3" />
-        {loggingOut ? 'Logging out...' : 'Logout'}
-      </button>
-    </div>
-  </div>
-)}
+                {showProfileDropdown && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                    <div className="p-2">
+                      <button
+                        onClick={handleProfileClick}
+                        className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-all duration-300"
+                      >
+                        <User className="h-4 w-4 mr-3" />
+                        Profile
+                      </button>
+                      <button
+                        onClick={handleLeaderboardClick}
+                        className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-all duration-300"
+                      >
+                        <Trophy className="h-4 w-4 mr-3" />
+                        Leaderboard
+                      </button>
+                      <button
+                        onClick={handleSignOut}
+                        disabled={loggingOut}
+                        className="w-full flex items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <LogOut className="h-4 w-4 mr-3" />
+                        {loggingOut ? 'Logging out...' : 'Logout'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -507,145 +529,160 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
       </main>
 
       {/* Profile Modal */}
-{showProfileModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
-    <div 
-      ref={profileModalRef}
-      className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
-    >
-      <div className="p-6 stagger-children">
-        <div className="flex items-center justify-between mb-6 fade-in-blur">
-          <h2 className="text-xl font-bold text-gray-900">Profile Information</h2>
-          <button
-            onClick={() => {
-              setShowProfileModal(false);
-              setQrCodeUrl('');
-            }}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+      {showProfileModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999] p-4">
+          <div 
+            ref={profileModalRef}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto"
           >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-
-        {/* QR Code Section */}
-        <div className="text-center mb-6 fade-in-blur card-hover">
-          <div className="w-48 h-48 bg-white border-2 border-gray-200 rounded-lg mx-auto mb-4 flex items-center justify-center overflow-hidden smooth-hover">
-            {qrCodeLoading ? (
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
-                <p className="text-xs text-gray-500">Generating QR Code...</p>
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Profile Information</h2>
+                <button
+                  onClick={() => {
+                    setShowProfileModal(false);
+                    setQrCodeUrl('');
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
               </div>
-            ) : qrCodeUrl ? (
-              <img 
-                src={qrCodeUrl} 
-                alt="Profile QR Code" 
-                className="w-full h-full object-contain"
-              />
-            ) : (
-              <div className="text-center">
-                <QrCode className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                <p className="text-xs text-gray-500">QR Code unavailable</p>
+
+              {/* QR Code Section */}
+              <div className="text-center mb-6">
+                <div className="w-48 h-48 bg-white border-2 border-gray-200 rounded-lg mx-auto mb-4 flex items-center justify-center overflow-hidden">
+                  {qrCodeLoading ? (
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
+                      <p className="text-xs text-gray-500">Generating QR Code...</p>
+                    </div>
+                  ) : qrCodeUrl ? (
+                    <img 
+                      src={qrCodeUrl} 
+                      alt="Profile QR Code" 
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <div className="text-center">
+                      <QrCode className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                      <p className="text-xs text-gray-500">QR Code unavailable</p>
+                    </div>
+                  )}
+                </div>
+                <p className="text-sm text-gray-600">Show this QR code for check-ins</p>
+                {profile?.id && (
+                  <p className="text-xs text-gray-400 mt-1 font-mono break-all px-4">
+                    ID: {profile.id}
+                  </p>
+                )}
               </div>
-            )}
-          </div>
-          <p className="text-sm text-gray-600">Show this QR code for check-ins</p>
-          {profile?.id && (
-            <p className="text-xs text-gray-400 mt-1 font-mono break-all px-4">
-              ID: {profile.id}
-            </p>
-          )}
-        </div>
 
-        {/* Score Display */}
-        <div className="bg-orange-50 rounded-lg p-4 mb-6 text-center fade-in-blur card-hover">
-          <div className="flex items-center justify-center mb-2">
-            <Trophy className="h-6 w-6 text-orange-600 mr-2" />
-            <span className="text-lg font-semibold text-orange-900">Your Score</span>
-          </div>
-          <div className="text-3xl font-bold text-orange-600">{userScore}</div>
-        </div>
+              {/* Score Display */}
+              <div className="bg-orange-50 rounded-lg p-4 mb-6 text-center">
+                <div className="flex items-center justify-center mb-2">
+                  <Trophy className="h-6 w-6 text-orange-600 mr-2" />
+                  <span className="text-lg font-semibold text-orange-900">Your Score</span>
+                </div>
+                <div className="text-3xl font-bold text-orange-600">{userScore}</div>
+              </div>
 
-        {/* Profile Information */}
-        <div className="space-y-4 fade-in-blur">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">First Name</label>
-            <p className="mt-1 text-sm text-gray-900">{profile?.first_name}</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Last Name</label>
-            <p className="mt-1 text-sm text-gray-900">{profile?.last_name}</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Email</label>
-            <p className="mt-1 text-sm text-gray-900 break-all">{profile?.email || 'Not provided'}</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Phone</label>
-            <p className="mt-1 text-sm text-gray-900">{profile?.phone || 'Not provided'}</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Personal ID</label>
-            <p className="mt-1 text-sm text-gray-900">{profile?.personal_id || 'Not provided'}</p>
-          </div>
-          
-          {/* Volunteer ID - Show only for non-admin and non-attendee roles */}
-          {profile?.role && !['admin', 'attendee'].includes(profile.role) && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Volunteer ID</label>
-              <p className="mt-1 text-sm text-gray-900 font-mono">
-                {profile?.volunteer_id || 'Not assigned'}
-              </p>
-              {!profile?.volunteer_id && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Your volunteer ID will be assigned by the event organizers
-                </p>
-              )}
+              {/* Profile Information */}
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">First Name</label>
+                  <p className="mt-1 text-sm text-gray-900">{profile?.first_name}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Last Name</label>
+                  <p className="mt-1 text-sm text-gray-900">{profile?.last_name}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <p className="mt-1 text-sm text-gray-900 break-all">{profile?.email || 'Not provided'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Phone</label>
+                  <p className="mt-1 text-sm text-gray-900">{profile?.phone || 'Not provided'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Personal ID</label>
+                  <p className="mt-1 text-sm text-gray-900">{profile?.personal_id || 'Not provided'}</p>
+                </div>
+                
+                {/* Volunteer ID - Show only for non-admin and non-attendee roles */}
+                {profile?.role && !['admin', 'attendee'].includes(profile.role) && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Volunteer ID</label>
+                    <p className="mt-1 text-sm text-gray-900 font-mono">
+                      {profile?.volunteer_id || 'Not assigned'}
+                    </p>
+                    {!profile?.volunteer_id && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Your volunteer ID will be assigned by the event organizers
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Team Leader Section */}
+                {profile?.tl_team && (
+                  <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                    <div className="flex items-center justify-center mb-2">
+                      <Crown className="h-5 w-5 text-indigo-600 mr-2" />
+                      <span className="text-md font-semibold text-indigo-900">Leader Of Team</span>
+                    </div>
+                    <div className="text-center">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
+                        {getTeamLabel(profile.tl_team)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Role</label>
+                  <div className="mt-1 flex items-center">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor()}`}>
+                      {getRoleIcon()}
+                      <span className="ml-1 capitalize">{profile?.role?.replace('_', ' ')}</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="mt-6 pt-6 border-t border-gray-200 space-y-3">
+                <button
+                  onClick={() => setShowPasswordModal(true)}
+                  className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors"
+                >
+                  Change Password
+                </button>
+                
+                {qrCodeUrl && (
+                  <button
+                    onClick={() => {
+                      const link = document.createElement('a');
+                      link.download = `qr-code-${profile?.first_name}-${profile?.last_name}.png`;
+                      link.href = qrCodeUrl;
+                      link.click();
+                    }}
+                    className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    Download QR Code
+                  </button>
+                )}
+              </div>
             </div>
-          )}
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Role</label>
-            <div className="mt-1 flex items-center">
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor()}`}>
-                {getRoleIcon()}
-                <span className="ml-1 capitalize">{profile?.role?.replace('_', ' ')}</span>
-              </span>
-            </div>
           </div>
         </div>
-
-        {/* Action Buttons */}
-        <div className="mt-6 pt-6 border-t border-gray-200 space-y-3 fade-in-blur">
-          <button
-            onClick={() => setShowPasswordModal(true)}
-            className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors"
-          >
-            Change Password
-          </button>
-          
-          {qrCodeUrl && (
-            <button
-              onClick={() => {
-                const link = document.createElement('a');
-                link.download = `qr-code-${profile?.first_name}-${profile?.last_name}.png`;
-                link.href = qrCodeUrl;
-                link.click();
-              }}
-              className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              Download QR Code
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+      )}
      
       {/* Change Password Modal */}
       {showPasswordModal && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999] p-4"
           onClick={() => {
             setShowPasswordModal(false);
             setPasswordData({ oldPassword: '', newPassword: '', confirmPassword: '' });
@@ -654,11 +691,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
           }}
         >
           <div 
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-scale-in"
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6">
-              <div className="flex items-center justify-between mb-6 animate-fade-in">
+              <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-gray-900">Change Password</h2>
                 <button
                   onClick={() => {
@@ -675,19 +712,19 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
 
               <form onSubmit={handlePasswordChange} className="space-y-4">
                 {error && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center animate-fade-in">
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
                     <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
                     <p className="text-red-700 text-sm">{error}</p>
                   </div>
                 )}
                 {success && (
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center animate-fade-in">
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center">
                     <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
                     <p className="text-green-700 text-sm">{success}</p>
                   </div>
                 )}
 
-                <div className="animate-fade-in" style={{animationDelay: '0.1s'}}>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     New Password
                   </label>
@@ -710,7 +747,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                   </div>
                 </div>
 
-                <div className="animate-fade-in" style={{animationDelay: '0.2s'}}>
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Confirm New Password
                   </label>
@@ -733,7 +770,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                   </div>
                 </div>
 
-                <div className="flex space-x-3 pt-4 animate-fade-in" style={{animationDelay: '0.3s'}}>
+                <div className="flex space-x-3 pt-4">
                   <button
                     type="button"
                     onClick={() => {
@@ -760,72 +797,73 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
         </div>
       )}
 
-    {/* Notification Modal */}
-{showNotificationModal && selectedNotification && (
-  <div 
-    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur"
-    onClick={() => {
-      setShowNotificationModal(false);
-      setSelectedNotification(null);
-    }}
-  >
-    <div 
-      className="bg-white rounded-2xl shadow-2xl w-full max-w-md modal-content-blur fade-in-up-blur"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div className="p-6 stagger-children">
-        <div className="flex items-center justify-between mb-6 fade-in-blur">
-          <h2 className="text-xl font-bold text-gray-900">Notification</h2>
-          <button
-            onClick={() => {
-              setShowNotificationModal(false);
-              setSelectedNotification(null);
-            }}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-
-        <div className="space-y-4 fade-in-blur">
-          <div>
-            <h3 className="font-semibold text-gray-900">{selectedNotification.title}</h3>
-          </div>
-          <div>
-            <p className="text-gray-700">{selectedNotification.message}</p>
-          </div>
-          <div className="text-sm text-gray-500">
-            <p>From: {selectedNotification.sender}</p>
-            <p>Date: {new Date(selectedNotification.created_at).toLocaleString()}</p>
-          </div>
-        </div>
-
-        {!selectedNotification.is_read && (
-          <div className="mt-6 pt-6 border-t border-gray-200 fade-in-blur">
-            <button
-              onClick={() => markNotificationAsRead(selectedNotification.id)}
-              className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors"
-            >
-              Mark as Read
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  </div>
-)}
-      {/* Leaderboard Modal */}
-      {showLeaderboard && (
+      {/* Notification Modal */}
+      {showNotificationModal && selectedNotification && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          onClick={() => setShowLeaderboard(false)}
+          className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999] p-4"
+          onClick={() => {
+            setShowNotificationModal(false);
+            setSelectedNotification(null);
+          }}
         >
           <div 
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden animate-scale-in"
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6">
-              <div className="flex items-center justify-between mb-6 animate-fade-in">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Notification</h2>
+                <button
+                  onClick={() => {
+                    setShowNotificationModal(false);
+                    setSelectedNotification(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold text-gray-900">{selectedNotification.title}</h3>
+                </div>
+                <div>
+                  <p className="text-gray-700">{selectedNotification.message}</p>
+                </div>
+                <div className="text-sm text-gray-500">
+                  <p>From: {selectedNotification.sender}</p>
+                  <p>Date: {new Date(selectedNotification.created_at).toLocaleString()}</p>
+                </div>
+              </div>
+
+              {!selectedNotification.is_read && (
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <button
+                    onClick={() => markNotificationAsRead(selectedNotification.id)}
+                    className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors"
+                  >
+                    Mark as Read
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Leaderboard Modal */}
+      {showLeaderboard && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[9999] p-4"
+          onClick={() => setShowLeaderboard(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900 flex items-center">
                   <Trophy className="h-6 w-6 mr-3 text-orange-600" />
                   Leaderboard
@@ -849,46 +887,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
           </div>
         </div>
       )}
-
-      <style jsx>{`
-        @keyframes scale-in {
-          0% {
-            opacity: 0;
-            transform: scale(0.9);
-          }
-          100% {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-        @keyframes fade-in {
-          0% {
-            opacity: 0;
-          }
-          100% {
-            opacity: 1;
-          }
-        }
-        @keyframes slide-up {
-          0% {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          100% {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-scale-in {
-          animation: scale-in 0.2s ease-out forwards;
-        }
-        .animate-fade-in {
-          animation: fade-in 0.2s ease-out forwards;
-        }
-        .animate-slide-up {
-          animation: slide-up 0.2s ease-out forwards;
-        }
-      `}</style>
     </div>
   );
 };
