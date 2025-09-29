@@ -26,7 +26,6 @@ type AuthContextType = {
   signOut: () => Promise<void>;
   hasRole: (roles: string | string[]) => boolean;
   getRoleBasedRedirect: (role?: string) => string;
-  shouldRedirectToLogin: () => boolean;
   validateRegistration: (
     email: string,
     personalId: string,
@@ -118,7 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           }
           
           // Wait before retry with exponential backoff
-          await new Promise(resolve => setTimeout(resolve, Math.min(500 * Math.pow(2, attempt - 1), 3000)));
+          await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, attempt - 1)));
           continue;
         }
 
@@ -155,7 +154,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           clearProfileFromSession();
           return false;
         }
-        await new Promise(resolve => setTimeout(resolve, Math.min(500 * Math.pow(2, attempt - 1), 3000)));
+        await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, attempt - 1)));
       }
     }
     return false;
@@ -169,19 +168,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (session?.user) {
         console.log('Setting user from session:', session.user.id);
         setUser(session.user);
+        
+        // Set session loaded immediately - don't wait for profile
         setSessionLoaded(true);
         
-        // Always try to fetch profile, but don't let it block loading state indefinitely
-        try {
+        // For volunteer registration success, we need to fetch profile immediately
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          // Fetch profile synchronously for sign-in events
           const profileFetched = await fetchProfile(session.user.id);
           if (!profileFetched) {
             console.warn('Could not fetch profile, but session is valid');
           }
-        } catch (error) {
-          console.error('Profile fetch failed:', error);
-        } finally {
-          // Always set loading to false after profile attempt
           setLoading(false);
+        } else {
+          // For other events, fetch profile asynchronously
+          fetchProfile(session.user.id).then(profileFetched => {
+            if (!profileFetched) {
+              console.warn('Could not fetch profile, but session is valid');
+            }
+            setLoading(false);
+          }).catch(error => {
+            console.error('Profile fetch failed:', error);
+            setLoading(false);
+          });
         }
       } else {
         console.log('Clearing user and profile');
@@ -205,20 +214,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     let mounted = true;
     let authListener: any = null;
-    let timeoutId: NodeJS.Timeout;
 
     const initializeAuth = async () => {
       try {
         console.log('Initializing authentication...');
-        
-        // Set a maximum timeout for initialization
-        timeoutId = setTimeout(() => {
-          if (mounted) {
-            console.warn('Auth initialization timed out, setting loading to false');
-            setLoading(false);
-            setSessionLoaded(true);
-          }
-        }, 5000); // 5 second timeout
         
         // Get current session
         const { data: { session }, error } = await supabase.auth.getSession();
@@ -240,18 +239,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setUser(session.user);
           setSessionLoaded(true);
           
-          // Fetch profile with timeout protection
-          try {
-            const profileFetched = await fetchProfile(session.user.id);
+          // Fetch profile synchronously on initialization
+          const profileFetched = await fetchProfile(session.user.id);
+          if (mounted) {
             if (!profileFetched) {
               console.warn('Profile not found for authenticated user');
             }
-          } catch (error) {
-            console.error('Profile fetch error during initialization:', error);
-          } finally {
-            if (mounted) {
-              setLoading(false);
-            }
+            setLoading(false);
           }
         } else {
           console.log('No existing session found');
@@ -262,11 +256,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             setSessionLoaded(true);
             setLoading(false);
           }
-        }
-
-        // Clear timeout since we completed successfully
-        if (timeoutId) {
-          clearTimeout(timeoutId);
         }
 
       } catch (error) {
@@ -291,17 +280,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // Cleanup function
     return () => {
       mounted = false;
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
       if (authListener) {
         authListener.unsubscribe();
       }
     };
   }, []); // No dependencies to prevent re-initialization
-
-  // Computed values - Updated logic for authentication
-  const isAuthenticated = !!user && sessionLoaded;
 
   // Refresh profile manually
   const refreshProfile = useCallback(async () => {
@@ -464,12 +447,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const getRoleBasedRedirect = useCallback((role?: string) => {
     const r = role || profile?.role;
     
-    // Explicitly handle undefined/null roles - redirect to login
-    if (!r || r === undefined || r === null) {
-      console.warn('User role is undefined or null, redirecting to login');
-      return "/login";
-    }
-    
     // Map all volunteer-type roles correctly
     switch (r) {
       case "admin":
@@ -494,15 +471,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [profile?.role]);
 
-  // Should redirect to login helper - now properly defined after state variables
-  const shouldRedirectToLogin = useCallback(() => {
-    // If user is not authenticated or role is undefined/null
-    if (!isAuthenticated || !profile?.role) {
-      return true;
-    }
-    return false;
-  }, [isAuthenticated, profile?.role]);
-
+  // Computed values - Updated logic for authentication
+  const isAuthenticated = !!user && sessionLoaded;
+  
   console.log('Auth Context State:', {
     hasUser: !!user,
     hasProfile: !!profile,
@@ -526,7 +497,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         signOut,
         hasRole,
         getRoleBasedRedirect,
-        shouldRedirectToLogin,
         validateRegistration,
         refreshProfile,
       }}
