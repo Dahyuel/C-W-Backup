@@ -1242,6 +1242,165 @@ const EventStatsView = ({ statsData, selectedDay }) => {
     </div>
   );
 };
+
+  // Event Stats View Component
+const EventStatsView = ({ statsData, selectedDay }) => {
+  const [eventAnalytics, setEventAnalytics] = useState({
+    faculties: [],
+    universities: [],
+    genderStats: { male: 0, female: 0 },
+    degreeStats: { student: 0, graduate: 0 }
+  });
+
+  useEffect(() => {
+    fetchEventAnalytics();
+  }, [selectedDay]);
+
+  const fetchEventAnalytics = async () => {
+    try {
+      const { data: eventUsers, error } = await supabase
+        .from('users_profiles')
+        .select('*')
+        .eq('event_entry', true)
+        .eq('role', 'attendee');
+
+      if (error) throw error;
+
+      if (eventUsers && eventUsers.length > 0) {
+        const facultiesCount = {};
+        const universitiesCount = {};
+        const genderStats = { male: 0, female: 0 };
+        const degreeStats = { student: 0, graduate: 0 };
+
+        eventUsers.forEach(user => {
+          if (user.faculty) {
+            facultiesCount[user.faculty] = (facultiesCount[user.faculty] || 0) + 1;
+          }
+          if (user.university) {
+            universitiesCount[user.university] = (universitiesCount[user.university] || 0) + 1;
+          }
+          if (user.gender === 'male') genderStats.male++;
+          else if (user.gender === 'female') genderStats.female++;
+          
+          if (user.degree_level === 'student') degreeStats.student++;
+          else if (user.degree_level === 'graduate') degreeStats.graduate++;
+        });
+
+        const topFaculties = Object.entries(facultiesCount)
+          .map(([name, count]) => ({ name, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 10);
+
+        const topUniversities = Object.entries(universitiesCount)
+          .map(([name, count]) => ({ name, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 10);
+
+        setEventAnalytics({
+          faculties: topFaculties,
+          universities: topUniversities,
+          genderStats,
+          degreeStats
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching event analytics:', error);
+    }
+  };
+
+  const dayStats = statsData?.eventStats?.[`day${selectedDay}`] || {
+    entries: 0,
+    exits: 0,
+    building_entries: 0,
+    building_exits: 0,
+    session_entries: 0,
+    registrations: 0
+  };
+
+  return (
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          title={`Day ${selectedDay} Entries`}
+          value={dayStats.entries}
+          icon={<TrendingUp className="h-6 w-6" />}
+          color="green"
+        />
+        <StatCard
+          title={`Day ${selectedDay} Exits`}
+          value={dayStats.exits}
+          icon={<TrendingUp className="h-6 w-6" />}
+          color="red"
+        />
+        <StatCard
+          title="Building Entries"
+          value={dayStats.building_entries}
+          icon={<Building className="h-6 w-6" />}
+          color="blue"
+        />
+        <StatCard
+          title="Session Entries"
+          value={dayStats.session_entries}
+          icon={<Calendar className="h-6 w-6" />}
+          color="purple"
+        />
+      </div>
+
+      {/* Inside Event Analytics Section */}
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Inside Event Analytics</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>
+            <GenderChart 
+              data={eventAnalytics.genderStats} 
+              title="Gender Distribution Inside Event"
+            />
+          </div>
+          <div>
+            <DegreeChart 
+              data={eventAnalytics.degreeStats}
+              title="Student/Graduate Ratio Inside Event"
+            />
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+          <div>
+            <BarChart 
+              data={eventAnalytics.faculties} 
+              color="blue"
+              title="Top Faculties Inside Event"
+            />
+          </div>
+          <div>
+            <BarChart 
+              data={eventAnalytics.universities} 
+              color="green"
+              title="Top Universities Inside Event"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Daily Activity</h3>
+          <DailyActivityChart selectedDay={selectedDay} />
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Attendance Flow</h3>
+          <AttendanceFlowChart dayStats={dayStats} />
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Session Popularity</h3>
+        <SessionPopularityChart selectedDay={selectedDay} />
+      </div>
+    </div>
+  );
+};
   // Current State Widget
   const CurrentStateWidget = ({ statsData }) => (
     <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
