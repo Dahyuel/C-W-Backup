@@ -83,7 +83,7 @@ const [scanPurpose, setScanPurpose] = useState<'attendance' | 'bonus'>('attendan
 
   // Get team leader's team from tl_team column
   const getTeamLeaderTeam = (): string | null => {
-    return profile?.tl_team || null;
+    return profile?.tl_team;
   };
 
   // Get allowed roles - for team leader, it's just their tl_team value
