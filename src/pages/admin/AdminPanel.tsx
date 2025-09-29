@@ -123,9 +123,6 @@ const announcementRoleOptions = [
     }
   });
 
-  // Your existing states...
-  const [deleteCompanyModal, setDeleteCompanyModal] = useState(false);
-  const [selectedCompanyDelete, setSelectedCompanyDelete] = useState(null);
 // Edit company form state
 const [editCompany, setEditCompany] = useState({
   id: "",
