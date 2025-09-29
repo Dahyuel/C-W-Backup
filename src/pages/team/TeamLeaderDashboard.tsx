@@ -116,47 +116,56 @@ const [scanPurpose, setScanPurpose] = useState<'attendance' | 'bonus'>('attendan
   }, []);
 
   // Handle QR Scan for Attendance
-  const handleScan = async (qrData: string) => {
-    try {
-      console.log('Processing QR data:', qrData);
+const handleScan = async (qrData: string) => {
+  try {
+    console.log('Processing QR data:', qrData);
+    
+    // Check if it's a UUID or volunteer ID
+    let volunteerData: Volunteer | null = null;
+    
+    if (qrData.includes('-')) { // Likely UUID
+      const { data, error } = await supabase
+        .from('users_profiles')
+        .select('*')
+        .eq('id', qrData.trim())
+        .single();
       
-      // Check if it's a UUID or volunteer ID
-      let volunteerData: Volunteer | null = null;
+      if (!error && data) {
+        volunteerData = data;
+      }
+    } else { // Likely volunteer ID
+      const { data, error } = await supabase
+        .from('users_profiles')
+        .select('*')
+        .eq('volunteer_id', qrData.trim())
+        .single();
       
-      if (qrData.includes('-')) { // Likely UUID
-        const { data, error } = await supabase
-          .from('users_profiles')
-          .select('*')
-          .eq('id', qrData.trim())
-          .single();
-        
-        if (!error && data) {
-          volunteerData = data;
-        }
-      } else { // Likely volunteer ID
-        const { data, error } = await supabase
-          .from('users_profiles')
-          .select('*')
-          .eq('volunteer_id', qrData.trim())
-          .single();
-        
-        if (!error && data) {
-          volunteerData = data;
-        }
+      if (!error && data) {
+        volunteerData = data;
       }
+    }
 
-      if (!volunteerData) {
-        showFeedback('error', 'Volunteer not found');
-        return;
-      }
+    if (!volunteerData) {
+      showFeedback('error', 'Volunteer not found');
+      return;
+    }
 
-      // Check if user is in team leader's team
-      const teamLeaderTeam = getTeamLeaderTeam();
-      if (volunteerData.role !== teamLeaderTeam) {
-        showFeedback('error', 'Volunteer not in your team');
-        return;
-      }
+    // Check if user is in team leader's team
+    const teamLeaderTeam = getTeamLeaderTeam();
+    if (volunteerData.role !== teamLeaderTeam) {
+      showFeedback('error', 'Volunteer not in your team');
+      return;
+    }
 
+    setScannerOpen(false);
+
+    // Handle based on scan purpose
+    if (scanPurpose === 'bonus') {
+      // For bonus assignment
+      setSelectedUser(volunteerData);
+      setShowBonusConfirmCard(true);
+    } else {
+      // For attendance
       // Check today's attendance using vol_attendance scan_type
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -178,14 +187,13 @@ const [scanPurpose, setScanPurpose] = useState<'attendance' | 'bonus'>('attendan
       setScannedVolunteer(volunteerData);
       setAttendanceChecked(true);
       setShowVolunteerCard(true);
-      setScannerOpen(false);
-      
-    } catch (error) {
-      console.error("QR scan error:", error);
-      showFeedback('error', 'Failed to process QR code');
     }
-  };
-
+    
+  } catch (error) {
+    console.error("QR scan error:", error);
+    showFeedback('error', 'Failed to process QR code');
+  }
+};
   // Handle manual search for attendance
   const handleAttendanceSearch = async (searchTerm: string) => {
     if (!searchTerm.trim()) {
