@@ -841,10 +841,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
               </div>
 
               <div className="max-h-[70vh] overflow-y-auto fade-in-blur">
-                <Leaderboard 
-                  userRole={profile?.role} 
-                  currentUserId={profile?.id}
-                />
+<Leaderboard 
+  userRole={profile?.role} 
+  currentUserId={profile?.id}
+  userTeam={profile?.tl_team}
+/>
               </div>
             </div>
           </div>
