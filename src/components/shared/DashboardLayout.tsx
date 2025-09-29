@@ -405,11 +405,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                     </span>
                   )}
                 </button>
-
 {/* Notification Dropdown - Fixed mobile positioning */}
 {showNotificationDropdown && (
   <div className="fixed sm:absolute right-0 left-0 sm:left-auto mt-2 mx-4 sm:mx-0 sm:w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-y-auto fade-in-up-blur modal-content-blur">
-    <div className="p-4 border-b border-gray-200 fade-in-blur">
+    <div className="p-4 border-b border-gray-200">
       <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
     </div>
     <div className="max-h-64 overflow-y-auto stagger-children">
