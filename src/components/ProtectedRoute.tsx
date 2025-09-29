@@ -8,7 +8,9 @@ interface ProtectedRouteProps {
   children: ReactNode;
   requiredRole?: string | string[];
 }
-
+const hasRequiredRole = Array.isArray(requiredRole) 
+  ? requiredRole.includes(userRole)
+  : userRole === requiredRole;
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
   children, 
   requiredRole 
