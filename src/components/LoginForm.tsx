@@ -80,7 +80,7 @@ export const LoginForm: React.FC = () => {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center fade-in-scale">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading...</p>
         </div>
@@ -92,7 +92,7 @@ export const LoginForm: React.FC = () => {
   if (loginSuccess && isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center fade-in-scale">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Login successful! Redirecting...</p>
         </div>
@@ -115,11 +115,11 @@ export const LoginForm: React.FC = () => {
 
       {/* Login Form */}
       <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
-        <div className="bg-white rounded-2xl shadow-2xl border border-orange-100 w-full max-w-md overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-2xl border border-orange-100 w-full max-w-md overflow-hidden fade-in-up-blur modal-content-blur">
           {/* Header */}
-          <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4 text-center">
+          <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4 text-center fade-in-blur">
             {/* Bigger Rounded Logo */}
-            <div className="mx-auto w-28 h-28 bg-white rounded-full flex items-center justify-center mb-2 shadow-lg">
+            <div className="mx-auto w-28 h-28 bg-white rounded-full flex items-center justify-center mb-2 shadow-lg fade-in-scale">
               <img 
                 src="https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/logo.png" 
                 alt="ASU Career Week Logo" 
@@ -131,10 +131,10 @@ export const LoginForm: React.FC = () => {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="p-8">
+          <form onSubmit={handleSubmit} className="p-8 stagger-children">
             {/* General Error */}
             {getFieldError('general') && (
-              <div className="bg-red-50 border border-red-200 p-4 rounded-lg flex items-center space-x-2 mb-6">
+              <div className="bg-red-50 border border-red-200 p-4 rounded-lg flex items-center space-x-2 mb-6 fade-in-blur">
                 <AlertCircle className="h-5 w-5 text-red-600" />
                 <p className="text-red-700">{getFieldError('general')}</p>
               </div>
@@ -142,7 +142,7 @@ export const LoginForm: React.FC = () => {
 
             <div className="space-y-6">
               {/* Email */}
-              <div>
+              <div className="fade-in-blur">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Email Address
                 </label>
@@ -150,7 +150,7 @@ export const LoginForm: React.FC = () => {
                   type="email"
                   value={formData.email}
                   onChange={(e) => updateField('email', e.target.value)}
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 ${
                     getFieldError('email') ? 'border-red-300' : 'border-gray-300'
                   }`}
                   placeholder="Enter your email address"
@@ -161,7 +161,7 @@ export const LoginForm: React.FC = () => {
               </div>
 
               {/* Password */}
-              <div>
+              <div className="fade-in-blur">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Password
                 </label>
@@ -170,7 +170,7 @@ export const LoginForm: React.FC = () => {
                     type={showPassword ? 'text' : 'password'}
                     value={formData.password}
                     onChange={(e) => updateField('password', e.target.value)}
-                    className={`w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
+                    className={`w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 ${
                       getFieldError('password') ? 'border-red-300' : 'border-gray-300'
                     }`}
                     placeholder="Enter your password"
@@ -193,11 +193,11 @@ export const LoginForm: React.FC = () => {
               </div>
 
               {/* Forgot Password Link */}
-              <div className="text-right">
+              <div className="text-right fade-in-blur">
                 <button
                   type="button"
                   onClick={() => navigate('/forgot-password')}
-                  className="text-sm text-orange-600 hover:text-orange-700 hover:underline font-medium"
+                  className="text-sm text-orange-600 hover:text-orange-700 hover:underline font-medium transition-colors"
                 >
                   Forgot Password?
                 </button>
@@ -207,7 +207,7 @@ export const LoginForm: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed fade-in-blur smooth-hover"
               >
                 {loading ? (
                   <div className="flex items-center justify-center space-x-2">
@@ -220,13 +220,13 @@ export const LoginForm: React.FC = () => {
               </button>
 
               {/* Register Links */}
-              <div className="text-center pt-4 border-t border-gray-200 space-y-2">
+              <div className="text-center pt-4 border-t border-gray-200 space-y-2 fade-in-blur">
                 <p className="text-gray-600">
                   Don't have an account?{' '}
                   <button
                     type="button"
                     onClick={() => navigate('/register')}
-                    className="text-orange-600 hover:text-orange-700 font-medium hover:underline"
+                    className="text-orange-600 hover:text-orange-700 font-medium hover:underline transition-colors"
                   >
                     Create Attendee Account
                   </button>
@@ -236,7 +236,7 @@ export const LoginForm: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => navigate('/V0lunt33ringR3g')}
-                    className="text-orange-600 hover:text-orange-700 font-medium hover:underline"
+                    className="text-orange-600 hover:text-orange-700 font-medium hover:underline transition-colors"
                   >
                     Register as Volunteer
                   </button>
