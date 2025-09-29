@@ -254,7 +254,7 @@ const fetchDashboardData = async () => {
     await fetchSessions();
     await fetchCompanies();
 
-    // Fetch initial statistics data
+    // Fetch initial statistics data with role counts
     await fetchInitialStatistics();
 
   } catch (error) {
