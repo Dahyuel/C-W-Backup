@@ -324,6 +324,8 @@ const handleAnnouncementSubmit = async () => {
     return;
   }
 
+  console.log('Announcement Role:', announcementRole); // Debug log
+
   if (announcementRole === "custom" && selectedUsers.length === 0) {
     showFeedback('error', 'Please select at least one user for custom announcements!');
     return;
@@ -340,9 +342,10 @@ const handleAnnouncementSubmit = async () => {
     // Determine target type and role based on selection
     if (announcementRole === "custom") {
       // Send to custom selected users
-      notificationData.target_type = 'specific_users'; // Use enum value
+      notificationData.target_type = 'specific_users'; // MUST be 'specific_users'
       notificationData.target_user_ids = selectedUsers.map(user => user.id);
       // Don't set target_role for specific_users
+      console.log('Custom notification data:', notificationData);
     } else {
       // For team announcements
       const teamLeaderTeam = getTeamLeaderTeam();
@@ -351,11 +354,10 @@ const handleAnnouncementSubmit = async () => {
         return;
       }
 
-      notificationData.target_type = 'role'; // Use enum value 'role'
+      notificationData.target_type = 'role'; // MUST be 'role'
       notificationData.target_role = teamLeaderTeam; // This can be 'volunteers', 'ushers', etc.
+      console.log('Team notification data:', notificationData);
     }
-
-    console.log('Sending notification:', notificationData);
 
     const { error } = await supabase
       .from('notifications')
@@ -379,7 +381,6 @@ const handleAnnouncementSubmit = async () => {
     setLoading(false);
   }
 };
-  
   // Handle User Search for Bonus
   const handleBonusUserSearch = async (searchTerm: string) => {
     if (!searchTerm.trim()) {
