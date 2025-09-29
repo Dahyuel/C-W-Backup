@@ -1098,82 +1098,73 @@ export function AdminPanel() {
     );
   };
 
-  // Registration Stats View Component
-  const RegistrationStatsView = ({ statsData }) => (
-    <div className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          title="Total Registrations"
-          value={statsData.totalRegistrations}
-          icon={<Users className="h-6 w-6" />}
-          color="blue"
-        />
-        <StatCard
-          title="Students"
-          value={statsData.students}
-          icon={<Users className="h-6 w-6" />}
-          color="green"
-        />
-        <StatCard
-          title="Graduates"
-          value={statsData.graduates}
-          icon={<Users className="h-6 w-6" />}
-          color="purple"
-        />
-        <StatCard
-          title="Currently in Event"
-          value={statsData.currentInEvent}
-          icon={<Activity className="h-6 w-6" />}
-          color="orange"
-        />
+// Registration Stats View Component
+const RegistrationStatsView = ({ statsData }) => (
+  <div className="space-y-8">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <StatCard
+        title="Total Registrations"
+        value={statsData.totalRegistrations}
+        icon={<Users className="h-6 w-6" />}
+        color="blue"
+      />
+      <StatCard
+        title="Students"
+        value={statsData.students}
+        icon={<Users className="h-6 w-6" />}
+        color="green"
+      />
+      <StatCard
+        title="Graduates"
+        value={statsData.graduates}
+        icon={<Users className="h-6 w-6" />}
+        color="purple"
+      />
+      <StatCard
+        title="Currently in Event"
+        value={statsData.currentInEvent}
+        icon={<Activity className="h-6 w-6" />}
+        color="orange"
+      />
+    </div>
+
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Gender Distribution</h3>
+        <GenderChart data={statsData.genderStats} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Gender Distribution</h3>
-          <div className="space-y-4">
-            <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Registration</h4>
-              <GenderChart data={statsData.genderStats} />
-            </div>
-            <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Currently in Event</h4>
-              <GenderChart data={statsData.currentGenderStats} />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Role Distribution</h3>
-          <RoleChart data={statsData.roleStats} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Universities</h3>
-          <BarChart data={statsData.universities} color="blue" title="" />
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Faculties</h3>
-          <BarChart data={statsData.faculties} color="green" title="" />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Marketing Sources</h3>
-          <MarketingChart data={statsData.marketingSources} />
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Degree Level</h3>
-          <DegreeChart data={statsData.degreeLevelStats} />
-        </div>
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Role Distribution</h3>
+        <RoleChart data={statsData.roleStats} />
       </div>
     </div>
-  );
+
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Universities</h3>
+        <BarChart data={statsData.universities} color="blue" title="" />
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Faculties</h3>
+        <BarChart data={statsData.faculties} color="green" title="" />
+      </div>
+    </div>
+
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Marketing Sources</h3>
+        <MarketingChart data={statsData.marketingSources} />
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Degree Level</h3>
+        <DegreeChart data={statsData.degreeLevelStats} />
+      </div>
+    </div>
+  </div>
+);
 
   // Event Stats View Component
   const EventStatsView = ({ statsData, selectedDay }) => {
