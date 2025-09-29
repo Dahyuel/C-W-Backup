@@ -788,15 +788,15 @@ className="text-red-500 hover:text-red-700 transition-colors"
 
   {/* Bonus Assignment Modal */}
   {bonusModal && (
-    <div 
-      className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4 modal-backdrop-blur"
-      onClick={() => {
-        setBonusModal(false);
-        setSelectedUser(null);
-        setSearchTerm("");
-        setShowSearchResults(false);
-      }}
-    >
+<div 
+  className="fixed inset-0 flex items-center justify-center z-50 p-4"
+  onClick={() => {
+    setBonusModal(false);
+    setSelectedUser(null);
+    setSearchTerm("");
+    setShowSearchResults(false);
+  }}
+>
       <div 
         className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative modal-content-blur fade-in-up-blur"
         onClick={(e) => e.stopPropagation()}
