@@ -406,47 +406,45 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                   )}
                 </button>
 
-                {/* Notification Dropdown - Fixed mobile positioning */}
-                {showNotificationDropdown && (
-                  <div className="fixed sm:absolute right-0 left-0 sm:left-auto mt-2 mx-4 sm:mx-0 sm:w-80 bg-white rounded-lg shadow-xl border border-gray-200 z-50 max-h-96 overflow-y-auto">
-                    <div className="p-4 border-b border-gray-200">
-                      <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
-                    </div>
-                    <div className="max-h-64 overflow-y-auto">
-                      {notifications.length > 0 ? (
-                        notifications.map((notification) => (
-                          <button
-                            key={notification.id}
-                            onClick={() => handleNotificationClick(notification)}
-                            className={`w-full text-left p-4 hover:bg-gray-50 border-b border-gray-100 transition-colors ${
-                              !notification.is_read ? 'bg-orange-50' : ''
-                            }`}
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <h4 className="font-medium text-gray-900 text-sm">{notification.title}</h4>
-                                <p className="text-sm text-gray-600 mt-1 line-clamp-2">{notification.message}</p>
-                                <p className="text-xs text-gray-500 mt-2">
-                                  {new Date(notification.created_at).toLocaleDateString()}
-                                </p>
-                              </div>
-                              {!notification.is_read && (
-                                <div className="w-2 h-2 bg-orange-500 rounded-full ml-2 mt-1 flex-shrink-0"></div>
-                              )}
-                            </div>
-                          </button>
-                        ))
-                      ) : (
-                        <div className="p-8 text-center text-gray-500">
-                          <Bell className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                          <p>No notifications yet</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+               {/* Notification Dropdown - Fixed mobile positioning */}
+{showNotificationDropdown && (
+  <div className="fixed sm:absolute right-0 left-0 sm:left-auto mt-2 mx-4 sm:mx-0 sm:w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-y-auto fade-in-up-blur modal-content-blur">
+    <div className="p-4 border-b border-gray-200 fade-in-blur">
+      <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
+    </div>
+    <div className="max-h-64 overflow-y-auto stagger-children">
+      {notifications.length > 0 ? (
+        notifications.map((notification) => (
+          <button
+            key={notification.id}
+            onClick={() => handleNotificationClick(notification)}
+            className={`w-full text-left p-4 hover:bg-gray-50 border-b border-gray-100 transition-all duration-300 smooth-hover ${
+              !notification.is_read ? 'bg-orange-50' : ''
+            }`}
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h4 className="font-medium text-gray-900 text-sm">{notification.title}</h4>
+                <p className="text-sm text-gray-600 mt-1 line-clamp-2">{notification.message}</p>
+                <p className="text-xs text-gray-500 mt-2">
+                  {new Date(notification.created_at).toLocaleDateString()}
+                </p>
               </div>
-
+              {!notification.is_read && (
+                <div className="w-2 h-2 bg-orange-500 rounded-full ml-2 mt-1 flex-shrink-0"></div>
+              )}
+            </div>
+          </button>
+        ))
+      ) : (
+        <div className="p-8 text-center text-gray-500 fade-in-scale">
+          <Bell className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+          <p>No notifications yet</p>
+        </div>
+      )}
+    </div>
+  </div>
+)}
               {/* Profile Menu */}
               <div className="relative" ref={profileDropdownRef}>
                 <button
