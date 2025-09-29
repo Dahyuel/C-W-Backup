@@ -324,7 +324,12 @@ const handleAnnouncementSubmit = async () => {
     return;
   }
 
-  console.log('Announcement Role:', announcementRole); // Debug log
+  // ADD THESE DEBUG LINES
+  console.log('=== DEBUG ANNOUNCEMENT ===');
+  console.log('announcementRole:', announcementRole);
+  console.log('getTeamLeaderTeam():', getTeamLeaderTeam());
+  console.log('selectedUsers count:', selectedUsers.length);
+  console.log('======================');
 
   if (announcementRole === "custom" && selectedUsers.length === 0) {
     showFeedback('error', 'Please select at least one user for custom announcements!');
@@ -342,9 +347,8 @@ const handleAnnouncementSubmit = async () => {
     // Determine target type and role based on selection
     if (announcementRole === "custom") {
       // Send to custom selected users
-      notificationData.target_type = 'specific_users'; // MUST be 'specific_users'
+      notificationData.target_type = 'specific_users';
       notificationData.target_user_ids = selectedUsers.map(user => user.id);
-      // Don't set target_role for specific_users
       console.log('Custom notification data:', notificationData);
     } else {
       // For team announcements
@@ -354,8 +358,8 @@ const handleAnnouncementSubmit = async () => {
         return;
       }
 
-      notificationData.target_type = 'role'; // MUST be 'role'
-      notificationData.target_role = teamLeaderTeam; // This can be 'volunteers', 'ushers', etc.
+      notificationData.target_type = 'role';
+      notificationData.target_role = teamLeaderTeam;
       console.log('Team notification data:', notificationData);
     }
 
