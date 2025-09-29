@@ -496,7 +496,6 @@ const getRoleOptions = () => {
     { value: "custom", label: "Custom Selection" } // Make sure this is "custom"
   ];
 };
-
   return (
     <DashboardLayout
       title="Team Leader Dashboard"
