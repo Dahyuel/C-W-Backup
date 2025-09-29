@@ -147,7 +147,7 @@ export const TeamLeaderDashboard: React.FC = () => {
         .from('attendances')
         .select('*')
         .eq('user_id', volunteerData.id)
-        .eq('scan_type', 'vol_attendance') // UPDATED
+        .eq('scan_type', 'vol_attendance')
         .gte('scanned_at', today.toISOString())
         .limit(1);
 
@@ -219,11 +219,12 @@ export const TeamLeaderDashboard: React.FC = () => {
         console.error('Search error:', error);
         setUserSearchResults([]);
       } else {
-        // Filter out already selected users and exclude admin/attendees
+        // Filter out already selected users, exclude admin/attendees, and exclude current user
         const filteredResults = (data || []).filter(user => 
           !selectedUsers.some(selected => selected.id === user.id) &&
           user.role !== 'admin' && 
-          user.role !== 'attendee'
+          user.role !== 'attendee' &&
+          user.id !== profile?.id // Exclude current user
         );
         setUserSearchResults(filteredResults);
       }
@@ -331,7 +332,9 @@ export const TeamLeaderDashboard: React.FC = () => {
         .limit(10);
 
       if (!error && data) {
-        setSearchResults(data);
+        // Filter out current user from search results
+        const filteredResults = data.filter(user => user.id !== profile?.id);
+        setSearchResults(filteredResults);
         setShowSearchResults(true);
       }
     } catch (error) {
@@ -353,7 +356,7 @@ export const TeamLeaderDashboard: React.FC = () => {
         .insert([{
           user_id: selectedUser.id,
           points: bonusAmount,
-          activity_type: 'vol_bonus', // UPDATED
+          activity_type: 'vol_bonus',
           activity_description: `Bonus points assigned by team leader`,
           awarded_by: profile?.id
         }]);
@@ -764,17 +767,18 @@ export const TeamLeaderDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Bonus Assignment Modal */}
+      {/* Bonus Assignment Modal - FIXED VERSION */}
       {bonusModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto relative">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative">
             <button
               onClick={() => {
                 setBonusModal(false);
                 setSelectedUser(null);
                 setSearchTerm("");
+                setShowSearchResults(false);
               }}
-              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 z-30"
             >
               <X className="h-6 w-6" />
             </button>
@@ -816,14 +820,15 @@ export const TeamLeaderDashboard: React.FC = () => {
                       setSearchTerm(e.target.value);
                       handleUserSearch(e.target.value);
                     }}
+                    onFocus={() => setShowSearchResults(true)}
                     placeholder="Search by Personal ID or Volunteer ID"
                     className="w-full border rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-green-500 focus:border-green-500"
                   />
                   <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
                   
-                  {/* Search Results - Fixed to appear over the card */}
+                  {/* Search Results - Fixed positioning */}
                   {showSearchResults && searchResults.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-40 max-h-60 overflow-y-auto">
                       {searchResults.map((user) => (
                         <button
                           key={user.id}
@@ -832,7 +837,7 @@ export const TeamLeaderDashboard: React.FC = () => {
                             setSearchTerm(`${user.first_name} ${user.last_name} (${user.volunteer_id})`);
                             setShowSearchResults(false);
                           }}
-                          className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                          className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
                         >
                           <div>
                             <p className="font-medium text-gray-900">
@@ -850,6 +855,14 @@ export const TeamLeaderDashboard: React.FC = () => {
                     </div>
                   )}
                 </div>
+                
+                {/* Click outside to close search results */}
+                {showSearchResults && (
+                  <div 
+                    className="fixed inset-0 z-30"
+                    onClick={() => setShowSearchResults(false)}
+                  />
+                )}
               </div>
 
               {/* Selected User Display */}
@@ -884,6 +897,7 @@ export const TeamLeaderDashboard: React.FC = () => {
                   setBonusModal(false);
                   setSelectedUser(null);
                   setSearchTerm("");
+                  setShowSearchResults(false);
                 }}
                 className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
               >
