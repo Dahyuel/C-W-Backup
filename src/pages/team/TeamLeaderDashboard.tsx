@@ -163,9 +163,37 @@ const handleScan = async (qrData: string) => {
   }
 };
   // Handle Attendance Action
-  const handleAttendanceAction = async () => {
-    if (!scannedVolunteer) return;
+const handleAttendanceAction = async () => {
+  if (!scannedVolunteer) return;
 
+  try {
+    setLoading(true);
+    
+    const { error } = await supabase
+      .from('attendances')
+      .insert([{
+        user_id: scannedVolunteer.id,
+        scan_type: 'vol_attendance', // UPDATED
+        scanned_by: profile?.id
+      }]);
+
+    if (error) {
+      showFeedback('error', 'Failed to record attendance');
+      return;
+    }
+
+    showFeedback('success', 'Attendance recorded successfully!');
+    setShowVolunteerCard(false);
+    setScannedVolunteer(null);
+    setAttendanceChecked(false);
+    
+  } catch (error) {
+    console.error("Attendance action error:", error);
+    showFeedback('error', 'Failed to record attendance');
+  } finally {
+    setLoading(false);
+  }
+};
     try {
       setLoading(true);
       
