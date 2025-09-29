@@ -889,8 +889,8 @@ const confirmDeleteSession = async () => {
 
 // Enhanced StatisticsTab Component
 // Enhanced StatisticsTab Component
+// Enhanced StatisticsTab Component
 const StatisticsTab = () => {
-  
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('all');
   const [statsType, setStatsType] = useState('registration');
@@ -910,16 +910,6 @@ const StatisticsTab = () => {
       }
     } catch (error) {
       console.error('Error fetching statistics:', error);
-      setStatsData(prev => ({
-        ...prev,
-        eventStats: {
-          day1: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
-          day2: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
-          day3: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
-          day4: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
-          day5: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 }
-        }
-      }));
     } finally {
       setLoading(false);
     }
@@ -997,143 +987,6 @@ const StatisticsTab = () => {
       console.error('Error fetching event stats:', error);
       throw error;
     }
-  };
-
-  const processUserStatistics = (users) => {
-    const stats = {
-      totalRegistrations: users.length,
-      graduates: 0,
-      students: 0,
-      currentInEvent: 0,
-      currentInBuilding: 0,
-      universities: [],
-      faculties: [],
-      genderStats: { male: 0, female: 0 },
-      roleStats: {},
-      marketingSources: [],
-      degreeLevelStats: { student: 0, graduate: 0 },
-      classYearStats: {},
-      currentGenderStats: { male: 0, female: 0 },
-      // Initialize new event-specific stats
-      eventGenderStats: { male: 0, female: 0 },
-      eventFaculties: [],
-      eventUniversities: [],
-      eventDegreeStats: { student: 0, graduate: 0 }
-    };
-
-    const universityCount = {};
-    const facultyCount = {};
-    const roleCount = {};
-    const marketingCount = {};
-    const classYearCount = {};
-    
-    // NEW: Event-specific counters
-    const eventUniversityCount = {};
-    const eventFacultyCount = {};
-
-    users.forEach(user => {
-      // Degree level stats
-      if (user.degree_level === 'graduate') {
-        stats.graduates++;
-      } else if (user.degree_level === 'student') {
-        stats.students++;
-      }
-
-      // Current status
-      if (user.event_entry) {
-        stats.currentInEvent++;
-        // Event-specific gender stats
-        if (user.gender === 'male') {
-          stats.eventGenderStats.male++;
-        } else if (user.gender === 'female') {
-          stats.eventGenderStats.female++;
-        }
-        
-        // Event-specific university stats
-        if (user.university) {
-          eventUniversityCount[user.university] = (eventUniversityCount[user.university] || 0) + 1;
-        }
-        
-        // Event-specific faculty stats
-        if (user.faculty) {
-          eventFacultyCount[user.faculty] = (eventFacultyCount[user.faculty] || 0) + 1;
-        }
-        
-        // Event-specific degree stats
-        if (user.degree_level === 'student') {
-          stats.eventDegreeStats.student++;
-        } else if (user.degree_level === 'graduate') {
-          stats.eventDegreeStats.graduate++;
-        }
-      }
-      
-      if (user.building_entry) stats.currentInBuilding++;
-
-      // Gender stats (registration)
-      if (user.gender === 'male') {
-        stats.genderStats.male++;
-        if (user.event_entry) stats.currentGenderStats.male++;
-      } else if (user.gender === 'female') {
-        stats.genderStats.female++;
-        if (user.event_entry) stats.currentGenderStats.female++;
-      }
-
-      // University stats
-      if (user.university) {
-        universityCount[user.university] = (universityCount[user.university] || 0) + 1;
-      }
-
-      // Faculty stats
-      if (user.faculty) {
-        facultyCount[user.faculty] = (facultyCount[user.faculty] || 0) + 1;
-      }
-
-      // Role stats
-      if (user.role) {
-        roleCount[user.role] = (roleCount[user.role] || 0) + 1;
-      }
-
-      // Marketing source stats
-      if (user.how_did_hear_about_event) {
-        marketingCount[user.how_did_hear_about_event] = (marketingCount[user.how_did_hear_about_event] || 0) + 1;
-      }
-
-      // Class year stats
-      if (user.class) {
-        classYearCount[user.class] = (classYearCount[user.class] || 0) + 1;
-      }
-    });
-
-    // Convert counts to sorted arrays
-    stats.universities = Object.entries(universityCount)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
-
-    stats.faculties = Object.entries(facultyCount)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
-
-    // NEW: Event-specific arrays
-    stats.eventUniversities = Object.entries(eventUniversityCount)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
-
-    stats.eventFaculties = Object.entries(eventFacultyCount)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
-
-    stats.roleStats = roleCount;
-    stats.marketingSources = Object.entries(marketingCount)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count);
-
-    stats.classYearStats = classYearCount;
-
-    return stats;
   };
 
   const processEventSpecificStatistics = (eventUsers) => {
@@ -1305,6 +1158,7 @@ const StatisticsTab = () => {
     </div>
   );
 };
+  
 // Registration Stats View Component
 const RegistrationStatsView = ({ statsData }) => (
   <div className="space-y-8">
