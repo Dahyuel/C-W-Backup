@@ -385,7 +385,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
   alt="Career Week Logo" 
   className="w-8 h-8 object-contain"
 />
-                <span className="text-xl font-bold text-gray-900">Career Week</span>
+                <span className="text-xl font-bold text-gray-900">ASU Career Week</span>
               </div>
             </div>
 
