@@ -229,6 +229,472 @@ const [editEvent, setEditEvent] = useState({
     }
   };
 
+  // StatisticsTab Component
+const StatisticsTab = () => {
+  const [statsData, setStatsData] = useState({
+    totalRegistrations: 0,
+    graduates: 0,
+    students: 0,
+    currentInEvent: 0,
+    currentInBuilding: 0,
+    universities: [],
+    faculties: [],
+    genderStats: { male: 0, female: 0 },
+    roleStats: {},
+    marketingSources: [],
+    degreeLevelStats: { student: 0, graduate: 0 },
+    classYearStats: {},
+    currentGenderStats: { male: 0, female: 0 }
+  });
+  const [loading, setLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState('all'); // 'today', 'week', 'all'
+
+  useEffect(() => {
+    fetchStatistics();
+  }, [timeRange]);
+
+  const fetchStatistics = async () => {
+    setLoading(true);
+    try {
+      // Get date filter based on time range
+      let dateFilter = {};
+      if (timeRange === 'today') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        dateFilter = { created_at: `gte.${today.toISOString()}` };
+      } else if (timeRange === 'week') {
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        dateFilter = { created_at: `gte.${weekAgo.toISOString()}` };
+      }
+
+      // Fetch all users with their data
+      const { data: users, error } = await supabase
+        .from('users_profiles')
+        .select('*')
+        .match(dateFilter);
+
+      if (error) throw error;
+
+      // Process statistics
+      const stats = processUserStatistics(users || []);
+      setStatsData(stats);
+    } catch (error) {
+      console.error('Error fetching statistics:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const processUserStatistics = (users) => {
+    const stats = {
+      totalRegistrations: users.length,
+      graduates: 0,
+      students: 0,
+      currentInEvent: 0,
+      currentInBuilding: 0,
+      universities: [],
+      faculties: [],
+      genderStats: { male: 0, female: 0 },
+      roleStats: {},
+      marketingSources: [],
+      degreeLevelStats: { student: 0, graduate: 0 },
+      classYearStats: {},
+      currentGenderStats: { male: 0, female: 0 }
+    };
+
+    const universityCount = {};
+    const facultyCount = {};
+    const roleCount = {};
+    const marketingCount = {};
+    const classYearCount = {};
+
+    users.forEach(user => {
+      // Degree level stats
+      if (user.degree_level === 'graduate') {
+        stats.graduates++;
+      } else if (user.degree_level === 'student') {
+        stats.students++;
+      }
+
+      // Current status
+      if (user.event_entry) stats.currentInEvent++;
+      if (user.building_entry) stats.currentInBuilding++;
+
+      // Gender stats (registration)
+      if (user.gender === 'male') {
+        stats.genderStats.male++;
+        if (user.event_entry) stats.currentGenderStats.male++;
+      } else if (user.gender === 'female') {
+        stats.genderStats.female++;
+        if (user.event_entry) stats.currentGenderStats.female++;
+      }
+
+      // University stats
+      if (user.university) {
+        universityCount[user.university] = (universityCount[user.university] || 0) + 1;
+      }
+
+      // Faculty stats
+      if (user.faculty) {
+        facultyCount[user.faculty] = (facultyCount[user.faculty] || 0) + 1;
+      }
+
+      // Role stats
+      if (user.role) {
+        roleCount[user.role] = (roleCount[user.role] || 0) + 1;
+      }
+
+      // Marketing source stats
+      if (user.how_did_hear_about_event) {
+        marketingCount[user.how_did_hear_about_event] = (marketingCount[user.how_did_hear_about_event] || 0) + 1;
+      }
+
+      // Class year stats
+      if (user.class) {
+        classYearCount[user.class] = (classYearCount[user.class] || 0) + 1;
+      }
+    });
+
+    // Convert counts to sorted arrays
+    stats.universities = Object.entries(universityCount)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    stats.faculties = Object.entries(facultyCount)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    stats.roleStats = roleCount;
+    stats.marketingSources = Object.entries(marketingCount)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
+
+    stats.classYearStats = classYearCount;
+
+    return stats;
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Time Range Filter */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        <button
+          onClick={() => setTimeRange('today')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            timeRange === 'today' 
+              ? 'bg-orange-500 text-white' 
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          Today
+        </button>
+        <button
+          onClick={() => setTimeRange('week')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            timeRange === 'week' 
+              ? 'bg-orange-500 text-white' 
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          Last 7 Days
+        </button>
+        <button
+          onClick={() => setTimeRange('all')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            timeRange === 'all' 
+              ? 'bg-orange-500 text-white' 
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          All Time
+        </button>
+      </div>
+
+      {/* Overview Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          title="Total Registrations"
+          value={statsData.totalRegistrations}
+          icon={<Users className="h-6 w-6" />}
+          color="blue"
+        />
+        <StatCard
+          title="Students"
+          value={statsData.students}
+          icon={<Users className="h-6 w-6" />}
+          color="green"
+        />
+        <StatCard
+          title="Graduates"
+          value={statsData.graduates}
+          icon={<Users className="h-6 w-6" />}
+          color="purple"
+        />
+        <StatCard
+          title="Currently in Event"
+          value={statsData.currentInEvent}
+          icon={<Activity className="h-6 w-6" />}
+          color="orange"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Gender Distribution */}
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Gender Distribution</h3>
+          <div className="space-y-4">
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Registration</h4>
+              <GenderChart data={statsData.genderStats} />
+            </div>
+            <div>
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Currently in Event</h4>
+              <GenderChart data={statsData.currentGenderStats} />
+            </div>
+          </div>
+        </div>
+
+        {/* Role Distribution */}
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Role Distribution</h3>
+          <RoleChart data={statsData.roleStats} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Top Universities */}
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Universities</h3>
+          <BarChart data={statsData.universities} color="blue" />
+        </div>
+
+        {/* Top Faculties */}
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Faculties</h3>
+          <BarChart data={statsData.faculties} color="green" />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Marketing Sources */}
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Marketing Sources</h3>
+          <MarketingChart data={statsData.marketingSources} />
+        </div>
+
+        {/* Degree Level Distribution */}
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Degree Level</h3>
+          <DegreeChart data={statsData.degreeLevelStats} />
+        </div>
+      </div>
+
+      {/* Current Status */}
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Current Event Status</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="text-center p-4 bg-blue-50 rounded-lg">
+            <div className="text-2xl font-bold text-blue-600">{statsData.currentInBuilding}</div>
+            <div className="text-sm text-gray-600">Inside Building</div>
+          </div>
+          <div className="text-center p-4 bg-green-50 rounded-lg">
+            <div className="text-2xl font-bold text-green-600">{statsData.currentInEvent}</div>
+            <div className="text-sm text-gray-600">Inside Event</div>
+          </div>
+          <div className="text-center p-4 bg-orange-50 rounded-lg">
+            <div className="text-2xl font-bold text-orange-600">
+              {statsData.totalRegistrations - statsData.currentInEvent}
+            </div>
+            <div className="text-sm text-gray-600">Not Checked In</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Reusable Stat Card Component
+const StatCard = ({ title, value, icon, color }) => {
+  const colorClasses = {
+    blue: 'bg-blue-500',
+    green: 'bg-green-500',
+    purple: 'bg-purple-500',
+    orange: 'bg-orange-500',
+    red: 'bg-red-500'
+  };
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-600">{title}</p>
+          <p className="text-3xl font-bold text-gray-900">{value}</p>
+        </div>
+        <div className={`w-12 h-12 ${colorClasses[color]} bg-opacity-10 rounded-lg flex items-center justify-center`}>
+          <div className={colorClasses[color].replace('bg-', 'text-')}>
+            {icon}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Gender Chart Component
+const GenderChart = ({ data }) => {
+  const total = data.male + data.female;
+  const malePercentage = total > 0 ? (data.male / total) * 100 : 0;
+  const femalePercentage = total > 0 ? (data.female / total) * 100 : 0;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex justify-between text-sm">
+        <span className="text-blue-600 font-medium">Male: {data.male} ({malePercentage.toFixed(1)}%)</span>
+        <span className="text-pink-600 font-medium">Female: {data.female} ({femalePercentage.toFixed(1)}%)</span>
+      </div>
+      <div className="w-full bg-gray-200 rounded-full h-3">
+        <div
+          className="bg-blue-600 h-3 rounded-full"
+          style={{ width: `${malePercentage}%` }}
+        ></div>
+        <div
+          className="bg-pink-600 h-3 rounded-full -mt-3"
+          style={{ width: `${femalePercentage}%`, marginLeft: `${malePercentage}%` }}
+        ></div>
+      </div>
+    </div>
+  );
+};
+
+// Role Chart Component
+const RoleChart = ({ data }) => {
+  const roles = Object.entries(data).sort((a, b) => b[1] - a[1]);
+  const total = roles.reduce((sum, [_, count]) => sum + count, 0);
+
+  return (
+    <div className="space-y-3">
+      {roles.map(([role, count]) => {
+        const percentage = total > 0 ? (count / total) * 100 : 0;
+        return (
+          <div key={role} className="space-y-1">
+            <div className="flex justify-between text-sm">
+              <span className="font-medium text-gray-700 capitalize">{role.replace('_', ' ')}</span>
+              <span className="text-gray-500">{count} ({percentage.toFixed(1)}%)</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-orange-500 h-2 rounded-full"
+                style={{ width: `${percentage}%` }}
+              ></div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// Bar Chart Component
+const BarChart = ({ data, color }) => {
+  const maxCount = Math.max(...data.map(item => item.count), 1);
+  const colorClasses = {
+    blue: 'bg-blue-500',
+    green: 'bg-green-500',
+    purple: 'bg-purple-500',
+    orange: 'bg-orange-500'
+  };
+
+  return (
+    <div className="space-y-3">
+      {data.slice(0, 8).map((item, index) => {
+        const percentage = (item.count / maxCount) * 100;
+        return (
+          <div key={index} className="space-y-1">
+            <div className="flex justify-between text-sm">
+              <span className="font-medium text-gray-700 truncate flex-1 mr-2">{item.name}</span>
+              <span className="text-gray-500 whitespace-nowrap">{item.count}</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <div
+                className={`${colorClasses[color]} h-3 rounded-full`}
+                style={{ width: `${percentage}%` }}
+              ></div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// Marketing Chart Component
+const MarketingChart = ({ data }) => {
+  const total = data.reduce((sum, item) => sum + item.count, 0);
+
+  return (
+    <div className="space-y-3">
+      {data.map((item, index) => {
+        const percentage = total > 0 ? (item.count / total) * 100 : 0;
+        const formattedName = item.name.split('_').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1)
+        ).join(' ');
+
+        return (
+          <div key={index} className="space-y-1">
+            <div className="flex justify-between text-sm">
+              <span className="font-medium text-gray-700">{formattedName}</span>
+              <span className="text-gray-500">{item.count} ({percentage.toFixed(1)}%)</span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div
+                className="bg-purple-500 h-2 rounded-full"
+                style={{ width: `${percentage}%` }}
+              ></div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+};
+
+// Degree Chart Component
+const DegreeChart = ({ data }) => {
+  const total = data.student + data.graduate;
+  const studentPercentage = total > 0 ? (data.student / total) * 100 : 0;
+  const graduatePercentage = total > 0 ? (data.graduate / total) * 100 : 0;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-between text-sm">
+        <span className="text-green-600 font-medium">Students: {data.student} ({studentPercentage.toFixed(1)}%)</span>
+        <span className="text-blue-600 font-medium">Graduates: {data.graduate} ({graduatePercentage.toFixed(1)}%)</span>
+      </div>
+      <div className="w-full bg-gray-200 rounded-full h-4">
+        <div
+          className="bg-green-500 h-4 rounded-full"
+          style={{ width: `${studentPercentage}%` }}
+        ></div>
+        <div
+          className="bg-blue-500 h-4 rounded-full -mt-4"
+          style={{ width: `${graduatePercentage}%`, marginLeft: `${studentPercentage}%` }}
+        ></div>
+      </div>
+    </div>
+  );
+};
+
 // Handle edit session
 const handleEditSession = (session) => {
   setSelectedSessionEdit(session);
