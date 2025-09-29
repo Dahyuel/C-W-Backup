@@ -188,32 +188,45 @@ export function AdminPanel() {
     }
   }, [activeTab]);
 
-  const fetchDashboardData = async () => {
-    setLoadingData(true);
-    try {
-      const { count: totalUsers } = await supabase
-        .from("users_profiles")
-        .select("*", { count: "exact", head: true });
-      
-      const { count: totalSessions } = await supabase
-        .from("sessions")
-        .select("*", { count: "exact", head: true });
+const fetchDashboardData = async () => {
+  setLoadingData(true);
+  try {
+    const { count: totalUsers } = await supabase
+      .from("users_profiles")
+      .select("*", { count: "exact", head: true });
+    
+    const { count: totalSessions } = await supabase
+      .from("sessions")
+      .select("*", { count: "exact", head: true });
 
-      setStats({
-        total_users: totalUsers || 0,
-        total_sessions: totalSessions || 0,
-      });
+    // Get count of attendees
+    const { count: totalAttendees } = await supabase
+      .from("users_profiles")
+      .select("*", { count: "exact", head: true })
+      .eq("role", "attendee");
 
-      await fetchBuildingStats();
-      await fetchSessions();
-      await fetchCompanies();
-    } catch (error) {
-      console.error("Error fetching dashboard data:", error);
-    } finally {
-      setLoadingData(false);
-    }
-  };
+    // Get count of volunteers (all roles except admin and attendee)
+    const { count: totalVolunteers } = await supabase
+      .from("users_profiles")
+      .select("*", { count: "exact", head: true })
+      .not("role", "in", "('admin','attendee')");
 
+    setStats({
+      total_users: totalUsers || 0,
+      total_sessions: totalSessions || 0,
+      total_attendees: totalAttendees || 0,
+      total_volunteers: totalVolunteers || 0,
+    });
+
+    await fetchBuildingStats();
+    await fetchSessions();
+    await fetchCompanies();
+  } catch (error) {
+    console.error("Error fetching dashboard data:", error);
+  } finally {
+    setLoadingData(false);
+  }
+};
   // NEW: Fetch enhanced statistics for inside event
   const fetchEnhancedStatistics = async () => {
     try {
