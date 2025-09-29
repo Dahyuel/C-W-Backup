@@ -1160,6 +1160,7 @@ const [bonusMethod, setBonusMethod] = useState<'scan' | 'search'>('scan');
         {loading ? 'Assigning...' : 'Give Bonus'}
       </button>
     </div>
+  </div>
 
                 {/* User Search */}
                 <div className="relative">
