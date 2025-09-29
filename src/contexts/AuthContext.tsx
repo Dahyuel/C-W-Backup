@@ -444,33 +444,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [profile?.role]);
 
   // Enhanced role-based redirect with better volunteer role mapping
-  const getRoleBasedRedirect = useCallback((role?: string) => {
-    const r = role || profile?.role;
-    
-    // Map all volunteer-type roles correctly
-    switch (r) {
-      case "admin":
-        return "/secure-9821panel";
-      case "sadmin":
-        return "/super-ctrl-92k1x";
-      case "team_leader":
-        return "/teamleader";
-      case "registration":
-        return "/regteam";
-      case "building":
-        return "/buildteam";
-      case "info_desk":
-        return "/infodesk";
-      case "volunteer":
-        return "/volunteer";
-      case "attendee":
-        return "/attendee";
-      default:
-        console.warn('Unknown role for redirect:', r);
-        return "/login";
-    }
-  }, [profile?.role]);
-
+// Enhanced role-based redirect with ALL volunteer roles mapped to /volunteer
+const getRoleBasedRedirect = useCallback((role?: string) => {
+  const r = role || profile?.role;
+  
+  // Map all volunteer-type roles correctly
+  switch (r) {
+    case "admin":
+      return "/secure-9821panel";
+    case "sadmin":
+      return "/super-ctrl-92k1x";
+    case "team_leader":
+      return "/teamleader";
+    case "registration":
+      return "/regteam";
+    case "building":
+      return "/buildteam";
+    case "info_desk":
+      return "/infodesk";
+    case "attendee":
+      return "/attendee";
+    // ALL these roles should go to volunteer dashboard
+    case "volunteer":
+    case "ushers":
+    case "marketing":
+    case "media":
+    case "ER":
+    case "BD":
+    case "catering":
+    case "feedback":
+    case "stage":
+      return "/volunteer";
+    default:
+      console.warn('Unknown role for redirect:', r);
+      return "/login";
+  }
+}, [profile?.role]);
   // Computed values - Updated logic for authentication
   const isAuthenticated = !!user && sessionLoaded;
   
