@@ -744,19 +744,23 @@ const DegreeChart = ({ data }) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between text-sm">
-        <span className="text-green-600 font-medium">Students: {data.student} ({studentPercentage.toFixed(1)}%)</span>
-        <span className="text-blue-600 font-medium">Graduates: {data.graduate} ({graduatePercentage.toFixed(1)}%)</span>
+      <div className="flex justify-between text-sm font-medium">
+        <span className="text-green-600">Students: {data.student}</span>
+        <span className="text-blue-600">Graduates: {data.graduate}</span>
       </div>
-      <div className="w-full bg-gray-200 rounded-full h-4">
+      <div className="w-full bg-gray-200 rounded-full h-4 relative">
         <div
-          className="bg-green-500 h-4 rounded-full"
+          className="bg-green-500 h-4 rounded-full transition-all duration-500"
           style={{ width: `${studentPercentage}%` }}
         ></div>
         <div
-          className="bg-blue-500 h-4 rounded-full -mt-4"
-          style={{ width: `${graduatePercentage}%`, marginLeft: `${studentPercentage}%` }}
+          className="bg-blue-500 h-4 rounded-full absolute top-0 transition-all duration-500"
+          style={{ width: `${graduatePercentage}%`, left: `${studentPercentage}%` }}
         ></div>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500">
+        <span>{studentPercentage.toFixed(1)}%</span>
+        <span>{graduatePercentage.toFixed(1)}%</span>
       </div>
     </div>
   );
