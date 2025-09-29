@@ -1160,8 +1160,7 @@ const clearUserSelection = () => {
                 </button>
               </div>
             </div>
-
- 
+             </div>
         )}
 
       {/* Sessions Tab */}
