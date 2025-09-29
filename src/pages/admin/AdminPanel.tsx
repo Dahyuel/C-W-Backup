@@ -2051,73 +2051,89 @@ const EventStatsView = ({ statsData, selectedDay }) => {
           ))}
         </div>
 
-        {/* Dashboard Tab */}
-        {activeTab === "dashboard" && (
-          <div className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Total Users</p>
-                    <p className="text-3xl font-bold text-orange-600">
-                      {stats?.total_users || 0}
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                    <Users className="h-6 w-6 text-orange-600" />
-                  </div>
-                </div>
-              </div>
+       {/* Dashboard Tab */}
+{activeTab === "dashboard" && (
+  <div className="space-y-8">
+    {/* Quick Actions - Moved to Top */}
+    <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 text-center">
+      <h1 className="text-3xl font-bold text-black-800 flex items-center justify-center gap-2 mb-6">
+        <Sparkles className="h-7 w-7 text-orange-500" />
+        Quick Actions
+      </h1>
 
-              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Active Sessions</p>
-                    <p className="text-3xl font-bold text-blue-600">
-                      {stats?.total_sessions || 0}
-                    </p>
-                  </div>
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Activity className="h-6 w-6 text-blue-600" />
-                  </div>
-                </div>
-              </div>
-            </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <button
+          onClick={() => setCompanyModal(true)}
+          className="flex flex-col items-center justify-center py-6 px-4 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors"
+        >
+          <Building className="h-8 w-8 mb-2" />
+          <span className="text-base font-medium">Add Company</span>
+        </button>
 
-            <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 text-center">
-              <h1 className="text-3xl font-bold text-black-800 flex items-center justify-center gap-2 mb-6">
-                <Sparkles className="h-7 w-7 text-orange-500" />
-                Quick Actions
-              </h1>
+        <button
+          onClick={() => setSessionModal(true)}
+          className="flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
+        >
+          <Calendar className="h-8 w-8 mb-2" />
+          <span className="text-base font-medium">Add Session</span>
+        </button>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <button
-                  onClick={() => setCompanyModal(true)}
-                  className="flex flex-col items-center justify-center py-6 px-4 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors"
-                >
-                  <Building className="h-8 w-8 mb-2" />
-                  <span className="text-base font-medium">Add Company</span>
-                </button>
+        <button
+          onClick={() => setAnnouncementModal(true)}
+          className="flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-700 transition-colors"
+        >
+          <Megaphone className="h-8 w-8 mb-2" />
+          <span className="text-base font-medium">Send Announcement</span>
+        </button>
+      </div>
+    </div>
 
-                <button
-                  onClick={() => setSessionModal(true)}
-                  className="flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
-                >
-                  <Calendar className="h-8 w-8 mb-2" />
-                  <span className="text-base font-medium">Add Session</span>
-                </button>
-
-                <button
-                  onClick={() => setAnnouncementModal(true)}
-                  className="flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-700 transition-colors"
-                >
-                  <Megaphone className="h-8 w-8 mb-2" />
-                  <span className="text-base font-medium">Send Announcement</span>
-                </button>
-              </div>
-            </div>
+    {/* Stats Cards - Moved to Bottom */}
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">Total Users</p>
+            <p className="text-3xl font-bold text-orange-600">
+              {stats?.total_users || 0}
+            </p>
           </div>
-        )}
+          <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+            <Users className="h-6 w-6 text-orange-600" />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">Total Attendees</p>
+            <p className="text-3xl font-bold text-blue-600">
+              {stats?.total_attendees || 0}
+            </p>
+          </div>
+          <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+            <Users className="h-6 w-6 text-blue-600" />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">Total Volunteers</p>
+            <p className="text-3xl font-bold text-green-600">
+              {stats?.total_volunteers || 0}
+            </p>
+          </div>
+          <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+            <Users className="h-6 w-6 text-green-600" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
         {/* Statistics Tab */}
         {activeTab === "statistics" && (
