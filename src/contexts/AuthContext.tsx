@@ -218,7 +218,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             setLoading(false);
             setSessionLoaded(true);
           }
-        }, 10000); // 10 second timeout
+        }, 5000); // 5 second timeout
         
         // Get current session
         const { data: { session }, error } = await supabase.auth.getSession();
