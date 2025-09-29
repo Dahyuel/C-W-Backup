@@ -2015,37 +2015,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
     setSearchLoading(false);
   }
 };
-  const searchUsersByPersonalId = async (searchTerm) => {
-    if (!searchTerm || searchTerm.trim().length < 2) {
-      setSearchResults([]);
-      return;
-    }
 
-    setSearchLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('users_profiles')
-        .select('id, first_name, last_name, personal_id, role, email')
-        .ilike('personal_id', `%${searchTerm.trim()}%`)
-        .order('personal_id')
-        .limit(10);
-
-      if (error) {
-        console.error('Search error:', error);
-        setSearchResults([]);
-      } else {
-        const filteredResults = (data || []).filter(user => 
-          !selectedUsers.some(selected => selected.id === user.id)
-        );
-        setSearchResults(filteredResults);
-      }
-    } catch (error) {
-      console.error('Search exception:', error);
-      setSearchResults([]);
-    } finally {
-      setSearchLoading(false);
-    }
-  };
 
   const addUserToSelection = (user) => {
     setSelectedUsers(prev => [...prev, user]);
