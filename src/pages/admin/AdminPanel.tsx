@@ -36,6 +36,38 @@ const [selectedCompanyDelete, setSelectedCompanyDelete] = useState(null);
     inside_event: 0,
     total_attendees: 0
   });
+    // Add this state at the top with your other states
+  const [statsData, setStatsData] = useState({
+    totalRegistrations: 0,
+    graduates: 0,
+    students: 0,
+    currentInEvent: 0,
+    currentInBuilding: 0,
+    universities: [],
+    faculties: [],
+    genderStats: { male: 0, female: 0 },
+    roleStats: {},
+    marketingSources: [],
+    degreeLevelStats: { student: 0, graduate: 0 },
+    classYearStats: {},
+    currentGenderStats: { male: 0, female: 0 },
+    // NEW: Event-specific statistics
+    eventGenderStats: { male: 0, female: 0 },
+    eventFaculties: [],
+    eventUniversities: [],
+    eventDegreeStats: { student: 0, graduate: 0 },
+    eventStats: {
+      day1: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
+      day2: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
+      day3: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
+      day4: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
+      day5: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 }
+    }
+  });
+
+  // Your existing states...
+  const [deleteCompanyModal, setDeleteCompanyModal] = useState(false);
+  const [selectedCompanyDelete, setSelectedCompanyDelete] = useState(null);
 const [deleteSessionModal, setDeleteSessionModal] = useState(false);
 const [deleteEventModal, setDeleteEventModal] = useState(false);
 const [selectedSessionDelete, setSelectedSessionDelete] = useState(null);
@@ -704,33 +736,6 @@ const confirmDeleteSession = async () => {
 // Enhanced StatisticsTab Component
 // Enhanced StatisticsTab Component
 const StatisticsTab = () => {
-  const [statsData, setStatsData] = useState({
-    totalRegistrations: 0,
-    graduates: 0,
-    students: 0,
-    currentInEvent: 0,
-    currentInBuilding: 0,
-    universities: [],
-    faculties: [],
-    genderStats: { male: 0, female: 0 },
-    roleStats: {},
-    marketingSources: [],
-    degreeLevelStats: { student: 0, graduate: 0 },
-    classYearStats: {},
-    currentGenderStats: { male: 0, female: 0 },
-    // NEW: Event-specific statistics
-    eventGenderStats: { male: 0, female: 0 },
-    eventFaculties: [],
-    eventUniversities: [],
-    eventDegreeStats: { student: 0, graduate: 0 },
-    eventStats: {
-      day1: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
-      day2: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
-      day3: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
-      day4: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
-      day5: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 }
-    }
-  });
   
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('all');
