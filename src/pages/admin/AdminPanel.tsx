@@ -2096,10 +2096,10 @@ const EventStatsView = ({ statsData, selectedDay }) => {
           ))}
         </div>
 
-       {/* Dashboard Tab */}
+   {/* Dashboard Tab */}
 {activeTab === "dashboard" && (
   <div className="space-y-8">
-    {/* Quick Actions - Moved to Top */}
+    {/* Quick Actions - Now at the top */}
     <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 text-center">
       <h1 className="text-3xl font-bold text-black-800 flex items-center justify-center gap-2 mb-6">
         <Sparkles className="h-7 w-7 text-orange-500" />
@@ -2133,7 +2133,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
       </div>
     </div>
 
-    {/* Stats Cards - Moved to Bottom */}
+    {/* Stats Cards - Now below Quick Actions */}
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
         <div className="flex items-center justify-between">
@@ -2154,7 +2154,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
           <div>
             <p className="text-sm font-medium text-gray-600">Total Attendees</p>
             <p className="text-3xl font-bold text-blue-600">
-              {stats?.total_attendees || 0}
+              {buildingStats?.total_attendees || 0}
             </p>
           </div>
           <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -2168,7 +2168,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
           <div>
             <p className="text-sm font-medium text-gray-600">Total Volunteers</p>
             <p className="text-3xl font-bold text-green-600">
-              {stats?.total_volunteers || 0}
+              {(stats?.total_users || 0) - (buildingStats?.total_attendees || 0)}
             </p>
           </div>
           <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -2179,7 +2179,6 @@ const EventStatsView = ({ statsData, selectedDay }) => {
     </div>
   </div>
 )}
-
         {/* Statistics Tab */}
         {activeTab === "statistics" && (
           <StatisticsTab />
