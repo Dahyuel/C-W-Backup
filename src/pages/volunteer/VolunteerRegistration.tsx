@@ -55,21 +55,22 @@ export const VolunteerRegistration: React.FC = () => {
   ];
 
   // Updated role options with all new roles
-  const roleOptions = [
-    { value: 'registration', label: 'Registration Desk' },
-    { value: 'building', label: 'Building Assistance' },
-    { value: 'info_desk', label: 'Info Desk' },
-    { value: 'ushers', label: 'Ushers' },
-    { value: 'marketing', label: 'Marketing' },
-    { value: 'media', label: 'Media' },
-    { value: 'ER', label: 'ER Team' },
-    { value: 'BD', label: 'Business Development' },
-    { value: 'catering', label: 'Catering' },
-    { value: 'feedback', label: 'Feedback Team' },
-    { value: 'stage', label: 'Stage Team' },
-    { value: 'volunteer', label: 'General Volunteer' },
-    { value: 'team_leader', label: 'Team Leader' }
-  ];
+ const roleOptions = [
+  { value: 'registration', label: 'Registration Desk' },
+  { value: 'building', label: 'Building Assistance' },
+  { value: 'info_desk', label: 'Info Desk' },
+  { value: 'ushers', label: 'Ushers' },
+  { value: 'marketing', label: 'Marketing' },
+  { value: 'media', label: 'Media' },
+  { value: 'ER', label: 'ER Team' },
+  { value: 'BD', label: 'Business Development' },
+  { value: 'catering', label: 'Catering' },
+  { value: 'feedback', label: 'Feedback Team' },
+  { value: 'stage', label: 'Stage Team' },
+  { value: 'team_leader', label: 'Team Leader' }
+  // Removed: { value: 'volunteer', label: 'General Volunteer' }
+];
+
 
   // Team options for team leaders
   const teamOptions = [
