@@ -508,141 +508,141 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
       </main>
 
       {/* Profile Modal */}
-      {showProfileModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div 
-            ref={profileModalRef}
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-scale-in"
+{showProfileModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+    <div 
+      ref={profileModalRef}
+      className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
+    >
+      <div className="p-6 stagger-children">
+        <div className="flex items-center justify-between mb-6 fade-in-blur">
+          <h2 className="text-xl font-bold text-gray-900">Profile Information</h2>
+          <button
+            onClick={() => {
+              setShowProfileModal(false);
+              setQrCodeUrl('');
+            }}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6 animate-fade-in">
-                <h2 className="text-xl font-bold text-gray-900">Profile Information</h2>
-                <button
-                  onClick={() => {
-                    setShowProfileModal(false);
-                    setQrCodeUrl('');
-                  }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
+            <X className="h-6 w-6" />
+          </button>
+        </div>
 
-              {/* QR Code Section */}
-              <div className="text-center mb-6 animate-slide-up">
-                <div className="w-48 h-48 bg-white border-2 border-gray-200 rounded-lg mx-auto mb-4 flex items-center justify-center overflow-hidden transition-transform hover:scale-105">
-                  {qrCodeLoading ? (
-                    <div className="text-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
-                      <p className="text-xs text-gray-500">Generating QR Code...</p>
-                    </div>
-                  ) : qrCodeUrl ? (
-                    <img 
-                      src={qrCodeUrl} 
-                      alt="Profile QR Code" 
-                      className="w-full h-full object-contain"
-                    />
-                  ) : (
-                    <div className="text-center">
-                      <QrCode className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                      <p className="text-xs text-gray-500">QR Code unavailable</p>
-                    </div>
-                  )}
-                </div>
-                <p className="text-sm text-gray-600">Show this QR code for check-ins</p>
-                {profile?.id && (
-                  <p className="text-xs text-gray-400 mt-1 font-mono break-all px-4">
-                    ID: {profile.id}
-                  </p>
-                )}
+        {/* QR Code Section */}
+        <div className="text-center mb-6 fade-in-blur card-hover">
+          <div className="w-48 h-48 bg-white border-2 border-gray-200 rounded-lg mx-auto mb-4 flex items-center justify-center overflow-hidden smooth-hover">
+            {qrCodeLoading ? (
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
+                <p className="text-xs text-gray-500">Generating QR Code...</p>
               </div>
+            ) : qrCodeUrl ? (
+              <img 
+                src={qrCodeUrl} 
+                alt="Profile QR Code" 
+                className="w-full h-full object-contain"
+              />
+            ) : (
+              <div className="text-center">
+                <QrCode className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                <p className="text-xs text-gray-500">QR Code unavailable</p>
+              </div>
+            )}
+          </div>
+          <p className="text-sm text-gray-600">Show this QR code for check-ins</p>
+          {profile?.id && (
+            <p className="text-xs text-gray-400 mt-1 font-mono break-all px-4">
+              ID: {profile.id}
+            </p>
+          )}
+        </div>
 
-              {/* Score Display */}
-              <div className="bg-orange-50 rounded-lg p-4 mb-6 text-center animate-slide-up" style={{animationDelay: '0.1s'}}>
-                <div className="flex items-center justify-center mb-2">
-                  <Trophy className="h-6 w-6 text-orange-600 mr-2" />
-                  <span className="text-lg font-semibold text-orange-900">Your Score</span>
-                </div>
-                <div className="text-3xl font-bold text-orange-600">{userScore}</div>
-              </div>
+        {/* Score Display */}
+        <div className="bg-orange-50 rounded-lg p-4 mb-6 text-center fade-in-blur card-hover">
+          <div className="flex items-center justify-center mb-2">
+            <Trophy className="h-6 w-6 text-orange-600 mr-2" />
+            <span className="text-lg font-semibold text-orange-900">Your Score</span>
+          </div>
+          <div className="text-3xl font-bold text-orange-600">{userScore}</div>
+        </div>
 
-              {/* Profile Information */}
-              <div className="space-y-4">
-                <div className="animate-fade-in" style={{animationDelay: '0.2s'}}>
-                  <label className="block text-sm font-medium text-gray-700">First Name</label>
-                  <p className="mt-1 text-sm text-gray-900">{profile?.first_name}</p>
-                </div>
-                <div className="animate-fade-in" style={{animationDelay: '0.3s'}}>
-                  <label className="block text-sm font-medium text-gray-700">Last Name</label>
-                  <p className="mt-1 text-sm text-gray-900">{profile?.last_name}</p>
-                </div>
-                <div className="animate-fade-in" style={{animationDelay: '0.4s'}}>
-                  <label className="block text-sm font-medium text-gray-700">Email</label>
-                  <p className="mt-1 text-sm text-gray-900 break-all">{profile?.email || 'Not provided'}</p>
-                </div>
-                <div className="animate-fade-in" style={{animationDelay: '0.5s'}}>
-                  <label className="block text-sm font-medium text-gray-700">Phone</label>
-                  <p className="mt-1 text-sm text-gray-900">{profile?.phone || 'Not provided'}</p>
-                </div>
-                <div className="animate-fade-in" style={{animationDelay: '0.6s'}}>
-                  <label className="block text-sm font-medium text-gray-700">Personal ID</label>
-                  <p className="mt-1 text-sm text-gray-900">{profile?.personal_id || 'Not provided'}</p>
-                </div>
-                
-                {/* Volunteer ID - Show only for non-admin and non-attendee roles */}
-                {profile?.role && !['admin', 'attendee'].includes(profile.role) && (
-                  <div className="animate-fade-in" style={{animationDelay: '0.7s'}}>
-                    <label className="block text-sm font-medium text-gray-700">Volunteer ID</label>
-                    <p className="mt-1 text-sm text-gray-900 font-mono">
-                      {profile?.volunteer_id || 'Not assigned'}
-                    </p>
-                    {!profile?.volunteer_id && (
-                      <p className="text-xs text-gray-500 mt-1">
-                        Your volunteer ID will be assigned by the event organizers
-                      </p>
-                    )}
-                  </div>
-                )}
-                
-                <div className="animate-fade-in" style={{animationDelay: '0.8s'}}>
-                  <label className="block text-sm font-medium text-gray-700">Role</label>
-                  <div className="mt-1 flex items-center">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor()}`}>
-                      {getRoleIcon()}
-                      <span className="ml-1 capitalize">{profile?.role?.replace('_', ' ')}</span>
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="mt-6 pt-6 border-t border-gray-200 space-y-3 animate-slide-up" style={{animationDelay: '0.9s'}}>
-                <button
-                  onClick={() => setShowPasswordModal(true)}
-                  className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors"
-                >
-                  Change Password
-                </button>
-                
-                {qrCodeUrl && (
-                  <button
-                    onClick={() => {
-                      const link = document.createElement('a');
-                      link.download = `qr-code-${profile?.first_name}-${profile?.last_name}.png`;
-                      link.href = qrCodeUrl;
-                      link.click();
-                    }}
-                    className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors"
-                  >
-                    Download QR Code
-                  </button>
-                )}
-              </div>
+        {/* Profile Information */}
+        <div className="space-y-4 fade-in-blur">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">First Name</label>
+            <p className="mt-1 text-sm text-gray-900">{profile?.first_name}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Last Name</label>
+            <p className="mt-1 text-sm text-gray-900">{profile?.last_name}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Email</label>
+            <p className="mt-1 text-sm text-gray-900 break-all">{profile?.email || 'Not provided'}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Phone</label>
+            <p className="mt-1 text-sm text-gray-900">{profile?.phone || 'Not provided'}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Personal ID</label>
+            <p className="mt-1 text-sm text-gray-900">{profile?.personal_id || 'Not provided'}</p>
+          </div>
+          
+          {/* Volunteer ID - Show only for non-admin and non-attendee roles */}
+          {profile?.role && !['admin', 'attendee'].includes(profile.role) && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700">Volunteer ID</label>
+              <p className="mt-1 text-sm text-gray-900 font-mono">
+                {profile?.volunteer_id || 'Not assigned'}
+              </p>
+              {!profile?.volunteer_id && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Your volunteer ID will be assigned by the event organizers
+                </p>
+              )}
+            </div>
+          )}
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Role</label>
+            <div className="mt-1 flex items-center">
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor()}`}>
+                {getRoleIcon()}
+                <span className="ml-1 capitalize">{profile?.role?.replace('_', ' ')}</span>
+              </span>
             </div>
           </div>
         </div>
-      )}
 
+        {/* Action Buttons */}
+        <div className="mt-6 pt-6 border-t border-gray-200 space-y-3 fade-in-blur">
+          <button
+            onClick={() => setShowPasswordModal(true)}
+            className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors"
+          >
+            Change Password
+          </button>
+          
+          {qrCodeUrl && (
+            <button
+              onClick={() => {
+                const link = document.createElement('a');
+                link.download = `qr-code-${profile?.first_name}-${profile?.last_name}.png`;
+                link.href = qrCodeUrl;
+                link.click();
+              }}
+              className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Download QR Code
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+     
       {/* Change Password Modal */}
       {showPasswordModal && (
         <div 
