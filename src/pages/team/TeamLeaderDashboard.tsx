@@ -44,6 +44,10 @@ export const TeamLeaderDashboard: React.FC = () => {
   const [announcementTitle, setAnnouncementTitle] = useState("");
   const [announcementDescription, setAnnouncementDescription] = useState("");
   const [announcementRole, setAnnouncementRole] = useState("");
+  const [selectedUsers, setSelectedUsers] = useState<Volunteer[]>([]);
+  const [userSearch, setUserSearch] = useState("");
+  const [userSearchResults, setUserSearchResults] = useState<Volunteer[]>([]);
+  const [userSearchLoading, setUserSearchLoading] = useState(false);
 
   // Bonus State
   const [bonusModal, setBonusModal] = useState(false);
@@ -95,75 +99,75 @@ export const TeamLeaderDashboard: React.FC = () => {
   }, []);
 
   // Handle QR Scan for Attendance
-const handleScan = async (qrData: string) => {
-  try {
-    console.log('Processing QR data:', qrData);
-    
-    // Check if it's a UUID or volunteer ID
-    let volunteerData: Volunteer | null = null;
-    
-    if (qrData.includes('-')) { // Likely UUID
-      const { data, error } = await supabase
-        .from('users_profiles')
-        .select('*')
-        .eq('id', qrData.trim())
-        .single();
+  const handleScan = async (qrData: string) => {
+    try {
+      console.log('Processing QR data:', qrData);
       
-      if (!error && data) {
-        volunteerData = data;
-      }
-    } else { // Likely volunteer ID
-      const { data, error } = await supabase
-        .from('users_profiles')
-        .select('*')
-        .eq('volunteer_id', qrData.trim())
-        .single();
+      // Check if it's a UUID or volunteer ID
+      let volunteerData: Volunteer | null = null;
       
-      if (!error && data) {
-        volunteerData = data;
+      if (qrData.includes('-')) { // Likely UUID
+        const { data, error } = await supabase
+          .from('users_profiles')
+          .select('*')
+          .eq('id', qrData.trim())
+          .single();
+        
+        if (!error && data) {
+          volunteerData = data;
+        }
+      } else { // Likely volunteer ID
+        const { data, error } = await supabase
+          .from('users_profiles')
+          .select('*')
+          .eq('volunteer_id', qrData.trim())
+          .single();
+        
+        if (!error && data) {
+          volunteerData = data;
+        }
       }
+
+      if (!volunteerData) {
+        showFeedback('error', 'Volunteer not found');
+        return;
+      }
+
+      // Check if user is attendee or admin
+      if (volunteerData.role === 'attendee' || volunteerData.role === 'admin') {
+        showFeedback('error', 'You Are Not A Volunteer');
+        return;
+      }
+
+      // Check today's attendance using vol_attendance scan_type
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const { data: attendance, error } = await supabase
+        .from('attendances')
+        .select('*')
+        .eq('user_id', volunteerData.id)
+        .eq('scan_type', 'vol_attendance') // UPDATED
+        .gte('scanned_at', today.toISOString())
+        .limit(1);
+
+      if (!error && attendance && attendance.length > 0) {
+        setAlreadyAttended(true);
+      } else {
+        setAlreadyAttended(false);
+      }
+
+      setScannedVolunteer(volunteerData);
+      setAttendanceChecked(true);
+      setShowVolunteerCard(true);
+      
+    } catch (error) {
+      console.error("QR scan error:", error);
+      showFeedback('error', 'Failed to process QR code');
     }
+  };
 
-    if (!volunteerData) {
-      showFeedback('error', 'Volunteer not found');
-      return;
-    }
-
-    // Check if user is attendee or admin
-    if (volunteerData.role === 'attendee' || volunteerData.role === 'admin') {
-      showFeedback('error', 'You Are Not A Volunteer');
-      return;
-    }
-
-    // Check today's attendance using vol_attendance scan_type
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const { data: attendance, error } = await supabase
-      .from('attendances')
-      .select('*')
-      .eq('user_id', volunteerData.id)
-      .eq('scan_type', 'vol_attendance') // UPDATED
-      .gte('scanned_at', today.toISOString())
-      .limit(1);
-
-    if (!error && attendance && attendance.length > 0) {
-      setAlreadyAttended(true);
-    } else {
-      setAlreadyAttended(false);
-    }
-
-    setScannedVolunteer(volunteerData);
-    setAttendanceChecked(true);
-    setShowVolunteerCard(true);
-    
-  } catch (error) {
-    console.error("QR scan error:", error);
-    showFeedback('error', 'Failed to process QR code');
-  }
-};
-
- const handleAttendanceAction = async () => {
+  const handleAttendanceAction = async () => {
     if (!scannedVolunteer) return;
 
     try {
@@ -194,7 +198,61 @@ const handleScan = async (qrData: string) => {
       setLoading(false);
     }
   };
-  
+
+  // Handle User Search for Announcements
+  const searchUsersByPersonalId = async (searchTerm: string) => {
+    if (!searchTerm || searchTerm.trim().length < 2) {
+      setUserSearchResults([]);
+      return;
+    }
+
+    setUserSearchLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('users_profiles')
+        .select('id, first_name, last_name, personal_id, role, email, volunteer_id')
+        .ilike('personal_id', `%${searchTerm.trim()}%`)
+        .order('personal_id')
+        .limit(10);
+
+      if (error) {
+        console.error('Search error:', error);
+        setUserSearchResults([]);
+      } else {
+        // Filter out already selected users and exclude admin/attendees
+        const filteredResults = (data || []).filter(user => 
+          !selectedUsers.some(selected => selected.id === user.id) &&
+          user.role !== 'admin' && 
+          user.role !== 'attendee'
+        );
+        setUserSearchResults(filteredResults);
+      }
+    } catch (error) {
+      console.error('Search exception:', error);
+      setUserSearchResults([]);
+    } finally {
+      setUserSearchLoading(false);
+    }
+  };
+
+  // Add user to selected list for announcements
+  const addUserToSelection = (user: Volunteer) => {
+    setSelectedUsers(prev => [...prev, user]);
+    setUserSearchResults(prev => prev.filter(result => result.id !== user.id));
+    setUserSearch("");
+  };
+
+  // Remove user from selected list for announcements
+  const removeUserFromSelection = (userId: string) => {
+    setSelectedUsers(prev => prev.filter(user => user.id !== userId));
+  };
+
+  // Clear all selections for announcements
+  const clearUserSelection = () => {
+    setSelectedUsers([]);
+    setUserSearch("");
+    setUserSearchResults([]);
+  };
 
   // Handle Announcement
   const handleAnnouncementSubmit = async () => {
@@ -203,16 +261,42 @@ const handleScan = async (qrData: string) => {
       return;
     }
 
+    if (announcementRole === "custom" && selectedUsers.length === 0) {
+      showFeedback('error', 'Please select at least one user for custom announcements!');
+      return;
+    }
+
     setLoading(true);
     try {
-      const { error } = await sendAnnouncement({
+      let notificationData: any = {
         title: announcementTitle,
         message: announcementDescription,
-        target_type: 'role',
-        target_role: announcementRole
-      });
+        created_by: profile?.id
+      };
+
+      // Determine target type and role based on selection
+      if (announcementRole === "all") {
+        // Send to all users except admin/attendees
+        notificationData.target_type = 'role';
+        notificationData.target_role = 'all_except_admin_attendees';
+      } 
+      else if (announcementRole === "custom") {
+        // Send to custom selected users
+        notificationData.target_type = 'specific_users';
+        notificationData.target_user_ids = selectedUsers.map(user => user.id);
+      }
+      else {
+        // For role-based targeting
+        notificationData.target_type = 'role';
+        notificationData.target_role = announcementRole;
+      }
+
+      const { error } = await supabase
+        .from('notifications')
+        .insert([notificationData]);
 
       if (error) {
+        console.error('Notification error:', error);
         showFeedback('error', 'Failed to send announcement');
       } else {
         showFeedback('success', 'Announcement sent successfully!');
@@ -220,8 +304,10 @@ const handleScan = async (qrData: string) => {
         setAnnouncementTitle("");
         setAnnouncementDescription("");
         setAnnouncementRole("");
+        clearUserSelection();
       }
     } catch (err) {
+      console.error('Send announcement error:', err);
       showFeedback('error', 'Failed to send announcement');
     } finally {
       setLoading(false);
@@ -254,59 +340,62 @@ const handleScan = async (qrData: string) => {
     }
   };
 
-const handleBonusAssignment = async () => {
-  if (!selectedUser || bonusAmount < 1) {
-    showFeedback('error', 'Please select a user and set bonus amount');
-    return;
-  }
-
-  setLoading(true);
-  try {
-    const { error } = await supabase
-      .from('user_scores')
-      .insert([{
-        user_id: selectedUser.id,
-        points: bonusAmount,
-        activity_type: 'vol_bonus', // UPDATED
-        activity_description: `Bonus points assigned by team leader`,
-        awarded_by: profile?.id
-      }]);
-
-    if (error) {
-      showFeedback('error', 'Failed to assign bonus');
-    } else {
-      // Update user's total score
-      const { data: userProfile } = await supabase
-        .from('users_profiles')
-        .select('score')
-        .eq('id', selectedUser.id)
-        .single();
-
-      if (userProfile) {
-        await supabase
-          .from('users_profiles')
-          .update({ score: (userProfile.score || 0) + bonusAmount })
-          .eq('id', selectedUser.id);
-      }
-
-      showFeedback('success', `Bonus of ${bonusAmount} points assigned successfully!`);
-      setBonusModal(false);
-      setSelectedUser(null);
-      setSearchTerm("");
-      setBonusAmount(5);
+  const handleBonusAssignment = async () => {
+    if (!selectedUser || bonusAmount < 1) {
+      showFeedback('error', 'Please select a user and set bonus amount');
+      return;
     }
-  } catch (err) {
-    showFeedback('error', 'Failed to assign bonus');
-  } finally {
-    setLoading(false);
-  }
-};
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('user_scores')
+        .insert([{
+          user_id: selectedUser.id,
+          points: bonusAmount,
+          activity_type: 'vol_bonus', // UPDATED
+          activity_description: `Bonus points assigned by team leader`,
+          awarded_by: profile?.id
+        }]);
+
+      if (error) {
+        showFeedback('error', 'Failed to assign bonus');
+      } else {
+        // Update user's total score
+        const { data: userProfile } = await supabase
+          .from('users_profiles')
+          .select('score')
+          .eq('id', selectedUser.id)
+          .single();
+
+        if (userProfile) {
+          await supabase
+            .from('users_profiles')
+            .update({ score: (userProfile.score || 0) + bonusAmount })
+            .eq('id', selectedUser.id);
+        }
+
+        showFeedback('success', `Bonus of ${bonusAmount} points assigned successfully!`);
+        setBonusModal(false);
+        setSelectedUser(null);
+        setSearchTerm("");
+        setBonusAmount(5);
+      }
+    } catch (err) {
+      showFeedback('error', 'Failed to assign bonus');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const roleOptions = [
+    { value: "all", label: "All Volunteers & Team Leaders" },
     { value: "volunteer", label: "Volunteers" },
     { value: "registration", label: "Registration Team" },
     { value: "building", label: "Building Team" },
     { value: "info_desk", label: "Info Desk Team" },
-    { value: "team_leader", label: "Team Leaders" }
+    { value: "team_leader", label: "Team Leaders" },
+    { value: "custom", label: "Custom Selection" }
   ];
 
   return (
@@ -516,7 +605,10 @@ const handleBonusAssignment = async () => {
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4">
           <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto relative">
             <button
-              onClick={() => setAnnouncementModal(false)}
+              onClick={() => {
+                setAnnouncementModal(false);
+                clearUserSelection();
+              }}
               className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
             >
               <X className="h-6 w-6" />
@@ -545,7 +637,12 @@ const handleBonusAssignment = async () => {
 
               <select
                 value={announcementRole}
-                onChange={(e) => setAnnouncementRole(e.target.value)}
+                onChange={(e) => {
+                  setAnnouncementRole(e.target.value);
+                  if (e.target.value !== "custom") {
+                    clearUserSelection();
+                  }
+                }}
                 className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
               >
                 <option value="">Select Target Role</option>
@@ -555,11 +652,102 @@ const handleBonusAssignment = async () => {
                   </option>
                 ))}
               </select>
+
+              {/* Custom Selection UI */}
+              {announcementRole === "custom" && (
+                <div className="space-y-3">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={userSearch}
+                      onChange={(e) => {
+                        setUserSearch(e.target.value);
+                        searchUsersByPersonalId(e.target.value);
+                      }}
+                      placeholder="Search by Personal ID..."
+                      className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    {userSearchLoading && (
+                      <div className="absolute right-3 top-3">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Search Results */}
+                  {userSearchResults.length > 0 && (
+                    <div className="max-h-40 overflow-y-auto border rounded-lg">
+                      {userSearchResults.map((user) => (
+                        <div
+                          key={user.id}
+                          onClick={() => addUserToSelection(user)}
+                          className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                        >
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">
+                                {user.first_name} {user.last_name}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                ID: {user.personal_id} | {user.role}
+                              </p>
+                            </div>
+                            <Plus className="h-4 w-4 text-blue-500" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Selected Users */}
+                  {selectedUsers.length > 0 && (
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="text-sm font-medium text-gray-700">
+                          Selected Users ({selectedUsers.length})
+                        </label>
+                        <button
+                          onClick={clearUserSelection}
+                          className="text-xs text-red-500 hover:text-red-700"
+                        >
+                          Clear All
+                        </button>
+                      </div>
+                      <div className="max-h-32 overflow-y-auto border rounded-lg bg-gray-50">
+                        {selectedUsers.map((user) => (
+                          <div
+                            key={user.id}
+                            className="p-2 flex justify-between items-center border-b last:border-b-0"
+                          >
+                            <div>
+                              <p className="text-sm text-gray-900">
+                                {user.first_name} {user.last_name}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                ID: {user.personal_id}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => removeUserFromSelection(user.id)}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-3 mt-6">
               <button
-                onClick={() => setAnnouncementModal(false)}
+                onClick={() => {
+                  setAnnouncementModal(false);
+                  clearUserSelection();
+                }}
                 className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
               >
                 Cancel
@@ -616,7 +804,7 @@ const handleBonusAssignment = async () => {
               </div>
 
               {/* User Search */}
-              <div>
+              <div className="relative">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Search Volunteer
                 </label>
@@ -633,9 +821,9 @@ const handleBonusAssignment = async () => {
                   />
                   <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
                   
-                  {/* Search Results */}
+                  {/* Search Results - Fixed to appear over the card */}
                   {showSearchResults && searchResults.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-20 max-h-60 overflow-y-auto">
                       {searchResults.map((user) => (
                         <button
                           key={user.id}
