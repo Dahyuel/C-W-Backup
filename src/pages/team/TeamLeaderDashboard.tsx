@@ -465,31 +465,33 @@ const handleBonusAssignment = async () => {
 const [showBonusConfirmCard, setShowBonusConfirmCard] = useState(false);
 const [bonusMethod, setBonusMethod] = useState<'scan' | 'search'>('scan');
   // Get role options - for team leader, only show their team and custom
-  const getRoleOptions = () => {
-    const teamLeaderTeam = getTeamLeaderTeam();
-    if (!teamLeaderTeam) return [];
 
-    const roleLabels: { [key: string]: string } = {
-      'volunteer': 'Volunteers',
-      'registration': 'Registration Team',
-      'building': 'Building Team',
-      'info_desk': 'Info Desk Team',
-      'team_leader': 'Team Leaders',
-      'ushers': 'Ushers',
-      'marketing': 'Marketing Team',
-      'media': 'Media Team',
-      'ER': 'ER Team',
-      'BD': 'BD Team',
-      'catering': 'Catering Team',
-      'feedback': 'Feedback Team',
-      'stage': 'Stage Team'
-    };
+const getRoleOptions = () => {
+  const teamLeaderTeam = getTeamLeaderTeam();
+  if (!teamLeaderTeam) return [];
 
-    return [
-      { value: teamLeaderTeam, label: roleLabels[teamLeaderTeam] || teamLeaderTeam.charAt(0).toUpperCase() + teamLeaderTeam.slice(1) },
-      { value: "custom", label: "Custom Selection" }
-    ];
+  const roleLabels: { [key: string]: string } = {
+    'volunteer': 'Volunteers',
+    'registration': 'Registration Team', 
+    'building': 'Building Team',
+    'info_desk': 'Info Desk Team',
+    'team_leader': 'Team Leaders',
+    'ushers': 'Ushers',
+    'marketing': 'Marketing Team',
+    'media': 'Media Team',
+    'ER': 'ER Team',
+    'BD': 'BD Team',
+    'catering': 'Catering Team',
+    'feedback': 'Feedback Team',
+    'stage': 'Stage Team'
   };
+
+  return [
+    { value: teamLeaderTeam, label: roleLabels[teamLeaderTeam] || teamLeaderTeam },
+    { value: "custom", label: "Custom Selection" }
+  ];
+};
+  
 
   return (
     <DashboardLayout
