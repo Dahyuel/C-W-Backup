@@ -1024,16 +1024,16 @@ const [bonusMethod, setBonusMethod] = useState<'scan' | 'search'>('scan');
 
       {bonusMethod === 'scan' ? (
         <div className="space-y-4">
-          <button
-            onClick={() => {
-              setScannerOpen(true);
-              // Set a flag to know this is for bonus
-              setAttendanceMethod('scan'); // Reuse scanner
-            }}
-            className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 transition-all duration-300 font-medium"
-          >
-            Open QR Scanner
-          </button>
+<button
+  onClick={() => {
+    setScanPurpose('bonus'); // Set purpose to bonus
+    setScannerOpen(true);
+    setBonusModal(false); // Close bonus modal
+  }}
+  className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 transition-all duration-300 font-medium"
+>
+  Open QR Scanner
+</button>
         </div>
       ) : (
         <div className="space-y-4">
