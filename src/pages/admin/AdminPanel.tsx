@@ -280,9 +280,21 @@ const fetchInitialStatistics = async () => {
 
   } catch (error) {
     console.error('Error fetching initial statistics:', error);
+    // Set default stats on error
+    setStatsData(prev => ({
+      ...prev,
+      roleStats: {
+        attendee: 0,
+        volunteer: 0,
+        team_leader: 0,
+        registration: 0,
+        building: 0,
+        info_desk: 0,
+        admin: 0
+      }
+    }));
   }
 };
-
 // Add this function to process user statistics
 const processUserStatistics = (users) => {
   const stats = {
