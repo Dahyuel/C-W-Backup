@@ -489,10 +489,9 @@ const getRoleOptions = () => {
 
   return [
     { value: teamLeaderTeam, label: roleLabels[teamLeaderTeam] || teamLeaderTeam },
-    { value: "custom", label: "Custom Selection" }
+    { value: "custom", label: "Custom Selection" } // Make sure this is "custom"
   ];
 };
-  
 
   return (
     <DashboardLayout
