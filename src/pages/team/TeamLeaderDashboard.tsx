@@ -281,55 +281,53 @@ const { error } = await supabase
     }
   };
 
-  // Handle Bonus Assignment
-  const handleBonusAssignment = async () => {
-    if (!selectedUser || bonusAmount < 1) {
-      showFeedback('error', 'Please select a user and set bonus amount');
-      return;
-    }
+const handleBonusAssignment = async () => {
+  if (!selectedUser || bonusAmount < 1) {
+    showFeedback('error', 'Please select a user and set bonus amount');
+    return;
+  }
 
-    setLoading(true);
-    try {
- const { error } = await supabase
-  .from('user_scores')
-  .insert([{
-    user_id: selectedUser.id,
-    points: bonusAmount,
-    activity_type: 'vol_bonus', // NEW
-    activity_description: `Bonus points assigned by team leader`,
-    awarded_by: profile?.id
-  }]);
+  setLoading(true);
+  try {
+    const { error } = await supabase
+      .from('user_scores')
+      .insert([{
+        user_id: selectedUser.id,
+        points: bonusAmount,
+        activity_type: 'vol_bonus', // UPDATED
+        activity_description: `Bonus points assigned by team leader`,
+        awarded_by: profile?.id
+      }]);
 
-      if (error) {
-        showFeedback('error', 'Failed to assign bonus');
-      } else {
-        // Update user's total score
-        const { data: userProfile } = await supabase
-          .from('users_profiles')
-          .select('score')
-          .eq('id', selectedUser.id)
-          .single();
-
-        if (userProfile) {
-          await supabase
-            .from('users_profiles')
-            .update({ score: (userProfile.score || 0) + bonusAmount })
-            .eq('id', selectedUser.id);
-        }
-
-        showFeedback('success', `Bonus of ${bonusAmount} points assigned successfully!`);
-        setBonusModal(false);
-        setSelectedUser(null);
-        setSearchTerm("");
-        setBonusAmount(5);
-      }
-    } catch (err) {
+    if (error) {
       showFeedback('error', 'Failed to assign bonus');
-    } finally {
-      setLoading(false);
-    }
-  };
+    } else {
+      // Update user's total score
+      const { data: userProfile } = await supabase
+        .from('users_profiles')
+        .select('score')
+        .eq('id', selectedUser.id)
+        .single();
 
+      if (userProfile) {
+        await supabase
+          .from('users_profiles')
+          .update({ score: (userProfile.score || 0) + bonusAmount })
+          .eq('id', selectedUser.id);
+      }
+
+      showFeedback('success', `Bonus of ${bonusAmount} points assigned successfully!`);
+      setBonusModal(false);
+      setSelectedUser(null);
+      setSearchTerm("");
+      setBonusAmount(5);
+    }
+  } catch (err) {
+    showFeedback('error', 'Failed to assign bonus');
+  } finally {
+    setLoading(false);
+  }
+};
   const roleOptions = [
     { value: "volunteer", label: "Volunteers" },
     { value: "registration", label: "Registration Team" },
