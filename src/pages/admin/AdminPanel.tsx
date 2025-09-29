@@ -228,37 +228,194 @@ const [editEvent, setEditEvent] = useState({
     }
   }, [activeTab, activeDay]);
 
-  const fetchDashboardData = async () => {
-    setLoadingData(true);
-    try {
-      // Fetch basic stats using correct count syntax
-      const { count: totalUsers } = await supabase
-        .from("users_profiles")
-        .select("*", { count: "exact", head: true });
-      
-      const { count: totalSessions } = await supabase
-        .from("sessions")
-        .select("*", { count: "exact", head: true });
+const fetchDashboardData = async () => {
+  setLoadingData(true);
+  try {
+    // Fetch basic stats using correct count syntax
+    const { count: totalUsers } = await supabase
+      .from("users_profiles")
+      .select("*", { count: "exact", head: true });
+    
+    const { count: totalSessions } = await supabase
+      .from("sessions")
+      .select("*", { count: "exact", head: true });
 
-      console.log("Fetched stats:", { totalUsers, totalSessions }); // Debug log
+    console.log("Fetched stats:", { totalUsers, totalSessions });
 
-      setStats({
-        total_users: totalUsers || 0,
-        total_sessions: totalSessions || 0,
-      });
+    setStats({
+      total_users: totalUsers || 0,
+      total_sessions: totalSessions || 0,
+    });
 
-      // Fetch building stats using the helper function
-      await fetchBuildingStats();
-      
-      // Fetch initial data based on tab
-      await fetchSessions();
-      await fetchCompanies();
-    } catch (error) {
-      console.error("Error fetching dashboard data:", error);
-    } finally {
-      setLoadingData(false);
-    }
+    // Fetch building stats using the helper function
+    await fetchBuildingStats();
+    
+    // Fetch initial data based on tab
+    await fetchSessions();
+    await fetchCompanies();
+
+    // Fetch initial statistics data
+    await fetchInitialStatistics();
+
+  } catch (error) {
+    console.error("Error fetching dashboard data:", error);
+  } finally {
+    setLoadingData(false);
+  }
+};
+
+// Add this new function
+const fetchInitialStatistics = async () => {
+  try {
+    // Fetch all users to populate initial stats
+    const { data: users, error } = await supabase
+      .from('users_profiles')
+      .select('*');
+
+    if (error) throw error;
+
+    // Process initial statistics
+    const initialStats = processUserStatistics(users || []);
+    setStatsData(initialStats);
+
+  } catch (error) {
+    console.error('Error fetching initial statistics:', error);
+  }
+};
+
+// Add this function to process user statistics
+const processUserStatistics = (users) => {
+  const stats = {
+    totalRegistrations: users.length,
+    graduates: 0,
+    students: 0,
+    currentInEvent: 0,
+    currentInBuilding: 0,
+    universities: [],
+    faculties: [],
+    genderStats: { male: 0, female: 0 },
+    roleStats: {},
+    marketingSources: [],
+    degreeLevelStats: { student: 0, graduate: 0 },
+    classYearStats: {},
+    currentGenderStats: { male: 0, female: 0 },
+    eventGenderStats: { male: 0, female: 0 },
+    eventFaculties: [],
+    eventUniversities: [],
+    eventDegreeStats: { student: 0, graduate: 0 }
   };
+
+  const universityCount = {};
+  const facultyCount = {};
+  const roleCount = {};
+  const marketingCount = {};
+  const classYearCount = {};
+  const eventUniversityCount = {};
+  const eventFacultyCount = {};
+
+  users.forEach(user => {
+    // Degree level stats
+    if (user.degree_level === 'graduate') {
+      stats.graduates++;
+    } else if (user.degree_level === 'student') {
+      stats.students++;
+    }
+
+    // Current status
+    if (user.event_entry) {
+      stats.currentInEvent++;
+      // Event-specific gender stats
+      if (user.gender === 'male') {
+        stats.eventGenderStats.male++;
+      } else if (user.gender === 'female') {
+        stats.eventGenderStats.female++;
+      }
+      
+      // Event-specific university stats
+      if (user.university) {
+        eventUniversityCount[user.university] = (eventUniversityCount[user.university] || 0) + 1;
+      }
+      
+      // Event-specific faculty stats
+      if (user.faculty) {
+        eventFacultyCount[user.faculty] = (eventFacultyCount[user.faculty] || 0) + 1;
+      }
+      
+      // Event-specific degree stats
+      if (user.degree_level === 'student') {
+        stats.eventDegreeStats.student++;
+      } else if (user.degree_level === 'graduate') {
+        stats.eventDegreeStats.graduate++;
+      }
+    }
+    
+    if (user.building_entry) stats.currentInBuilding++;
+
+    // Gender stats (registration)
+    if (user.gender === 'male') {
+      stats.genderStats.male++;
+      if (user.event_entry) stats.currentGenderStats.male++;
+    } else if (user.gender === 'female') {
+      stats.genderStats.female++;
+      if (user.event_entry) stats.currentGenderStats.female++;
+    }
+
+    // University stats
+    if (user.university) {
+      universityCount[user.university] = (universityCount[user.university] || 0) + 1;
+    }
+
+    // Faculty stats
+    if (user.faculty) {
+      facultyCount[user.faculty] = (facultyCount[user.faculty] || 0) + 1;
+    }
+
+    // Role stats
+    if (user.role) {
+      roleCount[user.role] = (roleCount[user.role] || 0) + 1;
+    }
+
+    // Marketing source stats
+    if (user.how_did_hear_about_event) {
+      marketingCount[user.how_did_hear_about_event] = (marketingCount[user.how_did_hear_about_event] || 0) + 1;
+    }
+
+    // Class year stats
+    if (user.class) {
+      classYearCount[user.class] = (classYearCount[user.class] || 0) + 1;
+    }
+  });
+
+  // Convert counts to sorted arrays
+  stats.universities = Object.entries(universityCount)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  stats.faculties = Object.entries(facultyCount)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  stats.eventUniversities = Object.entries(eventUniversityCount)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  stats.eventFaculties = Object.entries(eventFacultyCount)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10);
+
+  stats.roleStats = roleCount;
+  stats.marketingSources = Object.entries(marketingCount)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+
+  stats.classYearStats = classYearCount;
+
+  return stats;
+};
 
 // Handle edit session
 const handleEditSession = (session) => {
