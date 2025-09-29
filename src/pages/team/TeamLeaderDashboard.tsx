@@ -1,10 +1,32 @@
-
-import React, { useState } from "react";
-import { Users } from "lucide-react";
-import { QrCode, Gift, Building, Megaphone} from "lucide-react";
+// TeamLeaderDashboard.tsx
+import React, { useState, useEffect } from "react";
+import { 
+  Users, QrCode, Gift, Building, Megaphone, Search, 
+  X, CheckCircle, AlertCircle, Sliders, Plus 
+} from "lucide-react";
 import DashboardLayout from "../../components/shared/DashboardLayout";
 import { useAuth } from "../../contexts/AuthContext";
 import { QRScanner } from "../../components/shared/QRScanner";
+import { supabase, sendAnnouncement, getDynamicBuildingStats } from "../../lib/supabase";
+
+interface Volunteer {
+  id: string;
+  first_name: string;
+  last_name: string;
+  email: string;
+  personal_id: string;
+  volunteer_id: string;
+  role: string;
+  faculty?: string;
+  phone?: string;
+}
+
+interface AttendanceRecord {
+  id: string;
+  user_id: string;
+  scanned_at: string;
+  scan_type: string;
+}
 
 export const TeamLeaderDashboard: React.FC = () => {
   const { profile } = useAuth();
@@ -12,285 +34,532 @@ export const TeamLeaderDashboard: React.FC = () => {
 
   // QR Scanner State
   const [scannerOpen, setScannerOpen] = useState(false);
-  const [scannerMode, setScannerMode] = useState<"attendance" | "bonus" | null>(
-    null
-  );
-  const [lastScan, setLastScan] = useState<string | null>(null);
+  const [scannedVolunteer, setScannedVolunteer] = useState<Volunteer | null>(null);
+  const [showVolunteerCard, setShowVolunteerCard] = useState(false);
+  const [attendanceChecked, setAttendanceChecked] = useState(false);
+  const [alreadyAttended, setAlreadyAttended] = useState(false);
 
-  //announcment
- const [announcementModal, setAnnouncementModal] = useState(false);
+  // Announcement State
+  const [announcementModal, setAnnouncementModal] = useState(false);
   const [announcementTitle, setAnnouncementTitle] = useState("");
   const [announcementDescription, setAnnouncementDescription] = useState("");
   const [announcementRole, setAnnouncementRole] = useState("");
 
-
-  // Bonus workflow state
+  // Bonus State
   const [bonusModal, setBonusModal] = useState(false);
-  const [bonusAmount, setBonusAmount] = useState<number>(0);
+  const [bonusAmount, setBonusAmount] = useState<number>(5);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<Volunteer[]>([]);
+  const [selectedUser, setSelectedUser] = useState<Volunteer | null>(null);
+  const [showSearchResults, setShowSearchResults] = useState(false);
 
-  const handleScan = (data: string) => {
-    setLastScan(data);
+  // Flow Dashboard State
+  const [buildingStats, setBuildingStats] = useState({
+    inside_building: 0,
+    inside_event: 0,
+    total_attendees: 0
+  });
 
-    if (scannerMode === "attendance") {
-      alert(`✅ Attendance recorded for volunteer: ${data}`);
-      // TODO: supabase.from("attendance").insert({ volunteer_id: data })
-    }
+  // Feedback State
+  const [feedback, setFeedback] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
 
-    if (scannerMode === "bonus" && bonusAmount > 0) {
-      alert(`🎁 Bonus of ${bonusAmount} assigned to volunteer: ${data}`);
-      // TODO: supabase.from("bonuses").insert({ volunteer_id: data, amount: bonusAmount })
-    }
-
-    setScannerOpen(false);
-    setScannerMode(null);
+  const showFeedback = (type: 'success' | 'error', message: string) => {
+    setFeedback({ type, message });
+    setTimeout(() => setFeedback(null), 5000);
   };
+
+  // Fetch building stats
+  const fetchBuildingStats = async () => {
+    try {
+      const { data: dynamicStats, error } = await getDynamicBuildingStats();
+      if (!error && dynamicStats) {
+        setBuildingStats({
+          inside_building: dynamicStats.inside_building,
+          inside_event: dynamicStats.inside_event,
+          total_attendees: dynamicStats.total_attendees
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching building stats:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchBuildingStats();
+    // Refresh stats every 30 seconds
+    const interval = setInterval(fetchBuildingStats, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Handle QR Scan for Attendance
+  const handleScan = async (qrData: string) => {
+    try {
+      console.log('Processing QR data:', qrData);
+      
+      // Check if it's a UUID or volunteer ID
+      let volunteerData: Volunteer | null = null;
+      
+      if (qrData.includes('-')) { // Likely UUID
+        const { data, error } = await supabase
+          .from('users_profiles')
+          .select('*')
+          .eq('id', qrData.trim())
+          .single();
+        
+        if (!error && data) {
+          volunteerData = data;
+        }
+      } else { // Likely volunteer ID
+        const { data, error } = await supabase
+          .from('users_profiles')
+          .select('*')
+          .eq('volunteer_id', qrData.trim())
+          .single();
+        
+        if (!error && data) {
+          volunteerData = data;
+        }
+      }
+
+      if (!volunteerData) {
+        showFeedback('error', 'Volunteer not found');
+        return;
+      }
+
+      // Check if user is attendee or admin
+      if (volunteerData.role === 'attendee' || volunteerData.role === 'admin') {
+        showFeedback('error', 'You Are Not A Volunteer');
+        return;
+      }
+
+      // Check today's attendance
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const { data: attendance, error } = await supabase
+        .from('attendances')
+        .select('*')
+        .eq('user_id', volunteerData.id)
+        .eq('scan_type', 'attendance')
+        .gte('scanned_at', today.toISOString())
+        .limit(1);
+
+      if (!error && attendance && attendance.length > 0) {
+        setAlreadyAttended(true);
+      } else {
+        setAlreadyAttended(false);
+      }
+
+      setScannedVolunteer(volunteerData);
+      setAttendanceChecked(true);
+      setShowVolunteerCard(true);
+      
+    } catch (error) {
+      console.error("QR scan error:", error);
+      showFeedback('error', 'Failed to process QR code');
+    }
+  };
+
+  // Handle Attendance Action
+  const handleAttendanceAction = async () => {
+    if (!scannedVolunteer) return;
+
+    try {
+      setLoading(true);
+      
+      const { error } = await supabase
+        .from('attendances')
+        .insert([{
+          user_id: scannedVolunteer.id,
+          scan_type: 'attendance',
+          scanned_by: profile?.id
+        }]);
+
+      if (error) {
+        showFeedback('error', 'Failed to record attendance');
+        return;
+      }
+
+      showFeedback('success', 'Attendance recorded successfully!');
+      setShowVolunteerCard(false);
+      setScannedVolunteer(null);
+      setAttendanceChecked(false);
+      
+    } catch (error) {
+      console.error("Attendance action error:", error);
+      showFeedback('error', 'Failed to record attendance');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle Announcement
+  const handleAnnouncementSubmit = async () => {
+    if (!announcementTitle || !announcementDescription || !announcementRole) {
+      showFeedback('error', 'Please fill all required fields!');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await sendAnnouncement({
+        title: announcementTitle,
+        message: announcementDescription,
+        target_type: 'role',
+        target_role: announcementRole
+      });
+
+      if (error) {
+        showFeedback('error', 'Failed to send announcement');
+      } else {
+        showFeedback('success', 'Announcement sent successfully!');
+        setAnnouncementModal(false);
+        setAnnouncementTitle("");
+        setAnnouncementDescription("");
+        setAnnouncementRole("");
+      }
+    } catch (err) {
+      showFeedback('error', 'Failed to send announcement');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle User Search for Bonus
+  const handleUserSearch = async (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('users_profiles')
+        .select('*')
+        .or(`personal_id.ilike.%${searchTerm}%,volunteer_id.ilike.%${searchTerm}%`)
+        .neq('role', 'admin')
+        .neq('role', 'attendee')
+        .limit(10);
+
+      if (!error && data) {
+        setSearchResults(data);
+        setShowSearchResults(true);
+      }
+    } catch (error) {
+      console.error("Search error:", error);
+      setSearchResults([]);
+    }
+  };
+
+  // Handle Bonus Assignment
+  const handleBonusAssignment = async () => {
+    if (!selectedUser || bonusAmount < 1) {
+      showFeedback('error', 'Please select a user and set bonus amount');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('user_scores')
+        .insert([{
+          user_id: selectedUser.id,
+          points: bonusAmount,
+          activity_type: 'bonus_assignment',
+          activity_description: `Bonus points assigned by team leader`,
+          awarded_by: profile?.id
+        }]);
+
+      if (error) {
+        showFeedback('error', 'Failed to assign bonus');
+      } else {
+        // Update user's total score
+        const { data: userProfile } = await supabase
+          .from('users_profiles')
+          .select('score')
+          .eq('id', selectedUser.id)
+          .single();
+
+        if (userProfile) {
+          await supabase
+            .from('users_profiles')
+            .update({ score: (userProfile.score || 0) + bonusAmount })
+            .eq('id', selectedUser.id);
+        }
+
+        showFeedback('success', `Bonus of ${bonusAmount} points assigned successfully!`);
+        setBonusModal(false);
+        setSelectedUser(null);
+        setSearchTerm("");
+        setBonusAmount(5);
+      }
+    } catch (err) {
+      showFeedback('error', 'Failed to assign bonus');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const roleOptions = [
+    { value: "volunteer", label: "Volunteers" },
+    { value: "registration", label: "Registration Team" },
+    { value: "building", label: "Building Team" },
+    { value: "info_desk", label: "Info Desk Team" },
+    { value: "team_leader", label: "Team Leaders" }
+  ];
 
   return (
     <DashboardLayout
       title="Team Leader Dashboard"
-      subtitle="Manage your team, assign tasks, and monitor performance"
+      subtitle="Manage your team, track attendance, and assign bonuses"
     >
       <div className="space-y-8">
-{/* Quick Actions */}
-<div className="bg-white rounded-xl shadow-sm border border-black p-6">
- <div className="flex justify-center">
-  <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2 mb-8">
-    <Users className="h-8 w-8 text-orange-500" />
-    Manage Your Team
-  </h2>
-</div>
-
-
-<div className="flex flex-col md:flex-row gap-4 justify-center">
-  
-  {/* Attendance */}
-  <button
-    onClick={() => {
-      setScannerMode("attendance");
-      setScannerOpen(true);
-    }}
-    className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-700 transition-colors"
-  >
-    <QrCode className="h-8 w-8 mb-2" />
-    <span className="text-base font-medium">Scan Attendance</span>
-  </button>
-
-  {/* Bonus */}
-  <button
-    onClick={() => setBonusModal(true)}
-    className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-green-500 text-white rounded-xl hover:bg-green-800 transition-colors"
-  >
-    <Gift className="h-8 w-8 mb-2" />
-    <span className="text-base font-medium">Assign Bonus</span>
-  </button>
-
-  {/* Announcements */}
-  <button
-    onClick={() => setAnnouncementModal(true)}
-    className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-700 transition-colors"
-  >
-    <Megaphone className="h-8 w-8 mb-2" />
-    <span className="text-base font-medium">Send Announcement</span>
-  </button>
-</div>
-
-
-        </div>
-
-{/* Flow Dashboard Widget */}
-<div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-  {/* Header */}
-  <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
-    <h2 className="text-3xl font-bold text-black-800 flex items-center gap-2 mx-auto">
-      <Building className="h-7 w-7 text-orange-500" />
-      Flow Dashboard
-    </h2>
-  </div>
-
-  {/* Stats Overview */}
-  <div className="grid grid-cols-3 gap-4 px-6 py-6 text-center">
-    <div className="bg-green-100 p-4 rounded-lg shadow-sm">
-      <p className="text-2xl font-bold text-green-900">12</p>
-      <p className="text-lg font-bold text-gray-700">Inside Building</p>
-    </div>
-    <div className="bg-teal-100 p-4 rounded-lg shadow-sm">
-      <p className="text-2xl font-bold text-teal-900">5</p>
-      <p className="text-lg font-bold text-gray-700">Inside Event</p>
-    </div>
-    <div className="bg-blue-100 p-4 rounded-lg shadow-sm">
-      <p className="text-2xl font-bold text-blue-900">3</p>
-      <p className="text-lg font-bold text-gray-700">Total Attendees Today</p>
-    </div>
-  </div>
-
-  {/* Content */}
-  <div className="p-6">
-    <div className="overflow-x-auto">
-      <table className="min-w-full text-lg font-bold text-left border border-gray-200 rounded-lg overflow-hidden">
-        <thead className="bg-gray-100 text-gray-800 text-xl font-extrabold">
-          <tr>
-            <th className="px-4 py-3">Site</th>
-            <th className="px-4 py-3">Maximum Capacity</th>
-            <th className="px-4 py-3">Current Capacity</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr className="border-t">
-            <td className="px-4 py-3">Building</td>
-            <td className="px-4 py-3 text-red-600">500</td>
-            <td className="px-4 py-3">80%</td>
-          </tr>
-          <tr className="border-t">
-            <td className="px-4 py-3">Event</td>
-            <td className="px-4 py-3 text-red-600">4000</td>
-            <td className="px-4 py-3">40%</td>
-          </tr>
-          <tr className="border-t">
-            <td className="px-4 py-3">Total</td>
-            <td className="px-4 py-3 text-red-600">4500</td>
-            <td className="px-4 py-3">15%</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-
-        {/* Last Scan Info */}
-        {lastScan && (
-          <div className="p-4 bg-gray-100 rounded-xl border border-gray-200">
-            <p className="text-sm text-gray-800">
-              ✅ Last scanned volunteer: <b>{lastScan}</b>
-            </p>
-            {bonusAmount > 0 && scannerMode === "bonus" && (
-              <p className="text-sm text-green-600">
-                🎁 Bonus Assigned: <b>{bonusAmount}</b>
-              </p>
+        {/* Feedback Toast */}
+        {feedback && (
+          <div className={`fixed top-4 right-4 z-50 flex items-center space-x-2 px-4 py-3 rounded-lg shadow-lg ${
+            feedback.type === 'success' 
+              ? 'bg-green-500 text-white' 
+              : 'bg-red-500 text-white'
+          }`}>
+            {feedback.type === 'success' ? (
+              <CheckCircle className="h-5 w-5" />
+            ) : (
+              <AlertCircle className="h-5 w-5" />
             )}
+            <span className="font-medium">{feedback.message}</span>
+            <button
+              onClick={() => setFeedback(null)}
+              className="ml-2 hover:bg-black hover:bg-opacity-20 rounded p-1"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
         )}
-      </div>
 
-      {/* Bonus Input Modal */}
-      {bonusModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-96 relative">
-            {/* Close Button */}
+        {/* Quick Actions */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex justify-center">
+            <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2 mb-8">
+              <Users className="h-8 w-8 text-orange-500" />
+              Manage Your Team
+            </h2>
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-4 justify-center">
+            {/* Attendance */}
             <button
-              onClick={() => setBonusModal(false)}
-              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+              onClick={() => setScannerOpen(true)}
+              className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
             >
-              ✕
+              <QrCode className="h-8 w-8 mb-2" />
+              <span className="text-base font-medium">Scan Attendance</span>
             </button>
 
-            {/* Title */}
-            <h2 className="text-lg font-semibold text-black mb-4 text-center">
-              Assign Bonus
+            {/* Bonus */}
+            <button
+              onClick={() => setBonusModal(true)}
+              className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors"
+            >
+              <Gift className="h-8 w-8 mb-2" />
+              <span className="text-base font-medium">Assign Bonus</span>
+            </button>
+
+            {/* Announcements */}
+            <button
+              onClick={() => setAnnouncementModal(true)}
+              className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-colors"
+            >
+              <Megaphone className="h-8 w-8 mb-2" />
+              <span className="text-base font-medium">Send Announcement</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Flow Dashboard Widget */}
+        <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+            <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2 mx-auto">
+              <Building className="h-7 w-7 text-orange-500" />
+              Flow Dashboard
             </h2>
+          </div>
 
-            {/* Input */}
-            <input
-              type="number"
-              min={1}
-              max={50}
-              step={1}
-              value={bonusAmount === 0 ? "" : bonusAmount}
-              onChange={(e) => setBonusAmount(Number(e.target.value))}
-              placeholder="Enter bonus amount (1 - 50)"
-              className={`w-full border rounded-lg px-3 py-2 mb-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 
-                ${
-                  bonusAmount < 1 || bonusAmount > 50
-                    ? "border-red-500"
-                    : "border-gray-300"
-                }
-              `}
-            />
+          <div className="grid grid-cols-3 gap-4 px-6 py-6 text-center">
+            <div className="bg-green-100 p-4 rounded-lg shadow-sm">
+              <p className="text-2xl font-bold text-green-900">{buildingStats.inside_building}</p>
+              <p className="text-lg font-bold text-gray-700">Inside Building</p>
+            </div>
+            <div className="bg-teal-100 p-4 rounded-lg shadow-sm">
+              <p className="text-2xl font-bold text-teal-900">{buildingStats.inside_event}</p>
+              <p className="text-lg font-bold text-gray-700">Inside Event</p>
+            </div>
+            <div className="bg-blue-100 p-4 rounded-lg shadow-sm">
+              <p className="text-2xl font-bold text-blue-900">{buildingStats.total_attendees}</p>
+              <p className="text-lg font-bold text-gray-700">Total Attendees</p>
+            </div>
+          </div>
 
-            {/* Validation */}
-            {bonusAmount < 1 && bonusAmount !== 0 && (
-              <p className="text-sm text-red-600 mb-2">
-                Bonus must be at least 1 point.
-              </p>
-            )}
-            {bonusAmount > 50 && (
-              <p className="text-sm text-red-600 mb-2">
-                Bonus cannot exceed 50 points.
-              </p>
-            )}
+          <div className="p-6">
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-lg font-bold text-left border border-gray-200 rounded-lg overflow-hidden">
+                <thead className="bg-gray-100 text-gray-800 text-xl font-extrabold">
+                  <tr>
+                    <th className="px-4 py-3">Site</th>
+                    <th className="px-4 py-3">Maximum Capacity</th>
+                    <th className="px-4 py-3">Current Capacity</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-t">
+                    <td className="px-4 py-3">Building</td>
+                    <td className="px-4 py-3 text-red-600">500</td>
+                    <td className="px-4 py-3">
+                      {buildingStats.inside_building > 0 ? 
+                        Math.round((buildingStats.inside_building / 500) * 100) : 0}%
+                    </td>
+                  </tr>
+                  <tr className="border-t">
+                    <td className="px-4 py-3">Event</td>
+                    <td className="px-4 py-3 text-red-600">4000</td>
+                    <td className="px-4 py-3">
+                      {buildingStats.inside_event > 0 ? 
+                        Math.round((buildingStats.inside_event / 4000) * 100) : 0}%
+                    </td>
+                  </tr>
+                  <tr className="border-t">
+                    <td className="px-4 py-3">Total</td>
+                    <td className="px-4 py-3 text-red-600">4500</td>
+                    <td className="px-4 py-3">
+                      {(buildingStats.inside_building + buildingStats.inside_event) > 0 ? 
+                        Math.round(((buildingStats.inside_building + buildingStats.inside_event) / 4500) * 100) : 0}%
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
 
-            {/* Actions */}
-            <div className="flex justify-end gap-3 mt-4">
+      {/* QR Scanner Modal */}
+      <QRScanner
+        isOpen={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onScan={handleScan}
+        title="Scan Volunteer QR Code"
+        description="Point your camera at the volunteer's QR code"
+      />
+
+      {/* Volunteer Card Modal */}
+      {showVolunteerCard && scannedVolunteer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-gray-900">Volunteer Information</h3>
               <button
-                onClick={() => setBonusModal(false)}
-                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-              <button
-                disabled={bonusAmount < 1 || bonusAmount > 50}
                 onClick={() => {
-                  setBonusModal(false);
-                  setScannerMode("bonus");
-                  setScannerOpen(true);
+                  setShowVolunteerCard(false);
+                  setScannedVolunteer(null);
+                  setAttendanceChecked(false);
                 }}
-                className="px-4 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50"
+                className="text-gray-500 hover:text-gray-700"
               >
-                Continue to Scan
+                <X className="h-6 w-6" />
               </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="font-medium">Name:</span>
+                <span>{scannedVolunteer.first_name} {scannedVolunteer.last_name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium">Volunteer ID:</span>
+                <span>{scannedVolunteer.volunteer_id}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium">Email:</span>
+                <span>{scannedVolunteer.email}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium">Personal ID:</span>
+                <span>{scannedVolunteer.personal_id}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium">Role:</span>
+                <span className="capitalize">{scannedVolunteer.role.replace('_', ' ')}</span>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              {alreadyAttended ? (
+                <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded-lg">
+                  <p className="font-medium">This volunteer has already attended today.</p>
+                </div>
+              ) : (
+                <button
+                  onClick={handleAttendanceAction}
+                  disabled={loading}
+                  className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 disabled:opacity-50 transition-colors font-medium"
+                >
+                  {loading ? 'Recording...' : 'Mark Attendance'}
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
-      
-     {/* ✅ Announcement Modal */}
+
+      {/* Announcement Modal */}
       {announcementModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-96 relative">
-            {/* Close Button */}
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto relative">
             <button
               onClick={() => setAnnouncementModal(false)}
               className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
             >
-              ✕
+              <X className="h-6 w-6" />
             </button>
 
             <h2 className="text-lg font-semibold text-black mb-4 text-center">
               Send Announcement
             </h2>
 
-            {/* Title */}
-            <input
-              type="text"
-              value={announcementTitle}
-              onChange={(e) => setAnnouncementTitle(e.target.value)}
-              placeholder="Message Title"
-              className="w-full border rounded-lg px-3 py-2 mb-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-            />
+            <div className="space-y-4">
+              <input
+                type="text"
+                value={announcementTitle}
+                onChange={(e) => setAnnouncementTitle(e.target.value)}
+                placeholder="Message Title"
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              />
 
-            {/* Description */}
-            <textarea
-              value={announcementDescription}
-              onChange={(e) => setAnnouncementDescription(e.target.value)}
-              placeholder="Message Description"
-              className="w-full border rounded-lg px-3 py-2 mb-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-              rows={3}
-            />
+              <textarea
+                value={announcementDescription}
+                onChange={(e) => setAnnouncementDescription(e.target.value)}
+                placeholder="Message Description"
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                rows={3}
+              />
 
-            {/* Role */}
-            <select
-              value={announcementRole}
-              onChange={(e) => setAnnouncementRole(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 mb-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-            >
-             
-              <option value="volunteer">Volunteer</option>
-              <option value="team_leader">Team Leader</option>
-              <option value="admin">Admin</option>
-            </select>
+              <select
+                value={announcementRole}
+                onChange={(e) => setAnnouncementRole(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              >
+                <option value="">Select Target Role</option>
+                {roleOptions.map(role => (
+                  <option key={role.value} value={role.value}>
+                    {role.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-            {/* Actions */}
-            <div className="flex justify-end gap-3 mt-4">
+            <div className="flex justify-end gap-3 mt-6">
               <button
                 onClick={() => setAnnouncementModal(false)}
                 className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
@@ -298,38 +567,153 @@ export const TeamLeaderDashboard: React.FC = () => {
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  alert(
-                    `📢 Announcement Sent!\n\nTitle: ${announcementTitle}\nDescription: ${announcementDescription}\nRole: ${announcementRole}`
-                  );
-                  setAnnouncementModal(false);
-                }}
-                className="px-4 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600"
+                onClick={handleAnnouncementSubmit}
+                disabled={loading}
+                className="px-4 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600 disabled:opacity-50"
               >
-                Send
+                {loading ? 'Sending...' : 'Send'}
               </button>
             </div>
           </div>
         </div>
       )}
 
+      {/* Bonus Assignment Modal */}
+      {bonusModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50 p-4">
+          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto relative">
+            <button
+              onClick={() => {
+                setBonusModal(false);
+                setSelectedUser(null);
+                setSearchTerm("");
+              }}
+              className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
+            >
+              <X className="h-6 w-6" />
+            </button>
 
-      {/* QR Scanner Modal */}
-      <QRScanner
-        onScan={handleScan}
-        onClose={() => setScannerOpen(false)}
-        isOpen={scannerOpen}
-        title={scannerMode === "attendance" ? "Scan Attendance" : "Scan Bonus"}
-        description={
-          scannerMode === "attendance"
-            ? "Scan the volunteer QR to mark attendance"
-            : `Scan the volunteer QR to assign bonus of ${bonusAmount}`
-        }
-      />
+            <h2 className="text-lg font-semibold text-black mb-4 text-center">
+              Assign Bonus Points
+            </h2>
+
+            <div className="space-y-4">
+              {/* Bonus Slider */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Bonus Points: {bonusAmount}
+                </label>
+                <div className="flex items-center space-x-3">
+                  <span>1</span>
+                  <input
+                    type="range"
+                    min="1"
+                    max="30"
+                    value={bonusAmount}
+                    onChange={(e) => setBonusAmount(parseInt(e.target.value))}
+                    className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                  />
+                  <span>30</span>
+                </div>
+              </div>
+
+              {/* User Search */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Search Volunteer
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      handleUserSearch(e.target.value);
+                    }}
+                    placeholder="Search by Personal ID or Volunteer ID"
+                    className="w-full border rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                  />
+                  <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
+                  
+                  {/* Search Results */}
+                  {showSearchResults && searchResults.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
+                      {searchResults.map((user) => (
+                        <button
+                          key={user.id}
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setSearchTerm(`${user.first_name} ${user.last_name} (${user.volunteer_id})`);
+                            setShowSearchResults(false);
+                          }}
+                          className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+                        >
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {user.first_name} {user.last_name}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              ID: {user.volunteer_id} | Personal ID: {user.personal_id}
+                            </p>
+                            <p className="text-xs text-gray-500 capitalize">
+                              {user.role.replace('_', ' ')}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Selected User Display */}
+              {selectedUser && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-green-900">
+                        {selectedUser.first_name} {selectedUser.last_name}
+                      </p>
+                      <p className="text-sm text-green-700">
+                        {selectedUser.volunteer_id} • {selectedUser.personal_id}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSelectedUser(null);
+                        setSearchTerm("");
+                      }}
+                      className="text-green-600 hover:text-green-800"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setBonusModal(false);
+                  setSelectedUser(null);
+                  setSearchTerm("");
+                }}
+                className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBonusAssignment}
+                disabled={loading || !selectedUser}
+                className="px-4 py-2 rounded-lg bg-green-500 text-white hover:bg-green-600 disabled:opacity-50"
+              >
+                {loading ? 'Assigning...' : 'Assign Bonus'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   );
 };
-
-
-
-
