@@ -15,7 +15,9 @@ import {
   Upload,
   Link,
   Eye,
-  Trash2
+  Trash2,
+    TrendingUp, // Add this
+  BarChart3
 } from "lucide-react";
 import DashboardLayout from "../../components/shared/DashboardLayout";
 import { supabase, uploadFile, getDynamicBuildingStats,deleteCompany } from "../../lib/supabase";
