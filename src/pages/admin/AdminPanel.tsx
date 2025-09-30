@@ -1616,7 +1616,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
         await fetchEventsByDay(activeDay);
       }
     } catch (err) {
-      showNotification("Failed to delete event", "error");
+      showFeedback("Failed to delete event", "error");
     } finally {
       setLoading(false);
     }
@@ -1682,17 +1682,17 @@ const EventStatsView = ({ statsData, selectedDay }) => {
   // Handle Company Submit
   const handleCompanySubmit = async () => {
     if (!newCompany.name || !newCompany.website || !newCompany.boothNumber) {
-      showNotification("Please fill all required fields!", "error");
+      showFeedback("Please fill all required fields!", "error");
       return;
     }
 
     if (newCompany.logoType === "link" && !newCompany.logoUrl) {
-      showNotification("Please provide a logo URL!", "error");
+      showFeedback("Please provide a logo URL!", "error");
       return;
     }
 
     if (newCompany.logoType === "upload" && !newCompany.logo) {
-      showNotification("Please select a logo file to upload!", "error");
+      showFeedback("Please select a logo file to upload!", "error");
       return;
     }
 
@@ -1711,7 +1711,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
 
         if (uploadError) {
           console.error("Upload error:", uploadError);
-          showNotification("Failed to upload logo", "error");
+          showFeedback("Failed to upload logo", "error");
           setLoading(false);
           return;
         }
