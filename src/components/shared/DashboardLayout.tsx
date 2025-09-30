@@ -527,6 +527,23 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
         {children}
       </main>
 
+     {/* Footer */}
+     <footer className="bg-white border-t border-orange-100 mt-auto">
+       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+         <div className="text-center">
+           <p className="text-sm text-gray-600">
+             Powered By{' '}
+             <button
+               onClick={() => window.open('https://www.nilebyte.info', '_blank')}
+               className="text-orange-600 hover:text-orange-700 font-medium transition-colors underline"
+             >
+               @nilebyte
+             </button>
+           </p>
+         </div>
+       </div>
+     </footer>
+
       {/* Profile Modal */}
 {showProfileModal && (
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
