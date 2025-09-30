@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from 'react-dom';
 import {
   Users,
   Activity,
@@ -17,7 +18,10 @@ import {
   Eye,
   Trash2,
   TrendingUp,
-  BarChart3
+  BarChart3,
+  Search,
+  CheckCircle,
+  AlertCircle
 } from "lucide-react";
 import DashboardLayout from "../../components/shared/DashboardLayout";
 import { supabase, uploadFile, getDynamicBuildingStats, deleteCompany } from "../../lib/supabase";
@@ -67,27 +71,26 @@ export function AdminPanel() {
   const [eventDetailModal, setEventDetailModal] = useState(false);
   const [selectedEventDetail, setSelectedEventDetail] = useState(null);
   
- const announcementRoleOptions = [
-  { value: "", label: "Select Target" },
-  { value: "all", label: "All Users" },
-  { value: "volunteer", label: "Volunteers (All except Admin/Team Leader/Attendee)" },
-  { value: "team_leader", label: "Team Leaders" },
-  { value: "admin", label: "Admins" },
-  { value: "attendee", label: "Attendees" },
-  // New volunteer roles
-  { value: "registration", label: "Registration Team" },
-  { value: "building", label: "Building Team" },
-  { value: "info_desk", label: "Info Desk" },
-  { value: "ushers", label: "Ushers" },
-  { value: "marketing", label: "Marketing" },
-  { value: "media", label: "Media" },
-  { value: "ER", label: "ER Team" },
-  { value: "BD", label: "Business Development" },
-  { value: "catering", label: "Catering" },
-  { value: "feedback", label: "Feedback Team" },
-  { value: "stage", label: "Stage Team" },
-  { value: "custom", label: "Custom Selection" }
-];
+  const announcementRoleOptions = [
+    { value: "", label: "Select Target" },
+    { value: "all", label: "All Users" },
+    { value: "volunteer", label: "Volunteers (All except Admin/Team Leader/Attendee)" },
+    { value: "team_leader", label: "Team Leaders" },
+    { value: "admin", label: "Admins" },
+    { value: "attendee", label: "Attendees" },
+    { value: "registration", label: "Registration Team" },
+    { value: "building", label: "Building Team" },
+    { value: "info_desk", label: "Info Desk" },
+    { value: "ushers", label: "Ushers" },
+    { value: "marketing", label: "Marketing" },
+    { value: "media", label: "Media" },
+    { value: "ER", label: "ER Team" },
+    { value: "BD", label: "Business Development" },
+    { value: "catering", label: "Catering" },
+    { value: "feedback", label: "Feedback Team" },
+    { value: "stage", label: "Stage Team" },
+    { value: "custom", label: "Custom Selection" }
+  ];
   
   const [editCompany, setEditCompany] = useState({
     id: "",
@@ -163,19 +166,7 @@ export function AdminPanel() {
 
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
-  const [announcement, setAnnouncement] = useState({
-    message: "",
-    type: null,
-  });
-const [feedback, setFeedback] = useState<{
-  type: 'success' | 'error';
-  message: string;
-} | null>(null);
-
-const showFeedback = (message: string, type: 'success' | 'error' = 'success') => {
-  setFeedback({ type, message });
-  setTimeout(() => setFeedback(null), 5000);
-};
+  
   // Enhanced statistics state
   const [enhancedStats, setEnhancedStats] = useState({
     eventGenderRatio: { male: 0, female: 0 },
@@ -185,11 +176,18 @@ const showFeedback = (message: string, type: 'success' | 'error' = 'success') =>
     eventStudentGraduateRatio: { student: 0, graduate: 0 }
   });
 
-  const showNotification = (message, type) => {
-    setAnnouncement({ message, type });
-    setTimeout(() => {
-      setAnnouncement({ message: "", type: null });
-    }, 4000);
+  // Add team leader selection state
+  const [teamLeaderOfRole, setTeamLeaderOfRole] = useState("");
+
+  // Add feedback state for notifications
+  const [feedback, setFeedback] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
+
+  const showFeedback = (message: string, type: 'success' | 'error' = 'success') => {
+    setFeedback({ type, message });
+    setTimeout(() => setFeedback(null), 5000);
   };
 
   useEffect(() => {
@@ -208,49 +206,46 @@ const showFeedback = (message: string, type: 'success' | 'error' = 'success') =>
     }
   }, [activeTab]);
 
-const fetchDashboardData = async () => {
-  setLoadingData(true);
-  try {
-    const { count: totalUsers } = await supabase
-      .from("users_profiles")
-      .select("*", { count: "exact", head: true });
-    
-    const { count: totalSessions } = await supabase
-      .from("sessions")
-      .select("*", { count: "exact", head: true });
+  const fetchDashboardData = async () => {
+    setLoadingData(true);
+    try {
+      const { count: totalUsers } = await supabase
+        .from("users_profiles")
+        .select("*", { count: "exact", head: true });
+      
+      const { count: totalSessions } = await supabase
+        .from("sessions")
+        .select("*", { count: "exact", head: true });
 
-    // Get count of attendees
-    const { count: totalAttendees } = await supabase
-      .from("users_profiles")
-      .select("*", { count: "exact", head: true })
-      .eq("role", "attendee");
+      const { count: totalAttendees } = await supabase
+        .from("users_profiles")
+        .select("*", { count: "exact", head: true })
+        .eq("role", "attendee");
 
-    // Get count of volunteers (all roles except admin and attendee)
-    const { count: totalVolunteers } = await supabase
-      .from("users_profiles")
-      .select("*", { count: "exact", head: true })
-      .not("role", "in", "('admin','attendee')");
+      const { count: totalVolunteers } = await supabase
+        .from("users_profiles")
+        .select("*", { count: "exact", head: true })
+        .not("role", "in", "('admin','attendee')");
 
-    setStats({
-      total_users: totalUsers || 0,
-      total_sessions: totalSessions || 0,
-      total_attendees: totalAttendees || 0,
-      total_volunteers: totalVolunteers || 0,
-    });
+      setStats({
+        total_users: totalUsers || 0,
+        total_sessions: totalSessions || 0,
+        total_attendees: totalAttendees || 0,
+        total_volunteers: totalVolunteers || 0,
+      });
 
-    await fetchBuildingStats();
-    await fetchSessions();
-    await fetchCompanies();
-  } catch (error) {
-    console.error("Error fetching dashboard data:", error);
-  } finally {
-    setLoadingData(false);
-  }
-};
-  // NEW: Fetch enhanced statistics for inside event
+      await fetchBuildingStats();
+      await fetchSessions();
+      await fetchCompanies();
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
   const fetchEnhancedStatistics = async () => {
     try {
-      // Get users currently inside the event
       const { data: eventUsers, error } = await supabase
         .from('users_profiles')
         .select('*')
@@ -260,7 +255,6 @@ const fetchDashboardData = async () => {
       if (error) throw error;
 
       if (eventUsers && eventUsers.length > 0) {
-        // Calculate gender ratio
         const genderStats = { male: 0, female: 0 };
         const facultiesCount = {};
         const universitiesCount = {};
@@ -268,21 +262,17 @@ const fetchDashboardData = async () => {
         const studentGraduateStats = { student: 0, graduate: 0 };
 
         eventUsers.forEach(user => {
-          // Gender stats
           if (user.gender === 'male') genderStats.male++;
           else if (user.gender === 'female') genderStats.female++;
 
-          // Faculty stats
           if (user.faculty) {
             facultiesCount[user.faculty] = (facultiesCount[user.faculty] || 0) + 1;
           }
 
-          // University stats
           if (user.university) {
             universitiesCount[user.university] = (universitiesCount[user.university] || 0) + 1;
           }
 
-          // Degree level stats
           if (user.degree_level === 'student') {
             degreeLevelStats.student++;
             studentGraduateStats.student++;
@@ -292,7 +282,6 @@ const fetchDashboardData = async () => {
           }
         });
 
-        // Convert to arrays and sort
         const topFaculties = Object.entries(facultiesCount)
           .map(([name, count]) => ({ name, count }))
           .sort((a, b) => b.count - a.count)
@@ -359,7 +348,7 @@ const fetchDashboardData = async () => {
 
   const handleSessionUpdate = async () => {
     if (!editSession.title || !editSession.date || !editSession.speaker) {
-      showNotification("Please fill all required fields!", "error");
+      showFeedback("Please fill all required fields!", "error");
       return;
     }
 
@@ -382,7 +371,7 @@ const fetchDashboardData = async () => {
       }).eq('id', editSession.id);
 
       if (error) {
-showFeedback("Failed to update session", "error");
+        showFeedback("Failed to update session", "error");
       } else {
         setEditSessionModal(false);
         setEditSession({
@@ -396,11 +385,11 @@ showFeedback("Failed to update session", "error");
           location: "",
           description: "",
         });
-showFeedback("Session updated successfully!", "success");
+        showFeedback("Session updated successfully!", "success");
         await fetchSessions();
       }
     } catch (err) {
-showFeedback("Failed to update session", "error");
+      showFeedback("Failed to update session", "error");
     } finally {
       setLoading(false);
     }
@@ -468,32 +457,32 @@ showFeedback("Failed to update session", "error");
     setEditCompanyModal(true);
   };
 
-  // Reusable Stat Card Component
-const StatCard = ({ title, value, icon, color }) => {
-  const colorClasses = {
-    blue: 'bg-blue-500',
-    green: 'bg-green-500',
-    purple: 'bg-purple-500',
-    orange: 'bg-orange-500',
-    red: 'bg-red-500'
-  };
+  // Enhanced Stat Card Component with animations
+  const StatCard = ({ title, value, icon, color }) => {
+    const colorClasses = {
+      blue: 'bg-blue-500',
+      green: 'bg-green-500',
+      purple: 'bg-purple-500',
+      orange: 'bg-orange-500',
+      red: 'bg-red-500'
+    };
 
-  return (
-    <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover dashboard-card">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-gray-600">{title}</p>
-          <p className="text-3xl font-bold text-gray-900">{value}</p>
-        </div>
-        <div className={`w-12 h-12 ${colorClasses[color]} bg-opacity-10 rounded-lg flex items-center justify-center`}>
-          <div className={colorClasses[color].replace('bg-', 'text-')}>
-            {icon}
+    return (
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover dashboard-card">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">{title}</p>
+            <p className="text-3xl font-bold text-gray-900">{value}</p>
+          </div>
+          <div className={`w-12 h-12 ${colorClasses[color]} bg-opacity-10 rounded-lg flex items-center justify-center`}>
+            <div className={colorClasses[color].replace('bg-', 'text-')}>
+              {icon}
+            </div>
           </div>
         </div>
       </div>
-    </div>
-  );
-};
+    );
+  };
 
   // Gender Chart Component
   const GenderChart = ({ data, title = "Gender Distribution" }) => {
@@ -502,7 +491,7 @@ const StatCard = ({ title, value, icon, color }) => {
     const femalePercentage = total > 0 ? (data.female / total) * 100 : 0;
 
     return (
-      <div className="space-y-2">
+      <div className="space-y-2 fade-in-blur">
         <h4 className="text-sm font-medium text-gray-700">{title}</h4>
         <div className="flex justify-between text-sm">
           <span className="text-blue-600 font-medium">Male: {data.male} ({malePercentage.toFixed(1)}%)</span>
@@ -528,7 +517,7 @@ const StatCard = ({ title, value, icon, color }) => {
     const total = roles.reduce((sum, [_, count]) => sum + count, 0);
 
     return (
-      <div className="space-y-3">
+      <div className="space-y-3 fade-in-blur">
         {roles.map(([role, count]) => {
           const percentage = total > 0 ? (count / total) * 100 : 0;
           return (
@@ -561,7 +550,7 @@ const StatCard = ({ title, value, icon, color }) => {
     };
 
     return (
-      <div className="space-y-3">
+      <div className="space-y-3 fade-in-blur">
         <h4 className="text-sm font-medium text-gray-700">{title}</h4>
         {data.slice(0, 8).map((item, index) => {
           const percentage = (item.count / maxCount) * 100;
@@ -589,7 +578,7 @@ const StatCard = ({ title, value, icon, color }) => {
     const total = data.reduce((sum, item) => sum + item.count, 0);
 
     return (
-      <div className="space-y-3">
+      <div className="space-y-3 fade-in-blur">
         {data.map((item, index) => {
           const percentage = total > 0 ? (item.count / total) * 100 : 0;
           const formattedName = item.name.split('_').map(word => 
@@ -622,7 +611,7 @@ const StatCard = ({ title, value, icon, color }) => {
     const graduatePercentage = total > 0 ? (data.graduate / total) * 100 : 0;
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 fade-in-blur">
         <h4 className="text-sm font-medium text-gray-700">{title}</h4>
         <div className="flex justify-between text-sm">
           <span className="text-green-600 font-medium">Students: {data.student} ({studentPercentage.toFixed(1)}%)</span>
@@ -863,7 +852,6 @@ const StatCard = ({ title, value, icon, color }) => {
 
     const fetchEventStats = async () => {
       try {
-        // Calculate date range for the selected day (today is day 1)
         const today = new Date();
         const startOfDay = new Date(today);
         startOfDay.setHours(0, 0, 0, 0);
@@ -871,7 +859,6 @@ const StatCard = ({ title, value, icon, color }) => {
         const endOfDay = new Date(today);
         endOfDay.setHours(23, 59, 59, 999);
 
-        // Fetch attendance data for the selected day
         const { data: attendances, error } = await supabase
           .from('attendances')
           .select('*')
@@ -880,10 +867,8 @@ const StatCard = ({ title, value, icon, color }) => {
 
         if (error) throw error;
 
-        // Process event statistics
         const dayStats = processEventStatistics(attendances || []);
         
-        // Update statsData with the new event stats
         setStatsData(prev => ({
           ...prev,
           eventStats: {
@@ -994,20 +979,20 @@ const StatCard = ({ title, value, icon, color }) => {
 
     if (loading) {
       return (
-        <div className="flex items-center justify-center h-64">
+        <div className="flex items-center justify-center h-64 fade-in-blur">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
         </div>
       );
     }
 
     return (
-      <div className="space-y-8">
+      <div className="space-y-8 fade-in-blur">
         {/* Stats Type and Time Range Filter */}
-        <div className="space-y-4">
+        <div className="space-y-4 fade-in-blur">
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setStatsType('registration')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 smooth-hover ${
                 statsType === 'registration' 
                   ? 'bg-orange-500 text-white' 
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -1017,7 +1002,7 @@ const StatCard = ({ title, value, icon, color }) => {
             </button>
             <button
               onClick={() => setStatsType('event')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 smooth-hover ${
                 statsType === 'event' 
                   ? 'bg-orange-500 text-white' 
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -1031,7 +1016,7 @@ const StatCard = ({ title, value, icon, color }) => {
             <button
               onClick={() => setTimeRange('today')}
               disabled={statsType === 'event'}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 smooth-hover ${
                 timeRange === 'today' 
                   ? 'bg-orange-500 text-white' 
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -1042,7 +1027,7 @@ const StatCard = ({ title, value, icon, color }) => {
             <button
               onClick={() => setTimeRange('week')}
               disabled={statsType === 'event'}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 smooth-hover ${
                 timeRange === 'week' 
                   ? 'bg-orange-500 text-white' 
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -1053,7 +1038,7 @@ const StatCard = ({ title, value, icon, color }) => {
             <button
               onClick={() => setTimeRange('all')}
               disabled={statsType === 'event'}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 smooth-hover ${
                 timeRange === 'all' 
                   ? 'bg-orange-500 text-white' 
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -1064,12 +1049,12 @@ const StatCard = ({ title, value, icon, color }) => {
           </div>
 
           {statsType === 'event' && (
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 fade-in-blur">
               {[1, 2, 3, 4, 5].map((day) => (
                 <button
                   key={day}
                   onClick={() => setSelectedDay(day)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 smooth-hover ${
                     selectedDay === day 
                       ? 'bg-orange-500 text-white' 
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -1081,8 +1066,6 @@ const StatCard = ({ title, value, icon, color }) => {
             </div>
           )}
         </div>
-
-      
 
         {/* Conditional Content based on Stats Type */}
         {statsType === 'registration' ? (
@@ -1097,253 +1080,249 @@ const StatCard = ({ title, value, icon, color }) => {
     );
   };
 
-// Registration Stats View Component
-// Registration Stats View Component
-const RegistrationStatsView = ({ statsData }) => (
-  <div className="space-y-8">
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      <StatCard
-        title="Total Registrations"
-        value={statsData.totalRegistrations}
-        icon={<Users className="h-6 w-6" />}
-        color="blue"
-      />
-      <StatCard
-        title="Students"
-        value={statsData.students}
-        icon={<Users className="h-6 w-6" />}
-        color="green"
-      />
-      <StatCard
-        title="Graduates"
-        value={statsData.graduates}
-        icon={<Users className="h-6 w-6" />}
-        color="purple"
-      />
-      <StatCard
-        title="Currently in Event"
-        value={statsData.currentInEvent}
-        icon={<Activity className="h-6 w-6" />}
-        color="orange"
-      />
-    </div>
-
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Gender Distribution</h3>
-        <GenderChart data={statsData.genderStats} title="Total Registrations" />
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Role Distribution</h3>
-        <RoleChart data={statsData.roleStats} />
-      </div>
-    </div>
-
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Universities</h3>
-        <BarChart data={statsData.universities} color="blue" title="" />
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Faculties</h3>
-        <BarChart data={statsData.faculties} color="green" title="" />
-      </div>
-    </div>
-
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Marketing Sources</h3>
-        <MarketingChart data={statsData.marketingSources} />
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Degree Level</h3>
-        <DegreeChart data={statsData.degreeLevelStats} />
-      </div>
-    </div>
-  </div>
-);
-
-  // Event Stats View Component
-// Event Stats View Component
-// Event Stats View Component
-// Event Stats View Component
-const EventStatsView = ({ statsData, selectedDay }) => {
-  const [eventAnalytics, setEventAnalytics] = useState({
-    faculties: [],
-    universities: [],
-    genderStats: { male: 0, female: 0 },
-    degreeStats: { student: 0, graduate: 0 }
-  });
-
-  useEffect(() => {
-    fetchEventAnalytics();
-  }, [selectedDay]);
-
-  const fetchEventAnalytics = async () => {
-    try {
-      const { data: eventUsers, error } = await supabase
-        .from('users_profiles')
-        .select('*')
-        .eq('event_entry', true)
-        .eq('role', 'attendee');
-
-      if (error) throw error;
-
-      if (eventUsers && eventUsers.length > 0) {
-        const facultiesCount = {};
-        const universitiesCount = {};
-        const genderStats = { male: 0, female: 0 };
-        const degreeStats = { student: 0, graduate: 0 };
-
-        eventUsers.forEach(user => {
-          if (user.faculty) {
-            facultiesCount[user.faculty] = (facultiesCount[user.faculty] || 0) + 1;
-          }
-          if (user.university) {
-            universitiesCount[user.university] = (universitiesCount[user.university] || 0) + 1;
-          }
-          if (user.gender === 'male') genderStats.male++;
-          else if (user.gender === 'female') genderStats.female++;
-          
-          if (user.degree_level === 'student') degreeStats.student++;
-          else if (user.degree_level === 'graduate') degreeStats.graduate++;
-        });
-
-        const topFaculties = Object.entries(facultiesCount)
-          .map(([name, count]) => ({ name, count }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 10);
-
-        const topUniversities = Object.entries(universitiesCount)
-          .map(([name, count]) => ({ name, count }))
-          .sort((a, b) => b.count - a.count)
-          .slice(0, 10);
-
-        setEventAnalytics({
-          faculties: topFaculties,
-          universities: topUniversities,
-          genderStats,
-          degreeStats
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching event analytics:', error);
-    }
-  };
-
-  const dayStats = statsData?.eventStats?.[`day${selectedDay}`] || {
-    entries: 0,
-    exits: 0,
-    building_entries: 0,
-    building_exits: 0,
-    session_entries: 0,
-    registrations: 0
-  };
-
-  return (
-    <div className="space-y-8">
-      {/* Day Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+  // Registration Stats View Component
+  const RegistrationStatsView = ({ statsData }) => (
+    <div className="space-y-8 fade-in-blur">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 stagger-children">
         <StatCard
-          title={`Day ${selectedDay} Entries`}
-          value={dayStats.entries}
-          icon={<TrendingUp className="h-6 w-6" />}
-          color="green"
-        />
-        <StatCard
-          title={`Day ${selectedDay} Exits`}
-          value={dayStats.exits}
-          icon={<TrendingUp className="h-6 w-6" />}
-          color="red"
-        />
-        <StatCard
-          title="Building Entries"
-          value={dayStats.building_entries}
-          icon={<Building className="h-6 w-6" />}
+          title="Total Registrations"
+          value={statsData.totalRegistrations}
+          icon={<Users className="h-6 w-6" />}
           color="blue"
         />
         <StatCard
-          title="Session Entries"
-          value={dayStats.session_entries}
-          icon={<Calendar className="h-6 w-6" />}
+          title="Students"
+          value={statsData.students}
+          icon={<Users className="h-6 w-6" />}
+          color="green"
+        />
+        <StatCard
+          title="Graduates"
+          value={statsData.graduates}
+          icon={<Users className="h-6 w-6" />}
           color="purple"
+        />
+        <StatCard
+          title="Currently in Event"
+          value={statsData.currentInEvent}
+          icon={<Activity className="h-6 w-6" />}
+          color="orange"
         />
       </div>
 
-      {/* Inside Event Analytics Section */}
-      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Inside Event Analytics</h3>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div>
-            <GenderChart 
-              data={eventAnalytics.genderStats} 
-              title="Gender Distribution Inside Event"
-            />
-          </div>
-          <div>
-            <DegreeChart 
-              data={eventAnalytics.degreeStats}
-              title="Student/Graduate Ratio Inside Event"
-            />
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 stagger-children">
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover dashboard-card">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Gender Distribution</h3>
+          <GenderChart data={statsData.genderStats} title="Total Registrations" />
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover dashboard-card">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Role Distribution</h3>
+          <RoleChart data={statsData.roleStats} />
         </div>
       </div>
 
-      {/* NEW: Faculty and University Analysis Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <BarChart3 className="h-5 w-5 mr-2 text-blue-600" />
-            Top Faculties Inside Event
-          </h3>
-          <BarChart 
-            data={eventAnalytics.faculties} 
-            color="blue"
-            title=""
-          />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 stagger-children">
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover dashboard-card">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Universities</h3>
+          <BarChart data={statsData.universities} color="blue" title="" />
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-            <BarChart3 className="h-5 w-5 mr-2 text-green-600" />
-            Top Universities Inside Event
-          </h3>
-          <BarChart 
-            data={eventAnalytics.universities} 
-            color="green"
-            title=""
-          />
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover dashboard-card">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Faculties</h3>
+          <BarChart data={statsData.faculties} color="green" title="" />
         </div>
       </div>
 
-      {/* Activity Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Daily Activity</h3>
-          <DailyActivityChart selectedDay={selectedDay} />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 stagger-children">
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover dashboard-card">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Marketing Sources</h3>
+          <MarketingChart data={statsData.marketingSources} />
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Attendance Flow</h3>
-          <AttendanceFlowChart dayStats={dayStats} />
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover dashboard-card">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Degree Level</h3>
+          <DegreeChart data={statsData.degreeLevelStats} />
         </div>
-      </div>
-
-      {/* Session Popularity */}
-      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Session Popularity</h3>
-        <SessionPopularityChart selectedDay={selectedDay} />
       </div>
     </div>
   );
-};
+
+  // Event Stats View Component
+  const EventStatsView = ({ statsData, selectedDay }) => {
+    const [eventAnalytics, setEventAnalytics] = useState({
+      faculties: [],
+      universities: [],
+      genderStats: { male: 0, female: 0 },
+      degreeStats: { student: 0, graduate: 0 }
+    });
+
+    useEffect(() => {
+      fetchEventAnalytics();
+    }, [selectedDay]);
+
+    const fetchEventAnalytics = async () => {
+      try {
+        const { data: eventUsers, error } = await supabase
+          .from('users_profiles')
+          .select('*')
+          .eq('event_entry', true)
+          .eq('role', 'attendee');
+
+        if (error) throw error;
+
+        if (eventUsers && eventUsers.length > 0) {
+          const facultiesCount = {};
+          const universitiesCount = {};
+          const genderStats = { male: 0, female: 0 };
+          const degreeStats = { student: 0, graduate: 0 };
+
+          eventUsers.forEach(user => {
+            if (user.faculty) {
+              facultiesCount[user.faculty] = (facultiesCount[user.faculty] || 0) + 1;
+            }
+            if (user.university) {
+              universitiesCount[user.university] = (universitiesCount[user.university] || 0) + 1;
+            }
+            if (user.gender === 'male') genderStats.male++;
+            else if (user.gender === 'female') genderStats.female++;
+            
+            if (user.degree_level === 'student') degreeStats.student++;
+            else if (user.degree_level === 'graduate') degreeStats.graduate++;
+          });
+
+          const topFaculties = Object.entries(facultiesCount)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10);
+
+          const topUniversities = Object.entries(universitiesCount)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10);
+
+          setEventAnalytics({
+            faculties: topFaculties,
+            universities: topUniversities,
+            genderStats,
+            degreeStats
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching event analytics:', error);
+      }
+    };
+
+    const dayStats = statsData?.eventStats?.[`day${selectedDay}`] || {
+      entries: 0,
+      exits: 0,
+      building_entries: 0,
+      building_exits: 0,
+      session_entries: 0,
+      registrations: 0
+    };
+
+    return (
+      <div className="space-y-8 fade-in-blur">
+        {/* Day Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 stagger-children">
+          <StatCard
+            title={`Day ${selectedDay} Entries`}
+            value={dayStats.entries}
+            icon={<TrendingUp className="h-6 w-6" />}
+            color="green"
+          />
+          <StatCard
+            title={`Day ${selectedDay} Exits`}
+            value={dayStats.exits}
+            icon={<TrendingUp className="h-6 w-6" />}
+            color="red"
+          />
+          <StatCard
+            title="Building Entries"
+            value={dayStats.building_entries}
+            icon={<Building className="h-6 w-6" />}
+            color="blue"
+          />
+          <StatCard
+            title="Session Entries"
+            value={dayStats.session_entries}
+            icon={<Calendar className="h-6 w-6" />}
+            color="purple"
+          />
+        </div>
+
+        {/* Inside Event Analytics Section */}
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover dashboard-card">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Inside Event Analytics</h3>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div>
+              <GenderChart 
+                data={eventAnalytics.genderStats} 
+                title="Gender Distribution Inside Event"
+              />
+            </div>
+            <div>
+              <DegreeChart 
+                data={eventAnalytics.degreeStats}
+                title="Student/Graduate Ratio Inside Event"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Faculty and University Analysis Cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 stagger-children">
+          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover dashboard-card">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <BarChart3 className="h-5 w-5 mr-2 text-blue-600" />
+              Top Faculties Inside Event
+            </h3>
+            <BarChart 
+              data={eventAnalytics.faculties} 
+              color="blue"
+              title=""
+            />
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover dashboard-card">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <BarChart3 className="h-5 w-5 mr-2 text-green-600" />
+              Top Universities Inside Event
+            </h3>
+            <BarChart 
+              data={eventAnalytics.universities} 
+              color="green"
+              title=""
+            />
+          </div>
+        </div>
+
+        {/* Activity Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 stagger-children">
+          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover dashboard-card">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Daily Activity</h3>
+            <DailyActivityChart selectedDay={selectedDay} />
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover dashboard-card">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Attendance Flow</h3>
+            <AttendanceFlowChart dayStats={dayStats} />
+          </div>
+        </div>
+
+        {/* Session Popularity */}
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover dashboard-card">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Session Popularity</h3>
+          <SessionPopularityChart selectedDay={selectedDay} />
+        </div>
+      </div>
+    );
+  };
   
   // Current State Widget
   const CurrentStateWidget = ({ statsData }) => (
-    <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden fade-in-blur card-hover dashboard-card">
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
         <h2 className="text-3xl font-bold text-black-800 flex items-center gap-2 mx-auto">
           <Activity className="h-7 w-7 text-orange-500" />
@@ -1420,7 +1399,6 @@ const EventStatsView = ({ statsData, selectedDay }) => {
 
   // Chart Components
   const DailyActivityChart = ({ selectedDay }) => {
-    // Real data fetch for daily activity
     const [dailyData, setDailyData] = useState([]);
 
     useEffect(() => {
@@ -1445,7 +1423,6 @@ const EventStatsView = ({ statsData, selectedDay }) => {
 
         if (error) throw error;
 
-        // Process data by hour
         const hourlyData = {};
         attendances.forEach(attendance => {
           const hour = new Date(attendance.scanned_at).getHours();
@@ -1480,7 +1457,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
     const maxValue = Math.max(...dailyData.flatMap(d => [d.entries, d.exits]), 1);
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 fade-in-blur">
         {dailyData.map((data, index) => (
           <div key={index} className="space-y-2">
             <div className="flex justify-between text-sm">
@@ -1520,7 +1497,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
     const maxValue = Math.max(...flowData.map(d => d.value), 1);
 
     return (
-      <div className="space-y-3">
+      <div className="space-y-3 fade-in-blur">
         {flowData.map((item, index) => (
           <div key={index} className="space-y-1">
             <div className="flex justify-between text-sm">
@@ -1548,7 +1525,6 @@ const EventStatsView = ({ statsData, selectedDay }) => {
 
     const fetchSessionPopularity = async (day) => {
       try {
-        // Get sessions for the selected day
         const { data: sessions, error } = await supabase
           .from('sessions')
           .select('id, title, max_attendees, current_bookings')
@@ -1573,7 +1549,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
     const maxAttendees = Math.max(...sessionData.map(s => s.attendees), 1);
 
     return (
-      <div className="space-y-3">
+      <div className="space-y-3 fade-in-blur">
         {sessionData.map((session, index) => (
           <div key={index} className="space-y-1">
             <div className="flex justify-between text-sm">
@@ -1887,200 +1863,80 @@ const EventStatsView = ({ statsData, selectedDay }) => {
     setDeleteEventModal(true);
   };
 
-  // Handle Announcement Submit
-// Handle Announcement Submit - Updated for Admin
-// Handle Announcement Submit - Updated for Admin with Team Leader enhancement
-const handleAnnouncementSubmit = async () => {
-  if (!announcementTitle || !announcementDescription || !announcementRole) {
-    showFeedback("Please fill all required fields!", "error");
-    return;
-  }
+  // Get role options for Admin
+  const getAdminRoleOptions = () => {
+    return [
+      { value: "", label: "Select Target" },
+      { value: "all", label: "All Users" },
+      { value: "volunteer", label: "Volunteers (All except Admin/Team Leader/Attendee)" },
+      { value: "team_leader", label: "Team Leaders" },
+      { value: "admin", label: "Admins" },
+      { value: "attendee", label: "Attendees" },
+      { value: "registration", label: "Registration Team" },
+      { value: "building", label: "Building Team" },
+      { value: "info_desk", label: "Info Desk" },
+      { value: "ushers", label: "Ushers" },
+      { value: "marketing", label: "Marketing" },
+      { value: "media", label: "Media" },
+      { value: "ER", label: "ER Team" },
+      { value: "BD", label: "Business Development" },
+      { value: "catering", label: "Catering" },
+      { value: "feedback", label: "Feedback Team" },
+      { value: "stage", label: "Stage Team" },
+      { value: "custom", label: "Custom Selection" }
+    ];
+  };
 
-  // Additional validation for team leader selection
-  if (announcementRole === "team_leader" && !teamLeaderOfRole) {
-    showFeedback("Please select which team leaders to target!", "error");
-    return;
-  }
+  // Get team leader sub-options
+  const getTeamLeaderOfOptions = () => {
+    return [
+      { value: "all", label: "All Team Leaders" },
+      { value: "registration", label: "Registration Team Leaders" },
+      { value: "building", label: "Building Team Leaders" },
+      { value: "info_desk", label: "Info Desk Team Leaders" },
+      { value: "ushers", label: "Ushers Team Leaders" },
+      { value: "marketing", label: "Marketing Team Leaders" },
+      { value: "media", label: "Media Team Leaders" },
+      { value: "ER", label: "ER Team Leaders" },
+      { value: "BD", label: "Business Development Team Leaders" },
+      { value: "catering", label: "Catering Team Leaders" },
+      { value: "feedback", label: "Feedback Team Leaders" },
+      { value: "stage", label: "Stage Team Leaders" }
+    ];
+  };
 
-  if (announcementRole === "custom" && selectedUsers.length === 0) {
-    showFeedback("Please select at least one user for custom notifications!", "error");
-    return;
-  }
-
-  setLoading(true);
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (!session?.user?.id) {
-      showFeedback("User not authenticated", "error");
-      setLoading(false);
+  // User search function for Admin
+  const searchUsersByPersonalId = async (searchTerm) => {
+    if (!searchTerm || searchTerm.trim().length < 2) {
+      setSearchResults([]);
       return;
     }
 
-    let notificationData = {
-      title: announcementTitle,
-      message: announcementDescription,
-      created_by: session.user.id
-    };
+    setSearchLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('users_profiles')
+        .select('id, first_name, last_name, personal_id, role, email, volunteer_id')
+        .or(`personal_id.ilike.%${searchTerm.trim()}%,volunteer_id.ilike.%${searchTerm.trim()}%`)
+        .order('personal_id')
+        .limit(10);
 
-    // Handle different target types
-    if (announcementRole === "all") {
-      // Send to all users
-      notificationData.target_type = 'all';
-      notificationData.target_role = null;
-      notificationData.target_user_ids = null;
-    } 
-    else if (announcementRole === "volunteer") {
-      // Special case: send to all volunteers except admin, team_leader, attendee
-      notificationData.target_type = 'volunteers';
-      notificationData.target_role = null;
-      notificationData.target_user_ids = null;
-    }
-    else if (announcementRole === "team_leader") {
-      // Special handling for team leaders - get all team leaders of selected role
-      if (teamLeaderOfRole === "all") {
-        // Get all team leaders
-        const { data: allTeamLeaders, error } = await supabase
-          .from('users_profiles')
-          .select('id')
-          .eq('role', 'team_leader');
-
-        if (error) throw error;
-
-        notificationData.target_type = 'specific_users';
-        notificationData.target_role = null;
-        notificationData.target_user_ids = allTeamLeaders?.map(tl => tl.id) || [];
+      if (error) {
+        console.error('Search error:', error);
+        setSearchResults([]);
       } else {
-        // Get team leaders of specific volunteer role
-        const { data: teamLeaders, error } = await supabase
-          .from('users_profiles')
-          .select('id')
-          .eq('role', 'team_leader')
-          .eq('tl_team', teamLeaderOfRole);
-
-        if (error) throw error;
-
-        notificationData.target_type = 'specific_users';
-        notificationData.target_role = null;
-        notificationData.target_user_ids = teamLeaders?.map(tl => tl.id) || [];
+        const filteredResults = (data || []).filter(user => 
+          !selectedUsers.some(selected => selected.id === user.id)
+        );
+        setSearchResults(filteredResults);
       }
-    }
-    else if (announcementRole === "custom") {
-      // Send to custom selected users
-      notificationData.target_type = 'specific_users';
-      notificationData.target_role = null;
-      notificationData.target_user_ids = selectedUsers.map(user => user.id);
-    }
-    else {
-      // For specific roles (including volunteer roles)
-      notificationData.target_type = 'role';
-      notificationData.target_role = announcementRole;
-      notificationData.target_user_ids = null;
-    }
-
-    const { error } = await supabase
-      .from('notifications')
-      .insert([notificationData]);
-
-    if (error) {
-      console.error('Notification error:', error);
-      showFeedback("Failed to send announcement", "error");
-    } else {
-      showFeedback("Announcement sent successfully!", "success");
-      setAnnouncementTitle("");
-      setAnnouncementDescription("");
-      setAnnouncementRole("");
-      setTeamLeaderOfRole(""); // Reset team leader selection
-      clearUserSelection();
-      setAnnouncementModal(false);
-    }
-  } catch (err) {
-    console.error('Send announcement error:', err);
-    showFeedback("Failed to send announcement", "error");
-  } finally {
-    setLoading(false);
-  }
-};
-
-// Add this state for team leader selection
-const [teamLeaderOfRole, setTeamLeaderOfRole] = useState("");
-
-// Get role options for Admin - All roles including team_leader
-const getAdminRoleOptions = () => {
-  return [
-    { value: "", label: "Select Target" },
-    { value: "all", label: "All Users" },
-    { value: "volunteer", label: "Volunteers (All except Admin/Team Leader/Attendee)" },
-    { value: "team_leader", label: "Team Leaders" },
-    { value: "admin", label: "Admins" },
-    { value: "attendee", label: "Attendees" },
-    // Volunteer roles
-    { value: "registration", label: "Registration Team" },
-    { value: "building", label: "Building Team" },
-    { value: "info_desk", label: "Info Desk" },
-    { value: "ushers", label: "Ushers" },
-    { value: "marketing", label: "Marketing" },
-    { value: "media", label: "Media" },
-    { value: "ER", label: "ER Team" },
-    { value: "BD", label: "Business Development" },
-    { value: "catering", label: "Catering" },
-    { value: "feedback", label: "Feedback Team" },
-    { value: "stage", label: "Stage Team" },
-    { value: "custom", label: "Custom Selection" }
-  ];
-};
-
-// Get team leader sub-options
-const getTeamLeaderOfOptions = () => {
-  return [
-    { value: "all", label: "All Team Leaders" },
-    { value: "registration", label: "Registration Team Leaders" },
-    { value: "building", label: "Building Team Leaders" },
-    { value: "info_desk", label: "Info Desk Team Leaders" },
-    { value: "ushers", label: "Ushers Team Leaders" },
-    { value: "marketing", label: "Marketing Team Leaders" },
-    { value: "media", label: "Media Team Leaders" },
-    { value: "ER", label: "ER Team Leaders" },
-    { value: "BD", label: "Business Development Team Leaders" },
-    { value: "catering", label: "Catering Team Leaders" },
-    { value: "feedback", label: "Feedback Team Leaders" },
-    { value: "stage", label: "Stage Team Leaders" }
-  ];
-};
-// User search function for Admin - searches all users
-const searchUsersByPersonalId = async (searchTerm) => {
-  if (!searchTerm || searchTerm.trim().length < 2) {
-    setSearchResults([]);
-    return;
-  }
-
-  setSearchLoading(true);
-  try {
-    const { data, error } = await supabase
-      .from('users_profiles')
-      .select('id, first_name, last_name, personal_id, role, email, volunteer_id')
-      .or(`personal_id.ilike.%${searchTerm.trim()}%,volunteer_id.ilike.%${searchTerm.trim()}%`)
-      .order('personal_id')
-      .limit(10);
-
-    if (error) {
-      console.error('Search error:', error);
+    } catch (error) {
+      console.error('Search exception:', error);
       setSearchResults([]);
-    } else {
-      // Filter out already selected users
-      const filteredResults = (data || []).filter(user => 
-        !selectedUsers.some(selected => selected.id === user.id)
-      );
-      setSearchResults(filteredResults);
+    } finally {
+      setSearchLoading(false);
     }
-  } catch (error) {
-    console.error('Search exception:', error);
-    setSearchResults([]);
-  } finally {
-    setSearchLoading(false);
-  }
-};
-
+  };
 
   const addUserToSelection = (user) => {
     setSelectedUsers(prev => [...prev, user]);
@@ -2096,6 +1952,111 @@ const searchUsersByPersonalId = async (searchTerm) => {
     setSelectedUsers([]);
     setUserSearch("");
     setSearchResults([]);
+  };
+
+  // Handle Announcement Submit
+  const handleAnnouncementSubmit = async () => {
+    if (!announcementTitle || !announcementDescription || !announcementRole) {
+      showFeedback("Please fill all required fields!", "error");
+      return;
+    }
+
+    if (announcementRole === "team_leader" && !teamLeaderOfRole) {
+      showFeedback("Please select which team leaders to target!", "error");
+      return;
+    }
+
+    if (announcementRole === "custom" && selectedUsers.length === 0) {
+      showFeedback("Please select at least one user for custom notifications!", "error");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.user?.id) {
+        showFeedback("User not authenticated", "error");
+        setLoading(false);
+        return;
+      }
+
+      let notificationData = {
+        title: announcementTitle,
+        message: announcementDescription,
+        created_by: session.user.id
+      };
+
+      // Handle different target types
+      if (announcementRole === "all") {
+        notificationData.target_type = 'all';
+        notificationData.target_role = null;
+        notificationData.target_user_ids = null;
+      } 
+      else if (announcementRole === "volunteer") {
+        notificationData.target_type = 'volunteers';
+        notificationData.target_role = null;
+        notificationData.target_user_ids = null;
+      }
+      else if (announcementRole === "team_leader") {
+        if (teamLeaderOfRole === "all") {
+          const { data: allTeamLeaders, error } = await supabase
+            .from('users_profiles')
+            .select('id')
+            .eq('role', 'team_leader');
+
+          if (error) throw error;
+
+          notificationData.target_type = 'specific_users';
+          notificationData.target_role = null;
+          notificationData.target_user_ids = allTeamLeaders?.map(tl => tl.id) || [];
+        } else {
+          const { data: teamLeaders, error } = await supabase
+            .from('users_profiles')
+            .select('id')
+            .eq('role', 'team_leader')
+            .eq('tl_team', teamLeaderOfRole);
+
+          if (error) throw error;
+
+          notificationData.target_type = 'specific_users';
+          notificationData.target_role = null;
+          notificationData.target_user_ids = teamLeaders?.map(tl => tl.id) || [];
+        }
+      }
+      else if (announcementRole === "custom") {
+        notificationData.target_type = 'specific_users';
+        notificationData.target_role = null;
+        notificationData.target_user_ids = selectedUsers.map(user => user.id);
+      }
+      else {
+        notificationData.target_type = 'role';
+        notificationData.target_role = announcementRole;
+        notificationData.target_user_ids = null;
+      }
+
+      const { error } = await supabase
+        .from('notifications')
+        .insert([notificationData]);
+
+      if (error) {
+        console.error('Notification error:', error);
+        showFeedback("Failed to send announcement", "error");
+      } else {
+        showFeedback("Announcement sent successfully!", "success");
+        setAnnouncementTitle("");
+        setAnnouncementDescription("");
+        setAnnouncementRole("");
+        setTeamLeaderOfRole("");
+        clearUserSelection();
+        setAnnouncementModal(false);
+      }
+    } catch (err) {
+      console.error('Send announcement error:', err);
+      showFeedback("Failed to send announcement", "error");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSessionClick = (session) => {
@@ -2153,16 +2114,16 @@ const searchUsersByPersonalId = async (searchTerm) => {
 
       if (error) {
         console.error("Map upload error:", error);
-        showNotification("Failed to upload map image", "error");
+        showFeedback("Failed to upload map image", "error");
       } else {
-        showNotification(`Day ${mapForm.day} map updated successfully!`, "success");
+        showFeedback(`Day ${mapForm.day} map updated successfully!`, "success");
         initializeMapImages();
         setMapModal(false);
         setMapForm({ day: 1, image: null });
       }
     } catch (err) {
       console.error("Map upload exception:", err);
-      showNotification("Failed to update map", "error");
+      showFeedback("Failed to update map", "error");
     } finally {
       setLoading(false);
     }
@@ -2180,7 +2141,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
   if (loadingData) {
     return (
       <DashboardLayout title="Admin Panel" subtitle="System administration, user management, and analytics">
-        <div className="flex items-center justify-center h-64">
+        <div className="flex items-center justify-center h-64 fade-in-blur">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
         </div>
       </DashboardLayout>
@@ -2192,30 +2153,37 @@ const searchUsersByPersonalId = async (searchTerm) => {
       title="Admin Panel"
       subtitle="System administration, user management, and analytics"
     >
-      <div className="space-y-8">
-        {/* Notification */}
-        {announcement.type && (
-          <div
-            className={`fixed top-4 right-4 z-[9999] flex items-center gap-2 p-4 rounded-lg shadow-lg text-white ${
-              announcement.type === "success" ? "bg-green-600" : "bg-red-600"
-            }`}
-          >
-            {announcement.type === "success" ? (
-              <CheckCircle2 className="h-5 w-5" />
+      <div className="space-y-8 fade-in-up-blur">
+        {/* Feedback Toast */}
+        {feedback && createPortal(
+          <div className={`fixed top-4 right-4 z-[200] flex items-center space-x-2 px-4 py-3 rounded-lg shadow-lg fade-in-blur ${
+            feedback.type === 'success' 
+              ? 'bg-green-500 text-white' 
+              : 'bg-red-500 text-white'
+          }`}>
+            {feedback.type === 'success' ? (
+              <CheckCircle className="h-5 w-5" />
             ) : (
-              <XCircle className="h-5 w-5" />
+              <AlertCircle className="h-5 w-5" />
             )}
-            <span>{announcement.message}</span>
-          </div>
+            <span className="font-medium">{feedback.message}</span>
+            <button
+              onClick={() => setFeedback(null)}
+              className="ml-2 hover:bg-black hover:bg-opacity-20 rounded p-1 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>,
+          document.body
         )}
 
         {/* Tabs */}
-        <div className="flex space-x-1 sm:space-x-4 border-b mb-6 overflow-x-auto scrollbar-hide">
+        <div className="flex space-x-1 sm:space-x-4 border-b mb-6 overflow-x-auto scrollbar-hide fade-in-blur">
           {tabItems.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`py-2 px-2 sm:px-4 font-semibold text-sm sm:text-base whitespace-nowrap ${
+              className={`py-2 px-2 sm:px-4 font-semibold text-sm sm:text-base whitespace-nowrap transition-all duration-300 smooth-hover ${
                 activeTab === tab.key
                   ? "border-b-2 border-orange-500 text-orange-600"
                   : "text-gray-500 hover:text-orange-600"
@@ -2226,89 +2194,90 @@ const searchUsersByPersonalId = async (searchTerm) => {
           ))}
         </div>
 
-   {/* Dashboard Tab */}
-{activeTab === "dashboard" && (
-  <div className="space-y-8">
-    {/* Quick Actions - Now at the top */}
-<div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 text-center fade-in-blur card-hover dashboard-card">
-  <h1 className="text-3xl font-bold text-black-800 flex items-center justify-center gap-2 mb-6">
-    <Sparkles className="h-7 w-7 text-orange-500" />
-    Quick Actions
-  </h1>
+        {/* Dashboard Tab */}
+        {activeTab === "dashboard" && (
+          <div className="space-y-8 fade-in-blur">
+            {/* Quick Actions */}
+            <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 text-center fade-in-blur card-hover dashboard-card">
+              <h1 className="text-3xl font-bold text-black-800 flex items-center justify-center gap-2 mb-6">
+                <Sparkles className="h-7 w-7 text-orange-500" />
+                Quick Actions
+              </h1>
 
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 stagger-children">
-    <button
-      onClick={() => setCompanyModal(true)}
-      className="flex flex-col items-center justify-center py-6 px-4 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 smooth-hover"
-    >
-      <Building className="h-8 w-8 mb-2" />
-      <span className="text-base font-medium">Add Company</span>
-    </button>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 stagger-children">
+                <button
+                  onClick={() => setCompanyModal(true)}
+                  className="flex flex-col items-center justify-center py-6 px-4 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 smooth-hover"
+                >
+                  <Building className="h-8 w-8 mb-2" />
+                  <span className="text-base font-medium">Add Company</span>
+                </button>
 
-    <button
-      onClick={() => setSessionModal(true)}
-      className="flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all duration-300 smooth-hover"
-    >
-      <Calendar className="h-8 w-8 mb-2" />
-      <span className="text-base font-medium">Add Session</span>
-    </button>
+                <button
+                  onClick={() => setSessionModal(true)}
+                  className="flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all duration-300 smooth-hover"
+                >
+                  <Calendar className="h-8 w-8 mb-2" />
+                  <span className="text-base font-medium">Add Session</span>
+                </button>
 
-    <button
-      onClick={() => setAnnouncementModal(true)}
-      className="flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-700 transition-all duration-300 smooth-hover"
-    >
-      <Megaphone className="h-8 w-8 mb-2" />
-      <span className="text-base font-medium">Send Announcement</span>
-    </button>
-  </div>
-</div>
+                <button
+                  onClick={() => setAnnouncementModal(true)}
+                  className="flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-700 transition-all duration-300 smooth-hover"
+                >
+                  <Megaphone className="h-8 w-8 mb-2" />
+                  <span className="text-base font-medium">Send Announcement</span>
+                </button>
+              </div>
+            </div>
 
-    {/* Stats Cards - Now below Quick Actions */}
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-600">Total Users</p>
-            <p className="text-3xl font-bold text-orange-600">
-              {stats?.total_users || 0}
-            </p>
-          </div>
-          <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-            <Users className="h-6 w-6 text-orange-600" />
-          </div>
-        </div>
-      </div>
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 stagger-children">
+              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover dashboard-card">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Users</p>
+                    <p className="text-3xl font-bold text-orange-600">
+                      {stats?.total_users || 0}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                    <Users className="h-6 w-6 text-orange-600" />
+                  </div>
+                </div>
+              </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-600">Total Attendees</p>
-            <p className="text-3xl font-bold text-blue-600">
-              {buildingStats?.total_attendees || 0}
-            </p>
-          </div>
-          <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-            <Users className="h-6 w-6 text-blue-600" />
-          </div>
-        </div>
-      </div>
+              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover dashboard-card">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Attendees</p>
+                    <p className="text-3xl font-bold text-blue-600">
+                      {buildingStats?.total_attendees || 0}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <Users className="h-6 w-6 text-blue-600" />
+                  </div>
+                </div>
+              </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-600">Total Volunteers</p>
-            <p className="text-3xl font-bold text-green-600">
-              {(stats?.total_users || 0) - (buildingStats?.total_attendees || 0)}
-            </p>
+              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover dashboard-card">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600">Total Volunteers</p>
+                    <p className="text-3xl font-bold text-green-600">
+                      {(stats?.total_users || 0) - (buildingStats?.total_attendees || 0)}
+                    </p>
+                  </div>
+                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                    <Users className="h-6 w-6 text-green-600" />
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-            <Users className="h-6 w-6 text-green-600" />
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+        )}
+
         {/* Statistics Tab */}
         {activeTab === "statistics" && (
           <StatisticsTab />
@@ -2316,25 +2285,25 @@ const searchUsersByPersonalId = async (searchTerm) => {
 
         {/* Sessions Tab */}
         {activeTab === "sessions" && (
-          <div>
+          <div className="fade-in-blur">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center mb-4 sm:mb-0">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center mb-4 sm:mb-0 fade-in-blur">
                 <Calendar className="h-5 w-5 mr-2 text-orange-600" /> Sessions Management
               </h2>
               <button
                 onClick={() => setSessionModal(true)}
-                className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-300 smooth-hover fade-in-blur"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Session
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
               {sessions.map((session) => (
                 <div 
                   key={session.id} 
-                  className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-md transition-all duration-200"
+                  className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-md transition-all duration-300 smooth-hover card-hover fade-in-blur"
                 >
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{session.title}</h3>
                   <p className="text-sm text-gray-600 mb-3 line-clamp-2">{session.description}</p>
@@ -2363,20 +2332,20 @@ const searchUsersByPersonalId = async (searchTerm) => {
                   <div className="flex gap-2 mt-4">
                     <button
                       onClick={() => handleSessionClick(session)}
-                      className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                      className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover text-sm font-medium"
                     >
                       <Eye className="h-3 w-3 mr-1 inline" />
                       View
                     </button>
                     <button
                       onClick={() => handleEditSession(session)}
-                      className="flex-1 bg-blue-500 text-white py-2 px-3 rounded-lg hover:bg-blue-600 transition-colors text-sm font-medium"
+                      className="flex-1 bg-blue-500 text-white py-2 px-3 rounded-lg hover:bg-blue-600 transition-all duration-300 smooth-hover text-sm font-medium"
                     >
                       Edit
                     </button>
                     <button
                       onClick={() => handleDeleteSession(session)}
-                      className="flex-1 bg-red-500 text-white py-2 px-3 rounded-lg hover:bg-red-600 transition-colors text-sm font-medium"
+                      className="flex-1 bg-red-500 text-white py-2 px-3 rounded-lg hover:bg-red-600 transition-all duration-300 smooth-hover text-sm font-medium"
                     >
                       <Trash2 className="h-3 w-3 mr-1 inline" />
                       Delete
@@ -2390,18 +2359,18 @@ const searchUsersByPersonalId = async (searchTerm) => {
 
         {/* Events Tab */}
         {activeTab === "events" && (
-          <div>
+          <div className="fade-in-blur">
             <div className="mb-6">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center mb-4 fade-in-blur">
                 <Calendar className="h-5 w-5 mr-2 text-orange-600" /> Events Management
               </h2>
               
-              <div className="flex space-x-2 mb-4">
+              <div className="flex space-x-2 mb-4 fade-in-blur">
                 {[1, 2, 3, 4, 5].map((day) => (
                   <button
                     key={day}
                     onClick={() => setActiveDay(day)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 smooth-hover ${
                       activeDay === day 
                         ? "bg-orange-500 text-white" 
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -2414,16 +2383,16 @@ const searchUsersByPersonalId = async (searchTerm) => {
               
               <button
                 onClick={() => setEventModal(true)}
-                className="w-full sm:w-auto flex items-center justify-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
+                className="w-full sm:w-auto flex items-center justify-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all duration-300 smooth-hover fade-in-blur"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Event
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
               {events.map((event) => (
-                <div key={event.id} className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
+                <div key={event.id} className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover smooth-hover">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{event.title}</h3>
                   <p className="text-sm text-gray-600 mb-3">{event.description}</p>
                   <div className="space-y-1 text-xs text-gray-500 mb-4">
@@ -2445,20 +2414,20 @@ const searchUsersByPersonalId = async (searchTerm) => {
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleEventClick(event)}
-                      className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                      className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover text-sm font-medium"
                     >
                       <Eye className="h-3 w-3 mr-1 inline" />
                       View
                     </button>
                     <button
                       onClick={() => handleEditEvent(event)}
-                      className="flex-1 bg-green-500 text-white py-2 px-3 rounded-lg hover:bg-green-600 transition-colors text-sm font-medium"
+                      className="flex-1 bg-green-500 text-white py-2 px-3 rounded-lg hover:bg-green-600 transition-all duration-300 smooth-hover text-sm font-medium"
                     >
                       Edit
                     </button>
                     <button
                       onClick={() => handleDeleteEvent(event)}
-                      className="flex-1 bg-red-500 text-white py-2 px-3 rounded-lg hover:bg-red-600 transition-colors text-sm font-medium"
+                      className="flex-1 bg-red-500 text-white py-2 px-3 rounded-lg hover:bg-red-600 transition-all duration-300 smooth-hover text-sm font-medium"
                     >
                       <Trash2 className="h-3 w-3 mr-1 inline" />
                       Delete
@@ -2472,16 +2441,16 @@ const searchUsersByPersonalId = async (searchTerm) => {
 
         {/* Maps Tab */}
         {activeTab === "maps" && (
-          <div>
+          <div className="fade-in-blur">
             <div className="mb-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">Event Maps</h2>
+              <h2 className="text-xl font-bold text-gray-900 mb-4 fade-in-blur">Event Maps</h2>
               
-              <div className="flex space-x-2 mb-4">
+              <div className="flex space-x-2 mb-4 fade-in-blur">
                 {[1, 2, 3, 4, 5].map((day) => (
                   <button
                     key={day}
                     onClick={() => setActiveDay(day)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 smooth-hover ${
                       activeDay === day 
                         ? "bg-orange-500 text-white" 
                         : "bg-gray-100 text-gray-700 hover:bg-gray-200"
@@ -2493,9 +2462,9 @@ const searchUsersByPersonalId = async (searchTerm) => {
               </div>
             </div>
             
-            <div className="bg-white rounded-xl shadow-sm border p-4 flex justify-center items-center min-h-[400px]">
+            <div className="bg-white rounded-xl shadow-sm border p-4 flex justify-center items-center min-h-[400px] fade-in-blur card-hover">
               {mapLoading && (
-                <div className="flex flex-col items-center justify-center">
+                <div className="flex flex-col items-center justify-center fade-in-blur">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mb-2"></div>
                   <p className="text-gray-500 text-sm">Loading map...</p>
                 </div>
@@ -2516,25 +2485,25 @@ const searchUsersByPersonalId = async (searchTerm) => {
 
         {/* Employers Tab */}
         {activeTab === "employers" && (
-          <div>
+          <div className="fade-in-blur">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center mb-4 sm:mb-0">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center mb-4 sm:mb-0 fade-in-blur">
                 <Building className="h-5 w-5 mr-2 text-orange-600" /> Employers Management
               </h2>
               <button
                 onClick={() => setCompanyModal(true)}
-                className="flex items-center px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+                className="flex items-center px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-all duration-300 smooth-hover fade-in-blur"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 Add Company
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
               {companies.map((company) => (
                 <div 
                   key={company.id} 
-                  className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-md transition-all duration-200"
+                  className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-md transition-all duration-300 smooth-hover card-hover fade-in-blur"
                 >
                   <div className="text-center">
                     <img 
@@ -2557,20 +2526,20 @@ const searchUsersByPersonalId = async (searchTerm) => {
                     <div className="flex gap-2 mt-4">
                       <button
                         onClick={() => handleCompanyClick(company)}
-                        className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                        className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover text-sm font-medium"
                       >
                         <Eye className="h-3 w-3 mr-1 inline" />
                         View
                       </button>
                       <button
                         onClick={() => handleEditCompany(company)}
-                        className="flex-1 bg-orange-500 text-white py-2 px-3 rounded-lg hover:bg-orange-600 transition-colors text-sm font-medium"
+                        className="flex-1 bg-orange-500 text-white py-2 px-3 rounded-lg hover:bg-orange-600 transition-all duration-300 smooth-hover text-sm font-medium"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => openDeleteCompanyModal(company)}
-                        className="flex-1 bg-red-500 text-white py-2 px-3 rounded-lg hover:bg-red-600 transition-colors text-sm font-medium"
+                        className="flex-1 bg-red-500 text-white py-2 px-3 rounded-lg hover:bg-red-600 transition-all duration-300 smooth-hover text-sm font-medium"
                       >
                         <Trash2 className="h-3 w-3 mr-1 inline" />
                         Delete
@@ -2583,28 +2552,29 @@ const searchUsersByPersonalId = async (searchTerm) => {
           </div>
         )}
 
-        {/* All Modals remain the same as in your original code */}
+        {/* All Modals with createPortal and animations */}
+
         {/* Company Modal */}
-{companyModal && createPortal(
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
-    <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
-              <h3 className="text-2xl font-bold mb-4">Add New Company</h3>
-              <div className="space-y-4">
+        {companyModal && createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
+              <h3 className="text-2xl font-bold mb-4 fade-in-blur">Add New Company</h3>
+              <div className="space-y-4 stagger-children">
                 <input
                   type="text"
                   value={newCompany.name}
                   onChange={(e) => setNewCompany({ ...newCompany, name: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
                   placeholder="Company Name *"
                 />
                 
-                <div>
+                <div className="fade-in-blur">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Logo *</label>
                   <div className="flex space-x-4 mb-3">
                     <button
                       type="button"
                       onClick={() => setNewCompany({ ...newCompany, logoType: "link" })}
-                      className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium ${
+                      className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 smooth-hover ${
                         newCompany.logoType === "link" 
                           ? "bg-blue-500 text-white" 
                           : "bg-gray-100 text-gray-700"
@@ -2616,7 +2586,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
                     <button
                       type="button"
                       onClick={() => setNewCompany({ ...newCompany, logoType: "upload" })}
-                      className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium ${
+                      className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 smooth-hover ${
                         newCompany.logoType === "upload" 
                           ? "bg-blue-500 text-white" 
                           : "bg-gray-100 text-gray-700"
@@ -2632,7 +2602,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
                       type="url"
                       value={newCompany.logoUrl}
                       onChange={(e) => setNewCompany({ ...newCompany, logoUrl: e.target.value })}
-                      className="w-full border rounded-lg p-2"
+                      className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
                       placeholder="Logo URL *"
                     />
                   ) : (
@@ -2640,7 +2610,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
                       type="file"
                       accept="image/*"
                       onChange={(e) => setNewCompany({ ...newCompany, logo: e.target.files?.[0] || null })}
-                      className="w-full border rounded-lg p-2"
+                      className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
                     />
                   )}
                 </div>
@@ -2648,7 +2618,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
                 <textarea
                   value={newCompany.description}
                   onChange={(e) => setNewCompany({ ...newCompany, description: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
                   placeholder="Description"
                   rows={3}
                 />
@@ -2656,54 +2626,55 @@ const searchUsersByPersonalId = async (searchTerm) => {
                   type="url"
                   value={newCompany.website}
                   onChange={(e) => setNewCompany({ ...newCompany, website: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
                   placeholder="Website *"
                 />
                 <input
                   type="text"
                   value={newCompany.boothNumber}
                   onChange={(e) => setNewCompany({ ...newCompany, boothNumber: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
                   placeholder="Booth Number *"
                 />
               </div>
-              <div className="flex justify-end space-x-3 mt-6">
+              <div className="flex justify-end space-x-3 mt-6 fade-in-blur">
                 <button
                   onClick={() => setCompanyModal(false)}
-                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-all duration-300 smooth-hover"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleCompanySubmit}
                   disabled={loading}
-                  className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 transition-all duration-300 smooth-hover"
                 >
                   {loading ? 'Adding...' : 'Save Company'}
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
         {/* Session Modal */}
-        {sessionModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-              <h3 className="text-2xl font-bold mb-4">Add Session</h3>
-              <div className="space-y-4">
+        {sessionModal && createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
+              <h3 className="text-2xl font-bold mb-4 fade-in-blur">Add Session</h3>
+              <div className="space-y-4 stagger-children">
                 <input
                   type="text"
                   value={newSession.title}
                   onChange={(e) => setNewSession({ ...newSession, title: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
                   placeholder="Session Title *"
                 />
                 
                 <textarea
                   value={newSession.description}
                   onChange={(e) => setNewSession({ ...newSession, description: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
                   placeholder="Session Description"
                   rows={3}
                 />
@@ -2711,7 +2682,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
                 <select
                   value={newSession.type}
                   onChange={(e) => setNewSession({ ...newSession, type: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
                 >
                   <option value="session">Session</option>
                   <option value="mentorship">Mentorship</option>
@@ -2721,21 +2692,21 @@ const searchUsersByPersonalId = async (searchTerm) => {
                   type="time"
                   value={newSession.hour}
                   onChange={(e) => setNewSession({ ...newSession, hour: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
                 />
 
                 <input
                   type="date"
                   value={newSession.date}
                   onChange={(e) => setNewSession({ ...newSession, date: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
                 />
 
                 <input
                   type="text"
                   value={newSession.speaker}
                   onChange={(e) => setNewSession({ ...newSession, speaker: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
                   placeholder="Speaker *"
                 />
 
@@ -2743,7 +2714,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
                   type="number"
                   value={newSession.capacity}
                   onChange={(e) => setNewSession({ ...newSession, capacity: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
                   placeholder="Capacity"
                 />
 
@@ -2751,48 +2722,49 @@ const searchUsersByPersonalId = async (searchTerm) => {
                   type="text"
                   value={newSession.location}
                   onChange={(e) => setNewSession({ ...newSession, location: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
                   placeholder="Session Location *"
                 />
               </div>
 
-              <div className="flex justify-end space-x-3 mt-6">
+              <div className="flex justify-end space-x-3 mt-6 fade-in-blur">
                 <button
                   onClick={() => setSessionModal(false)}
-                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-all duration-300 smooth-hover"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSessionSubmit}
                   disabled={loading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-all duration-300 smooth-hover"
                 >
                   {loading ? 'Adding...' : 'Save Session'}
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
         {/* Event Modal */}
-        {eventModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-              <h3 className="text-2xl font-bold mb-4">Add Event</h3>
-              <div className="space-y-4">
+        {eventModal && createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
+              <h3 className="text-2xl font-bold mb-4 fade-in-blur">Add Event</h3>
+              <div className="space-y-4 stagger-children">
                 <input
                   type="text"
                   value={newEvent.title}
                   onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                   placeholder="Event Title *"
                 />
                 
                 <textarea
                   value={newEvent.description}
                   onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                   placeholder="Event Description"
                   rows={3}
                 />
@@ -2800,7 +2772,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
                 <select
                   value={newEvent.type}
                   onChange={(e) => setNewEvent({ ...newEvent, type: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                 >
                   <option value="general">General</option>
                   <option value="workshop">Workshop</option>
@@ -2809,35 +2781,35 @@ const searchUsersByPersonalId = async (searchTerm) => {
                   <option value="panel">Panel</option>
                 </select>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3 fade-in-blur">
                   <input
                     type="date"
                     value={newEvent.startDate}
                     onChange={(e) => setNewEvent({ ...newEvent, startDate: e.target.value })}
-                    className="w-full border rounded-lg p-2"
+                    className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                     placeholder="Start Date *"
                   />
                   <input
                     type="time"
                     value={newEvent.startTime}
                     onChange={(e) => setNewEvent({ ...newEvent, startTime: e.target.value })}
-                    className="w-full border rounded-lg p-2"
+                    className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3 fade-in-blur">
                   <input
                     type="date"
                     value={newEvent.endDate}
                     onChange={(e) => setNewEvent({ ...newEvent, endDate: e.target.value })}
-                    className="w-full border rounded-lg p-2"
+                    className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                     placeholder="End Date (Optional)"
                   />
                   <input
                     type="time"
                     value={newEvent.endTime}
                     onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })}
-                    className="w-full border rounded-lg p-2"
+                    className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                   />
                 </div>
 
@@ -2845,42 +2817,43 @@ const searchUsersByPersonalId = async (searchTerm) => {
                   type="text"
                   value={newEvent.location}
                   onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                   placeholder="Event Location"
                 />
               </div>
 
-              <div className="flex justify-end space-x-3 mt-6">
+              <div className="flex justify-end space-x-3 mt-6 fade-in-blur">
                 <button
                   onClick={() => setEventModal(false)}
-                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-all duration-300 smooth-hover"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleEventSubmit}
                   disabled={loading}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-all duration-300 smooth-hover"
                 >
                   {loading ? 'Adding...' : 'Save Event'}
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
         {/* Map Upload Modal */}
-        {mapModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
-              <h3 className="text-2xl font-bold mb-4">Modify Map</h3>
-              <div className="space-y-4">
-                <div>
+        {mapModal && createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md modal-content-blur fade-in-up-blur">
+              <h3 className="text-2xl font-bold mb-4 fade-in-blur">Modify Map</h3>
+              <div className="space-y-4 stagger-children">
+                <div className="fade-in-blur">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Day</label>
                   <select
                     value={mapForm.day}
                     onChange={(e) => setMapForm({ ...mapForm, day: parseInt(e.target.value) })}
-                    className="w-full border rounded-lg p-2"
+                    className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-300"
                   >
                     {[1, 2, 3, 4, 5].map(day => (
                       <option key={day} value={day}>Day {day}</option>
@@ -2888,17 +2861,17 @@ const searchUsersByPersonalId = async (searchTerm) => {
                   </select>
                 </div>
                 
-                <div>
+                <div className="fade-in-blur">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Upload New Map Image</label>
                   <input
                     type="file"
                     accept="image/*"
                     onChange={(e) => setMapForm({ ...mapForm, image: e.target.files?.[0] || null })}
-                    className="w-full border rounded-lg p-2"
+                    className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-300"
                   />
                   
                   {mapForm.image && (
-                    <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="mt-3 p-3 bg-gray-50 rounded-lg fade-in-blur">
                       <p className="text-sm text-gray-600 mb-2">Preview:</p>
                       <img 
                         src={URL.createObjectURL(mapForm.image)} 
@@ -2913,226 +2886,232 @@ const searchUsersByPersonalId = async (searchTerm) => {
                 </div>
               </div>
 
-              <div className="flex justify-end space-x-3 mt-6">
+              <div className="flex justify-end space-x-3 mt-6 fade-in-blur">
                 <button
                   onClick={() => setMapModal(false)}
-                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-all duration-300 smooth-hover"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleMapUpload}
                   disabled={loading || !mapForm.image}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-all duration-300 smooth-hover"
                 >
                   {loading ? 'Uploading...' : 'Update Map'}
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
-{/* Announcement Modal - Admin Version with Team Leader Enhancement */}
-{announcementModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto relative">
-      <button
-        onClick={() => {
-          setAnnouncementModal(false);
-          clearUserSelection();
-          setTeamLeaderOfRole("");
-        }}
-        className="absolute top-3 right-3 text-gray-500 hover:text-gray-700"
-      >
-        <X className="h-6 w-6" />
-      </button>
-
-      <h2 className="text-lg font-semibold text-black mb-4 text-center">
-        Send Announcement
-      </h2>
-
-      <div className="space-y-4">
-        <input
-          type="text"
-          value={announcementTitle}
-          onChange={(e) => setAnnouncementTitle(e.target.value)}
-          placeholder="Message Title"
-          className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-        />
-
-        <textarea
-          value={announcementDescription}
-          onChange={(e) => setAnnouncementDescription(e.target.value)}
-          placeholder="Message Description"
-          className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-          rows={3}
-        />
-
-        <select
-          value={announcementRole}
-          onChange={(e) => {
-            setAnnouncementRole(e.target.value);
-            setTeamLeaderOfRole(""); // Reset team leader selection when role changes
-            if (e.target.value !== "custom") {
-              clearUserSelection();
-            }
-          }}
-          className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-        >
-          {getAdminRoleOptions().map(option => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-
-        {/* Team Leader Of Selection */}
-        {announcementRole === "team_leader" && (
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              Team Leader Of
-            </label>
-            <select
-              value={teamLeaderOfRole}
-              onChange={(e) => setTeamLeaderOfRole(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Select which team leaders...</option>
-              {getTeamLeaderOfOptions().map(option => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500">
-              {teamLeaderOfRole === "all" 
-                ? "Will send to all team leaders regardless of their assigned team"
-                : `Will send only to team leaders of ${teamLeaderOfRole} team`}
-            </p>
-          </div>
-        )}
-
-        {/* Custom Selection UI */}
-        {announcementRole === "custom" && (
-          <div className="space-y-3">
-            <div className="relative">
-              <input
-                type="text"
-                value={userSearch}
-                onChange={(e) => {
-                  setUserSearch(e.target.value);
-                  searchUsersByPersonalId(e.target.value);
-                }}
-                placeholder="Search by Personal ID or Volunteer ID..."
-                className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-              {searchLoading && (
-                <div className="absolute right-3 top-3">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                </div>
-              )}
-            </div>
-
-            {searchResults.length > 0 && (
-              <div className="max-h-40 overflow-y-auto border rounded-lg">
-                {searchResults.map((user) => (
-                  <div
-                    key={user.id}
-                    onClick={() => addUserToSelection(user)}
-                    className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
-                  >
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          {user.first_name} {user.last_name}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {user.volunteer_id ? `Vol ID: ${user.volunteer_id} | ` : ''}
-                          Personal ID: {user.personal_id}
-                        </p>
-                        <p className="text-xs text-gray-500 capitalize">
-                          {user.role?.replace('_', ' ') || 'No role'}
-                        </p>
-                      </div>
-                      <Plus className="h-4 w-4 text-blue-500" />
-                    </div>
-                  </div>
-                ))}
+        {/* Announcement Modal */}
+        {announcementModal && createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
+              <div className="flex items-center justify-between mb-6 fade-in-blur">
+                <h3 className="text-2xl font-bold text-gray-900">Send Announcement</h3>
+                <button
+                  onClick={() => {
+                    setAnnouncementModal(false);
+                    clearUserSelection();
+                    setTeamLeaderOfRole("");
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
               </div>
-            )}
 
-            {selectedUsers.length > 0 && (
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <label className="text-sm font-medium text-gray-700">
-                    Selected Users ({selectedUsers.length})
-                  </label>
-                  <button
-                    onClick={clearUserSelection}
-                    className="text-xs text-red-500 hover:text-red-700"
-                  >
-                    Clear All
-                  </button>
+              <div className="space-y-4 stagger-children">
+                <div className="fade-in-blur">
+                  <input
+                    type="text"
+                    value={announcementTitle}
+                    onChange={(e) => setAnnouncementTitle(e.target.value)}
+                    className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300"
+                    placeholder="Message Title *"
+                  />
                 </div>
-                <div className="max-h-32 overflow-y-auto border rounded-lg bg-gray-50">
-                  {selectedUsers.map((user) => (
-                    <div
-                      key={user.id}
-                      className="p-2 flex justify-between items-center border-b last:border-b-0"
+
+                <div className="fade-in-blur">
+                  <textarea
+                    value={announcementDescription}
+                    onChange={(e) => setAnnouncementDescription(e.target.value)}
+                    className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300"
+                    placeholder="Message Description *"
+                    rows={3}
+                  />
+                </div>
+
+                <div className="fade-in-blur">
+                  <select
+                    value={announcementRole}
+                    onChange={(e) => {
+                      setAnnouncementRole(e.target.value);
+                      setTeamLeaderOfRole("");
+                      if (e.target.value !== "custom") {
+                        clearUserSelection();
+                      }
+                    }}
+                    className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300"
+                  >
+                    {getAdminRoleOptions().map(option => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Team Leader Of Selection */}
+                {announcementRole === "team_leader" && (
+                  <div className="space-y-2 fade-in-blur">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Team Leader Of
+                    </label>
+                    <select
+                      value={teamLeaderOfRole}
+                      onChange={(e) => setTeamLeaderOfRole(e.target.value)}
+                      className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
                     >
-                      <div>
-                        <p className="text-sm text-gray-900">
-                          {user.first_name} {user.last_name}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          ID: {user.personal_id} | {user.role}
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => removeUserFromSelection(user.id)}
-                        className="text-red-500 hover:text-red-700"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
+                      <option value="">Select which team leaders...</option>
+                      {getTeamLeaderOfOptions().map(option => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-gray-500">
+                      {teamLeaderOfRole === "all" 
+                        ? "Will send to all team leaders regardless of their assigned team"
+                        : `Will send only to team leaders of ${teamLeaderOfRole} team`}
+                    </p>
+                  </div>
+                )}
+
+                {/* Custom Selection UI */}
+                {announcementRole === "custom" && (
+                  <div className="space-y-3 fade-in-blur">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={userSearch}
+                        onChange={(e) => {
+                          setUserSearch(e.target.value);
+                          searchUsersByPersonalId(e.target.value);
+                        }}
+                        placeholder="Search by Personal ID or Volunteer ID..."
+                        className="w-full border rounded-lg p-2 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
+                      />
+                      {searchLoading && (
+                        <div className="absolute right-3 top-3">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                        </div>
+                      )}
                     </div>
-                  ))}
-                </div>
+
+                    {searchResults.length > 0 && (
+                      <div className="max-h-40 overflow-y-auto border rounded-lg fade-in-blur">
+                        {searchResults.map((user) => (
+                          <div
+                            key={user.id}
+                            onClick={() => addUserToSelection(user)}
+                            className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0 transition-all duration-300 smooth-hover"
+                          >
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {user.first_name} {user.last_name}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {user.volunteer_id ? `Vol ID: ${user.volunteer_id} | ` : ''}
+                                  Personal ID: {user.personal_id}
+                                </p>
+                                <p className="text-xs text-gray-500 capitalize">
+                                  {user.role?.replace('_', ' ') || 'No role'}
+                                </p>
+                              </div>
+                              <Plus className="h-4 w-4 text-blue-500" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {selectedUsers.length > 0 && (
+                      <div className="fade-in-blur">
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="text-sm font-medium text-gray-700">
+                            Selected Users ({selectedUsers.length})
+                          </label>
+                          <button
+                            onClick={clearUserSelection}
+                            className="text-xs text-red-500 hover:text-red-700 transition-colors"
+                          >
+                            Clear All
+                          </button>
+                        </div>
+                        <div className="max-h-32 overflow-y-auto border rounded-lg bg-gray-50">
+                          {selectedUsers.map((user) => (
+                            <div
+                              key={user.id}
+                              className="p-2 flex justify-between items-center border-b last:border-b-0"
+                            >
+                              <div>
+                                <p className="text-sm text-gray-900">
+                                  {user.first_name} {user.last_name}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  ID: {user.personal_id} | {user.role}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => removeUserFromSelection(user.id)}
+                                className="text-red-500 hover:text-red-700 transition-colors"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+
+              <div className="flex justify-end space-x-3 mt-6 fade-in-blur">
+                <button
+                  onClick={() => {
+                    setAnnouncementModal(false);
+                    clearUserSelection();
+                    setTeamLeaderOfRole("");
+                  }}
+                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-all duration-300 smooth-hover"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAnnouncementSubmit}
+                  disabled={loading || (announcementRole === "team_leader" && !teamLeaderOfRole)}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-all duration-300 smooth-hover"
+                >
+                  {loading ? 'Sending...' : 'Send Announcement'}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
         )}
-      </div>
 
-      <div className="flex justify-end gap-3 mt-6">
-        <button
-          onClick={() => {
-            setAnnouncementModal(false);
-            clearUserSelection();
-            setTeamLeaderOfRole("");
-          }}
-          className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleAnnouncementSubmit}
-          disabled={loading || (announcementRole === "team_leader" && !teamLeaderOfRole)}
-          className="px-4 py-2 rounded-lg bg-purple-500 text-white hover:bg-purple-600 disabled:opacity-50"
-        >
-          {loading ? 'Sending...' : 'Send'}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
-
-        
         {/* Session Detail Modal */}
-        {sessionDetailModal && selectedSessionDetail && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
+        {sessionDetailModal && selectedSessionDetail && createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
+              <div className="p-6 stagger-children">
+                <div className="flex items-center justify-between mb-6 fade-in-blur">
                   <h2 className="text-xl font-bold text-gray-900">Session Details</h2>
                   <button
                     onClick={() => {
@@ -3145,7 +3124,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
                   </button>
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-6 fade-in-blur">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">{selectedSessionDetail.title}</h3>
                     <p className="text-gray-600 mt-2">{selectedSessionDetail.description}</p>
@@ -3190,10 +3169,10 @@ const searchUsersByPersonalId = async (searchTerm) => {
                     </p>
                   </div>
 
-                  <div className="pt-4 border-t border-gray-200">
+                  <div className="pt-4 border-t border-gray-200 fade-in-blur">
                     <button
                       onClick={() => setSessionDetailModal(false)}
-                      className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+                      className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-all duration-300 smooth-hover font-medium"
                     >
                       Close Details
                     </button>
@@ -3201,15 +3180,16 @@ const searchUsersByPersonalId = async (searchTerm) => {
                 </div>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
         {/* Company Detail Modal */}
-        {companyDetailModal && selectedCompanyDetail && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
+        {companyDetailModal && selectedCompanyDetail && createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
+              <div className="p-6 stagger-children">
+                <div className="flex items-center justify-between mb-6 fade-in-blur">
                   <h2 className="text-xl font-bold text-gray-900">Company Details</h2>
                   <button
                     onClick={() => {
@@ -3222,7 +3202,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
                   </button>
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-6 fade-in-blur">
                   <div className="text-center">
                     <img 
                       src={selectedCompanyDetail.logo_url} 
@@ -3252,16 +3232,16 @@ const searchUsersByPersonalId = async (searchTerm) => {
                       href={selectedCompanyDetail.website} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className="text-orange-600 hover:text-orange-700 break-all"
+                      className="text-orange-600 hover:text-orange-700 break-all transition-colors"
                     >
                       {selectedCompanyDetail.website}
                     </a>
                   </div>
 
-                  <div className="pt-4 space-y-3">
+                  <div className="pt-4 space-y-3 fade-in-blur">
                     <button
                       onClick={() => window.open(selectedCompanyDetail.website, "_blank")}
-                      className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+                      className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-all duration-300 smooth-hover font-medium"
                     >
                       Visit Career Page
                     </button>
@@ -3271,7 +3251,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
                         setCompanyDetailModal(false);
                         setSelectedCompanyDetail(null);
                       }}
-                      className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+                      className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover font-medium"
                     >
                       Close
                     </button>
@@ -3279,27 +3259,28 @@ const searchUsersByPersonalId = async (searchTerm) => {
                 </div>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
         {/* Edit Session Modal */}
-        {editSessionModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-              <h3 className="text-2xl font-bold mb-4">Edit Session</h3>
-              <div className="space-y-4">
+        {editSessionModal && createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
+              <h3 className="text-2xl font-bold mb-4 fade-in-blur">Edit Session</h3>
+              <div className="space-y-4 stagger-children">
                 <input
                   type="text"
                   value={editSession.title}
                   onChange={(e) => setEditSession({ ...editSession, title: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
                   placeholder="Session Title *"
                 />
                 
                 <textarea
                   value={editSession.description}
                   onChange={(e) => setEditSession({ ...editSession, description: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
                   placeholder="Session Description"
                   rows={3}
                 />
@@ -3307,7 +3288,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
                 <select
                   value={editSession.type}
                   onChange={(e) => setEditSession({ ...editSession, type: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
                 >
                   <option value="session">Session</option>
                   <option value="mentorship">Mentorship</option>
@@ -3317,21 +3298,21 @@ const searchUsersByPersonalId = async (searchTerm) => {
                   type="time"
                   value={editSession.hour}
                   onChange={(e) => setEditSession({ ...editSession, hour: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
                 />
 
                 <input
                   type="date"
                   value={editSession.date}
                   onChange={(e) => setEditSession({ ...editSession, date: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
                 />
 
                 <input
                   type="text"
                   value={editSession.speaker}
                   onChange={(e) => setEditSession({ ...editSession, speaker: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
                   placeholder="Speaker *"
                 />
 
@@ -3339,7 +3320,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
                   type="number"
                   value={editSession.capacity}
                   onChange={(e) => setEditSession({ ...editSession, capacity: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
                   placeholder="Capacity"
                 />
 
@@ -3347,48 +3328,49 @@ const searchUsersByPersonalId = async (searchTerm) => {
                   type="text"
                   value={editSession.location}
                   onChange={(e) => setEditSession({ ...editSession, location: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
                   placeholder="Session Location *"
                 />
               </div>
 
-              <div className="flex justify-end space-x-3 mt-6">
+              <div className="flex justify-end space-x-3 mt-6 fade-in-blur">
                 <button
                   onClick={() => setEditSessionModal(false)}
-                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-all duration-300 smooth-hover"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleSessionUpdate}
                   disabled={loading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-all duration-300 smooth-hover"
                 >
                   {loading ? 'Updating...' : 'Update Session'}
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
         {/* Edit Event Modal */}
-        {editEventModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-              <h3 className="text-2xl font-bold mb-4">Edit Event</h3>
-              <div className="space-y-4">
+        {editEventModal && createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
+              <h3 className="text-2xl font-bold mb-4 fade-in-blur">Edit Event</h3>
+              <div className="space-y-4 stagger-children">
                 <input
                   type="text"
                   value={editEvent.title}
                   onChange={(e) => setEditEvent({ ...editEvent, title: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                   placeholder="Event Title *"
                 />
                 
                 <textarea
                   value={editEvent.description}
                   onChange={(e) => setEditEvent({ ...editEvent, description: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                   placeholder="Event Description"
                   rows={3}
                 />
@@ -3396,7 +3378,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
                 <select
                   value={editEvent.type}
                   onChange={(e) => setEditEvent({ ...editEvent, type: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                 >
                   <option value="general">General</option>
                   <option value="workshop">Workshop</option>
@@ -3405,35 +3387,35 @@ const searchUsersByPersonalId = async (searchTerm) => {
                   <option value="panel">Panel</option>
                 </select>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3 fade-in-blur">
                   <input
                     type="date"
                     value={editEvent.startDate}
                     onChange={(e) => setEditEvent({ ...editEvent, startDate: e.target.value })}
-                    className="w-full border rounded-lg p-2"
+                    className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                     placeholder="Start Date *"
                   />
                   <input
                     type="time"
                     value={editEvent.startTime}
                     onChange={(e) => setEditEvent({ ...editEvent, startTime: e.target.value })}
-                    className="w-full border rounded-lg p-2"
+                    className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-3 fade-in-blur">
                   <input
                     type="date"
                     value={editEvent.endDate}
                     onChange={(e) => setEditEvent({ ...editEvent, endDate: e.target.value })}
-                    className="w-full border rounded-lg p-2"
+                    className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                     placeholder="End Date (Optional)"
                   />
                   <input
                     type="time"
                     value={editEvent.endTime}
                     onChange={(e) => setEditEvent({ ...editEvent, endTime: e.target.value })}
-                    className="w-full border rounded-lg p-2"
+                    className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                   />
                 </div>
 
@@ -3441,51 +3423,52 @@ const searchUsersByPersonalId = async (searchTerm) => {
                   type="text"
                   value={editEvent.location}
                   onChange={(e) => setEditEvent({ ...editEvent, location: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                   placeholder="Event Location"
                 />
               </div>
 
-              <div className="flex justify-end space-x-3 mt-6">
+              <div className="flex justify-end space-x-3 mt-6 fade-in-blur">
                 <button
                   onClick={() => setEditEventModal(false)}
-                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-all duration-300 smooth-hover"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleEventUpdate}
                   disabled={loading}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-all duration-300 smooth-hover"
                 >
                   {loading ? 'Updating...' : 'Update Event'}
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
         {/* Edit Company Modal */}
-        {editCompanyModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
-              <h3 className="text-2xl font-bold mb-4">Edit Company</h3>
-              <div className="space-y-4">
+        {editCompanyModal && createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
+              <h3 className="text-2xl font-bold mb-4 fade-in-blur">Edit Company</h3>
+              <div className="space-y-4 stagger-children">
                 <input
                   type="text"
                   value={editCompany.name}
                   onChange={(e) => setEditCompany({ ...editCompany, name: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
                   placeholder="Company Name *"
                 />
                 
-                <div>
+                <div className="fade-in-blur">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Logo *</label>
                   <div className="flex space-x-4 mb-3">
                     <button
                       type="button"
                       onClick={() => setEditCompany({ ...editCompany, logoType: "link" })}
-                      className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium ${
+                      className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 smooth-hover ${
                         editCompany.logoType === "link" 
                           ? "bg-blue-500 text-white" 
                           : "bg-gray-100 text-gray-700"
@@ -3497,7 +3480,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
                     <button
                       type="button"
                       onClick={() => setEditCompany({ ...editCompany, logoType: "upload" })}
-                      className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium ${
+                      className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-300 smooth-hover ${
                         editCompany.logoType === "upload" 
                           ? "bg-blue-500 text-white" 
                           : "bg-gray-100 text-gray-700"
@@ -3513,7 +3496,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
                       type="url"
                       value={editCompany.logoUrl}
                       onChange={(e) => setEditCompany({ ...editCompany, logoUrl: e.target.value })}
-                      className="w-full border rounded-lg p-2"
+                      className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
                       placeholder="Logo URL *"
                     />
                   ) : (
@@ -3522,7 +3505,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
                         type="file"
                         accept="image/*"
                         onChange={(e) => setEditCompany({ ...editCompany, logo: e.target.files?.[0] || null })}
-                        className="w-full border rounded-lg p-2"
+                        className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
                       />
                       <p className="text-xs text-gray-500 mt-1">
                         Leave empty to keep current logo
@@ -3531,7 +3514,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
                   )}
                   
                   {editCompany.logoUrl && (
-                    <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="mt-3 p-3 bg-gray-50 rounded-lg fade-in-blur">
                       <p className="text-sm text-gray-600 mb-2">Current Logo:</p>
                       <img 
                         src={editCompany.logoUrl} 
@@ -3548,7 +3531,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
                 <textarea
                   value={editCompany.description}
                   onChange={(e) => setEditCompany({ ...editCompany, description: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
                   placeholder="Description"
                   rows={3}
                 />
@@ -3556,42 +3539,43 @@ const searchUsersByPersonalId = async (searchTerm) => {
                   type="url"
                   value={editCompany.website}
                   onChange={(e) => setEditCompany({ ...editCompany, website: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
                   placeholder="Website *"
                 />
                 <input
                   type="text"
                   value={editCompany.boothNumber}
                   onChange={(e) => setEditCompany({ ...editCompany, boothNumber: e.target.value })}
-                  className="w-full border rounded-lg p-2"
+                  className="w-full border rounded-lg p-2 focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
                   placeholder="Booth Number *"
                 />
               </div>
-              <div className="flex justify-end space-x-3 mt-6">
+              <div className="flex justify-end space-x-3 mt-6 fade-in-blur">
                 <button
                   onClick={() => setEditCompanyModal(false)}
-                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-all duration-300 smooth-hover"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleCompanyUpdate}
                   disabled={loading}
-                  className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 transition-all duration-300 smooth-hover"
                 >
                   {loading ? 'Updating...' : 'Update Company'}
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
         {/* Event Detail Modal */}
-        {eventDetailModal && selectedEventDetail && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
+        {eventDetailModal && selectedEventDetail && createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
+              <div className="p-6 stagger-children">
+                <div className="flex items-center justify-between mb-6 fade-in-blur">
                   <h2 className="text-xl font-bold text-gray-900">Event Details</h2>
                   <button
                     onClick={() => {
@@ -3604,7 +3588,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
                   </button>
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-6 fade-in-blur">
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900">{selectedEventDetail.title}</h3>
                     <p className="text-gray-600 mt-2">{selectedEventDetail.description}</p>
@@ -3635,10 +3619,10 @@ const searchUsersByPersonalId = async (searchTerm) => {
                     </span>
                   </div>
 
-                  <div className="pt-4 border-t border-gray-200">
+                  <div className="pt-4 border-t border-gray-200 fade-in-blur">
                     <button
                       onClick={() => setEventDetailModal(false)}
-                      className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 transition-colors font-medium"
+                      className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 transition-all duration-300 smooth-hover font-medium"
                     >
                       Close Details
                     </button>
@@ -3646,102 +3630,175 @@ const searchUsersByPersonalId = async (searchTerm) => {
                 </div>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
         {/* Delete Company Confirmation Modal */}
-        {deleteCompanyModal && selectedCompanyDelete && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
-              <h3 className="text-xl font-bold mb-4 text-red-600">Delete Company</h3>
-              <p className="text-gray-700 mb-6">
+        {deleteCompanyModal && selectedCompanyDelete && createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md modal-content-blur fade-in-up-blur">
+              <h3 className="text-xl font-bold mb-4 text-red-600 fade-in-blur">Delete Company</h3>
+              <p className="text-gray-700 mb-6 fade-in-blur">
                 Are you sure you want to delete <strong>{selectedCompanyDelete.name}</strong>? 
                 This action cannot be undone.
               </p>
-              <div className="flex justify-end space-x-3">
+              <div className="flex justify-end space-x-3 fade-in-blur">
                 <button
                   onClick={() => {
                     setDeleteCompanyModal(false);
                     setSelectedCompanyDelete(null);
                   }}
-                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-all duration-300 smooth-hover"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleDeleteCompany}
                   disabled={loading}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-all duration-300 smooth-hover"
                 >
                   {loading ? 'Deleting...' : 'Delete Company'}
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
         {/* Delete Session Confirmation Modal */}
-        {deleteSessionModal && selectedSessionDelete && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
-              <h3 className="text-xl font-bold mb-4 text-red-600">Delete Session</h3>
-              <p className="text-gray-700 mb-6">
+        {deleteSessionModal && selectedSessionDelete && createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md modal-content-blur fade-in-up-blur">
+              <h3 className="text-xl font-bold mb-4 text-red-600 fade-in-blur">Delete Session</h3>
+              <p className="text-gray-700 mb-6 fade-in-blur">
                 Are you sure you want to delete the session <strong>"{selectedSessionDelete.title}"</strong>? 
                 This action cannot be undone.
               </p>
-              <div className="flex justify-end space-x-3">
+              <div className="flex justify-end space-x-3 fade-in-blur">
                 <button
                   onClick={() => {
                     setDeleteSessionModal(false);
                     setSelectedSessionDelete(null);
                   }}
-                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-all duration-300 smooth-hover"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={confirmDeleteSession}
                   disabled={loading}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-all duration-300 smooth-hover"
                 >
                   {loading ? 'Deleting...' : 'Delete Session'}
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
         {/* Delete Event Confirmation Modal */}
-        {deleteEventModal && selectedEventDelete && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
-              <h3 className="text-xl font-bold mb-4 text-red-600">Delete Event</h3>
-              <p className="text-gray-700 mb-6">
+        {deleteEventModal && selectedEventDelete && createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md modal-content-blur fade-in-up-blur">
+              <h3 className="text-xl font-bold mb-4 text-red-600 fade-in-blur">Delete Event</h3>
+              <p className="text-gray-700 mb-6 fade-in-blur">
                 Are you sure you want to delete the event <strong>"{selectedEventDelete.title}"</strong>? 
                 This action cannot be undone.
               </p>
-              <div className="flex justify-end space-x-3">
+              <div className="flex justify-end space-x-3 fade-in-blur">
                 <button
                   onClick={() => {
                     setDeleteEventModal(false);
                     setSelectedEventDelete(null);
                   }}
-                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
+                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-all duration-300 smooth-hover"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={confirmDeleteEvent}
                   disabled={loading}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-all duration-300 smooth-hover"
                 >
                   {loading ? 'Deleting...' : 'Delete Event'}
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </div>
+
+      <style jsx>{`
+        .fade-in-blur {
+          animation: fadeInBlur 0.5s ease-out forwards;
+        }
+
+        .fade-in-up-blur {
+          animation: fadeInUpBlur 0.5s ease-out forwards;
+        }
+
+        .modal-backdrop-blur {
+          backdrop-filter: blur(8px);
+        }
+
+        .modal-content-blur {
+          backdrop-filter: blur(20px);
+        }
+
+        .card-hover {
+          transition: all 0.3s ease;
+        }
+
+        .card-hover:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+
+        .smooth-hover {
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .dashboard-card {
+          border: 1px solid rgba(255, 165, 0, 0.1);
+        }
+
+        .stagger-children > * {
+          animation: fadeInUpBlur 0.5s ease-out forwards;
+        }
+
+        .stagger-children > *:nth-child(1) { animation-delay: 0.1s; }
+        .stagger-children > *:nth-child(2) { animation-delay: 0.2s; }
+        .stagger-children > *:nth-child(3) { animation-delay: 0.3s; }
+        .stagger-children > *:nth-child(4) { animation-delay: 0.4s; }
+        .stagger-children > *:nth-child(5) { animation-delay: 0.5s; }
+
+        @keyframes fadeInBlur {
+          0% {
+            opacity: 0;
+            filter: blur(10px);
+          }
+          100% {
+            opacity: 1;
+            filter: blur(0);
+          }
+        }
+
+        @keyframes fadeInUpBlur {
+          0% {
+            opacity: 0;
+            transform: translateY(20px);
+            filter: blur(10px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+            filter: blur(0);
+          }
+        }
+      `}</style>
     </DashboardLayout>
   );
 }
