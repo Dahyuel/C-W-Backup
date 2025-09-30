@@ -167,7 +167,15 @@ export function AdminPanel() {
     message: "",
     type: null,
   });
+const [feedback, setFeedback] = useState<{
+  type: 'success' | 'error';
+  message: string;
+} | null>(null);
 
+const showFeedback = (message: string, type: 'success' | 'error' = 'success') => {
+  setFeedback({ type, message });
+  setTimeout(() => setFeedback(null), 5000);
+};
   // Enhanced statistics state
   const [enhancedStats, setEnhancedStats] = useState({
     eventGenderRatio: { male: 0, female: 0 },
