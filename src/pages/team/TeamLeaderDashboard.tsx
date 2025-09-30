@@ -1083,19 +1083,15 @@ export const TeamLeaderDashboard: React.FC = () => {
           document.body
         )}
 
-        {/* QR Scanner Modal */}
+        {/* QR Scanner Modal - Using the working scanner from BuildTeamDashboard */}
         {scannerOpen && createPortal(
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur">
-            <div className="modal-content-blur fade-in-up-blur">
-              <QRScanner
-                isOpen={scannerOpen}
-                onClose={() => setScannerOpen(false)}
-                onScan={handleScan}
-                title="Scan Volunteer QR Code"
-                description="Point your camera at the volunteer's QR code"
-              />
-            </div>
-          </div>,
+          <QRScanner
+            isOpen={scannerOpen}
+            onClose={() => setScannerOpen(false)}
+            onScan={handleScan}
+            title={scanPurpose === 'attendance' ? "Attendance Scanner" : "Bonus Assignment Scanner"}
+            description="Point your camera at the volunteer's QR code"
+          />,
           document.body
         )}
 
