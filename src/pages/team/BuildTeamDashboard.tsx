@@ -25,6 +25,7 @@ import {
   getAllSessions,
   searchAttendeesByPersonalId
 } from "../../lib/supabase";
+import { supabase } from "../../lib/supabase";
 import { createPortal } from 'react-dom';
 
 interface Session {
