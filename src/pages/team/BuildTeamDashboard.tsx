@@ -101,8 +101,9 @@ export const BuildTeamDashboard: React.FC = () => {
   const [showAttendeeCard, setShowAttendeeCard] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
 
-  // Session booking state
+  // Session booking and attendance state
   const [hasSessionBooking, setHasSessionBooking] = useState<boolean>(false);
+  const [hasSessionAttendance, setHasSessionAttendance] = useState<boolean>(false);
   const [bookingCheckLoading, setBookingCheckLoading] = useState<boolean>(false);
 
   // Feedback state
@@ -165,10 +166,9 @@ export const BuildTeamDashboard: React.FC = () => {
   }, [sessionSearchTerm, activeTab]);
 
   // Check if attendee has booked the selected session
-  const checkSessionBooking = async (attendeeId: string, sessionId: string) => {
+  const checkSessionBooking = async (attendeeId: string, sessionId: string): Promise<boolean> => {
     if (!attendeeId || !sessionId) return false;
     
-    setBookingCheckLoading(true);
     try {
       const { data, error } = await supabase
         .from('attendances')
@@ -187,6 +187,56 @@ export const BuildTeamDashboard: React.FC = () => {
     } catch (error) {
       console.error('Error checking session booking:', error);
       return false;
+    }
+  };
+
+  // Check if attendee has already attended the session
+  const checkSessionAttendance = async (attendeeId: string, sessionId: string): Promise<boolean> => {
+    if (!attendeeId || !sessionId) return false;
+    
+    try {
+      const { data, error } = await supabase
+        .from('attendances')
+        .select('*')
+        .eq('user_id', attendeeId)
+        .eq('session_id', sessionId)
+        .eq('scan_type', 'session_entry')
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+        console.error('Error checking session attendance:', error);
+        return false;
+      }
+
+      return !!data; // Returns true if session attendance exists, false otherwise
+    } catch (error) {
+      console.error('Error checking session attendance:', error);
+      return false;
+    }
+  };
+
+  // Check both booking and attendance status
+  const checkSessionBookingAndAttendance = async (attendeeId: string, sessionId: string) => {
+    if (!attendeeId || !sessionId) {
+      setHasSessionBooking(false);
+      setHasSessionAttendance(false);
+      return;
+    }
+    
+    setBookingCheckLoading(true);
+    try {
+      // Check both booking and attendance in parallel
+      const [bookingResult, attendanceResult] = await Promise.all([
+        checkSessionBooking(attendeeId, sessionId),
+        checkSessionAttendance(attendeeId, sessionId)
+      ]);
+
+      setHasSessionBooking(bookingResult);
+      setHasSessionAttendance(attendanceResult);
+    } catch (error) {
+      console.error('Error checking session status:', error);
+      setHasSessionBooking(false);
+      setHasSessionAttendance(false);
     } finally {
       setBookingCheckLoading(false);
     }
@@ -310,10 +360,9 @@ export const BuildTeamDashboard: React.FC = () => {
         const attendee = castToAttendee(data);
         setSelectedAttendee(attendee);
         
-        // Check if this attendee has booked the selected session
+        // Check if this attendee has booked AND attended the selected session
         if (selectedSession) {
-          const hasBooking = await checkSessionBooking(attendee.id, selectedSession.id);
-          setHasSessionBooking(hasBooking);
+          await checkSessionBookingAndAttendance(attendee.id, selectedSession.id);
         }
         
         setShowAttendeeCard(true);
@@ -341,10 +390,9 @@ export const BuildTeamDashboard: React.FC = () => {
   const handleSessionSelectSearchResult = async (attendee: Attendee) => {
     setSelectedAttendee(attendee);
     
-    // Check if this attendee has booked the selected session
+    // Check if this attendee has booked AND attended the selected session
     if (selectedSession) {
-      const hasBooking = await checkSessionBooking(attendee.id, selectedSession.id);
-      setHasSessionBooking(hasBooking);
+      await checkSessionBookingAndAttendance(attendee.id, selectedSession.id);
     }
     
     setShowAttendeeCard(true);
@@ -427,10 +475,9 @@ export const BuildTeamDashboard: React.FC = () => {
         return;
       }
 
-      // Check if this attendee has booked the selected session
+      // Check if this attendee has booked AND attended the selected session
       if (selectedSession) {
-        const hasBooking = await checkSessionBooking(attendeeData.id, selectedSession.id);
-        setHasSessionBooking(hasBooking);
+        await checkSessionBookingAndAttendance(attendeeData.id, selectedSession.id);
       }
 
       setSelectedAttendee(attendeeData);
@@ -508,6 +555,7 @@ export const BuildTeamDashboard: React.FC = () => {
         setSelectedAttendee(null);
         setSessionMode(null);
         setHasSessionBooking(false);
+        setHasSessionAttendance(false);
       }, 2000);
 
     } catch (error) {
@@ -544,6 +592,7 @@ export const BuildTeamDashboard: React.FC = () => {
     setSelectedAttendee(null);
     setShowAttendeeCard(false);
     setHasSessionBooking(false);
+    setHasSessionAttendance(false);
     clearSessionSearch();
   };
 
@@ -565,10 +614,10 @@ export const BuildTeamDashboard: React.FC = () => {
     }
   };
 
-  // Reset booking check when session changes
+  // Reset booking and attendance check when session changes
   useEffect(() => {
     if (selectedSession && selectedAttendee) {
-      checkSessionBooking(selectedAttendee.id, selectedSession.id).then(setHasSessionBooking);
+      checkSessionBookingAndAttendance(selectedAttendee.id, selectedSession.id);
     }
   }, [selectedSession, selectedAttendee]);
 
@@ -860,70 +909,71 @@ export const BuildTeamDashboard: React.FC = () => {
               </>
             )}
 
-       {/* Session Selected */}
-{selectedSession && !sessionMode && (
-  <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 space-y-4">
-    <div className="flex items-center justify-between">
-      <h2 className="text-xl font-bold text-gray-900">
-        {selectedSession.title}
-      </h2>
-      <button
-        onClick={() => setSelectedSession(null)}
-        className="text-gray-400 hover:text-gray-600"
-      >
-        <X className="h-5 w-5" />
-      </button>
-    </div>
-    
-    {selectedSession.description && (
-      <p className="text-gray-600">{selectedSession.description}</p>
-    )}
-    
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {selectedSession.start_time && (
-        <div className="flex items-center text-gray-700">
-          <Clock className="h-4 w-4 mr-2" />
-          <span className="text-sm">
-            {formatDate(selectedSession.start_time)} • {formatTime(selectedSession.start_time)} - {formatTime(selectedSession.end_time)}
-          </span>
-        </div>
-      )}
-      {selectedSession.speaker && (
-        <div className="flex items-center text-gray-700">
-          <User className="h-4 w-4 mr-2" />
-          <span className="text-sm">Speaker: {selectedSession.speaker}</span>
-        </div>
-      )}
-      {selectedSession.location && (
-        <div className="flex items-center text-gray-700">
-          <span className="mr-2">📍</span>
-          <span className="text-sm">{selectedSession.location}</span>
-        </div>
-      )}
-      <div className="flex items-center text-gray-700">
-        <Users className="h-4 w-4 mr-2" />
-        <span className="text-sm">
-          {selectedSession.current_attendees}
-          {selectedSession.capacity && `/${selectedSession.capacity}`} attendees
-        </span>
-      </div>
-    </div>
+            {/* Session Selected */}
+            {selectedSession && !sessionMode && (
+              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold text-gray-900">
+                    {selectedSession.title}
+                  </h2>
+                  <button
+                    onClick={() => setSelectedSession(null)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+                
+                {selectedSession.description && (
+                  <p className="text-gray-600">{selectedSession.description}</p>
+                )}
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {selectedSession.start_time && (
+                    <div className="flex items-center text-gray-700">
+                      <Clock className="h-4 w-4 mr-2" />
+                      <span className="text-sm">
+                        {formatDate(selectedSession.start_time)} • {formatTime(selectedSession.start_time)} - {formatTime(selectedSession.end_time)}
+                      </span>
+                    </div>
+                  )}
+                  {selectedSession.speaker && (
+                    <div className="flex items-center text-gray-700">
+                      <User className="h-4 w-4 mr-2" />
+                      <span className="text-sm">Speaker: {selectedSession.speaker}</span>
+                    </div>
+                  )}
+                  {selectedSession.location && (
+                    <div className="flex items-center text-gray-700">
+                      <span className="mr-2">📍</span>
+                      <span className="text-sm">{selectedSession.location}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center text-gray-700">
+                    <Users className="h-4 w-4 mr-2" />
+                    <span className="text-sm">
+                      {selectedSession.current_attendees}
+                      {selectedSession.capacity && `/${selectedSession.capacity}`} attendees
+                    </span>
+                  </div>
+                </div>
 
-    <div className="pt-4">
-      <button
-        onClick={() => setSessionMode("session_entry")}
-        disabled={selectedSession.capacity && selectedSession.current_attendees >= selectedSession.capacity}
-        className="w-full flex items-center justify-center p-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-      >
-        <PlusCircle className="h-5 w-5 mr-2" />
-        Add Attendee to Session
-        {selectedSession.capacity && selectedSession.current_attendees >= selectedSession.capacity && (
-          <span className="ml-2 text-xs">(Session Full)</span>
-        )}
-      </button>
-    </div>
-  </div>
-)}
+                <div className="pt-4">
+                  <button
+                    onClick={() => setSessionMode("session_entry")}
+                    disabled={selectedSession.capacity && selectedSession.current_attendees >= selectedSession.capacity}
+                    className="w-full flex items-center justify-center p-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  >
+                    <PlusCircle className="h-5 w-5 mr-2" />
+                    Add Attendee to Session
+                    {selectedSession.capacity && selectedSession.current_attendees >= selectedSession.capacity && (
+                      <span className="ml-2 text-xs">(Session Full)</span>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Session Action Selection */}
             {sessionMode === "session_entry" && !sessionSearchMode && (
               <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 space-y-6">
@@ -1113,6 +1163,7 @@ export const BuildTeamDashboard: React.FC = () => {
               setShowAttendeeCard(false);
               setSelectedAttendee(null);
               setHasSessionBooking(false);
+              setHasSessionAttendance(false);
             }}
           >
             <div 
@@ -1131,6 +1182,7 @@ export const BuildTeamDashboard: React.FC = () => {
                       setShowAttendeeCard(false);
                       setSelectedAttendee(null);
                       setHasSessionBooking(false);
+                      setHasSessionAttendance(false);
                     }}
                     className="text-gray-400 hover:text-gray-600 transition-colors"
                   >
@@ -1165,20 +1217,25 @@ export const BuildTeamDashboard: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Session Booking Check */}
+                  {/* Session Booking & Attendance Check */}
                   {activeTab === "session" && sessionMode === "session_entry" && (
                     <div className="fade-in-blur">
                       {bookingCheckLoading ? (
                         <div className="flex items-center p-3 bg-blue-50 rounded-lg">
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
-                          <span className="text-blue-800 text-sm">Checking session booking...</span>
+                          <span className="text-blue-800 text-sm">Checking session status...</span>
                         </div>
-                      ) : hasSessionBooking ? (
-                        <div className="flex items-center p-3 bg-green-50 rounded-lg">
-                          <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                          <span className="text-green-800 font-medium">Attendee has booked this session</span>
+                      ) : hasSessionAttendance ? (
+                        <div className="flex items-center p-3 bg-yellow-50 rounded-lg">
+                          <CheckCircle className="h-5 w-5 text-yellow-500 mr-2" />
+                          <div>
+                            <span className="text-yellow-800 font-medium block">Already attended this session</span>
+                            <span className="text-yellow-700 text-sm block mt-1">
+                              This attendee has already been added to the session
+                            </span>
+                          </div>
                         </div>
-                      ) : (
+                      ) : !hasSessionBooking ? (
                         <div className="flex items-center p-3 bg-red-50 rounded-lg">
                           <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
                           <div>
@@ -1187,6 +1244,11 @@ export const BuildTeamDashboard: React.FC = () => {
                               Please book the session first or head to info desk
                             </span>
                           </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center p-3 bg-green-50 rounded-lg">
+                          <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                          <span className="text-green-800 font-medium">Ready to add to session</span>
                         </div>
                       )}
                     </div>
@@ -1197,10 +1259,11 @@ export const BuildTeamDashboard: React.FC = () => {
                     {activeTab === "session" && sessionMode === "session_entry" ? (
                       <button
                         onClick={() => handleSessionAttendanceAction('enter')}
-                        disabled={actionLoading || !hasSessionBooking || bookingCheckLoading}
+                        disabled={actionLoading || !hasSessionBooking || hasSessionAttendance || bookingCheckLoading}
                         className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
                       >
                         {actionLoading ? 'Adding to Session...' : 
+                         hasSessionAttendance ? 'Already Attended' :
                          !hasSessionBooking ? 'Cannot Add - No Booking' : 'Add to Session'}
                       </button>
                     ) : (
