@@ -673,7 +673,7 @@ const StatCard = ({ title, value, icon, color }) => {
 
         if (uploadError) {
           console.error("Upload error:", uploadError);
-          showNotification("Failed to upload logo", "error");
+          showFeedback("Failed to upload logo", "error");
           setLoading(false);
           return;
         }
@@ -694,7 +694,7 @@ const StatCard = ({ title, value, icon, color }) => {
       }).eq('id', editCompany.id);
 
       if (error) {
-        showNotification("Failed to update company", "error");
+        showFeedback("Failed to update company", "error");
       } else {
         setEditCompanyModal(false);
         setEditCompany({
@@ -707,11 +707,11 @@ const StatCard = ({ title, value, icon, color }) => {
           website: "",
           boothNumber: "",
         });
-        showNotification("Company updated successfully!", "success");
+        showFeedback("Company updated successfully!", "success");
         await fetchCompanies();
       }
     } catch (err) {
-      showNotification("Failed to update company", "error");
+      showFeedback("Failed to update company", "error");
     } finally {
       setLoading(false);
     }
@@ -761,7 +761,7 @@ const StatCard = ({ title, value, icon, color }) => {
         .eq('id', selectedSessionDelete.id);
 
       if (error) {
-        showNotification("Failed to delete session", "error");
+        showFeedback("Failed to delete session", "error");
       } else {
         setDeleteSessionModal(false);
         setSelectedSessionDelete(null);
