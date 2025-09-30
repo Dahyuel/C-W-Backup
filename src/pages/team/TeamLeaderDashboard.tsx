@@ -777,66 +777,75 @@ const getRoleOptions = () => {
           </div>
         )}
 
-        {/* Volunteer Card Modal */}
-        {showVolunteerCard && scannedVolunteer && (
-          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[100]">
-            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-gray-900">Volunteer Information</h3>
-                <button
-                  onClick={() => {
-                    setShowVolunteerCard(false);
-                    setScannedVolunteer(null);
-                    setAttendanceChecked(false);
-                  }}
-                  className="text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
+       {/* Volunteer Card Modal */}
+{showVolunteerCard && scannedVolunteer && (
+  <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[100]">
+    <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-xl font-bold text-gray-900">Volunteer Information</h3>
+        <button
+          onClick={() => {
+            setShowVolunteerCard(false);
+            setScannedVolunteer(null);
+            setAttendanceChecked(false);
+          }}
+          className="text-gray-500 hover:text-gray-700 transition-colors"
+        >
+          <X className="h-6 w-6" />
+        </button>
+      </div>
 
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="font-medium">Name:</span>
-                  <span>{scannedVolunteer.first_name} {scannedVolunteer.last_name}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Volunteer ID:</span>
-                  <span>{scannedVolunteer.volunteer_id}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Email:</span>
-                  <span>{scannedVolunteer.email}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Personal ID:</span>
-                  <span>{scannedVolunteer.personal_id}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="font-medium">Role:</span>
-                  <span className="capitalize">{scannedVolunteer.role.replace('_', ' ')}</span>
-                </div>
-              </div>
+      <div className="space-y-3">
+        <div className="flex justify-between">
+          <span className="font-medium">Name:</span>
+          <span>{scannedVolunteer.first_name} {scannedVolunteer.last_name}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="font-medium">Volunteer ID:</span>
+          <span>{scannedVolunteer.volunteer_id}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="font-medium">Email:</span>
+          <span>{scannedVolunteer.email}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="font-medium">Personal ID:</span>
+          <span>{scannedVolunteer.personal_id}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="font-medium">Role:</span>
+          <span className="capitalize">{scannedVolunteer.role.replace('_', ' ')}</span>
+        </div>
+        
+        {/* Attendance Status Display */}
+        <div className="flex justify-between items-center">
+          <span className="font-medium">Today's Attendance:</span>
+          {alreadyAttended ? (
+            <span className="text-red-600 font-semibold">Already Marked</span>
+          ) : (
+            <span className="text-green-600 font-semibold">Not Marked</span>
+          )}
+        </div>
+      </div>
 
-              <div className="mt-6">
-                {alreadyAttended ? (
-                  <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded-lg">
-                    <p className="font-medium">This volunteer has already attended today.</p>
-                  </div>
-                ) : (
-                  <button
-                    onClick={handleAttendanceAction}
-                    disabled={loading}
-                    className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-300 font-medium"
-                  >
-                    {loading ? 'Recording...' : 'Mark Attendance'}
-                  </button>
-                )}
-              </div>
-            </div>
+      <div className="mt-6">
+        {alreadyAttended ? (
+          <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded-lg">
+            <p className="font-medium text-center">Attendance already taken today</p>
           </div>
+        ) : (
+          <button
+            onClick={handleAttendanceAction}
+            disabled={loading}
+            className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-300 font-medium"
+          >
+            {loading ? 'Recording...' : 'Mark Attendance'}
+          </button>
         )}
-
+      </div>
+    </div>
+  </div>
+)}
         {/* Announcement Modal */}
         {announcementModal && (
           <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[100]">
