@@ -1833,7 +1833,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
   // Handle Event Submit
   const handleEventSubmit = async () => {
     if (!newEvent.title || !newEvent.startDate || !newEvent.startTime) {
-      showNotification("Please fill all required fields!", "error");
+      showFeedback("Please fill all required fields!", "error");
       return;
     }
 
@@ -1854,7 +1854,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
       });
 
       if (error) {
-        showNotification("Failed to add event", "error");
+        showFeedback("Failed to add event", "error");
       } else {
         setEventModal(false);
         setNewEvent({
@@ -1867,7 +1867,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
           location: "",
           type: "general",
         });
-        showNotification("Event added successfully!", "success");
+        showFeedback("Event added successfully!", "success");
         await fetchEventsByDay(activeDay);
       }
     } catch (err) {
