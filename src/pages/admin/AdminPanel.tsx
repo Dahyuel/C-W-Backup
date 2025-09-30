@@ -469,31 +469,31 @@ const fetchDashboardData = async () => {
   };
 
   // Reusable Stat Card Component
-  const StatCard = ({ title, value, icon, color }) => {
-    const colorClasses = {
-      blue: 'bg-blue-500',
-      green: 'bg-green-500',
-      purple: 'bg-purple-500',
-      orange: 'bg-orange-500',
-      red: 'bg-red-500'
-    };
+const StatCard = ({ title, value, icon, color }) => {
+  const colorClasses = {
+    blue: 'bg-blue-500',
+    green: 'bg-green-500',
+    purple: 'bg-purple-500',
+    orange: 'bg-orange-500',
+    red: 'bg-red-500'
+  };
 
-    return (
-      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm font-medium text-gray-600">{title}</p>
-            <p className="text-3xl font-bold text-gray-900">{value}</p>
-          </div>
-          <div className={`w-12 h-12 ${colorClasses[color]} bg-opacity-10 rounded-lg flex items-center justify-center`}>
-            <div className={colorClasses[color].replace('bg-', 'text-')}>
-              {icon}
-            </div>
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover dashboard-card">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-600">{title}</p>
+          <p className="text-3xl font-bold text-gray-900">{value}</p>
+        </div>
+        <div className={`w-12 h-12 ${colorClasses[color]} bg-opacity-10 rounded-lg flex items-center justify-center`}>
+          <div className={colorClasses[color].replace('bg-', 'text-')}>
+            {icon}
           </div>
         </div>
       </div>
-    );
-  };
+    </div>
+  );
+};
 
   // Gender Chart Component
   const GenderChart = ({ data, title = "Gender Distribution" }) => {
