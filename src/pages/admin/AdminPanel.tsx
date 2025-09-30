@@ -396,7 +396,7 @@ showFeedback("Failed to update session", "error");
           location: "",
           description: "",
         });
-        showNotification("Session updated successfully!", "success");
+showFeedback("Session updated successfully!", "success");
         await fetchSessions();
       }
     } catch (err) {
