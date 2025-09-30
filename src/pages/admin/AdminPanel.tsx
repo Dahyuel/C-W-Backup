@@ -2230,38 +2230,38 @@ const searchUsersByPersonalId = async (searchTerm) => {
 {activeTab === "dashboard" && (
   <div className="space-y-8">
     {/* Quick Actions - Now at the top */}
-    <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 text-center">
-      <h1 className="text-3xl font-bold text-black-800 flex items-center justify-center gap-2 mb-6">
-        <Sparkles className="h-7 w-7 text-orange-500" />
-        Quick Actions
-      </h1>
+<div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 text-center fade-in-blur card-hover dashboard-card">
+  <h1 className="text-3xl font-bold text-black-800 flex items-center justify-center gap-2 mb-6">
+    <Sparkles className="h-7 w-7 text-orange-500" />
+    Quick Actions
+  </h1>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <button
-          onClick={() => setCompanyModal(true)}
-          className="flex flex-col items-center justify-center py-6 px-4 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors"
-        >
-          <Building className="h-8 w-8 mb-2" />
-          <span className="text-base font-medium">Add Company</span>
-        </button>
+  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 stagger-children">
+    <button
+      onClick={() => setCompanyModal(true)}
+      className="flex flex-col items-center justify-center py-6 px-4 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 smooth-hover"
+    >
+      <Building className="h-8 w-8 mb-2" />
+      <span className="text-base font-medium">Add Company</span>
+    </button>
 
-        <button
-          onClick={() => setSessionModal(true)}
-          className="flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
-        >
-          <Calendar className="h-8 w-8 mb-2" />
-          <span className="text-base font-medium">Add Session</span>
-        </button>
+    <button
+      onClick={() => setSessionModal(true)}
+      className="flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all duration-300 smooth-hover"
+    >
+      <Calendar className="h-8 w-8 mb-2" />
+      <span className="text-base font-medium">Add Session</span>
+    </button>
 
-        <button
-          onClick={() => setAnnouncementModal(true)}
-          className="flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-700 transition-colors"
-        >
-          <Megaphone className="h-8 w-8 mb-2" />
-          <span className="text-base font-medium">Send Announcement</span>
-        </button>
-      </div>
-    </div>
+    <button
+      onClick={() => setAnnouncementModal(true)}
+      className="flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-700 transition-all duration-300 smooth-hover"
+    >
+      <Megaphone className="h-8 w-8 mb-2" />
+      <span className="text-base font-medium">Send Announcement</span>
+    </button>
+  </div>
+</div>
 
     {/* Stats Cards - Now below Quick Actions */}
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
