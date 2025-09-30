@@ -21,6 +21,7 @@ interface Volunteer {
   faculty?: string;
   phone?: string;
   tl_team?: string;
+  score?: number;
 }
 
 interface AttendanceRecord {
@@ -33,6 +34,7 @@ interface AttendanceRecord {
 export const TeamLeaderDashboard: React.FC = () => {
   const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'team'>('dashboard');
 
   // Attendance State
   const [attendanceModal, setAttendanceModal] = useState(false);
@@ -67,6 +69,12 @@ export const TeamLeaderDashboard: React.FC = () => {
   const [showBonusConfirmCard, setShowBonusConfirmCard] = useState(false);
   const [bonusMethod, setBonusMethod] = useState<'scan' | 'search'>('scan');
 
+  // Team State
+  const [teamMembers, setTeamMembers] = useState<Volunteer[]>([]);
+  const [selectedTeamMember, setSelectedTeamMember] = useState<Volunteer | null>(null);
+  const [showTeamMemberCard, setShowTeamMemberCard] = useState(false);
+  const [teamMemberAttendanceStatus, setTeamMemberAttendanceStatus] = useState<boolean>(false);
+
   // Flow Dashboard State
   const [buildingStats, setBuildingStats] = useState({
     inside_building: 0,
@@ -90,6 +98,78 @@ export const TeamLeaderDashboard: React.FC = () => {
     return profile?.tl_team;
   };
 
+  // Fetch team members
+  const fetchTeamMembers = async () => {
+    try {
+      const teamLeaderTeam = getTeamLeaderTeam();
+      if (!teamLeaderTeam) return;
+
+      const { data, error } = await supabase
+        .from('users_profiles')
+        .select('*')
+        .eq('role', teamLeaderTeam)
+        .order('first_name');
+
+      if (!error && data) {
+        setTeamMembers(data);
+      }
+    } catch (error) {
+      console.error("Error fetching team members:", error);
+    }
+  };
+
+  // Check attendance status for a team member
+  const checkTeamMemberAttendance = async (userId: string) => {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const { data: attendance, error } = await supabase
+        .from('attendances')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('scan_type', 'vol_attendance')
+        .gte('scanned_at', today.toISOString())
+        .limit(1);
+
+      if (!error && attendance && attendance.length > 0) {
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking attendance:", error);
+      return false;
+    }
+  };
+
+  // Handle opening team member card
+  const handleOpenTeamMemberCard = async (member: Volunteer) => {
+    setSelectedTeamMember(member);
+    const hasAttended = await checkTeamMemberAttendance(member.id);
+    setTeamMemberAttendanceStatus(hasAttended);
+    setShowTeamMemberCard(true);
+  };
+
+  // Handle assign bonus for team member
+  const handleTeamMemberBonus = (member: Volunteer) => {
+    setSelectedUser(member);
+    setBonusAmount(5);
+    setShowBonusConfirmCard(true);
+    setShowTeamMemberCard(false);
+  };
+
+  // Handle mark attendance for team member
+  const handleTeamMemberAttendance = async (member: Volunteer) => {
+    setScannedVolunteer(member);
+    
+    // Check today's attendance
+    const hasAttended = await checkTeamMemberAttendance(member.id);
+    setAlreadyAttended(hasAttended);
+    setAttendanceChecked(true);
+    setShowVolunteerCard(true);
+    setShowTeamMemberCard(false);
+  };
+
   // Fetch building stats
   const fetchBuildingStats = async () => {
     try {
@@ -108,6 +188,7 @@ export const TeamLeaderDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchBuildingStats();
+    fetchTeamMembers();
     // Refresh stats every 30 seconds
     const interval = setInterval(fetchBuildingStats, 30000);
     return () => clearInterval(interval);
@@ -248,6 +329,9 @@ export const TeamLeaderDashboard: React.FC = () => {
       setScannedVolunteer(null);
       setAttendanceChecked(false);
       setAttendanceModal(false);
+      
+      // Refresh team members to update attendance status
+      fetchTeamMembers();
       
     } catch (error) {
       console.error("Attendance action error:", error);
@@ -476,6 +560,9 @@ export const TeamLeaderDashboard: React.FC = () => {
         setBonusSearchTerm("");
         setBonusAmount(5);
         setShowBonusConfirmCard(false);
+        
+        // Refresh team members to update scores
+        fetchTeamMembers();
       }
     } catch (err) {
       showFeedback('error', 'Failed to assign bonus');
@@ -511,142 +598,329 @@ export const TeamLeaderDashboard: React.FC = () => {
     ];
   };
 
+  // Render Team Tab
+  const renderTeamTab = () => (
+    <div className="space-y-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 fade-in-blur card-hover dashboard-card">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
+            <Users className="h-8 w-8 text-orange-500" />
+            Your Team ({teamMembers.length} members)
+          </h2>
+        </div>
+
+        {teamMembers.length === 0 ? (
+          <div className="text-center py-12">
+            <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500 text-lg">No team members found.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 stagger-children">
+            {teamMembers.map((member) => (
+              <div
+                key={member.id}
+                onClick={() => handleOpenTeamMemberCard(member)}
+                className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-all duration-300 cursor-pointer smooth-hover card-hover"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
+                    <span className="text-orange-600 font-bold text-lg">
+                      {member.first_name[0]}{member.last_name[0]}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-sm font-medium text-gray-500">Score</span>
+                    <p className="text-lg font-bold text-orange-600">{member.score || 0}</p>
+                  </div>
+                </div>
+                
+                <h3 className="font-bold text-gray-900 text-lg mb-1">
+                  {member.first_name} {member.last_name}
+                </h3>
+                
+                <div className="space-y-1 text-sm text-gray-600">
+                  <p className="flex items-center gap-1">
+                    <span className="font-medium">ID:</span> {member.volunteer_id}
+                  </p>
+                  <p className="flex items-center gap-1">
+                    <span className="font-medium">Personal ID:</span> {member.personal_id}
+                  </p>
+                  <p className="flex items-center gap-1">
+                    <span className="font-medium">Email:</span> 
+                    <span className="truncate">{member.email}</span>
+                  </p>
+                  {member.phone && (
+                    <p className="flex items-center gap-1">
+                      <span className="font-medium">Phone:</span> {member.phone}
+                    </p>
+                  )}
+                  {member.faculty && (
+                    <p className="flex items-center gap-1">
+                      <span className="font-medium">Faculty:</span> {member.faculty}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // Render Dashboard Tab
+  const renderDashboardTab = () => (
+    <div className="space-y-8">
+      {/* Quick Actions */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 fade-in-blur card-hover dashboard-card">
+        <div className="flex justify-center">
+          <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2 mb-8">
+            <Users className="h-8 w-8 text-orange-500" />
+            Manage Your Team
+          </h2>
+        </div>
+
+        <div className="flex flex-col md:flex-row gap-4 justify-center stagger-children">
+          {/* Attendance */}
+          <button
+            onClick={() => setAttendanceModal(true)}
+            className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all duration-300 smooth-hover"
+          >
+            <QrCode className="h-8 w-8 mb-2" />
+            <span className="text-base font-medium">Mark Attendance</span>
+          </button>
+
+          {/* Bonus */}
+          <button
+            onClick={() => setBonusModal(true)}
+            className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-all duration-300 smooth-hover"
+          >
+            <Gift className="h-8 w-8 mb-2" />
+            <span className="text-base font-medium">Assign Bonus</span>
+          </button>
+
+          {/* Announcements */}
+          <button
+            onClick={() => setAnnouncementModal(true)}
+            className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-all duration-300 smooth-hover"
+          >
+            <Megaphone className="h-8 w-8 mb-2" />
+            <span className="text-base font-medium">Send Announcement</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Flow Dashboard Widget */}
+      <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden fade-in-blur card-hover dashboard-card">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+          <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2 mx-auto">
+            <Building className="h-7 w-7 text-orange-500" />
+            Flow Dashboard
+          </h2>
+        </div>
+
+        <div className="grid grid-cols-3 gap-4 px-6 py-6 text-center stagger-children">
+          <div className="bg-green-100 p-4 rounded-lg shadow-sm card-hover smooth-hover">
+            <p className="text-2xl font-bold text-green-900">{buildingStats.inside_building}</p>
+            <p className="text-lg font-bold text-gray-700">Inside Building</p>
+          </div>
+          <div className="bg-teal-100 p-4 rounded-lg shadow-sm card-hover smooth-hover">
+            <p className="text-2xl font-bold text-teal-900">{buildingStats.inside_event}</p>
+            <p className="text-lg font-bold text-gray-700">Inside Event</p>
+          </div>
+          <div className="bg-blue-100 p-4 rounded-lg shadow-sm card-hover smooth-hover">
+            <p className="text-2xl font-bold text-blue-900">{buildingStats.total_attendees}</p>
+            <p className="text-lg font-bold text-gray-700">Total Attendees</p>
+          </div>
+        </div>
+
+        <div className="p-6">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-lg font-bold text-left border border-gray-200 rounded-lg overflow-hidden">
+              <thead className="bg-gray-100 text-gray-800 text-xl font-extrabold">
+                <tr>
+                  <th className="px-4 py-3">Site</th>
+                  <th className="px-4 py-3">Maximum Capacity</th>
+                  <th className="px-4 py-3">Current Capacity</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-t">
+                  <td className="px-4 py-3">Building</td>
+                  <td className="px-4 py-3 text-red-600">500</td>
+                  <td className="px-4 py-3">
+                    {buildingStats.inside_building > 0 ? 
+                      Math.round((buildingStats.inside_building / 500) * 100) : 0}%
+                  </td>
+                </tr>
+                <tr className="border-t">
+                  <td className="px-4 py-3">Event</td>
+                  <td className="px-4 py-3 text-red-600">4000</td>
+                  <td className="px-4 py-3">
+                    {buildingStats.inside_event > 0 ? 
+                      Math.round((buildingStats.inside_event / 4000) * 100) : 0}%
+                  </td>
+                </tr>
+                <tr className="border-t">
+                  <td className="px-4 py-3">Total</td>
+                  <td className="px-4 py-3 text-red-600">4500</td>
+                  <td className="px-4 py-3">
+                    {(buildingStats.inside_building + buildingStats.inside_event) > 0 ? 
+                      Math.round(((buildingStats.inside_building + buildingStats.inside_event) / 4500) * 100) : 0}%
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <DashboardLayout
       title="Team Leader Dashboard"
       subtitle="Manage your team, track attendance, and assign bonuses"
     >
       <div className="fade-in-up-blur relative">
-        <div className="space-y-8">
-          {/* Feedback Toast */}
-          {feedback && createPortal(
-            <div className={`fixed top-4 right-4 z-[200] flex items-center space-x-2 px-4 py-3 rounded-lg shadow-lg fade-in-blur ${
-              feedback.type === 'success' 
-                ? 'bg-green-500 text-white' 
-                : 'bg-red-500 text-white'
-            }`}>
-              {feedback.type === 'success' ? (
-                <CheckCircle className="h-5 w-5" />
-              ) : (
-                <AlertCircle className="h-5 w-5" />
-              )}
-              <span className="font-medium">{feedback.message}</span>
-              <button
-                onClick={() => setFeedback(null)}
-                className="ml-2 hover:bg-black hover:bg-opacity-20 rounded p-1 transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>,
-            document.body
-          )}
-
-          {/* Quick Actions */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 fade-in-blur card-hover dashboard-card">
-            <div className="flex justify-center">
-              <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2 mb-8">
-                <Users className="h-8 w-8 text-orange-500" />
-                Manage Your Team
-              </h2>
-            </div>
-
-            <div className="flex flex-col md:flex-row gap-4 justify-center stagger-children">
-              {/* Attendance */}
-              <button
-                onClick={() => setAttendanceModal(true)}
-                className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all duration-300 smooth-hover"
-              >
-                <QrCode className="h-8 w-8 mb-2" />
-                <span className="text-base font-medium">Mark Attendance</span>
-              </button>
-
-              {/* Bonus */}
-              <button
-                onClick={() => setBonusModal(true)}
-                className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-all duration-300 smooth-hover"
-              >
-                <Gift className="h-8 w-8 mb-2" />
-                <span className="text-base font-medium">Assign Bonus</span>
-              </button>
-
-              {/* Announcements */}
-              <button
-                onClick={() => setAnnouncementModal(true)}
-                className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-all duration-300 smooth-hover"
-              >
-                <Megaphone className="h-8 w-8 mb-2" />
-                <span className="text-base font-medium">Send Announcement</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Flow Dashboard Widget */}
-          <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden fade-in-blur card-hover dashboard-card">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
-              <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2 mx-auto">
-                <Building className="h-7 w-7 text-orange-500" />
-                Flow Dashboard
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4 px-6 py-6 text-center stagger-children">
-              <div className="bg-green-100 p-4 rounded-lg shadow-sm card-hover smooth-hover">
-                <p className="text-2xl font-bold text-green-900">{buildingStats.inside_building}</p>
-                <p className="text-lg font-bold text-gray-700">Inside Building</p>
-              </div>
-              <div className="bg-teal-100 p-4 rounded-lg shadow-sm card-hover smooth-hover">
-                <p className="text-2xl font-bold text-teal-900">{buildingStats.inside_event}</p>
-                <p className="text-lg font-bold text-gray-700">Inside Event</p>
-              </div>
-              <div className="bg-blue-100 p-4 rounded-lg shadow-sm card-hover smooth-hover">
-                <p className="text-2xl font-bold text-blue-900">{buildingStats.total_attendees}</p>
-                <p className="text-lg font-bold text-gray-700">Total Attendees</p>
-              </div>
-            </div>
-
-            <div className="p-6">
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-lg font-bold text-left border border-gray-200 rounded-lg overflow-hidden">
-                  <thead className="bg-gray-100 text-gray-800 text-xl font-extrabold">
-                    <tr>
-                      <th className="px-4 py-3">Site</th>
-                      <th className="px-4 py-3">Maximum Capacity</th>
-                      <th className="px-4 py-3">Current Capacity</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-t">
-                      <td className="px-4 py-3">Building</td>
-                      <td className="px-4 py-3 text-red-600">500</td>
-                      <td className="px-4 py-3">
-                        {buildingStats.inside_building > 0 ? 
-                          Math.round((buildingStats.inside_building / 500) * 100) : 0}%
-                      </td>
-                    </tr>
-                    <tr className="border-t">
-                      <td className="px-4 py-3">Event</td>
-                      <td className="px-4 py-3 text-red-600">4000</td>
-                      <td className="px-4 py-3">
-                        {buildingStats.inside_event > 0 ? 
-                          Math.round((buildingStats.inside_event / 4000) * 100) : 0}%
-                      </td>
-                    </tr>
-                    <tr className="border-t">
-                      <td className="px-4 py-3">Total</td>
-                      <td className="px-4 py-3 text-red-600">4500</td>
-                      <td className="px-4 py-3">
-                        {(buildingStats.inside_building + buildingStats.inside_event) > 0 ? 
-                          Math.round(((buildingStats.inside_building + buildingStats.inside_event) / 4500) * 100) : 0}%
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+        {/* Tab Navigation */}
+        <div className="flex space-x-1 mb-8 bg-gray-100 p-1 rounded-xl w-fit mx-auto">
+          <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
+              activeTab === 'dashboard'
+                ? 'bg-white text-orange-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Dashboard
+          </button>
+          <button
+            onClick={() => setActiveTab('team')}
+            className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
+              activeTab === 'team'
+                ? 'bg-white text-orange-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Team
+          </button>
         </div>
 
+        {/* Feedback Toast */}
+        {feedback && createPortal(
+          <div className={`fixed top-4 right-4 z-[200] flex items-center space-x-2 px-4 py-3 rounded-lg shadow-lg fade-in-blur ${
+            feedback.type === 'success' 
+              ? 'bg-green-500 text-white' 
+              : 'bg-red-500 text-white'
+          }`}>
+            {feedback.type === 'success' ? (
+              <CheckCircle className="h-5 w-5" />
+            ) : (
+              <AlertCircle className="h-5 w-5" />
+            )}
+            <span className="font-medium">{feedback.message}</span>
+            <button
+              onClick={() => setFeedback(null)}
+              className="ml-2 hover:bg-black hover:bg-opacity-20 rounded p-1 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>,
+          document.body
+        )}
+
+        {/* Tab Content */}
+        {activeTab === 'dashboard' ? renderDashboardTab() : renderTeamTab()}
+
         {/* All Modals using React Portal with Animations */}
+
+        {/* Team Member Card Modal */}
+        {showTeamMemberCard && selectedTeamMember && createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md modal-content-blur fade-in-up-blur">
+              <div className="p-6 stagger-children">
+                <div className="flex items-center justify-between mb-6 fade-in-blur">
+                  <h3 className="text-xl font-bold text-gray-900">Team Member Details</h3>
+                  <button
+                    onClick={() => {
+                      setShowTeamMemberCard(false);
+                      setSelectedTeamMember(null);
+                    }}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+
+                <div className="space-y-4 fade-in-blur">
+                  <div className="flex items-center space-x-4">
+                    <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center">
+                      <span className="text-orange-600 font-bold text-xl">
+                        {selectedTeamMember.first_name[0]}{selectedTeamMember.last_name[0]}
+                      </span>
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-bold text-gray-900">
+                        {selectedTeamMember.first_name} {selectedTeamMember.last_name}
+                      </h4>
+                      <p className="text-gray-600">Volunteer ID: {selectedTeamMember.volunteer_id}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium text-gray-500">Personal ID</span>
+                      <p className="text-gray-900">{selectedTeamMember.personal_id}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-500">Score</span>
+                      <p className="text-orange-600 font-bold">{selectedTeamMember.score || 0}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-500">Email</span>
+                      <p className="text-gray-900 truncate">{selectedTeamMember.email}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-500">Attendance Today</span>
+                      <p className={teamMemberAttendanceStatus ? "text-green-600 font-bold" : "text-red-600 font-bold"}>
+                        {teamMemberAttendanceStatus ? "Present" : "Absent"}
+                      </p>
+                    </div>
+                    {selectedTeamMember.phone && (
+                      <div className="col-span-2">
+                        <span className="font-medium text-gray-500">Phone</span>
+                        <p className="text-gray-900">{selectedTeamMember.phone}</p>
+                      </div>
+                    )}
+                    {selectedTeamMember.faculty && (
+                      <div className="col-span-2">
+                        <span className="font-medium text-gray-500">Faculty</span>
+                        <p className="text-gray-900">{selectedTeamMember.faculty}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-3 pt-4 fade-in-blur">
+                    <button
+                      onClick={() => handleTeamMemberBonus(selectedTeamMember)}
+                      className="flex-1 bg-green-500 text-white py-2 px-4 rounded-lg hover:bg-green-600 transition-all duration-300 font-medium"
+                    >
+                      Assign Bonus
+                    </button>
+                    <button
+                      onClick={() => handleTeamMemberAttendance(selectedTeamMember)}
+                      className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-lg hover:bg-blue-600 transition-all duration-300 font-medium"
+                    >
+                      Mark Attendance
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
 
         {/* Attendance Modal */}
         {attendanceModal && createPortal(
