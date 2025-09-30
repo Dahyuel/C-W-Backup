@@ -537,7 +537,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                onClick={() => window.open('https://www.nilebyte.info', '_blank')}
                className="text-orange-600 hover:text-orange-700 font-medium transition-colors underline"
              >
-               @nilebyte
+               @Nilebyte
              </button>
            </p>
          </div>
