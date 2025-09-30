@@ -842,7 +842,7 @@ export const BuildTeamDashboard: React.FC = () => {
                           <div className="flex items-center justify-between mt-3">
                             <span className="text-sm font-medium text-gray-700 flex items-center">
                               <Users className="inline-block h-4 w-4 mr-1" />
-                              {session.current_attendees}
+{selectedSession.current_attendees
                               {session.capacity && `/${session.capacity}`} attendees
                             </span>
                             {session.capacity && session.current_attendees >= session.capacity && (
