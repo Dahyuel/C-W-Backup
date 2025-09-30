@@ -1537,6 +1537,7 @@ export const addScheduleItem = async (eventData) => {
   }
 };
 
+// In supabase.ts - update the generateVolunteerId function
 const generateVolunteerId = async (role: string): Promise<string> => {
   try {
     // Define role prefixes for ALL volunteer roles
@@ -1550,7 +1551,7 @@ const generateVolunteerId = async (role: string): Promise<string> => {
       'marketing': 'MKTG',
       'media': 'MEDIA',
       'ER': 'ER',
-      'BD': 'BD',
+      'BD team': 'BD', // Changed from 'BD' to 'BD team'
       'catering': 'CAT',
       'feedback': 'FDBK',
       'stage': 'STAGE'
@@ -1558,7 +1559,7 @@ const generateVolunteerId = async (role: string): Promise<string> => {
     
     const prefix = rolePrefixes[role] || 'VOL';
     
-    // Rest of your existing function remains the same...
+    // Rest of the function remains the same...
     const { data: volunteers, error } = await supabase
       .from('users_profiles')
       .select('volunteer_id')
@@ -1606,7 +1607,7 @@ const generateVolunteerId = async (role: string): Promise<string> => {
       'marketing': 'MKTG',
       'media': 'MEDIA',
       'ER': 'ER',
-      'BD': 'BD',
+      'BD team': 'BD', // Changed from 'BD' to 'BD team'
       'catering': 'CAT',
       'feedback': 'FDBK',
       'stage': 'STAGE'
@@ -1615,7 +1616,6 @@ const generateVolunteerId = async (role: string): Promise<string> => {
     return `${prefix}${Date.now().toString().slice(-6)}`;
   }
 };
-
 // Add Company
 export const addCompany = async (companyData) => {
   try {
