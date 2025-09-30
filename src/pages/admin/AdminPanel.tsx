@@ -408,7 +408,7 @@ showFeedback("Failed to update session", "error");
 
   const handleEventUpdate = async () => {
     if (!editEvent.title || !editEvent.startDate || !editEvent.startTime) {
-      showNotification("Please fill all required fields!", "error");
+      showFeedback("Please fill all required fields!", "error");
       return;
     }
 
@@ -443,11 +443,11 @@ showFeedback("Failed to update session", "error");
           location: "",
           type: "general",
         });
-        showNotification("Event updated successfully!", "success");
+        showFeedback("Event updated successfully!", "success");
         await fetchEventsByDay(activeDay);
       }
     } catch (err) {
-      showNotification("Failed to update event", "error");
+      showFeedback("Failed to update event", "error");
     } finally {
       setLoading(false);
     }
