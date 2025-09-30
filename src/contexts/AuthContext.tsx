@@ -445,6 +445,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Enhanced role-based redirect with better volunteer role mapping
 // Enhanced role-based redirect with ALL volunteer roles mapped to /volunteer
+// In AuthContext.tsx - update getRoleBasedRedirect
 const getRoleBasedRedirect = useCallback((role?: string) => {
   const r = role || profile?.role;
   
@@ -468,9 +469,9 @@ const getRoleBasedRedirect = useCallback((role?: string) => {
     case "volunteer":
     case "ushers":
     case "marketing":
-    case "media":
+    case "media": // Make sure media is included
     case "ER":
-    case "BD":
+    case "BD team": // Changed from 'BD' to 'BD team'
     case "catering":
     case "feedback":
     case "stage":
