@@ -168,21 +168,21 @@ const handleScan = async (qrData: string) => {
       // For attendance
       // Check today's attendance using vol_attendance scan_type
       const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const { data: attendance, error } = await supabase
-        .from('attendances')
-        .select('*')
-        .eq('user_id', volunteerData.id)
-        .eq('scan_type', 'vol_attendance')
-        .gte('scanned_at', today.toISOString())
-        .limit(1);
+today.setHours(0, 0, 0, 0);
 
-      if (!error && attendance && attendance.length > 0) {
-        setAlreadyAttended(true);
-      } else {
-        setAlreadyAttended(false);
-      }
+const { data: attendance, error } = await supabase
+  .from('attendances')
+  .select('*')
+  .eq('user_id', volunteerData.id)
+  .eq('scan_type', 'vol_attendance')
+  .gte('scanned_at', today.toISOString())
+  .limit(1);
+
+if (!error && attendance && attendance.length > 0) {
+  setAlreadyAttended(true);
+} else {
+  setAlreadyAttended(false);
+}
 
       setScannedVolunteer(volunteerData);
       setAttendanceChecked(true);
