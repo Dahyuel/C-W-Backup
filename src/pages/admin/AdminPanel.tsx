@@ -1816,15 +1816,15 @@ const EventStatsView = ({ statsData, selectedDay }) => {
       const { error } = await deleteCompany(selectedCompanyDelete.id);
       
       if (error) {
-        showNotification("Failed to delete company", "error");
+        showFeedback("Failed to delete company", "error");
       } else {
         setDeleteCompanyModal(false);
         setSelectedCompanyDelete(null);
-        showNotification("Company deleted successfully!", "success");
+        showFeedback("Company deleted successfully!", "success");
         await fetchCompanies();
       }
     } catch (err) {
-      showNotification("Failed to delete company", "error");
+      showFeedback("Failed to delete company", "error");
     } finally {
       setLoading(false);
     }
