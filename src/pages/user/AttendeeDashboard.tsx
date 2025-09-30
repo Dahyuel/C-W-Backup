@@ -52,6 +52,7 @@ interface Session {
 interface SessionBooking {
   session_id: string;
   booked_at: string;
+  session?: Session; // Add session details to booking
 }
 
 interface Company {
@@ -304,19 +305,38 @@ const AttendeeDashboard: React.FC = () => {
     if (!profile?.id) return;
     
     try {
-      const { data, error } = await supabase
+      // First get the booking records
+      const { data: bookingsData, error: bookingsError } = await supabase
         .from("attendances")
         .select("session_id, scanned_at")
         .eq("user_id", profile.id)
         .eq("scan_type", "booking");
 
-      if (error) {
-        console.error("Error fetching user bookings:", error);
-      } else if (data) {
-        setUserBookings(data.map(booking => ({
-          session_id: booking.session_id,
-          booked_at: booking.scanned_at
-        })));
+      if (bookingsError) {
+        console.error("Error fetching user bookings:", bookingsError);
+        return;
+      }
+
+      if (bookingsData) {
+        // Then get the session details for each booking
+        const bookingsWithSessions: SessionBooking[] = [];
+        
+        for (const booking of bookingsData) {
+          const { data: sessionData, error: sessionError } = await supabase
+            .from("sessions")
+            .select("*")
+            .eq("id", booking.session_id)
+            .single();
+
+          if (!sessionError && sessionData) {
+            bookingsWithSessions.push({
+              ...booking,
+              session: sessionData
+            });
+          }
+        }
+
+        setUserBookings(bookingsWithSessions);
       }
     } catch (error) {
       console.error("Error fetching user bookings:", error);
@@ -393,6 +413,31 @@ const AttendeeDashboard: React.FC = () => {
     return session.max_attendees && session.current_bookings >= session.max_attendees;
   };
 
+  // New function to check if user has overlapping booking
+  const hasOverlappingBooking = (session: Session): { hasOverlap: boolean; conflictingSession?: Session } => {
+    const sessionStart = new Date(session.start_time);
+    const sessionEnd = new Date(session.end_time);
+
+    // Check all user's booked sessions for time overlap
+    for (const booking of userBookings) {
+      if (booking.session) {
+        const bookedSessionStart = new Date(booking.session.start_time);
+        const bookedSessionEnd = new Date(booking.session.end_time);
+
+        // Check if sessions overlap in time
+        if (
+          (sessionStart >= bookedSessionStart && sessionStart < bookedSessionEnd) ||
+          (sessionEnd > bookedSessionStart && sessionEnd <= bookedSessionEnd) ||
+          (sessionStart <= bookedSessionStart && sessionEnd >= bookedSessionEnd)
+        ) {
+          return { hasOverlap: true, conflictingSession: booking.session };
+        }
+      }
+    }
+
+    return { hasOverlap: false };
+  };
+
   const handleBookSession = async (sessionId: string) => {
     if (!profile?.id) return;
     
@@ -401,6 +446,18 @@ const AttendeeDashboard: React.FC = () => {
     setBookingSuccess(null);
 
     try {
+      // Check for overlapping sessions before booking
+      const sessionToBook = sessions.find(s => s.id === sessionId);
+      if (sessionToBook) {
+        const { hasOverlap, conflictingSession } = hasOverlappingBooking(sessionToBook);
+        
+        if (hasOverlap && conflictingSession) {
+          setBookingError(`You already have a booking for "${conflictingSession.title}" at the same time. Please cancel that booking first.`);
+          setBookingLoading(false);
+          return;
+        }
+      }
+
       const { data, error } = await supabase.rpc('book_session', {
         p_user_id: profile.id,
         p_session_id: sessionId,
@@ -712,6 +769,7 @@ const AttendeeDashboard: React.FC = () => {
               {sessions.map((session) => {
                 const booked = isSessionBooked(session.id);
                 const full = isSessionFull(session);
+                const { hasOverlap } = hasOverlappingBooking(session);
                 
                 return (
                   <div
@@ -761,6 +819,11 @@ const AttendeeDashboard: React.FC = () => {
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                           <CheckCircle className="h-3 w-3 mr-1" />
                           Booked
+                        </span>
+                      ) : hasOverlap ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                          <Clock className="h-3 w-3 mr-1" />
+                          Time Conflict
                         </span>
                       ) : full ? (
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
@@ -1050,6 +1113,21 @@ const AttendeeDashboard: React.FC = () => {
                   </p>
                 </div>
 
+                {/* Time Conflict Warning */}
+                {!isSessionBooked(selectedSession.id) && hasOverlappingBooking(selectedSession).hasOverlap && (
+                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg fade-in-blur">
+                    <div className="flex items-start">
+                      <Clock className="h-5 w-5 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-yellow-800 font-medium text-sm">Time Conflict</p>
+                        <p className="text-yellow-700 text-xs mt-1">
+                          You already have a booking at this time. Please cancel your existing booking first.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Booking Status */}
                 <div className="pt-4 border-t border-gray-200 fade-in-blur">
                   {isSessionBooked(selectedSession.id) ? (
@@ -1061,6 +1139,11 @@ const AttendeeDashboard: React.FC = () => {
                     <div className="flex items-center p-3 bg-red-50 rounded-lg">
                       <XCircle className="h-5 w-5 text-red-500 mr-2" />
                       <span className="text-red-800 font-medium">This session is fully booked</span>
+                    </div>
+                  ) : hasOverlappingBooking(selectedSession).hasOverlap ? (
+                    <div className="flex items-center p-3 bg-yellow-50 rounded-lg">
+                      <Clock className="h-5 w-5 text-yellow-500 mr-2" />
+                      <span className="text-yellow-800 font-medium">You have a conflicting booking</span>
                     </div>
                   ) : (
                     <div className="flex items-center p-3 bg-blue-50 rounded-lg">
@@ -1095,10 +1178,13 @@ const AttendeeDashboard: React.FC = () => {
                   ) : (
                     <button
                       onClick={() => handleBookSession(selectedSession.id)}
-                      disabled={bookingLoading || isSessionFull(selectedSession)}
+                      disabled={bookingLoading || isSessionFull(selectedSession) || hasOverlappingBooking(selectedSession).hasOverlap}
                       className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {bookingLoading ? 'Booking...' : isSessionFull(selectedSession) ? 'Session Full' : 'Book Now'}
+                      {bookingLoading ? 'Booking...' : 
+                       isSessionFull(selectedSession) ? 'Session Full' : 
+                       hasOverlappingBooking(selectedSession).hasOverlap ? 'Time Conflict' : 
+                       'Book Now'}
                     </button>
                   )}
                 </div>
