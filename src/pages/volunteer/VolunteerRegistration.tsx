@@ -54,35 +54,36 @@ export const VolunteerRegistration: React.FC = () => {
     { id: 3, title: 'Account Security', icon: Lock }
   ];
 
-  const roleOptions = [
-    { value: 'registration', label: 'Registration Desk' },
-    { value: 'building', label: 'Building Assistance' },
-    { value: 'info_desk', label: 'Info Desk' },
-    { value: 'ushers', label: 'Ushers' },
-    { value: 'marketing', label: 'Marketing' },
-    { value: 'media', label: 'Media' },
-    { value: 'ER', label: 'ER Team' },
-    { value: 'BD', label: 'Business Development' },
-    { value: 'catering', label: 'Catering' },
-    { value: 'feedback', label: 'Feedback Team' },
-    { value: 'stage', label: 'Stage Team' },
-    { value: 'team_leader', label: 'Team Leader' }
-  ];
+const roleOptions = [
+  { value: 'registration', label: 'Registration Desk' },
+  { value: 'building', label: 'Building Assistance' },
+  { value: 'info_desk', label: 'Info Desk' },
+  { value: 'ushers', label: 'Ushers' },
+  { value: 'marketing', label: 'Marketing' },
+  { value: 'media', label: 'Media' }, // Make sure this is included
+  { value: 'ER', label: 'ER Team' },
+  { value: 'BD team', label: 'Business Development Team' }, // Changed from 'BD' to 'BD team'
+  { value: 'catering', label: 'Catering' },
+  { value: 'feedback', label: 'Feedback Team' },
+  { value: 'stage', label: 'Stage Team' },
+  { value: 'team_leader', label: 'Team Leader' }
+];
 
-  const teamOptions = [
-    { value: 'registration', label: 'Registration Team' },
-    { value: 'building', label: 'Building Team' },
-    { value: 'info_desk', label: 'Info Desk Team' },
-    { value: 'ushers', label: 'Ushers Team' },
-    { value: 'marketing', label: 'Marketing Team' },
-    { value: 'media', label: 'Media Team' },
-    { value: 'ER', label: 'ER Team' },
-    { value: 'BD', label: 'Business Development Team' },
-    { value: 'catering', label: 'Catering Team' },
-    { value: 'feedback', label: 'Feedback Team' },
-    { value: 'stage', label: 'Stage Team' }
-  ];
-
+// Update teamOptions for team leaders
+const teamOptions = [
+  { value: 'registration', label: 'Registration Team' },
+  { value: 'building', label: 'Building Team' },
+  { value: 'info_desk', label: 'Info Desk Team' },
+  { value: 'ushers', label: 'Ushers Team' },
+  { value: 'marketing', label: 'Marketing Team' },
+  { value: 'media', label: 'Media Team' }, // Make sure this is included
+  { value: 'ER', label: 'ER Team' },
+  { value: 'BD team', label: 'Business Development Team' }, // Changed from 'BD' to 'BD team'
+  { value: 'catering', label: 'Catering Team' },
+  { value: 'feedback', label: 'Feedback Team' },
+  { value: 'stage', label: 'Stage Team' }
+];
+  
   const genderOptions = [
     { value: 'male', label: 'Male' },
     { value: 'female', label: 'Female' }
