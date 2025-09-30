@@ -8,6 +8,7 @@ import DashboardLayout from "../../components/shared/DashboardLayout";
 import { useAuth } from "../../contexts/AuthContext";
 import { QRScanner } from "../../components/shared/QRScanner";
 import { supabase, sendAnnouncement, getDynamicBuildingStats } from "../../lib/supabase";
+import { createPortal } from 'react-dom';
 
 interface Volunteer {
   id: string;
@@ -44,7 +45,8 @@ export const TeamLeaderDashboard: React.FC = () => {
   const [showVolunteerCard, setShowVolunteerCard] = useState(false);
   const [attendanceChecked, setAttendanceChecked] = useState(false);
   const [alreadyAttended, setAlreadyAttended] = useState(false);
-const [scanPurpose, setScanPurpose] = useState<'attendance' | 'bonus'>('attendance');
+  const [scanPurpose, setScanPurpose] = useState<'attendance' | 'bonus'>('attendance');
+  
   // Announcement State
   const [announcementModal, setAnnouncementModal] = useState(false);
   const [announcementTitle, setAnnouncementTitle] = useState("");
@@ -62,6 +64,8 @@ const [scanPurpose, setScanPurpose] = useState<'attendance' | 'bonus'>('attendan
   const [bonusSearchResults, setBonusSearchResults] = useState<Volunteer[]>([]);
   const [selectedUser, setSelectedUser] = useState<Volunteer | null>(null);
   const [showBonusSearchResults, setShowBonusSearchResults] = useState(false);
+  const [showBonusConfirmCard, setShowBonusConfirmCard] = useState(false);
+  const [bonusMethod, setBonusMethod] = useState<'scan' | 'search'>('scan');
 
   // Flow Dashboard State
   const [buildingStats, setBuildingStats] = useState({
@@ -84,12 +88,6 @@ const [scanPurpose, setScanPurpose] = useState<'attendance' | 'bonus'>('attendan
   // Get team leader's team from tl_team column
   const getTeamLeaderTeam = (): string | null => {
     return profile?.tl_team;
-  };
-
-  // Get allowed roles - for team leader, it's just their tl_team value
-  const getAllowedRoles = (): string[] => {
-    const team = getTeamLeaderTeam();
-    return team ? [team] : [];
   };
 
   // Fetch building stats
@@ -116,84 +114,85 @@ const [scanPurpose, setScanPurpose] = useState<'attendance' | 'bonus'>('attendan
   }, []);
 
   // Handle QR Scan for Attendance
-const handleScan = async (qrData: string) => {
-  try {
-    console.log('Processing QR data:', qrData);
-    
-    // Check if it's a UUID or volunteer ID
-    let volunteerData: Volunteer | null = null;
-    
-    if (qrData.includes('-')) { // Likely UUID
-      const { data, error } = await supabase
-        .from('users_profiles')
-        .select('*')
-        .eq('id', qrData.trim())
-        .single();
+  const handleScan = async (qrData: string) => {
+    try {
+      console.log('Processing QR data:', qrData);
       
-      if (!error && data) {
-        volunteerData = data;
-      }
-    } else { // Likely volunteer ID
-      const { data, error } = await supabase
-        .from('users_profiles')
-        .select('*')
-        .eq('volunteer_id', qrData.trim())
-        .single();
+      // Check if it's a UUID or volunteer ID
+      let volunteerData: Volunteer | null = null;
       
-      if (!error && data) {
-        volunteerData = data;
+      if (qrData.includes('-')) { // Likely UUID
+        const { data, error } = await supabase
+          .from('users_profiles')
+          .select('*')
+          .eq('id', qrData.trim())
+          .single();
+        
+        if (!error && data) {
+          volunteerData = data;
+        }
+      } else { // Likely volunteer ID
+        const { data, error } = await supabase
+          .from('users_profiles')
+          .select('*')
+          .eq('volunteer_id', qrData.trim())
+          .single();
+        
+        if (!error && data) {
+          volunteerData = data;
+        }
       }
+
+      if (!volunteerData) {
+        showFeedback('error', 'Volunteer not found');
+        return;
+      }
+
+      // Check if user is in team leader's team
+      const teamLeaderTeam = getTeamLeaderTeam();
+      if (volunteerData.role !== teamLeaderTeam) {
+        showFeedback('error', 'Volunteer not in your team');
+        return;
+      }
+
+      setScannerOpen(false);
+
+      // Handle based on scan purpose
+      if (scanPurpose === 'bonus') {
+        // For bonus assignment
+        setSelectedUser(volunteerData);
+        setShowBonusConfirmCard(true);
+      } else {
+        // For attendance
+        // Check today's attendance using vol_attendance scan_type
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const { data: attendance, error } = await supabase
+          .from('attendances')
+          .select('*')
+          .eq('user_id', volunteerData.id)
+          .eq('scan_type', 'vol_attendance')
+          .gte('scanned_at', today.toISOString())
+          .limit(1);
+
+        if (!error && attendance && attendance.length > 0) {
+          setAlreadyAttended(true);
+        } else {
+          setAlreadyAttended(false);
+        }
+
+        setScannedVolunteer(volunteerData);
+        setAttendanceChecked(true);
+        setShowVolunteerCard(true);
+      }
+      
+    } catch (error) {
+      console.error("QR scan error:", error);
+      showFeedback('error', 'Failed to process QR code');
     }
+  };
 
-    if (!volunteerData) {
-      showFeedback('error', 'Volunteer not found');
-      return;
-    }
-
-    // Check if user is in team leader's team
-    const teamLeaderTeam = getTeamLeaderTeam();
-    if (volunteerData.role !== teamLeaderTeam) {
-      showFeedback('error', 'Volunteer not in your team');
-      return;
-    }
-
-    setScannerOpen(false);
-
-    // Handle based on scan purpose
-    if (scanPurpose === 'bonus') {
-      // For bonus assignment
-      setSelectedUser(volunteerData);
-      setShowBonusConfirmCard(true);
-    } else {
-      // For attendance
-      // Check today's attendance using vol_attendance scan_type
-      const today = new Date();
-today.setHours(0, 0, 0, 0);
-
-const { data: attendance, error } = await supabase
-  .from('attendances')
-  .select('*')
-  .eq('user_id', volunteerData.id)
-  .eq('scan_type', 'vol_attendance')
-  .gte('scanned_at', today.toISOString())
-  .limit(1);
-
-if (!error && attendance && attendance.length > 0) {
-  setAlreadyAttended(true);
-} else {
-  setAlreadyAttended(false);
-}
-
-      setScannedVolunteer(volunteerData);
-      setAttendanceChecked(true);
-      setShowVolunteerCard(true);
-    }
-    
-  } catch (error) {
-    console.error("QR scan error:", error);
-    showFeedback('error', 'Failed to process QR code');
-  }
-};
   // Handle manual search for attendance
   const handleAttendanceSearch = async (searchTerm: string) => {
     if (!searchTerm.trim()) {
@@ -259,46 +258,47 @@ if (!error && attendance && attendance.length > 0) {
   };
 
   // Handle User Search for Announcements
-const searchUsersByPersonalId = async (searchTerm: string) => {
-  if (!searchTerm || searchTerm.trim().length < 2) {
-    setUserSearchResults([]);
-    return;
-  }
-
-  setUserSearchLoading(true);
-  try {
-    const teamLeaderTeam = getTeamLeaderTeam();
-    if (!teamLeaderTeam) {
+  const searchUsersByPersonalId = async (searchTerm: string) => {
+    if (!searchTerm || searchTerm.trim().length < 2) {
       setUserSearchResults([]);
       return;
     }
 
-    const { data, error } = await supabase
-      .from('users_profiles')
-      .select('id, first_name, last_name, personal_id, role, email, volunteer_id, tl_team')
-      .or(`personal_id.ilike.%${searchTerm.trim()}%,volunteer_id.ilike.%${searchTerm.trim()}%`)
-      .eq('role', teamLeaderTeam)
-      .order('volunteer_id')
-      .limit(10);
+    setUserSearchLoading(true);
+    try {
+      const teamLeaderTeam = getTeamLeaderTeam();
+      if (!teamLeaderTeam) {
+        setUserSearchResults([]);
+        return;
+      }
 
-    if (error) {
-      console.error('Search error:', error);
+      const { data, error } = await supabase
+        .from('users_profiles')
+        .select('id, first_name, last_name, personal_id, role, email, volunteer_id, tl_team')
+        .or(`personal_id.ilike.%${searchTerm.trim()}%,volunteer_id.ilike.%${searchTerm.trim()}%`)
+        .eq('role', teamLeaderTeam)
+        .order('volunteer_id')
+        .limit(10);
+
+      if (error) {
+        console.error('Search error:', error);
+        setUserSearchResults([]);
+      } else {
+        // Filter out already selected users and exclude current user
+        const filteredResults = (data || []).filter(user => 
+          !selectedUsers.some(selected => selected.id === user.id) &&
+          user.id !== profile?.id
+        );
+        setUserSearchResults(filteredResults);
+      }
+    } catch (error) {
+      console.error('Search exception:', error);
       setUserSearchResults([]);
-    } else {
-      // Filter out already selected users and exclude current user
-      const filteredResults = (data || []).filter(user => 
-        !selectedUsers.some(selected => selected.id === user.id) &&
-        user.id !== profile?.id
-      );
-      setUserSearchResults(filteredResults);
+    } finally {
+      setUserSearchLoading(false);
     }
-  } catch (error) {
-    console.error('Search exception:', error);
-    setUserSearchResults([]);
-  } finally {
-    setUserSearchLoading(false);
-  }
-};
+  };
+
   // Add user to selected list for announcements
   const addUserToSelection = (user: Volunteer) => {
     setSelectedUsers(prev => [...prev, user]);
@@ -318,90 +318,90 @@ const searchUsersByPersonalId = async (searchTerm: string) => {
     setUserSearchResults([]);
   };
 
-const handleAnnouncementSubmit = async () => {
-  if (!announcementTitle || !announcementDescription || !announcementRole) {
-    showFeedback('error', 'Please fill all required fields!');
-    return;
-  }
+  const handleAnnouncementSubmit = async () => {
+    if (!announcementTitle || !announcementDescription || !announcementRole) {
+      showFeedback('error', 'Please fill all required fields!');
+      return;
+    }
 
-  console.log('=== DEBUG ANNOUNCEMENT ===');
-  console.log('announcementRole:', announcementRole);
-  console.log('getTeamLeaderTeam():', getTeamLeaderTeam());
-  console.log('selectedUsers count:', selectedUsers.length);
-  console.log('======================');
+    console.log('=== DEBUG ANNOUNCEMENT ===');
+    console.log('announcementRole:', announcementRole);
+    console.log('getTeamLeaderTeam():', getTeamLeaderTeam());
+    console.log('selectedUsers count:', selectedUsers.length);
+    console.log('======================');
 
-  if (announcementRole === "custom" && selectedUsers.length === 0) {
-    showFeedback('error', 'Please select at least one user for custom announcements!');
-    return;
-  }
+    if (announcementRole === "custom" && selectedUsers.length === 0) {
+      showFeedback('error', 'Please select at least one user for custom announcements!');
+      return;
+    }
 
-  setLoading(true);
-  try {
-    let targetType: string;
-    let targetRole: string | null = null;
-    let targetUserIds: string[] | null = null;
+    setLoading(true);
+    try {
+      let targetType: string;
+      let targetRole: string | null = null;
+      let targetUserIds: string[] | null = null;
 
-    // Determine target type and parameters based on selection
-    if (announcementRole === "custom") {
-      // Send to custom selected users
-      targetType = 'specific_users';
-      targetUserIds = selectedUsers.map(user => user.id);
-    } else {
-      // For team announcements
-      const teamLeaderTeam = getTeamLeaderTeam();
-      if (!teamLeaderTeam) {
-        showFeedback('error', 'No team assigned');
-        return;
+      // Determine target type and parameters based on selection
+      if (announcementRole === "custom") {
+        // Send to custom selected users
+        targetType = 'specific_users';
+        targetUserIds = selectedUsers.map(user => user.id);
+      } else {
+        // For team announcements
+        const teamLeaderTeam = getTeamLeaderTeam();
+        if (!teamLeaderTeam) {
+          showFeedback('error', 'No team assigned');
+          return;
+        }
+        targetType = 'role';
+        targetRole = teamLeaderTeam;
       }
-      targetType = 'role';
-      targetRole = teamLeaderTeam;
+
+      console.log('Calling send_notification RPC with:', {
+        targetType,
+        targetRole,
+        targetUserIds
+      });
+
+      // Prepare parameters for RPC call
+      const rpcParams: any = {
+        title_param: announcementTitle,
+        message_param: announcementDescription,
+        target_type_param: targetType,
+      };
+
+      // Add optional parameters only if they exist
+      if (targetRole) {
+        rpcParams.target_role_param = targetRole;
+      }
+      
+      if (targetUserIds && targetUserIds.length > 0) {
+        // Convert string[] to UUID[] for the database
+        rpcParams.target_user_ids_param = targetUserIds;
+      }
+
+      // Use the Supabase RPC function
+      const { data, error } = await supabase.rpc('send_notification', rpcParams);
+
+      if (error) {
+        console.error('Notification RPC error:', error);
+        showFeedback('error', 'Failed to send announcement: ' + error.message);
+      } else {
+        console.log('SUCCESS - Notification sent with ID:', data);
+        showFeedback('success', 'Announcement sent successfully!');
+        setAnnouncementModal(false);
+        setAnnouncementTitle("");
+        setAnnouncementDescription("");
+        setAnnouncementRole("");
+        clearUserSelection();
+      }
+    } catch (err) {
+      console.error('Send announcement error:', err);
+      showFeedback('error', 'Failed to send announcement');
+    } finally {
+      setLoading(false);
     }
-
-    console.log('Calling send_notification RPC with:', {
-      targetType,
-      targetRole,
-      targetUserIds
-    });
-
-    // Prepare parameters for RPC call
-    const rpcParams: any = {
-      title_param: announcementTitle,
-      message_param: announcementDescription,
-      target_type_param: targetType,
-    };
-
-    // Add optional parameters only if they exist
-    if (targetRole) {
-      rpcParams.target_role_param = targetRole;
-    }
-    
-    if (targetUserIds && targetUserIds.length > 0) {
-      // Convert string[] to UUID[] for the database
-      rpcParams.target_user_ids_param = targetUserIds;
-    }
-
-    // Use the Supabase RPC function
-    const { data, error } = await supabase.rpc('send_notification', rpcParams);
-
-    if (error) {
-      console.error('Notification RPC error:', error);
-      showFeedback('error', 'Failed to send announcement: ' + error.message);
-    } else {
-      console.log('SUCCESS - Notification sent with ID:', data);
-      showFeedback('success', 'Announcement sent successfully!');
-      setAnnouncementModal(false);
-      setAnnouncementTitle("");
-      setAnnouncementDescription("");
-      setAnnouncementRole("");
-      clearUserSelection();
-    }
-  } catch (err) {
-    console.error('Send announcement error:', err);
-    showFeedback('error', 'Failed to send announcement');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
   
   // Handle User Search for Bonus
   const handleBonusUserSearch = async (searchTerm: string) => {
@@ -436,84 +436,81 @@ const handleAnnouncementSubmit = async () => {
     }
   };
 
-const handleBonusAssignment = async () => {
-  if (!selectedUser || bonusAmount < 1 || bonusAmount > 30) {
-    showFeedback('error', 'Please select a user and set bonus amount (1-30)');
-    return;
-  }
-
-  setLoading(true);
-  try {
-    const { error } = await supabase
-      .from('user_scores')
-      .insert([{
-        user_id: selectedUser.id,
-        points: bonusAmount,
-        activity_type: 'vol_bonus',
-        activity_description: `Bonus points assigned by team leader`
-        // Remove awarded_by - column doesn't exist
-      }]);
-
-    if (error) {
-      showFeedback('error', 'Failed to assign bonus');
-    } else {
-      // Update user's total score
-      const { data: userProfile } = await supabase
-        .from('users_profiles')
-        .select('score')
-        .eq('id', selectedUser.id)
-        .single();
-
-      if (userProfile) {
-        await supabase
-          .from('users_profiles')
-          .update({ score: (userProfile.score || 0) + bonusAmount })
-          .eq('id', selectedUser.id);
-      }
-
-      showFeedback('success', `Bonus of ${bonusAmount} points assigned successfully!`);
-      setBonusModal(false);
-      setSelectedUser(null);
-      setBonusSearchTerm("");
-      setBonusAmount(5);
-      setShowBonusConfirmCard(false);
+  const handleBonusAssignment = async () => {
+    if (!selectedUser || bonusAmount < 1 || bonusAmount > 30) {
+      showFeedback('error', 'Please select a user and set bonus amount (1-30)');
+      return;
     }
-  } catch (err) {
-    showFeedback('error', 'Failed to assign bonus');
-  } finally {
-    setLoading(false);
-  }
-};
-  // Add this with other Bonus State
-const [showBonusConfirmCard, setShowBonusConfirmCard] = useState(false);
-const [bonusMethod, setBonusMethod] = useState<'scan' | 'search'>('scan');
-  // Get role options - for team leader, only show their team and custom
 
-const getRoleOptions = () => {
-  const teamLeaderTeam = getTeamLeaderTeam();
-  if (!teamLeaderTeam) return [];
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('user_scores')
+        .insert([{
+          user_id: selectedUser.id,
+          points: bonusAmount,
+          activity_type: 'vol_bonus',
+          activity_description: `Bonus points assigned by team leader`
+        }]);
 
-  const roleLabels: { [key: string]: string } = {
-    'volunteer': 'Volunteers',
-    'registration': 'Registration Team', 
-    'building': 'Building Team',
-    'info_desk': 'Info Desk Team',
-    'team_leader': 'Team Leaders',
-    'ushers': 'Ushers',
-    'marketing': 'Marketing Team',
-    'media': 'Media Team',
-    'ER': 'ER Team',
-    'BD': 'BD Team',
-    'catering': 'Catering Team',
-    'feedback': 'Feedback Team',
-    'stage': 'Stage Team'
+      if (error) {
+        showFeedback('error', 'Failed to assign bonus');
+      } else {
+        // Update user's total score
+        const { data: userProfile } = await supabase
+          .from('users_profiles')
+          .select('score')
+          .eq('id', selectedUser.id)
+          .single();
+
+        if (userProfile) {
+          await supabase
+            .from('users_profiles')
+            .update({ score: (userProfile.score || 0) + bonusAmount })
+            .eq('id', selectedUser.id);
+        }
+
+        showFeedback('success', `Bonus of ${bonusAmount} points assigned successfully!`);
+        setBonusModal(false);
+        setSelectedUser(null);
+        setBonusSearchTerm("");
+        setBonusAmount(5);
+        setShowBonusConfirmCard(false);
+      }
+    } catch (err) {
+      showFeedback('error', 'Failed to assign bonus');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return [
-    { value: teamLeaderTeam, label: roleLabels[teamLeaderTeam] || teamLeaderTeam },
-    { value: "custom", label: "Custom Selection" } // Make sure this is "custom"
-  ];
-};
+  // Get role options - for team leader, only show their team and custom
+  const getRoleOptions = () => {
+    const teamLeaderTeam = getTeamLeaderTeam();
+    if (!teamLeaderTeam) return [];
+
+    const roleLabels: { [key: string]: string } = {
+      'volunteer': 'Volunteers',
+      'registration': 'Registration Team', 
+      'building': 'Building Team',
+      'info_desk': 'Info Desk Team',
+      'team_leader': 'Team Leaders',
+      'ushers': 'Ushers',
+      'marketing': 'Marketing Team',
+      'media': 'Media Team',
+      'ER': 'ER Team',
+      'BD': 'BD Team',
+      'catering': 'Catering Team',
+      'feedback': 'Feedback Team',
+      'stage': 'Stage Team'
+    };
+
+    return [
+      { value: teamLeaderTeam, label: roleLabels[teamLeaderTeam] || teamLeaderTeam },
+      { value: "custom", label: "Custom Selection" }
+    ];
+  };
+
   return (
     <DashboardLayout
       title="Team Leader Dashboard"
@@ -522,8 +519,8 @@ const getRoleOptions = () => {
       <div className="fade-in-up-blur relative">
         <div className="space-y-8">
           {/* Feedback Toast */}
-          {feedback && (
-            <div className={`fixed top-4 right-4 z-50 flex items-center space-x-2 px-4 py-3 rounded-lg shadow-lg fade-in-blur ${
+          {feedback && createPortal(
+            <div className={`fixed top-4 right-4 z-[200] flex items-center space-x-2 px-4 py-3 rounded-lg shadow-lg fade-in-blur ${
               feedback.type === 'success' 
                 ? 'bg-green-500 text-white' 
                 : 'bg-red-500 text-white'
@@ -540,7 +537,8 @@ const getRoleOptions = () => {
               >
                 <X className="h-4 w-4" />
               </button>
-            </div>
+            </div>,
+            document.body
           )}
 
           {/* Quick Actions */}
@@ -648,11 +646,11 @@ const getRoleOptions = () => {
           </div>
         </div>
 
-        {/* All Modals - Placed outside the main content to overlay everything */}
+        {/* All Modals using React Portal */}
 
         {/* Attendance Modal */}
-        {attendanceModal && (
-         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[200]">
+        {attendanceModal && createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[200]">
             <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative">
               <button
                 onClick={() => {
@@ -696,15 +694,15 @@ const getRoleOptions = () => {
 
               {attendanceMethod === 'scan' ? (
                 <div className="space-y-4">
-<button
-  onClick={() => {
-    setScanPurpose('attendance'); // Set purpose to attendance
-    setScannerOpen(true);
-  }}
-  className="w-full bg-blue-500 text-white py-3 px-4 rounded-lg hover:bg-blue-600 transition-all duration-300 font-medium"
->
-  Open QR Scanner
-</button>
+                  <button
+                    onClick={() => {
+                      setScanPurpose('attendance');
+                      setScannerOpen(true);
+                    }}
+                    className="w-full bg-blue-500 text-white py-3 px-4 rounded-lg hover:bg-blue-600 transition-all duration-300 font-medium"
+                  >
+                    Open QR Scanner
+                  </button>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -725,35 +723,35 @@ const getRoleOptions = () => {
                     {showSearchResults && searchResults.length > 0 && (
                       <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-40 max-h-60 overflow-y-auto">
                         {searchResults.map((user) => (
-<button
-  key={user.id}
-  onClick={async () => {
-    setScannedVolunteer(user);
-    setSearchTerm(`${user.first_name} ${user.last_name} (${user.volunteer_id})`);
-    setShowSearchResults(false);
-    
-    // Check attendance status for this user
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const { data: attendance, error } = await supabase
-      .from('attendances')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('scan_type', 'vol_attendance')
-      .gte('scanned_at', today.toISOString())
-      .limit(1);
+                          <button
+                            key={user.id}
+                            onClick={async () => {
+                              setScannedVolunteer(user);
+                              setSearchTerm(`${user.first_name} ${user.last_name} (${user.volunteer_id})`);
+                              setShowSearchResults(false);
+                              
+                              // Check attendance status for this user
+                              const today = new Date();
+                              today.setHours(0, 0, 0, 0);
+                              
+                              const { data: attendance, error } = await supabase
+                                .from('attendances')
+                                .select('*')
+                                .eq('user_id', user.id)
+                                .eq('scan_type', 'vol_attendance')
+                                .gte('scanned_at', today.toISOString())
+                                .limit(1);
 
-    if (!error && attendance && attendance.length > 0) {
-      setAlreadyAttended(true);
-    } else {
-      setAlreadyAttended(false);
-    }
-    
-    setShowVolunteerCard(true);
-  }}
-  className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-all duration-300"
->
+                              if (!error && attendance && attendance.length > 0) {
+                                setAlreadyAttended(true);
+                              } else {
+                                setAlreadyAttended(false);
+                              }
+                              
+                              setShowVolunteerCard(true);
+                            }}
+                            className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-all duration-300"
+                          >
                             <div>
                               <p className="font-medium text-gray-900">
                                 {user.first_name} {user.last_name}
@@ -780,12 +778,13 @@ const getRoleOptions = () => {
                 </div>
               )}
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
         {/* QR Scanner Modal */}
-        {scannerOpen && (
-         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[200]">
+        {scannerOpen && createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[200]">
             <QRScanner
               isOpen={scannerOpen}
               onClose={() => setScannerOpen(false)}
@@ -793,81 +792,84 @@ const getRoleOptions = () => {
               title="Scan Volunteer QR Code"
               description="Point your camera at the volunteer's QR code"
             />
-          </div>
+          </div>,
+          document.body
         )}
 
-       {/* Volunteer Card Modal */}
-{showVolunteerCard && scannedVolunteer && (
- <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[200]">
-    <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xl font-bold text-gray-900">Volunteer Information</h3>
-        <button
-          onClick={() => {
-            setShowVolunteerCard(false);
-            setScannedVolunteer(null);
-            setAttendanceChecked(false);
-          }}
-          className="text-gray-500 hover:text-gray-700 transition-colors"
-        >
-          <X className="h-6 w-6" />
-        </button>
-      </div>
+        {/* Volunteer Card Modal */}
+        {showVolunteerCard && scannedVolunteer && createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[200]">
+            <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-gray-900">Volunteer Information</h3>
+                <button
+                  onClick={() => {
+                    setShowVolunteerCard(false);
+                    setScannedVolunteer(null);
+                    setAttendanceChecked(false);
+                  }}
+                  className="text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
 
-      <div className="space-y-3">
-        <div className="flex justify-between">
-          <span className="font-medium">Name:</span>
-          <span>{scannedVolunteer.first_name} {scannedVolunteer.last_name}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="font-medium">Volunteer ID:</span>
-          <span>{scannedVolunteer.volunteer_id}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="font-medium">Email:</span>
-          <span>{scannedVolunteer.email}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="font-medium">Personal ID:</span>
-          <span>{scannedVolunteer.personal_id}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="font-medium">Role:</span>
-          <span className="capitalize">{scannedVolunteer.role.replace('_', ' ')}</span>
-        </div>
-        
-        {/* Attendance Status Display */}
-        <div className="flex justify-between items-center">
-          <span className="font-medium">Today's Attendance:</span>
-          {alreadyAttended ? (
-            <span className="text-red-600 font-semibold">Already Marked</span>
-          ) : (
-            <span className="text-green-600 font-semibold">Not Marked</span>
-          )}
-        </div>
-      </div>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="font-medium">Name:</span>
+                  <span>{scannedVolunteer.first_name} {scannedVolunteer.last_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Volunteer ID:</span>
+                  <span>{scannedVolunteer.volunteer_id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Email:</span>
+                  <span>{scannedVolunteer.email}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Personal ID:</span>
+                  <span>{scannedVolunteer.personal_id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Role:</span>
+                  <span className="capitalize">{scannedVolunteer.role.replace('_', ' ')}</span>
+                </div>
+                
+                {/* Attendance Status Display */}
+                <div className="flex justify-between items-center">
+                  <span className="font-medium">Today's Attendance:</span>
+                  {alreadyAttended ? (
+                    <span className="text-red-600 font-semibold">Already Marked</span>
+                  ) : (
+                    <span className="text-green-600 font-semibold">Not Marked</span>
+                  )}
+                </div>
+              </div>
 
-      <div className="mt-6">
-        {alreadyAttended ? (
-          <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded-lg">
-            <p className="font-medium text-center">Attendance already taken today</p>
-          </div>
-        ) : (
-          <button
-            onClick={handleAttendanceAction}
-            disabled={loading}
-            className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-300 font-medium"
-          >
-            {loading ? 'Recording...' : 'Mark Attendance'}
-          </button>
+              <div className="mt-6">
+                {alreadyAttended ? (
+                  <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded-lg">
+                    <p className="font-medium text-center">Attendance already taken today</p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleAttendanceAction}
+                    disabled={loading}
+                    className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-300 font-medium"
+                  >
+                    {loading ? 'Recording...' : 'Mark Attendance'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body
         )}
-      </div>
-    </div>
-  </div>
-)}
+
         {/* Announcement Modal */}
-        {announcementModal && (
-<div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[200]">
+        {announcementModal && createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[200]">
             <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto relative">
               <button
                 onClick={() => {
@@ -923,15 +925,15 @@ const getRoleOptions = () => {
                   <div className="space-y-3">
                     <div className="relative">
                       <input
-  type="text"
-  value={userSearch}
-  onChange={(e) => {
-    setUserSearch(e.target.value);
-    searchUsersByPersonalId(e.target.value);
-  }}
-  placeholder="Search by Personal ID or Volunteer ID..."
-  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
-/>
+                        type="text"
+                        value={userSearch}
+                        onChange={(e) => {
+                          setUserSearch(e.target.value);
+                          searchUsersByPersonalId(e.target.value);
+                        }}
+                        placeholder="Search by Personal ID or Volunteer ID..."
+                        className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
+                      />
                       {userSearchLoading && (
                         <div className="absolute right-3 top-3">
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
@@ -940,29 +942,29 @@ const getRoleOptions = () => {
                     </div>
 
                     {/* Search Results */}
-                   {userSearchResults.length > 0 && (
-  <div className="max-h-40 overflow-y-auto border rounded-lg">
-    {userSearchResults.map((user) => (
-      <div
-        key={user.id}
-        onClick={() => addUserToSelection(user)}
-        className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0 transition-all duration-300"
-      >
-        <div className="flex justify-between items-center">
-          <div>
-            <p className="text-sm font-medium text-gray-900">
-              {user.first_name} {user.last_name}
-            </p>
-            <p className="text-xs text-gray-500">
-              Vol ID: {user.volunteer_id} | Personal ID: {user.personal_id}
-            </p>
-          </div>
-          <Plus className="h-4 w-4 text-blue-500" />
-        </div>
-      </div>
-    ))}
-  </div>
-)}
+                    {userSearchResults.length > 0 && (
+                      <div className="max-h-40 overflow-y-auto border rounded-lg">
+                        {userSearchResults.map((user) => (
+                          <div
+                            key={user.id}
+                            onClick={() => addUserToSelection(user)}
+                            className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0 transition-all duration-300"
+                          >
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {user.first_name} {user.last_name}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  Vol ID: {user.volunteer_id} | Personal ID: {user.personal_id}
+                                </p>
+                              </div>
+                              <Plus className="h-4 w-4 text-blue-500" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Selected Users */}
                     {selectedUsers.length > 0 && (
@@ -1026,212 +1028,215 @@ const getRoleOptions = () => {
                 </button>
               </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
 
-{/* Bonus Assignment Modal */}
-{bonusModal && (
-  <div 
-    className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[100]"
-    onClick={() => {
-      if (!showBonusConfirmCard) {
-        setBonusModal(false);
-        setSelectedUser(null);
-        setBonusSearchTerm("");
-        setShowBonusSearchResults(false);
-        setBonusAmount(5);
-      }
-    }}
-  >
-    <div 
-      className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <button
-        onClick={() => {
-          setBonusModal(false);
-          setSelectedUser(null);
-          setBonusSearchTerm("");
-          setShowBonusSearchResults(false);
-          setBonusAmount(5);
-          setShowBonusConfirmCard(false);
-        }}
-        className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 z-30 transition-colors"
-      >
-        <X className="h-6 w-6" />
-      </button>
-
-      <h2 className="text-lg font-semibold text-black mb-4 text-center">
-        Assign Bonus Points
-      </h2>
-
-      <div className="flex gap-2 mb-4">
-        <button
-          onClick={() => setBonusMethod('scan')}
-          className={`flex-1 py-2 px-4 rounded-lg transition-all duration-300 ${
-            bonusMethod === 'scan' 
-              ? 'bg-green-500 text-white' 
-              : 'bg-gray-200 text-gray-700'
-          }`}
-        >
-          QR Scanner
-        </button>
-        <button
-          onClick={() => setBonusMethod('search')}
-          className={`flex-1 py-2 px-4 rounded-lg transition-all duration-300 ${
-            bonusMethod === 'search' 
-              ? 'bg-green-500 text-white' 
-              : 'bg-gray-200 text-gray-700'
-          }`}
-        >
-          Search
-        </button>
-      </div>
-
-      {bonusMethod === 'scan' ? (
-        <div className="space-y-4">
-<button
-  onClick={() => {
-    setScanPurpose('bonus'); // Set purpose to bonus
-    setScannerOpen(true);
-    setBonusModal(false); // Close bonus modal
-  }}
-  className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 transition-all duration-300 font-medium"
->
-  Open QR Scanner
-</button>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="relative">
-            <input
-              type="text"
-              value={bonusSearchTerm}
-              onChange={(e) => {
-                setBonusSearchTerm(e.target.value);
-                handleBonusUserSearch(e.target.value);
-              }}
-              onFocus={() => setShowBonusSearchResults(true)}
-              placeholder="Search by Personal ID or Volunteer ID"
-              className="w-full border rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
-            />
-            <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
-            
-            {showBonusSearchResults && bonusSearchResults.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-40 max-h-60 overflow-y-auto">
-                {bonusSearchResults.map((user) => (
-                  <button
-                    key={user.id}
-                    onClick={() => {
-                      setSelectedUser(user);
-                      setBonusSearchTerm(`${user.first_name} ${user.last_name} (${user.volunteer_id})`);
-                      setShowBonusSearchResults(false);
-                      setShowBonusConfirmCard(true);
-                    }}
-                    className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-all duration-300"
-                  >
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {user.first_name} {user.last_name}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        ID: {user.volunteer_id} | Personal ID: {user.personal_id}
-                      </p>
-                      <p className="text-xs text-gray-500 capitalize">
-                        {user.role.replace('_', ' ')}
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-          
-          {showBonusSearchResults && (
+        {/* Bonus Assignment Modal */}
+        {bonusModal && createPortal(
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[200]"
+            onClick={() => {
+              if (!showBonusConfirmCard) {
+                setBonusModal(false);
+                setSelectedUser(null);
+                setBonusSearchTerm("");
+                setShowBonusSearchResults(false);
+                setBonusAmount(5);
+              }
+            }}
+          >
             <div 
-              className="fixed inset-0 z-30"
-              onClick={() => setShowBonusSearchResults(false)}
-            />
-          )}
-        </div>
-      )}
-    </div>
-  </div>
-)}
+              className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md relative"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => {
+                  setBonusModal(false);
+                  setSelectedUser(null);
+                  setBonusSearchTerm("");
+                  setShowBonusSearchResults(false);
+                  setBonusAmount(5);
+                  setShowBonusConfirmCard(false);
+                }}
+                className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 z-30 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
 
-{/* Bonus Confirmation Card */}
-{showBonusConfirmCard && selectedUser && (
-  <div 
-    className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[100]"
-    onClick={() => {
-      setShowBonusConfirmCard(false);
-      setSelectedUser(null);
-      setBonusSearchTerm("");
-      setBonusAmount(5);
-    }}
-  >
-    <div 
-      className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-xl font-bold text-gray-900">Assign Bonus</h3>
-        <button
-          onClick={() => {
-            setShowBonusConfirmCard(false);
-            setSelectedUser(null);
-            setBonusSearchTerm("");
-            setBonusAmount(5);
-          }}
-          className="text-gray-500 hover:text-gray-700 transition-colors"
-        >
-          <X className="h-6 w-6" />
-        </button>
-      </div>
+              <h2 className="text-lg font-semibold text-black mb-4 text-center">
+                Assign Bonus Points
+              </h2>
 
-      <div className="space-y-3 mb-4">
-        <div className="flex justify-between">
-          <span className="font-medium">Name:</span>
-          <span>{selectedUser.first_name} {selectedUser.last_name}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="font-medium">Volunteer ID:</span>
-          <span>{selectedUser.volunteer_id}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="font-medium">Personal ID:</span>
-          <span>{selectedUser.personal_id}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="font-medium">Role:</span>
-          <span className="capitalize">{selectedUser.role.replace('_', ' ')}</span>
-        </div>
-      </div>
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={() => setBonusMethod('scan')}
+                  className={`flex-1 py-2 px-4 rounded-lg transition-all duration-300 ${
+                    bonusMethod === 'scan' 
+                      ? 'bg-green-500 text-white' 
+                      : 'bg-gray-200 text-gray-700'
+                  }`}
+                >
+                  QR Scanner
+                </button>
+                <button
+                  onClick={() => setBonusMethod('search')}
+                  className={`flex-1 py-2 px-4 rounded-lg transition-all duration-300 ${
+                    bonusMethod === 'search' 
+                      ? 'bg-green-500 text-white' 
+                      : 'bg-gray-200 text-gray-700'
+                  }`}
+                >
+                  Search
+                </button>
+              </div>
 
-      <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Bonus Points (1-30)
-        </label>
-        <input
-          type="number"
-          min="1"
-          max="30"
-          value={bonusAmount}
-          onChange={(e) => setBonusAmount(Math.min(30, Math.max(1, parseInt(e.target.value) || 1)))}
-          className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
-        />
-      </div>
+              {bonusMethod === 'scan' ? (
+                <div className="space-y-4">
+                  <button
+                    onClick={() => {
+                      setScanPurpose('bonus');
+                      setScannerOpen(true);
+                      setBonusModal(false);
+                    }}
+                    className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 transition-all duration-300 font-medium"
+                  >
+                    Open QR Scanner
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={bonusSearchTerm}
+                      onChange={(e) => {
+                        setBonusSearchTerm(e.target.value);
+                        handleBonusUserSearch(e.target.value);
+                      }}
+                      onFocus={() => setShowBonusSearchResults(true)}
+                      placeholder="Search by Personal ID or Volunteer ID"
+                      className="w-full border rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
+                    />
+                    <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
+                    
+                    {showBonusSearchResults && bonusSearchResults.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-40 max-h-60 overflow-y-auto">
+                        {bonusSearchResults.map((user) => (
+                          <button
+                            key={user.id}
+                            onClick={() => {
+                              setSelectedUser(user);
+                              setBonusSearchTerm(`${user.first_name} ${user.last_name} (${user.volunteer_id})`);
+                              setShowBonusSearchResults(false);
+                              setShowBonusConfirmCard(true);
+                            }}
+                            className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-all duration-300"
+                          >
+                            <div>
+                              <p className="font-medium text-gray-900">
+                                {user.first_name} {user.last_name}
+                              </p>
+                              <p className="text-sm text-gray-600">
+                                ID: {user.volunteer_id} | Personal ID: {user.personal_id}
+                              </p>
+                              <p className="text-xs text-gray-500 capitalize">
+                                {user.role.replace('_', ' ')}
+                              </p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {showBonusSearchResults && (
+                    <div 
+                      className="fixed inset-0 z-30"
+                      onClick={() => setShowBonusSearchResults(false)}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
 
-      <button
-        onClick={handleBonusAssignment}
-        disabled={loading}
-        className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-300 font-medium"
-      >
-        {loading ? 'Assigning...' : 'Give Bonus'}
-      </button>
-    </div>
-  </div>
-)}
+        {/* Bonus Confirmation Card */}
+        {showBonusConfirmCard && selectedUser && createPortal(
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-[200]"
+            onClick={() => {
+              setShowBonusConfirmCard(false);
+              setSelectedUser(null);
+              setBonusSearchTerm("");
+              setBonusAmount(5);
+            }}
+          >
+            <div 
+              className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-gray-900">Assign Bonus</h3>
+                <button
+                  onClick={() => {
+                    setShowBonusConfirmCard(false);
+                    setSelectedUser(null);
+                    setBonusSearchTerm("");
+                    setBonusAmount(5);
+                  }}
+                  className="text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-3 mb-4">
+                <div className="flex justify-between">
+                  <span className="font-medium">Name:</span>
+                  <span>{selectedUser.first_name} {selectedUser.last_name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Volunteer ID:</span>
+                  <span>{selectedUser.volunteer_id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Personal ID:</span>
+                  <span>{selectedUser.personal_id}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="font-medium">Role:</span>
+                  <span className="capitalize">{selectedUser.role.replace('_', ' ')}</span>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Bonus Points (1-30)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="30"
+                  value={bonusAmount}
+                  onChange={(e) => setBonusAmount(Math.min(30, Math.max(1, parseInt(e.target.value) || 1)))}
+                  className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
+                />
+              </div>
+
+              <button
+                onClick={handleBonusAssignment}
+                disabled={loading}
+                className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-300 font-medium"
+              >
+                {loading ? 'Assigning...' : 'Give Bonus'}
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
       </div>
     </DashboardLayout>
   );
