@@ -400,7 +400,7 @@ showFeedback("Session updated successfully!", "success");
         await fetchSessions();
       }
     } catch (err) {
-      showNotification("Failed to update session", "error");
+showFeedback("Failed to update session", "error");
     } finally {
       setLoading(false);
     }
