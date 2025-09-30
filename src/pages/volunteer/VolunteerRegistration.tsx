@@ -53,16 +53,15 @@ export const VolunteerRegistration: React.FC = () => {
     { id: 2, title: 'Role Selection', icon: Heart },
     { id: 3, title: 'Account Security', icon: Lock }
   ];
-
 const roleOptions = [
   { value: 'registration', label: 'Registration Desk' },
   { value: 'building', label: 'Building Assistance' },
   { value: 'info_desk', label: 'Info Desk' },
   { value: 'ushers', label: 'Ushers' },
   { value: 'marketing', label: 'Marketing' },
-  { value: 'media', label: 'Media' }, // Make sure this is included
+  { value: 'media', label: 'Media' },
   { value: 'ER', label: 'ER Team' },
-  { value: 'BD team', label: 'Business Development Team' }, // Changed from 'BD' to 'BD team'
+  { value: 'BD team', label: 'BD Team' }, // Changed from 'Business Development Team' to 'BD Team'
   { value: 'catering', label: 'Catering' },
   { value: 'feedback', label: 'Feedback Team' },
   { value: 'stage', label: 'Stage Team' },
@@ -76,14 +75,14 @@ const teamOptions = [
   { value: 'info_desk', label: 'Info Desk Team' },
   { value: 'ushers', label: 'Ushers Team' },
   { value: 'marketing', label: 'Marketing Team' },
-  { value: 'media', label: 'Media Team' }, // Make sure this is included
+  { value: 'media', label: 'Media Team' },
   { value: 'ER', label: 'ER Team' },
-  { value: 'BD team', label: 'Business Development Team' }, // Changed from 'BD' to 'BD team'
+  { value: 'BD team', label: 'BD Team' }, // Changed from 'Business Development Team' to 'BD Team'
   { value: 'catering', label: 'Catering Team' },
   { value: 'feedback', label: 'Feedback Team' },
   { value: 'stage', label: 'Stage Team' }
 ];
-  
+
   const genderOptions = [
     { value: 'male', label: 'Male' },
     { value: 'female', label: 'Female' }
