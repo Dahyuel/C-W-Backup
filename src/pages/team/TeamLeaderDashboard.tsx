@@ -278,6 +278,7 @@ export const TeamLeaderDashboard: React.FC = () => {
   const handleAttendanceSearch = async (searchTerm: string) => {
     if (!searchTerm.trim()) {
       setSearchResults([]);
+      setShowSearchResults(false);
       return;
     }
 
@@ -291,17 +292,21 @@ export const TeamLeaderDashboard: React.FC = () => {
       const { data, error } = await supabase
         .from('users_profiles')
         .select('*')
-        .or(`personal_id.ilike.%${searchTerm}%,volunteer_id.ilike.%${searchTerm}%`)
+        .or(`personal_id.ilike.%${searchTerm}%,volunteer_id.ilike.%${searchTerm}%,first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%`)
         .eq('role', teamLeaderTeam) // Only users with same role as team leader's tl_team
         .limit(10);
 
       if (!error && data) {
         setSearchResults(data);
         setShowSearchResults(true);
+      } else {
+        setSearchResults([]);
+        setShowSearchResults(false);
       }
     } catch (error) {
       console.error("Search error:", error);
       setSearchResults([]);
+      setShowSearchResults(false);
     }
   };
 
@@ -359,7 +364,7 @@ export const TeamLeaderDashboard: React.FC = () => {
       const { data, error } = await supabase
         .from('users_profiles')
         .select('id, first_name, last_name, personal_id, role, email, volunteer_id, tl_team')
-        .or(`personal_id.ilike.%${searchTerm.trim()}%,volunteer_id.ilike.%${searchTerm.trim()}%`)
+        .or(`personal_id.ilike.%${searchTerm.trim()}%,volunteer_id.ilike.%${searchTerm.trim()}%,first_name.ilike.%${searchTerm.trim()}%,last_name.ilike.%${searchTerm.trim()}%`)
         .eq('role', teamLeaderTeam)
         .order('volunteer_id')
         .limit(10);
@@ -491,6 +496,7 @@ export const TeamLeaderDashboard: React.FC = () => {
   const handleBonusUserSearch = async (searchTerm: string) => {
     if (!searchTerm.trim()) {
       setBonusSearchResults([]);
+      setShowBonusSearchResults(false);
       return;
     }
 
@@ -504,7 +510,7 @@ export const TeamLeaderDashboard: React.FC = () => {
       const { data, error } = await supabase
         .from('users_profiles')
         .select('*')
-        .or(`personal_id.ilike.%${searchTerm}%,volunteer_id.ilike.%${searchTerm}%`)
+        .or(`personal_id.ilike.%${searchTerm}%,volunteer_id.ilike.%${searchTerm}%,first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%`)
         .eq('role', teamLeaderTeam) // Only users with same role as team leader's tl_team
         .limit(10);
 
@@ -513,10 +519,14 @@ export const TeamLeaderDashboard: React.FC = () => {
         const filteredResults = data.filter(user => user.id !== profile?.id);
         setBonusSearchResults(filteredResults);
         setShowBonusSearchResults(true);
+      } else {
+        setBonusSearchResults([]);
+        setShowBonusSearchResults(false);
       }
     } catch (error) {
       console.error("Search error:", error);
       setBonusSearchResults([]);
+      setShowBonusSearchResults(false);
     }
   };
 
@@ -596,6 +606,20 @@ export const TeamLeaderDashboard: React.FC = () => {
       { value: teamLeaderTeam, label: roleLabels[teamLeaderTeam] || teamLeaderTeam },
       { value: "custom", label: "Custom Selection" }
     ];
+  };
+
+  // Handle QR Scanner Open for Attendance
+  const handleOpenAttendanceScanner = () => {
+    setScanPurpose('attendance');
+    setScannerOpen(true);
+    setAttendanceModal(false);
+  };
+
+  // Handle QR Scanner Open for Bonus
+  const handleOpenBonusScanner = () => {
+    setScanPurpose('bonus');
+    setScannerOpen(true);
+    setBonusModal(false);
   };
 
   // Render Team Tab
@@ -936,6 +960,7 @@ export const TeamLeaderDashboard: React.FC = () => {
                       setAttendanceChecked(false);
                       setSearchTerm("");
                       setSearchResults([]);
+                      setShowSearchResults(false);
                     }}
                     className="text-gray-400 hover:text-gray-600 transition-colors"
                   >
@@ -969,10 +994,7 @@ export const TeamLeaderDashboard: React.FC = () => {
                 {attendanceMethod === 'scan' ? (
                   <div className="space-y-4 fade-in-blur">
                     <button
-                      onClick={() => {
-                        setScanPurpose('attendance');
-                        setScannerOpen(true);
-                      }}
+                      onClick={handleOpenAttendanceScanner}
                       className="w-full bg-blue-500 text-white py-3 px-4 rounded-lg hover:bg-blue-600 transition-all duration-300 font-medium"
                     >
                       Open QR Scanner
@@ -988,8 +1010,12 @@ export const TeamLeaderDashboard: React.FC = () => {
                           setSearchTerm(e.target.value);
                           handleAttendanceSearch(e.target.value);
                         }}
-                        onFocus={() => setShowSearchResults(true)}
-                        placeholder="Search by Personal ID or Volunteer ID"
+                        onFocus={() => {
+                          if (searchResults.length > 0) {
+                            setShowSearchResults(true);
+                          }
+                        }}
+                        placeholder="Search by Personal ID, Volunteer ID, or Name"
                         className="w-full border rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
                       />
                       <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
@@ -1216,7 +1242,7 @@ export const TeamLeaderDashboard: React.FC = () => {
                             setUserSearch(e.target.value);
                             searchUsersByPersonalId(e.target.value);
                           }}
-                          placeholder="Search by Personal ID or Volunteer ID..."
+                          placeholder="Search by Personal ID, Volunteer ID, or Name..."
                           className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
                         />
                         {userSearchLoading && (
@@ -1380,11 +1406,7 @@ export const TeamLeaderDashboard: React.FC = () => {
                 {bonusMethod === 'scan' ? (
                   <div className="space-y-4 fade-in-blur">
                     <button
-                      onClick={() => {
-                        setScanPurpose('bonus');
-                        setScannerOpen(true);
-                        setBonusModal(false);
-                      }}
+                      onClick={handleOpenBonusScanner}
                       className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 transition-all duration-300 font-medium"
                     >
                       Open QR Scanner
@@ -1400,8 +1422,12 @@ export const TeamLeaderDashboard: React.FC = () => {
                           setBonusSearchTerm(e.target.value);
                           handleBonusUserSearch(e.target.value);
                         }}
-                        onFocus={() => setShowBonusSearchResults(true)}
-                        placeholder="Search by Personal ID or Volunteer ID"
+                        onFocus={() => {
+                          if (bonusSearchResults.length > 0) {
+                            setShowBonusSearchResults(true);
+                          }
+                        }}
+                        placeholder="Search by Personal ID, Volunteer ID, or Name"
                         className="w-full border rounded-lg px-3 py-2 pr-10 focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
                       />
                       <Search className="absolute right-3 top-2.5 h-5 w-5 text-gray-400" />
