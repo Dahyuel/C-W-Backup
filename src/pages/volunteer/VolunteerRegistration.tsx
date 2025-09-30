@@ -54,39 +54,34 @@ export const VolunteerRegistration: React.FC = () => {
     { id: 3, title: 'Account Security', icon: Lock }
   ];
 
-  // Updated role options with all new roles
- const roleOptions = [
-  { value: 'registration', label: 'Registration Desk' },
-  { value: 'building', label: 'Building Assistance' },
-  { value: 'info_desk', label: 'Info Desk' },
-  { value: 'ushers', label: 'Ushers' },
-  { value: 'marketing', label: 'Marketing' },
-  { value: 'media', label: 'Media' },
-  { value: 'ER', label: 'ER Team' },
-  { value: 'BD', label: 'Business Development' },
-  { value: 'catering', label: 'Catering' },
-  { value: 'feedback', label: 'Feedback Team' },
-  { value: 'stage', label: 'Stage Team' },
-  { value: 'team_leader', label: 'Team Leader' }
-  // Removed: { value: 'volunteer', label: 'General Volunteer' }
-];
+  const roleOptions = [
+    { value: 'registration', label: 'Registration Desk' },
+    { value: 'building', label: 'Building Assistance' },
+    { value: 'info_desk', label: 'Info Desk' },
+    { value: 'ushers', label: 'Ushers' },
+    { value: 'marketing', label: 'Marketing' },
+    { value: 'media', label: 'Media' },
+    { value: 'ER', label: 'ER Team' },
+    { value: 'BD', label: 'Business Development' },
+    { value: 'catering', label: 'Catering' },
+    { value: 'feedback', label: 'Feedback Team' },
+    { value: 'stage', label: 'Stage Team' },
+    { value: 'team_leader', label: 'Team Leader' }
+  ];
 
-
-  // Team options for team leaders
-const teamOptions = [
-  { value: 'registration', label: 'Registration Team' },
-  { value: 'building', label: 'Building Team' },
-  { value: 'info_desk', label: 'Info Desk Team' },
-  { value: 'ushers', label: 'Ushers Team' },
-  { value: 'marketing', label: 'Marketing Team' },
-  { value: 'media', label: 'Media Team' },
-  { value: 'ER', label: 'ER Team' },
-  { value: 'BD', label: 'Business Development Team' },
-  { value: 'catering', label: 'Catering Team' },
-  { value: 'feedback', label: 'Feedback Team' },
-  { value: 'stage', label: 'Stage Team' }
-  // Removed: { value: 'general', label: 'General Volunteers Team' }
-];
+  const teamOptions = [
+    { value: 'registration', label: 'Registration Team' },
+    { value: 'building', label: 'Building Team' },
+    { value: 'info_desk', label: 'Info Desk Team' },
+    { value: 'ushers', label: 'Ushers Team' },
+    { value: 'marketing', label: 'Marketing Team' },
+    { value: 'media', label: 'Media Team' },
+    { value: 'ER', label: 'ER Team' },
+    { value: 'BD', label: 'Business Development Team' },
+    { value: 'catering', label: 'Catering Team' },
+    { value: 'feedback', label: 'Feedback Team' },
+    { value: 'stage', label: 'Stage Team' }
+  ];
 
   const genderOptions = [
     { value: 'male', label: 'Male' },
@@ -258,9 +253,9 @@ const teamOptions = [
   };
 
   const renderPersonalInfo = () => (
-    <div className="space-y-6">
+    <div className="space-y-6 stagger-children">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
+        <div className="fade-in-blur">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             First Name *
           </label>
@@ -268,17 +263,17 @@ const teamOptions = [
             type="text"
             value={formData.firstName}
             onChange={(e) => updateField('firstName', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-              getFieldError('firstName') ? 'border-red-500' : 'border-gray-300'
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 ${
+              getFieldError('firstName') ? 'border-red-300' : 'border-gray-300'
             }`}
             placeholder="Enter your first name"
           />
           {getFieldError('firstName') && (
-            <p className="mt-1 text-sm text-red-600">{getFieldError('firstName')}</p>
+            <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('firstName')}</p>
           )}
         </div>
 
-        <div>
+        <div className="fade-in-blur">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Last Name *
           </label>
@@ -286,18 +281,18 @@ const teamOptions = [
             type="text"
             value={formData.lastName}
             onChange={(e) => updateField('lastName', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-              getFieldError('lastName') ? 'border-red-500' : 'border-gray-300'
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 ${
+              getFieldError('lastName') ? 'border-red-300' : 'border-gray-300'
             }`}
             placeholder="Enter your last name"
           />
           {getFieldError('lastName') && (
-            <p className="mt-1 text-sm text-red-600">{getFieldError('lastName')}</p>
+            <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('lastName')}</p>
           )}
         </div>
       </div>
 
-      <div>
+      <div className="fade-in-blur">
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Email Address *
         </label>
@@ -305,18 +300,18 @@ const teamOptions = [
           type="email"
           value={formData.email}
           onChange={(e) => updateField('email', e.target.value)}
-          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-            getFieldError('email') ? 'border-red-500' : 'border-gray-300'
+          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 ${
+            getFieldError('email') ? 'border-red-300' : 'border-gray-300'
           }`}
           placeholder="Enter your email address"
         />
         {getFieldError('email') && (
-          <p className="mt-1 text-sm text-red-600">{getFieldError('email')}</p>
+          <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('email')}</p>
         )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
+        <div className="fade-in-blur">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Phone Number *
           </label>
@@ -324,17 +319,17 @@ const teamOptions = [
             type="tel"
             value={formData.phone}
             onChange={(e) => updateField('phone', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-              getFieldError('phone') ? 'border-red-500' : 'border-gray-300'
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 ${
+              getFieldError('phone') ? 'border-red-300' : 'border-gray-300'
             }`}
             placeholder="01X-XXXXXXXX"
           />
           {getFieldError('phone') && (
-            <p className="mt-1 text-sm text-red-600">{getFieldError('phone')}</p>
+            <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('phone')}</p>
           )}
         </div>
 
-        <div>
+        <div className="fade-in-blur">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Personal ID *
           </label>
@@ -342,28 +337,28 @@ const teamOptions = [
             type="text"
             value={formData.personalId}
             onChange={(e) => updateField('personalId', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-              getFieldError('personalId') ? 'border-red-500' : 'border-gray-300'
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 ${
+              getFieldError('personalId') ? 'border-red-300' : 'border-gray-300'
             }`}
             placeholder="14-digit Egyptian ID"
             maxLength={14}
           />
           {getFieldError('personalId') && (
-            <p className="mt-1 text-sm text-red-600">{getFieldError('personalId')}</p>
+            <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('personalId')}</p>
           )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
+        <div className="fade-in-blur">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Faculty *
           </label>
           <select
             value={formData.faculty}
             onChange={(e) => updateField('faculty', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-              getFieldError('faculty') ? 'border-red-500' : 'border-gray-300'
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 ${
+              getFieldError('faculty') ? 'border-red-300' : 'border-gray-300'
             }`}
           >
             <option value="">Select faculty</option>
@@ -372,19 +367,19 @@ const teamOptions = [
             ))}
           </select>
           {getFieldError('faculty') && (
-            <p className="mt-1 text-sm text-red-600">{getFieldError('faculty')}</p>
+            <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('faculty')}</p>
           )}
         </div>
 
-        <div>
+        <div className="fade-in-blur">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Gender *
           </label>
           <select
             value={formData.gender}
             onChange={(e) => updateField('gender', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-              getFieldError('gender') ? 'border-red-500' : 'border-gray-300'
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 ${
+              getFieldError('gender') ? 'border-red-300' : 'border-gray-300'
             }`}
           >
             <option value="">Select gender</option>
@@ -393,7 +388,7 @@ const teamOptions = [
             ))}
           </select>
           {getFieldError('gender') && (
-            <p className="mt-1 text-sm text-red-600">{getFieldError('gender')}</p>
+            <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('gender')}</p>
           )}
         </div>
       </div>
@@ -401,8 +396,8 @@ const teamOptions = [
   );
 
   const renderRoleSelection = () => (
-    <div className="space-y-6">
-      <div className="bg-orange-50 border border-orange-200 rounded-lg p-6">
+    <div className="space-y-6 stagger-children">
+      <div className="bg-orange-50 border border-orange-200 rounded-lg p-6 fade-in-blur">
         <div className="flex items-center mb-4">
           <Heart className="h-6 w-6 text-orange-600 mr-2" />
           <h3 className="text-lg font-semibold text-orange-900">Volunteer Role Selection</h3>
@@ -412,7 +407,7 @@ const teamOptions = [
         </p>
       </div>
 
-      <div>
+      <div className="fade-in-blur">
         <label className="block text-sm font-medium text-gray-700 mb-4">
           Preferred Volunteer Role *
         </label>
@@ -420,10 +415,10 @@ const teamOptions = [
           {roleOptions.map((option) => (
             <label
               key={option.value}
-              className={`relative flex cursor-pointer rounded-lg border p-4 focus:outline-none transition-colors ${
+              className={`relative flex cursor-pointer rounded-lg border p-4 focus:outline-none transition-all duration-300 ${
                 formData.role === option.value
-                  ? 'border-orange-500 bg-orange-50'
-                  : 'border-gray-300 bg-white hover:bg-gray-50'
+                  ? 'border-orange-500 bg-orange-50 transform scale-[1.02]'
+                  : 'border-gray-300 bg-white hover:bg-gray-50 smooth-hover'
               }`}
             >
               <input
@@ -438,7 +433,9 @@ const teamOptions = [
                 <div className="flex flex-col">
                   <span className="font-medium text-gray-900">{option.label}</span>
                 </div>
-                <div className={`flex-shrink-0 ${formData.role === option.value ? 'text-orange-600' : 'text-gray-300'}`}>
+                <div className={`flex-shrink-0 transition-colors duration-300 ${
+                  formData.role === option.value ? 'text-orange-600' : 'text-gray-300'
+                }`}>
                   <CheckCircle className="h-6 w-6" />
                 </div>
               </div>
@@ -446,13 +443,13 @@ const teamOptions = [
           ))}
         </div>
         {getFieldError('role') && (
-          <p className="mt-2 text-sm text-red-600">{getFieldError('role')}</p>
+          <p className="mt-2 text-sm text-red-600 fade-in-blur">{getFieldError('role')}</p>
         )}
       </div>
 
       {/* Team Selection for Team Leaders */}
       {formData.role === 'team_leader' && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 fade-in-scale">
           <div className="flex items-center mb-4">
             <Users className="h-6 w-6 text-blue-600 mr-2" />
             <h3 className="text-lg font-semibold text-blue-900">Team Leadership</h3>
@@ -461,15 +458,15 @@ const teamOptions = [
             As a Team Leader, please select which team you will be leading. This helps us organize the volunteer structure.
           </p>
           
-          <div>
+          <div className="fade-in-blur">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Select Team to Lead *
             </label>
             <select
               value={formData.tl_team}
               onChange={(e) => updateField('tl_team', e.target.value)}
-              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors ${
-                getFieldError('tl_team') ? 'border-red-500' : 'border-gray-300'
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 ${
+                getFieldError('tl_team') ? 'border-red-300' : 'border-gray-300'
               }`}
             >
               <option value="">Select team</option>
@@ -478,13 +475,13 @@ const teamOptions = [
               ))}
             </select>
             {getFieldError('tl_team') && (
-              <p className="mt-1 text-sm text-red-600">{getFieldError('tl_team')}</p>
+              <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('tl_team')}</p>
             )}
           </div>
         </div>
       )}
 
-      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4 fade-in-blur">
         <p className="text-sm text-green-800">
           <strong>Note:</strong> Specific role assignments and team placements will be confirmed by the event organizers after registration.
         </p>
@@ -493,8 +490,8 @@ const teamOptions = [
   );
 
   const renderAccountSecurity = () => (
-    <div className="space-y-6">
-      <div>
+    <div className="space-y-6 stagger-children">
+      <div className="fade-in-blur">
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Password *
         </label>
@@ -502,17 +499,17 @@ const teamOptions = [
           type="password"
           value={formData.password}
           onChange={(e) => updateField('password', e.target.value)}
-          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-            getFieldError('password') ? 'border-red-500' : 'border-gray-300'
+          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 ${
+            getFieldError('password') ? 'border-red-300' : 'border-gray-300'
           }`}
           placeholder="Enter your password (minimum 6 characters)"
         />
         {getFieldError('password') && (
-          <p className="mt-1 text-sm text-red-600">{getFieldError('password')}</p>
+          <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('password')}</p>
         )}
       </div>
 
-      <div>
+      <div className="fade-in-blur">
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Confirm Password *
         </label>
@@ -520,13 +517,13 @@ const teamOptions = [
           type="password"
           value={formData.confirmPassword}
           onChange={(e) => updateField('confirmPassword', e.target.value)}
-          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-            getFieldError('confirmPassword') ? 'border-red-500' : 'border-gray-300'
+          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 ${
+            getFieldError('confirmPassword') ? 'border-red-300' : 'border-gray-300'
           }`}
           placeholder="Confirm your password"
         />
         {getFieldError('confirmPassword') && (
-          <p className="mt-1 text-sm text-red-600">{getFieldError('confirmPassword')}</p>
+          <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('confirmPassword')}</p>
         )}
       </div>
     </div>
@@ -549,7 +546,7 @@ const teamOptions = [
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center fade-in-scale">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading...</p>
         </div>
@@ -563,21 +560,21 @@ const teamOptions = [
     
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center border border-orange-100">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center border border-orange-100 fade-in-scale modal-content-blur">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 fade-in-scale">
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Volunteer Registration Successful!</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4 fade-in-blur">Volunteer Registration Successful!</h2>
           
           {newVolunteerId && (
-            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg fade-in-blur">
               <p className="text-sm font-medium text-blue-800">Your Volunteer ID:</p>
               <p className="text-lg font-bold text-blue-900">{newVolunteerId}</p>
               <p className="text-xs text-blue-600 mt-1">Please save this ID for future reference</p>
             </div>
           )}
           
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 mb-6 fade-in-blur">
             Your account has been created successfully. You can now log in to access your volunteer dashboard.
           </p>
           <button
@@ -585,7 +582,7 @@ const teamOptions = [
               localStorage.removeItem('newVolunteerId');
               navigate('/login');
             }}
-            className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 transform hover:scale-105"
+            className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-300 transform hover:scale-105 smooth-hover fade-in-blur"
           >
             Go to Login
           </button>
@@ -609,7 +606,7 @@ const teamOptions = [
 
       <div className="relative z-10 py-8 px-4">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-8">
+          <div className="text-center mb-8 fade-in-up-blur">
             <div className="flex items-center justify-center mb-4">
               <Heart className="h-12 w-12 text-white mr-3 drop-shadow-lg" />
               <h1 className="text-4xl font-bold text-white drop-shadow-lg">Volunteer Registration</h1>
@@ -619,21 +616,21 @@ const teamOptions = [
         </div>
 
         {/* Progress Steps */}
-        <div className="mb-8">
+        <div className="mb-8 fade-in-up-blur">
           <div className="flex items-center max-w-2xl mx-auto">
             {sections.map((section, index) => (
               <React.Fragment key={section.id}>
                 <div className="flex flex-col items-center">
-                  <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-colors ${
+                  <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-300 ${
                     currentSection >= section.id
-                      ? 'bg-orange-500 border-orange-500 text-white'
+                      ? 'bg-orange-500 border-orange-500 text-white transform scale-110'
                       : 'bg-white border-gray-300 text-gray-400'
                   }`}>
                     <section.icon className="w-5 h-5" />
                   </div>
                 </div>
                 {index < sections.length - 1 && (
-                  <div className={`flex-1 h-0.5 mx-2 transition-colors ${
+                  <div className={`flex-1 h-0.5 mx-2 transition-all duration-300 ${
                     currentSection > section.id ? 'bg-orange-500' : 'bg-gray-300'
                   }`} />
                 )}
@@ -643,7 +640,11 @@ const teamOptions = [
           <div className="flex justify-between max-w-2xl mx-auto mt-2">
             {sections.map(section => (
               <div key={section.id} className="text-xs text-center" style={{ width: '120px' }}>
-                <span className={`${currentSection >= section.id ? 'text-white font-medium drop-shadow' : 'text-white drop-shadow'}`}>
+                <span className={`transition-all duration-300 ${
+                  currentSection >= section.id 
+                    ? 'text-white font-medium drop-shadow transform scale-105' 
+                    : 'text-white drop-shadow'
+                }`}>
                   {section.title}
                 </span>
               </div>
@@ -651,41 +652,43 @@ const teamOptions = [
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-2xl p-8 border border-orange-100">
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-2xl p-8 border border-orange-100 fade-in-up-blur modal-content-blur">
           {/* General Error */}
           {getFieldError('general') && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center fade-in-blur">
               <AlertCircle className="w-5 h-5 text-red-600 mr-3" />
               <p className="text-red-700">{getFieldError('general')}</p>
             </div>
           )}
 
           {/* Section Header */}
-          <div className="mb-8">
+          <div className="mb-8 fade-in-blur">
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
               {sections[currentSection - 1].title}
             </h2>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div 
-                className="bg-gradient-to-r from-orange-500 to-orange-600 h-2 rounded-full transition-all duration-300"
+                className="bg-gradient-to-r from-orange-500 to-orange-600 h-2 rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${(currentSection / 3) * 100}%` }}
               />
             </div>
           </div>
 
           {/* Section Content */}
-          {renderSectionContent()}
+          <div className="stagger-children">
+            {renderSectionContent()}
+          </div>
 
           {/* Navigation Buttons */}
-          <div className="flex justify-between mt-8 pt-6 border-t border-gray-200">
+          <div className="flex justify-between mt-8 pt-6 border-t border-gray-200 fade-in-blur">
             <button
               type="button"
               onClick={prevSection}
               disabled={currentSection === 1}
-              className={`px-6 py-3 rounded-lg font-medium transition-all duration-200 ${
+              className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
                 currentSection === 1
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300 smooth-hover transform hover:scale-105'
               }`}
             >
               Previous
@@ -695,7 +698,7 @@ const teamOptions = [
               <button
                 type="button"
                 onClick={nextSection}
-                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 transform hover:scale-105 flex items-center"
+                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-300 transform hover:scale-105 flex items-center smooth-hover"
               >
                 Next
                 <ChevronRight className="w-4 h-4 ml-2" />
@@ -704,7 +707,7 @@ const teamOptions = [
               <button
                 type="submit"
                 disabled={loading}
-                className="px-8 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center"
+                className="px-8 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center smooth-hover"
               >
                 {loading ? (
                   <>
@@ -719,13 +722,13 @@ const teamOptions = [
           </div>
 
           {/* Login Link */}
-          <div className="text-center mt-6 pt-6 border-t border-gray-200">
+          <div className="text-center mt-6 pt-6 border-t border-gray-200 fade-in-blur">
             <p className="text-gray-600">
               Already have an account?{' '}
               <button
                 type="button"
                 onClick={() => navigate('/login')}
-                className="text-orange-600 hover:text-orange-700 font-medium transition-colors"
+                className="text-orange-600 hover:text-orange-700 font-medium transition-colors duration-200 hover:underline"
               >
                 Sign in here
               </button>
