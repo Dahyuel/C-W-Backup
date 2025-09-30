@@ -429,7 +429,7 @@ showFeedback("Failed to update session", "error");
       }).eq('id', editEvent.id);
 
       if (error) {
-        showNotification("Failed to update event", "error");
+        showFeedback("Failed to update event", "error");
       } else {
         setEditEventModal(false);
         setEditEvent({
