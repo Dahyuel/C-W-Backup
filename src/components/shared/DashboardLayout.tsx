@@ -393,7 +393,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex flex-col">
       {/* Header */}
       <header className="bg-white shadow-sm border-b border-orange-100 relative z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -517,7 +517,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
       </header>
 
       {/* Main Content */}
-<main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">{title}</h1>
           {subtitle && (
@@ -528,7 +528,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
       </main>
 
      {/* Footer */}
-     <footer className="bg-white border-t border-orange-100 mt-auto">
+      <footer className="bg-white border-t border-orange-100">
        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
          <div className="text-center">
            <p className="text-sm text-gray-600">
