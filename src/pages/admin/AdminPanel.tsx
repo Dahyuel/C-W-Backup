@@ -1732,7 +1732,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
       });
 
       if (error) {
-        showNotification("Failed to add company", "error");
+        showFeedback("Failed to add company", "error");
       } else {
         setCompanyModal(false);
         setNewCompany({
@@ -1744,11 +1744,11 @@ const EventStatsView = ({ statsData, selectedDay }) => {
           website: "",
           boothNumber: "",
         });
-        showNotification("Company added successfully!", "success");
+        showFeedback("Company added successfully!", "success");
         await fetchCompanies();
       }
     } catch (err) {
-      showNotification("Failed to add company", "error");
+      showFeedback("Failed to add company", "error");
     } finally {
       setLoading(false);
     }
@@ -1757,7 +1757,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
   // Handle Session Submit
   const handleSessionSubmit = async () => {
     if (!newSession.title || !newSession.date || !newSession.speaker) {
-      showNotification("Please fill all required fields!", "error");
+      showFeedback("Please fill all required fields!", "error");
       return;
     }
 
@@ -1780,7 +1780,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
       });
 
       if (error) {
-        showNotification("Failed to add session", "error");
+        showFeedback("Failed to add session", "error");
       } else {
         setSessionModal(false);
         setNewSession({
@@ -1793,11 +1793,11 @@ const EventStatsView = ({ statsData, selectedDay }) => {
           location: "",
           description: "",
         });
-        showNotification("Session added successfully!", "success");
+        showFeedback("Session added successfully!", "success");
         await fetchSessions();
       }
     } catch (err) {
-      showNotification("Failed to add session", "error");
+      showFeedback("Failed to add session", "error");
     } finally {
       setLoading(false);
     }
