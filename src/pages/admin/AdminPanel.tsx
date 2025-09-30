@@ -644,17 +644,17 @@ const StatCard = ({ title, value, icon, color }) => {
 
   const handleCompanyUpdate = async () => {
     if (!editCompany.name || !editCompany.website || !editCompany.boothNumber) {
-      showNotification("Please fill all required fields!", "error");
+      showFeedback("Please fill all required fields!", "error");
       return;
     }
 
     if (editCompany.logoType === "link" && !editCompany.logoUrl) {
-      showNotification("Please provide a logo URL!", "error");
+      showFeedback("Please provide a logo URL!", "error");
       return;
     }
 
     if (editCompany.logoType === "upload" && !editCompany.logo) {
-      showNotification("Please select a logo file to upload!", "error");
+      showFeedback("Please select a logo file to upload!", "error");
       return;
     }
 
