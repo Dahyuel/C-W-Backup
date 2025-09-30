@@ -25,6 +25,7 @@ import {
   getAllSessions,
   searchAttendeesByPersonalId
 } from "../../lib/supabase";
+import { createPortal } from 'react-dom';
 
 interface Session {
   id: string;
@@ -51,21 +52,20 @@ interface Attendee {
   university?: string;
   faculty?: string;
   current_status?: 'inside' | 'outside';
-  building_entry?: boolean; // Add this line
+  building_entry?: boolean;
   last_scan?: string;
 }
-interface AttendeeCardProps {
-  // ... existing props
-  disableAction?: boolean;
-  disableReason?: string;
+
+interface SessionBooking {
+  session_id: string;
+  booked_at: string;
 }
 
 const castToAttendee = (data: any): Attendee => {
   return {
     ...data,
-    // For building dashboard, current_status should reflect building entry
     current_status: data.building_entry ? 'inside' : 'outside',
-    building_entry: data.building_entry // Add this field to pass building status
+    building_entry: data.building_entry
   } as Attendee;
 };
 
@@ -99,6 +99,10 @@ export const BuildTeamDashboard: React.FC = () => {
   const [selectedAttendee, setSelectedAttendee] = useState<Attendee | null>(null);
   const [showAttendeeCard, setShowAttendeeCard] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Session booking state
+  const [hasSessionBooking, setHasSessionBooking] = useState<boolean>(false);
+  const [bookingCheckLoading, setBookingCheckLoading] = useState<boolean>(false);
 
   // Feedback state
   const [feedback, setFeedback] = useState<{
@@ -158,6 +162,34 @@ export const BuildTeamDashboard: React.FC = () => {
       }
     };
   }, [sessionSearchTerm, activeTab]);
+
+  // Check if attendee has booked the selected session
+  const checkSessionBooking = async (attendeeId: string, sessionId: string) => {
+    if (!attendeeId || !sessionId) return false;
+    
+    setBookingCheckLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('attendances')
+        .select('*')
+        .eq('user_id', attendeeId)
+        .eq('session_id', sessionId)
+        .eq('scan_type', 'booking')
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+        console.error('Error checking session booking:', error);
+        return false;
+      }
+
+      return !!data; // Returns true if booking exists, false otherwise
+    } catch (error) {
+      console.error('Error checking session booking:', error);
+      return false;
+    } finally {
+      setBookingCheckLoading(false);
+    }
+  };
 
   const fetchSessions = async () => {
     try {
@@ -274,7 +306,15 @@ export const BuildTeamDashboard: React.FC = () => {
       } else if (data.role !== 'attendee') {
         showFeedback('error', 'Only attendees can be processed through this system');
       } else {
-        setSelectedAttendee(castToAttendee(data));
+        const attendee = castToAttendee(data);
+        setSelectedAttendee(attendee);
+        
+        // Check if this attendee has booked the selected session
+        if (selectedSession) {
+          const hasBooking = await checkSessionBooking(attendee.id, selectedSession.id);
+          setHasSessionBooking(hasBooking);
+        }
+        
         setShowAttendeeCard(true);
         setSessionSearchTerm("");
         setShowSessionSearchResults(false);
@@ -297,8 +337,15 @@ export const BuildTeamDashboard: React.FC = () => {
     setBuildingSearchMode(null);
   };
 
-  const handleSessionSelectSearchResult = (attendee: Attendee) => {
+  const handleSessionSelectSearchResult = async (attendee: Attendee) => {
     setSelectedAttendee(attendee);
+    
+    // Check if this attendee has booked the selected session
+    if (selectedSession) {
+      const hasBooking = await checkSessionBooking(attendee.id, selectedSession.id);
+      setHasSessionBooking(hasBooking);
+    }
+    
     setShowAttendeeCard(true);
     setSessionSearchTerm("");
     setShowSessionSearchResults(false);
@@ -379,6 +426,12 @@ export const BuildTeamDashboard: React.FC = () => {
         return;
       }
 
+      // Check if this attendee has booked the selected session
+      if (selectedSession) {
+        const hasBooking = await checkSessionBooking(attendeeData.id, selectedSession.id);
+        setHasSessionBooking(hasBooking);
+      }
+
       setSelectedAttendee(attendeeData);
       setShowAttendeeCard(true);
       setSessionSearchMode(null);
@@ -453,6 +506,7 @@ export const BuildTeamDashboard: React.FC = () => {
         setShowAttendeeCard(false);
         setSelectedAttendee(null);
         setSessionMode(null);
+        setHasSessionBooking(false);
       }, 2000);
 
     } catch (error) {
@@ -488,6 +542,7 @@ export const BuildTeamDashboard: React.FC = () => {
     setSelectedSession(null);
     setSelectedAttendee(null);
     setShowAttendeeCard(false);
+    setHasSessionBooking(false);
     clearSessionSearch();
   };
 
@@ -508,6 +563,13 @@ export const BuildTeamDashboard: React.FC = () => {
       return dateString;
     }
   };
+
+  // Reset booking check when session changes
+  useEffect(() => {
+    if (selectedSession && selectedAttendee) {
+      checkSessionBooking(selectedAttendee.id, selectedSession.id).then(setHasSessionBooking);
+    }
+  }, [selectedSession, selectedAttendee]);
 
   return (
     <DashboardLayout
@@ -840,8 +902,8 @@ export const BuildTeamDashboard: React.FC = () => {
                   <div className="flex items-center text-gray-700">
                     <Users className="h-4 w-4 mr-2" />
                     <span className="text-sm">
-                      {selectedSession.current_attendees}
-                      {selectedSession.capacity && `/${selectedSession.capacity}`} attendees
+                      {session.current_attendees}
+                      {session.capacity && `/${session.capacity}`} attendees
                     </span>
                   </div>
                 </div>
@@ -1043,37 +1105,129 @@ export const BuildTeamDashboard: React.FC = () => {
           />
         )}
 
-{/* Attendee Card Modal with dynamic action handlers and building entry validation */}
-<AttendeeCard
-  isOpen={showAttendeeCard}
-  onClose={() => {
-    setShowAttendeeCard(false);
-    setSelectedAttendee(null);
-  }}
-  attendee={selectedAttendee}
-  onAction={
-    activeTab === "session" && sessionMode === "session_entry" 
-      ? handleSessionAttendanceAction 
-      : handleBuildingAttendanceAction
-  }
-  loading={actionLoading}
-  mode={activeTab === "session" && sessionMode === "session_entry" ? "session" : "building"}
-  sessionTitle={activeTab === "session" && sessionMode === "session_entry" ? selectedSession?.title : undefined}
-  disableAction={
-    activeTab === "session" && 
-    sessionMode === "session_entry" && 
-    selectedAttendee && 
-    !selectedAttendee.building_entry
-  }
-  disableReason={
-    activeTab === "session" && 
-    sessionMode === "session_entry" && 
-    selectedAttendee && 
-    !selectedAttendee.building_entry 
-      ? "Attendee must be inside the building to join a session" 
-      : undefined
-  }
-/>
+        {/* Attendee Card Modal with Portal and Animations */}
+        {showAttendeeCard && selectedAttendee && createPortal(
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
+            onClick={() => {
+              setShowAttendeeCard(false);
+              setSelectedAttendee(null);
+              setHasSessionBooking(false);
+            }}
+          >
+            <div 
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 stagger-children">
+                <div className="flex items-center justify-between mb-6 fade-in-blur">
+                  <h2 className="text-xl font-bold text-gray-900">
+                    {activeTab === "session" && sessionMode === "session_entry" 
+                      ? `Add to Session: ${selectedSession?.title}` 
+                      : "Attendee Information"}
+                  </h2>
+                  <button
+                    onClick={() => {
+                      setShowAttendeeCard(false);
+                      setSelectedAttendee(null);
+                      setHasSessionBooking(false);
+                    }}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Attendee Information */}
+                  <div className="grid grid-cols-2 gap-4 fade-in-blur">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                      <p className="text-gray-900">{selectedAttendee.first_name} {selectedAttendee.last_name}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Personal ID</label>
+                      <p className="text-gray-900">{selectedAttendee.personal_id}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                      <p className="text-gray-900">{selectedAttendee.email}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        selectedAttendee.current_status === 'inside'
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {selectedAttendee.current_status === 'inside' ? 'Inside' : 'Outside'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Session Booking Check */}
+                  {activeTab === "session" && sessionMode === "session_entry" && (
+                    <div className="fade-in-blur">
+                      {bookingCheckLoading ? (
+                        <div className="flex items-center p-3 bg-blue-50 rounded-lg">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+                          <span className="text-blue-800 text-sm">Checking session booking...</span>
+                        </div>
+                      ) : hasSessionBooking ? (
+                        <div className="flex items-center p-3 bg-green-50 rounded-lg">
+                          <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                          <span className="text-green-800 font-medium">Attendee has booked this session</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center p-3 bg-red-50 rounded-lg">
+                          <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+                          <div>
+                            <span className="text-red-800 font-medium block">Attendee hasn't booked this session</span>
+                            <span className="text-red-700 text-sm block mt-1">
+                              Please book the session first or head to info desk
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="pt-4 fade-in-blur">
+                    {activeTab === "session" && sessionMode === "session_entry" ? (
+                      <button
+                        onClick={() => handleSessionAttendanceAction('enter')}
+                        disabled={actionLoading || !hasSessionBooking || bookingCheckLoading}
+                        className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+                      >
+                        {actionLoading ? 'Adding to Session...' : 
+                         !hasSessionBooking ? 'Cannot Add - No Booking' : 'Add to Session'}
+                      </button>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          onClick={() => handleBuildingAttendanceAction('enter')}
+                          disabled={actionLoading || selectedAttendee.current_status === 'inside'}
+                          className="bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+                        >
+                          {actionLoading ? 'Processing...' : 'Enter Building'}
+                        </button>
+                        <button
+                          onClick={() => handleBuildingAttendanceAction('exit')}
+                          disabled={actionLoading || selectedAttendee.current_status === 'outside'}
+                          className="bg-red-500 text-white py-3 px-4 rounded-lg hover:bg-red-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+                        >
+                          {actionLoading ? 'Processing...' : 'Exit Building'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
       </div>
     </DashboardLayout>
   );
