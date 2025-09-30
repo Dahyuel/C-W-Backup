@@ -725,15 +725,35 @@ const getRoleOptions = () => {
                     {showSearchResults && searchResults.length > 0 && (
                       <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-40 max-h-60 overflow-y-auto">
                         {searchResults.map((user) => (
-                          <button
-                            key={user.id}
-                            onClick={() => {
-                              setScannedVolunteer(user);
-                              setSearchTerm(`${user.first_name} ${user.last_name} (${user.volunteer_id})`);
-                              setShowSearchResults(false);
-                              setShowVolunteerCard(true);
-                            }}
-                            className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-all duration-300"
+<button
+  key={user.id}
+  onClick={async () => {
+    setScannedVolunteer(user);
+    setSearchTerm(`${user.first_name} ${user.last_name} (${user.volunteer_id})`);
+    setShowSearchResults(false);
+    
+    // Check attendance status for this user
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const { data: attendance, error } = await supabase
+      .from('attendances')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('scan_type', 'vol_attendance')
+      .gte('scanned_at', today.toISOString())
+      .limit(1);
+
+    if (!error && attendance && attendance.length > 0) {
+      setAlreadyAttended(true);
+    } else {
+      setAlreadyAttended(false);
+    }
+    
+    setShowVolunteerCard(true);
+  }}
+  className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-all duration-300"
+>
                           >
                             <div>
                               <p className="font-medium text-gray-900">
