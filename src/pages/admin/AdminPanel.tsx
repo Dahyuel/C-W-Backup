@@ -1986,7 +1986,7 @@ const handleAnnouncementSubmit = async () => {
       console.error('Notification error:', error);
       showFeedback("Failed to send announcement", "error");
     } else {
-      showNotification("Announcement sent successfully!", "success");
+      showFeedback("Announcement sent successfully!", "success");
       setAnnouncementTitle("");
       setAnnouncementDescription("");
       setAnnouncementRole("");
@@ -1996,7 +1996,7 @@ const handleAnnouncementSubmit = async () => {
     }
   } catch (err) {
     console.error('Send announcement error:', err);
-    showNotification("Failed to send announcement", "error");
+    showFeedback("Failed to send announcement", "error");
   } finally {
     setLoading(false);
   }
@@ -2137,7 +2137,7 @@ const searchUsersByPersonalId = async (searchTerm) => {
 
   const handleMapUpload = async () => {
     if (!mapForm.image) {
-      showNotification("Please select an image!", "error");
+      showFeedback("Please select an image!", "error");
       return;
     }
 
