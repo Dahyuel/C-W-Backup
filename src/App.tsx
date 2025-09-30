@@ -194,9 +194,9 @@ const AppRouter: React.FC = () => {
         'volunteer',
         'ushers',
         'marketing', 
-        'media',
+        'media', // Make sure media is included
         'ER',
-        'BD',
+        'BD team', // Changed from 'BD' to 'BD team'
         'catering',
         'feedback',
         'stage'
