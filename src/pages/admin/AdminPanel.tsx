@@ -765,11 +765,11 @@ const StatCard = ({ title, value, icon, color }) => {
       } else {
         setDeleteSessionModal(false);
         setSelectedSessionDelete(null);
-        showNotification("Session deleted successfully!", "success");
+        showFeedback("Session deleted successfully!", "success");
         await fetchSessions();
       }
     } catch (err) {
-      showNotification("Failed to delete session", "error");
+      showFeedback("Failed to delete session", "error");
     } finally {
       setLoading(false);
     }
@@ -1608,11 +1608,11 @@ const EventStatsView = ({ statsData, selectedDay }) => {
         .eq('id', selectedEventDelete.id);
 
       if (error) {
-        showNotification("Failed to delete event", "error");
+        showFeedback("Failed to delete event", "error");
       } else {
         setDeleteEventModal(false);
         setSelectedEventDelete(null);
-        showNotification("Event deleted successfully!", "success");
+        showFeedback("Event deleted successfully!", "success");
         await fetchEventsByDay(activeDay);
       }
     } catch (err) {
