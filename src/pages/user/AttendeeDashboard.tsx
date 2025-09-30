@@ -5,6 +5,7 @@ import { supabase, getUserRankingAndScore, getRecentActivities } from "../../lib
 import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import QRCodeLib from 'qrcode';
+import { createPortal } from 'react-dom';
 
 // Types
 interface UserScore {
@@ -843,20 +844,22 @@ const AttendeeDashboard: React.FC = () => {
         </div>
       )}
 
+      {/* All Modals using React Portal with Animations */}
+
       {/* QR Code Modal */}
-      {showQR && (
+      {showQR && createPortal(
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur"
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
           onClick={() => {
             setShowQR(false);
             setQrCodeUrl('');
           }}
         >
           <div 
-            className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center modal-content-blur"
+            className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center modal-content-blur fade-in-up-blur"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 fade-in-blur">
               <h3 className="text-xl font-bold text-gray-900">Your QR Code</h3>
               <button
                 onClick={() => {
@@ -869,7 +872,7 @@ const AttendeeDashboard: React.FC = () => {
               </button>
             </div>
             
-            <div className="w-48 h-48 bg-gray-100 rounded-lg mx-auto mb-4 flex items-center justify-center">
+            <div className="w-48 h-48 bg-gray-100 rounded-lg mx-auto mb-4 flex items-center justify-center fade-in-blur">
               {qrCodeLoading ? (
                 <div className="text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
@@ -889,31 +892,32 @@ const AttendeeDashboard: React.FC = () => {
               )}
             </div>
             
-            <p className="text-sm text-gray-600 mb-4">Show this QR code for check-ins</p>
+            <p className="text-sm text-gray-600 mb-4 fade-in-blur">Show this QR code for check-ins</p>
             {profile?.id && (
-              <p className="text-xs text-gray-400 mt-1 font-mono break-all">
+              <p className="text-xs text-gray-400 mt-1 font-mono break-all fade-in-blur">
                 {profile.id}
               </p>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Event Details Modal */}
-      {showEventModal && selectedEvent && (
+      {showEventModal && selectedEvent && createPortal(
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur"
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
           onClick={() => {
             setShowEventModal(false);
             setSelectedEvent(null);
           }}
         >
           <div 
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur"
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
+            <div className="p-6 stagger-children">
+              <div className="flex items-center justify-between mb-6 fade-in-blur">
                 <h2 className="text-xl font-bold text-gray-900">Event Details</h2>
                 <button
                   onClick={() => {
@@ -927,12 +931,12 @@ const AttendeeDashboard: React.FC = () => {
               </div>
 
               <div className="space-y-6">
-                <div>
+                <div className="fade-in-blur">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{selectedEvent.title}</h3>
                   <p className="text-gray-700 leading-relaxed">{selectedEvent.description}</p>
                 </div>
 
-                <div className="grid grid-cols-1 gap-4">
+                <div className="grid grid-cols-1 gap-4 fade-in-blur">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time</label>
                     <p className="text-gray-900">
@@ -949,7 +953,7 @@ const AttendeeDashboard: React.FC = () => {
                     </p>
                   </div>
 
-                  <div>
+                  <div className="fade-in-blur">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
                     <p className="text-gray-900 flex items-center">
                       <MapPin className="h-4 w-4 mr-2" />
@@ -958,7 +962,7 @@ const AttendeeDashboard: React.FC = () => {
                   </div>
 
                   {selectedEvent.item_type && (
-                    <div>
+                    <div className="fade-in-blur">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Event Type</label>
                       <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
                         {selectedEvent.item_type}
@@ -967,7 +971,7 @@ const AttendeeDashboard: React.FC = () => {
                   )}
                 </div>
 
-                <div className="pt-4 border-t border-gray-200">
+                <div className="pt-4 border-t border-gray-200 fade-in-blur">
                   <button
                     onClick={() => setShowEventModal(false)}
                     className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
@@ -978,13 +982,14 @@ const AttendeeDashboard: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Session Details Modal */}
-      {showSessionModal && selectedSession && (
+      {showSessionModal && selectedSession && createPortal(
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur"
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
           onClick={() => {
             setShowSessionModal(false);
             setSelectedSession(null);
@@ -993,11 +998,11 @@ const AttendeeDashboard: React.FC = () => {
           }}
         >
           <div 
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur"
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
+            <div className="p-6 stagger-children">
+              <div className="flex items-center justify-between mb-6 fade-in-blur">
                 <h2 className="text-xl font-bold text-gray-900">Session Details</h2>
                 <button
                   onClick={() => {
@@ -1013,19 +1018,19 @@ const AttendeeDashboard: React.FC = () => {
               </div>
 
               <div className="space-y-4">
-                <div>
+                <div className="fade-in-blur">
                   <h3 className="text-lg font-semibold text-gray-900">{selectedSession.title}</h3>
                   <p className="text-gray-600 mt-2">{selectedSession.description}</p>
                 </div>
 
                 {selectedSession.speaker && (
-                  <div>
+                  <div className="fade-in-blur">
                     <label className="block text-sm font-medium text-gray-700">Speaker</label>
                     <p className="text-gray-900">{selectedSession.speaker}</p>
                   </div>
                 )}
 
-                <div>
+                <div className="fade-in-blur">
                   <label className="block text-sm font-medium text-gray-700">Date & Time</label>
                   <p className="text-gray-900">
                     {new Date(selectedSession.start_time).toLocaleDateString()} at{' '}
@@ -1033,12 +1038,12 @@ const AttendeeDashboard: React.FC = () => {
                   </p>
                 </div>
 
-                <div>
+                <div className="fade-in-blur">
                   <label className="block text-sm font-medium text-gray-700">Location</label>
                   <p className="text-gray-900">{selectedSession.location}</p>
                 </div>
 
-                <div>
+                <div className="fade-in-blur">
                   <label className="block text-sm font-medium text-gray-700">Capacity</label>
                   <p className="text-gray-900">
                     {selectedSession.current_bookings || 0} / {selectedSession.max_attendees || 'Unlimited'} booked
@@ -1046,7 +1051,7 @@ const AttendeeDashboard: React.FC = () => {
                 </div>
 
                 {/* Booking Status */}
-                <div className="pt-4 border-t border-gray-200">
+                <div className="pt-4 border-t border-gray-200 fade-in-blur">
                   {isSessionBooked(selectedSession.id) ? (
                     <div className="flex items-center p-3 bg-green-50 rounded-lg">
                       <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
@@ -1067,18 +1072,18 @@ const AttendeeDashboard: React.FC = () => {
 
                 {/* Error/Success Messages */}
                 {bookingError && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg fade-in-blur">
                     <p className="text-red-700 text-sm">{bookingError}</p>
                   </div>
                 )}
                 {bookingSuccess && (
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg fade-in-blur">
                     <p className="text-green-700 text-sm">{bookingSuccess}</p>
                   </div>
                 )}
 
                 {/* Action Buttons */}
-                <div className="pt-4 space-y-3">
+                <div className="pt-4 space-y-3 fade-in-blur">
                   {isSessionBooked(selectedSession.id) ? (
                     <button
                       onClick={() => handleCancelBooking(selectedSession.id)}
@@ -1100,24 +1105,25 @@ const AttendeeDashboard: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Company Details Modal */}
-      {showCompanyModal && selectedCompany && (
+      {showCompanyModal && selectedCompany && createPortal(
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur"
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
           onClick={() => {
             setShowCompanyModal(false);
             setSelectedCompany(null);
           }}
         >
           <div 
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur"
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
+            <div className="p-6 stagger-children">
+              <div className="flex items-center justify-between mb-6 fade-in-blur">
                 <h2 className="text-xl font-bold text-gray-900">Company Details</h2>
                 <button
                   onClick={() => {
@@ -1132,7 +1138,7 @@ const AttendeeDashboard: React.FC = () => {
 
               <div className="space-y-6">
                 {/* Company Logo and Name */}
-                <div className="text-center">
+                <div className="text-center fade-in-blur">
                   <img 
                     src={selectedCompany.logo_url} 
                     alt={`${selectedCompany.name} logo`} 
@@ -1148,13 +1154,13 @@ const AttendeeDashboard: React.FC = () => {
                 </div>
 
                 {/* Company Description */}
-                <div>
+                <div className="fade-in-blur">
                   <label className="block text-sm font-medium text-gray-700 mb-2">About Company</label>
                   <p className="text-gray-700 leading-relaxed">{selectedCompany.description}</p>
                 </div>
 
                 {/* Website */}
-                <div>
+                <div className="fade-in-blur">
                   <label className="block text-sm font-medium text-gray-700 mb-2">Website</label>
                   <a 
                     href={selectedCompany.website} 
@@ -1167,7 +1173,7 @@ const AttendeeDashboard: React.FC = () => {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="pt-4 space-y-3">
+                <div className="pt-4 space-y-3 fade-in-blur">
                   <button
                     onClick={() => handleEmployerWebsiteClick(selectedCompany.website)}
                     className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
@@ -1188,7 +1194,8 @@ const AttendeeDashboard: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
       </div>
     </DashboardLayout>
