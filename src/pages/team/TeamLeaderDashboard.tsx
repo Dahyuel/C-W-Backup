@@ -754,7 +754,6 @@ const getRoleOptions = () => {
   }}
   className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-all duration-300"
 >
-                          >
                             <div>
                               <p className="font-medium text-gray-900">
                                 {user.first_name} {user.last_name}
