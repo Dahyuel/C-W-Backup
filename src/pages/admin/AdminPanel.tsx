@@ -1871,7 +1871,7 @@ const EventStatsView = ({ statsData, selectedDay }) => {
         await fetchEventsByDay(activeDay);
       }
     } catch (err) {
-      showNotification("Failed to add event", "error");
+      showFeedback("Failed to add event", "error");
     } finally {
       setLoading(false);
     }
@@ -1892,18 +1892,18 @@ const EventStatsView = ({ statsData, selectedDay }) => {
 // Handle Announcement Submit - Updated for Admin with Team Leader enhancement
 const handleAnnouncementSubmit = async () => {
   if (!announcementTitle || !announcementDescription || !announcementRole) {
-    showNotification("Please fill all required fields!", "error");
+    showFeedback("Please fill all required fields!", "error");
     return;
   }
 
   // Additional validation for team leader selection
   if (announcementRole === "team_leader" && !teamLeaderOfRole) {
-    showNotification("Please select which team leaders to target!", "error");
+    showFeedback("Please select which team leaders to target!", "error");
     return;
   }
 
   if (announcementRole === "custom" && selectedUsers.length === 0) {
-    showNotification("Please select at least one user for custom notifications!", "error");
+    showFeedback("Please select at least one user for custom notifications!", "error");
     return;
   }
 
@@ -1912,7 +1912,7 @@ const handleAnnouncementSubmit = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session?.user?.id) {
-      showNotification("User not authenticated", "error");
+      showFeedback("User not authenticated", "error");
       setLoading(false);
       return;
     }
@@ -1984,7 +1984,7 @@ const handleAnnouncementSubmit = async () => {
 
     if (error) {
       console.error('Notification error:', error);
-      showNotification("Failed to send announcement", "error");
+      showFeedback("Failed to send announcement", "error");
     } else {
       showNotification("Announcement sent successfully!", "success");
       setAnnouncementTitle("");
