@@ -382,7 +382,7 @@ const fetchDashboardData = async () => {
       }).eq('id', editSession.id);
 
       if (error) {
-        showNotification("Failed to update session", "error");
+showFeedback("Failed to update session", "error");
       } else {
         setEditSessionModal(false);
         setEditSession({
