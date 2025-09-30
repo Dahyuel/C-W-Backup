@@ -842,7 +842,7 @@ export const BuildTeamDashboard: React.FC = () => {
                           <div className="flex items-center justify-between mt-3">
                             <span className="text-sm font-medium text-gray-700 flex items-center">
                               <Users className="inline-block h-4 w-4 mr-1" />
-  {selectedSession.current_attendees} {/* ✅ CORRECT: use selectedSession */}
+                              {session.current_attendees}
                               {session.capacity && `/${session.capacity}`} attendees
                             </span>
                             {session.capacity && session.current_attendees >= session.capacity && (
@@ -859,71 +859,70 @@ export const BuildTeamDashboard: React.FC = () => {
               </>
             )}
 
-            {/* Session Selected */}
-            {selectedSession && !sessionMode && (
-              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-bold text-gray-900">
-                    {selectedSession.title}
-                  </h2>
-                  <button
-                    onClick={() => setSelectedSession(null)}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="h-5 w-5" />
-                  </button>
-                </div>
-                
-                {selectedSession.description && (
-                  <p className="text-gray-600">{selectedSession.description}</p>
-                )}
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {selectedSession.start_time && (
-                    <div className="flex items-center text-gray-700">
-                      <Clock className="h-4 w-4 mr-2" />
-                      <span className="text-sm">
-                        {formatDate(selectedSession.start_time)} • {formatTime(selectedSession.start_time)} - {formatTime(selectedSession.end_time)}
-                      </span>
-                    </div>
-                  )}
-                  {selectedSession.speaker && (
-                    <div className="flex items-center text-gray-700">
-                      <User className="h-4 w-4 mr-2" />
-                      <span className="text-sm">Speaker: {selectedSession.speaker}</span>
-                    </div>
-                  )}
-                  {selectedSession.location && (
-                    <div className="flex items-center text-gray-700">
-                      <span className="mr-2">📍</span>
-                      <span className="text-sm">{selectedSession.location}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center text-gray-700">
-                    <Users className="h-4 w-4 mr-2" />
-                    <span className="text-sm">
-                      {session.current_attendees}
-                      {session.capacity && `/${session.capacity}`} attendees
-                    </span>
-                  </div>
-                </div>
+       {/* Session Selected */}
+{selectedSession && !sessionMode && (
+  <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 space-y-4">
+    <div className="flex items-center justify-between">
+      <h2 className="text-xl font-bold text-gray-900">
+        {selectedSession.title}
+      </h2>
+      <button
+        onClick={() => setSelectedSession(null)}
+        className="text-gray-400 hover:text-gray-600"
+      >
+        <X className="h-5 w-5" />
+      </button>
+    </div>
+    
+    {selectedSession.description && (
+      <p className="text-gray-600">{selectedSession.description}</p>
+    )}
+    
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {selectedSession.start_time && (
+        <div className="flex items-center text-gray-700">
+          <Clock className="h-4 w-4 mr-2" />
+          <span className="text-sm">
+            {formatDate(selectedSession.start_time)} • {formatTime(selectedSession.start_time)} - {formatTime(selectedSession.end_time)}
+          </span>
+        </div>
+      )}
+      {selectedSession.speaker && (
+        <div className="flex items-center text-gray-700">
+          <User className="h-4 w-4 mr-2" />
+          <span className="text-sm">Speaker: {selectedSession.speaker}</span>
+        </div>
+      )}
+      {selectedSession.location && (
+        <div className="flex items-center text-gray-700">
+          <span className="mr-2">📍</span>
+          <span className="text-sm">{selectedSession.location}</span>
+        </div>
+      )}
+      <div className="flex items-center text-gray-700">
+        <Users className="h-4 w-4 mr-2" />
+        <span className="text-sm">
+          {selectedSession.current_attendees}
+          {selectedSession.capacity && `/${selectedSession.capacity}`} attendees
+        </span>
+      </div>
+    </div>
 
-                <div className="pt-4">
-                  <button
-                    onClick={() => setSessionMode("session_entry")}
-                    disabled={selectedSession.capacity && selectedSession.current_attendees >= selectedSession.capacity}
-                    className="w-full flex items-center justify-center p-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
-                  >
-                    <PlusCircle className="h-5 w-5 mr-2" />
-                    Add Attendee to Session
-                    {selectedSession.capacity && selectedSession.current_attendees >= selectedSession.capacity && (
-                      <span className="ml-2 text-xs">(Session Full)</span>
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
-
+    <div className="pt-4">
+      <button
+        onClick={() => setSessionMode("session_entry")}
+        disabled={selectedSession.capacity && selectedSession.current_attendees >= selectedSession.capacity}
+        className="w-full flex items-center justify-center p-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+      >
+        <PlusCircle className="h-5 w-5 mr-2" />
+        Add Attendee to Session
+        {selectedSession.capacity && selectedSession.current_attendees >= selectedSession.capacity && (
+          <span className="ml-2 text-xs">(Session Full)</span>
+        )}
+      </button>
+    </div>
+  </div>
+)}
             {/* Session Action Selection */}
             {sessionMode === "session_entry" && !sessionSearchMode && (
               <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 space-y-6">
