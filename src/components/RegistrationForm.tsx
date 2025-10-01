@@ -216,128 +216,141 @@ const validateSection = async (section: number): Promise<ValidationError[]> => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    const allErrors = await Promise.all([1, 2, 3, 4].map(section => validateSection(section)))
-      .then(errorArrays => errorArrays.flat());
+  const allErrors = await Promise.all([1, 2, 3, 4].map(section => validateSection(section)))
+    .then(errorArrays => errorArrays.flat());
+    
+  if (allErrors.length > 0) {
+    setErrors(allErrors);
+    const sectionMap: Record<string, number> = {
+      firstName: 1, lastName: 1, gender: 1, nationality: 1,
+      email: 1, phone: 1, personalId: 1,
+      university: 2, faculty: 2, degreeLevel: 2,
+      program: 2, classYear: 2,
+      howDidYouHear: 3, universityId: 3, resume: 3, volunteerId: 3,
+      password: 4, confirmPassword: 4,
+    };
+
+    const firstErrorSection = Math.min(
+      ...allErrors.map(error => sectionMap[error.field] ?? 1)
+    );
+    setCurrentSection(firstErrorSection);
+    return;
+  }
+
+  setLoading(true);
+  setErrors([]);
+
+  try {
+    const profileData = {
+      first_name: formData.firstName.trim(),
+      last_name: formData.lastName.trim(),
+      gender: formData.gender,
+      nationality: formData.nationality,
+      phone: formData.phone.trim(),
+      personal_id: formData.personalId.trim(),
+      university: formData.university === 'Other' ? formData.customUniversity : formData.university,
+      faculty: formData.faculty,
+      degree_level: formData.degreeLevel,
+      program: formData.program,
+      class: formData.degreeLevel === 'student' ? formData.classYear : null,
+      how_did_hear_about_event: formData.howDidYouHear,
+      volunteer_id: formData.volunteerId?.trim() || null,
+    };
+
+    console.log("🚀 Starting attendee registration with pre-validation...");
+
+    const { data, error } = await signUpUser(formData.email, formData.password, profileData);
+
+    if (error) {
+      console.error("❌ Registration failed:", error);
       
-    if (allErrors.length > 0) {
-      setErrors(allErrors);
-      const sectionMap: Record<string, number> = {
-        firstName: 1, lastName: 1, gender: 1, nationality: 1,
-        email: 1, phone: 1, personalId: 1,
-        university: 2, faculty: 2, degreeLevel: 2,
-        program: 2, classYear: 2,
-        howDidYouHear: 3, universityId: 3, resume: 3, volunteerId: 3,
-        password: 4, confirmPassword: 4,
-      };
-
-      const firstErrorSection = Math.min(
-        ...allErrors.map(error => sectionMap[error.field] ?? 1)
-      );
-      setCurrentSection(firstErrorSection);
+      // Handle edge function validation errors
+      if (error.validationErrors && Array.isArray(error.validationErrors)) {
+        const edgeFunctionErrors: ValidationError[] = error.validationErrors.map((msg: string) => ({
+          field: "general",
+          message: msg
+        }));
+        setErrors(edgeFunctionErrors);
+      } else {
+        setErrors([{ field: "general", message: error.message || "Failed to create account." }]);
+      }
       return;
     }
 
-    setLoading(true);
-    setErrors([]);
+    console.log("✅ Attendee registration successful, uploading files...");
+
+    // ... rest of your file upload logic remains the same
+    if (data?.user?.id) {
+      const userId = data.user.id;
+      const fileUpdates: Partial<{
+        university_id_path: string;
+        cv_path: string;
+      }> = {};
+
+      if (fileUploads.universityId) {
+        const { data: uniData, error: uniError } = await uploadFile(
+          'university-ids',
+          userId,
+          fileUploads.universityId
+        );
+
+        if (uniError) {
+          console.error('University ID upload failed:', uniError);
+          setErrors([{ field: "general", message: 'Failed to upload University ID. Please try again.' }]);
+          return;
+        }
+        fileUpdates.university_id_path = uniData?.path;
+      }
+
+      if (fileUploads.resume) {
+        const { data: resumeData, error: resumeError } = await uploadFile(
+          'cvs',
+          userId,
+          fileUploads.resume
+        );
+
+        if (resumeError) {
+          console.error('Resume upload failed:', resumeError);
+          setErrors([{ field: "general", message: 'Failed to upload Resume. Please try again.' }]);
+          return;
+        }
+        fileUpdates.cv_path = resumeData?.path;
+      }
+
+      if (Object.keys(fileUpdates).length > 0) {
+        const { error: updateError } = await updateUserFiles(userId, fileUpdates);
+        if (updateError) {
+          console.warn('Profile file paths update failed (user still created):', updateError);
+        }
+      }
+    }
+
+    console.log("✅ Registration completed successfully, attempting auto-login...");
 
     try {
-      const profileData = {
-        first_name: formData.firstName.trim(),
-        last_name: formData.lastName.trim(),
-        gender: formData.gender,
-        nationality: formData.nationality,
-        phone: formData.phone.trim(),
-        personal_id: formData.personalId.trim(),
-        university: formData.university === 'Other' ? formData.customUniversity : formData.university,
-        faculty: formData.faculty,
-        degree_level: formData.degreeLevel,
-        program: formData.program,
-        class: formData.degreeLevel === 'student' ? formData.classYear : null,
-        how_did_hear_about_event: formData.howDidYouHear,
-        volunteer_id: formData.volunteerId?.trim() || null,
-      };
-
-      const { data, error } = await signUpUser(formData.email, formData.password, profileData);
-
-      if (error) {
-        setErrors([{ field: "general", message: error.message || "Failed to create account." }]);
-        return;
-      }
-
-      console.log("✅ Attendee registration successful, uploading files...");
-
-      if (data?.user?.id) {
-        const userId = data.user.id;
-        const fileUpdates: Partial<{
-          university_id_path: string;
-          cv_path: string;
-        }> = {};
-
-        if (fileUploads.universityId) {
-          const { data: uniData, error: uniError } = await uploadFile(
-            'university-ids',
-            userId,
-            fileUploads.universityId
-          );
-
-          if (uniError) {
-            console.error('University ID upload failed:', uniError);
-            setErrors([{ field: "general", message: 'Failed to upload University ID. Please try again.' }]);
-            return;
-          }
-          fileUpdates.university_id_path = uniData?.path;
-        }
-
-        if (fileUploads.resume) {
-          const { data: resumeData, error: resumeError } = await uploadFile(
-            'cvs',
-            userId,
-            fileUploads.resume
-          );
-
-          if (resumeError) {
-            console.error('Resume upload failed:', resumeError);
-            setErrors([{ field: "general", message: 'Failed to upload Resume. Please try again.' }]);
-            return;
-          }
-          fileUpdates.cv_path = resumeData?.path;
-        }
-
-        if (Object.keys(fileUpdates).length > 0) {
-          const { error: updateError } = await updateUserFiles(userId, fileUpdates);
-          if (updateError) {
-            console.warn('Profile file paths update failed (user still created):', updateError);
-          }
-        }
-      }
-
-      console.log("✅ Registration completed successfully, attempting auto-login...");
-
-      try {
-        const { error: signInError } = await signIn(formData.email, formData.password);
-        if (signInError) {
-          console.warn("⚠️ Auto-login failed:", signInError.message);
-          setShowSuccess(true);
-        }
-      } catch (loginError) {
-        console.warn("⚠️ Auto-login exception:", loginError);
+      const { error: signInError } = await signIn(formData.email, formData.password);
+      if (signInError) {
+        console.warn("⚠️ Auto-login failed:", signInError.message);
         setShowSuccess(true);
       }
-
-    } catch (error: any) {
-      console.error("Unexpected error during registration:", error);
-      setErrors([{
-        field: "general",
-        message: error.message || "An unexpected error occurred. Please try again.",
-      }]);
-    } finally {
-      setLoading(false);
+    } catch (loginError) {
+      console.warn("⚠️ Auto-login exception:", loginError);
+      setShowSuccess(true);
     }
-  };
-  
+
+  } catch (error: any) {
+    console.error("Unexpected error during registration:", error);
+    setErrors([{
+      field: "general",
+      message: error.message || "An unexpected error occurred. Please try again.",
+    }]);
+  } finally {
+    setLoading(false);
+  }
+};
   const getFieldError = (field: string) => {
     return errors.find(error => error.field === field)?.message;
   };
