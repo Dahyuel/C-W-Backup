@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { X, CheckCircle, AlertCircle, Scan, Camera, RefreshCw } from 'lucide-react';
 import jsQR from 'jsqr';
+import { createPortal } from 'react-dom';
 
 interface QRScannerProps {
   onScan: (data: string) => void;
@@ -267,117 +268,128 @@ export const QRScanner: React.FC<QRScannerProps> = ({
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden modal-content-blur">
-        {/* Header */}
-        <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Scan className="h-6 w-6 text-white" />
-            <h2 className="text-xl font-bold text-white">{title}</h2>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-white hover:text-orange-200 transition-colors"
-            aria-label="Close scanner"
-          >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="p-6 fade-in-blur">
-          {scanSuccess ? (
-            /* Success State */
-            <div className="text-center space-y-4 success-animate">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                <CheckCircle className="w-8 h-8 text-green-600" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">QR Code Scanned!</h3>
-                <p className="text-gray-600">Processing information...</p>
-              </div>
+  return createPortal(
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md modal-content-blur fade-in-up-blur">
+        <div className="p-6 stagger-children">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6 fade-in-blur">
+            <div className="flex items-center space-x-3">
+              <Scan className="h-6 w-6 text-orange-500" />
+              <h3 className="text-xl font-bold text-gray-900">{title}</h3>
             </div>
-          ) : error ? (
-            /* Error State */
-            <div className="text-center space-y-4 error-animate">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
-                <AlertCircle className="w-8 h-8 text-red-600" />
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+              aria-label="Close scanner"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="fade-in-blur">
+            {scanSuccess ? (
+              /* Success State */
+              <div className="text-center space-y-4">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                  <CheckCircle className="w-8 h-8 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">QR Code Scanned!</h3>
+                  <p className="text-gray-600">Processing information...</p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Scanner Error</h3>
-                <p className="text-gray-600 mb-4 text-sm leading-relaxed">{error}</p>
-                
-                {hasPermission === false ? (
-                  <div className="space-y-3">
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                      <p className="text-xs text-yellow-800 mb-3">
-                        Camera access is required to scan QR codes. Please allow camera permissions.
-                      </p>
+            ) : error ? (
+              /* Error State */
+              <div className="text-center space-y-4">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
+                  <AlertCircle className="w-8 h-8 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Scanner Error</h3>
+                  <p className="text-gray-600 mb-4 text-sm leading-relaxed">{error}</p>
+                  
+                  {hasPermission === false ? (
+                    <div className="space-y-3">
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                        <p className="text-xs text-yellow-800 mb-3">
+                          Camera access is required to scan QR codes. Please allow camera permissions.
+                        </p>
+                        <button
+                          onClick={requestPermissionAndRetry}
+                          className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center justify-center space-x-2"
+                        >
+                          <Camera className="h-4 w-4" />
+                          <span>Allow Camera Access</span>
+                        </button>
+                      </div>
                       <button
-                        onClick={requestPermissionAndRetry}
-                        className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center justify-center space-x-2"
+                        onClick={onClose}
+                        className="w-full bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors font-medium"
                       >
-                        <Camera className="h-4 w-4" />
-                        <span>Allow Camera Access</span>
+                        Close Scanner
                       </button>
                     </div>
+                  ) : (
                     <button
-                      onClick={onClose}
-                      className="w-full bg-gray-500 text-white py-2 px-4 rounded-lg hover:bg-gray-600 transition-colors font-medium"
+                      onClick={handleRetry}
+                      className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center justify-center space-x-2"
                     >
-                      Close Scanner
+                      <RefreshCw className="h-4 w-4" />
+                      <span>Try Again</span>
                     </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={handleRetry}
-                    className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium flex items-center justify-center space-x-2"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    <span>Try Again</span>
-                  </button>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
-          ) : (
-            /* Scanner View */
-            <div className="space-y-4 fade-in-scale">
-              <p className="text-center text-gray-600 text-sm">{description}</p>
-              
-              {/* Camera View */}
-              <div className="relative bg-gray-900 rounded-lg overflow-hidden aspect-square flex items-center justify-center qr-scanner-enter">
-                <video
-                  ref={videoRef}
-                  className="w-full h-full object-cover"
-                  playsInline
-                  muted
-                  autoPlay
-                />
+            ) : (
+              /* Scanner View */
+              <div className="space-y-4">
+                <p className="text-center text-gray-600 text-sm">{description}</p>
                 
-                {/* Hidden canvas for QR scanning */}
-                <canvas 
-                  ref={canvasRef} 
-                  className="hidden" 
-                />
-                
-                {/* Scanning frame overlay */}
-                <div className="absolute inset-0 pointer-events-none flex items-center justify-center qr-frame">
-                  <div className="border-2 border-white border-dashed rounded-lg w-64 h-64 flex items-center justify-center qr-frame">
-                    <div className="w-full h-full relative">
-                      {/* Corner markers */}
-                      <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-white"></div>
-                      <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-white"></div>
-                      <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-white"></div>
-                      <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-white"></div>
+                {/* Camera View */}
+                <div className="relative bg-gray-900 rounded-lg overflow-hidden aspect-square flex items-center justify-center">
+                  <video
+                    ref={videoRef}
+                    className="w-full h-full object-cover"
+                    playsInline
+                    muted
+                    autoPlay
+                  />
+                  
+                  {/* Hidden canvas for QR scanning */}
+                  <canvas 
+                    ref={canvasRef} 
+                    className="hidden" 
+                  />
+                  
+                  {/* Scanning frame overlay */}
+                  <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+                    <div className="border-2 border-white border-dashed rounded-lg w-64 h-64 flex items-center justify-center">
+                      <div className="w-full h-full relative">
+                        {/* Corner markers */}
+                        <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-white"></div>
+                        <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-white"></div>
+                        <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-white"></div>
+                        <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-white"></div>
+                      </div>
                     </div>
                   </div>
                 </div>
+
+                {/* Loading State */}
+                {!isReady && (
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
+                    <p className="text-sm text-gray-600">Initializing camera...</p>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
