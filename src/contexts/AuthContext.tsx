@@ -504,7 +504,7 @@ const getRoleBasedRedirect = useCallback((role?: string) => {
     userRole: profile?.role
   });
 
-  return (
+ return (
     <AuthContext.Provider
       value={{
         user,
@@ -512,6 +512,8 @@ const getRoleBasedRedirect = useCallback((role?: string) => {
         loading,
         sessionLoaded,
         isAuthenticated,
+        authActionLoading, // New
+        authActionMessage, // New
         signUp,
         signUpVolunteer: signUpVolunteerFunc,
         signIn,
@@ -520,6 +522,7 @@ const getRoleBasedRedirect = useCallback((role?: string) => {
         getRoleBasedRedirect,
         validateRegistration,
         refreshProfile,
+        clearAuthAction, // New
       }}
     >
       {children}
