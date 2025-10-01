@@ -75,6 +75,32 @@
   opacity: 0;
   will-change: transform, opacity;
 }
+/* Smooth transitions for all auth-related components */
+.auth-transition-enter {
+  opacity: 0;
+  transform: scale(0.9);
+}
+
+.auth-transition-enter-active {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 300ms, transform 300ms;
+}
+
+.auth-transition-exit {
+  opacity: 1;
+}
+
+.auth-transition-exit-active {
+  opacity: 0;
+  transform: scale(0.9);
+  transition: opacity 300ms, transform 300ms;
+}
+
+/* Smooth page transitions */
+.page-transition {
+  transition: all 0.3s ease-in-out;
+}
 
 .fade-in-scale {
   animation: fadeInScale 0.3s ease-out forwards;
