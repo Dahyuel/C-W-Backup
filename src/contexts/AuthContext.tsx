@@ -377,35 +377,47 @@ const signUpVolunteerFunc = async (email: string, password: string, profileData:
     setLoading(false);
   }
 }; // Enhanced SIGN IN with immediate profile fetch
-  const signIn = async (email: string, password: string) => {
+ const signIn = async (email: string, password: string) => {
     try {
       console.log('Starting sign in...');
-      setLoading(true);
+      setAuthActionLoading(true);
+      setAuthActionMessage('Signing you in...');
       
       const { data, error } = await signInUser(email, password);
 
       if (error) {
         console.error('Sign in failed:', error);
+        setAuthActionMessage('Sign in failed. Please check your credentials.');
         return { error };
       }
 
       console.log('Sign in successful');
+      setAuthActionMessage('Success! Verifying authentication...');
+      
+      // Wait 2 seconds for smooth transition
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Force profile fetch after successful sign in
       if (data?.user?.id) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        await fetchProfile(data.user.id);
+        const profileFetched = await fetchProfile(data.user.id);
+        
+        if (profileFetched && profile) {
+          const redirectPath = getRoleBasedRedirect(profile.role);
+          setAuthActionMessage('Redirecting to your dashboard...');
+          setTimeout(() => navigate(redirectPath), 500);
+        }
       }
       
       return { error: null };
     } catch (error: any) {
       console.error('Sign in exception:', error);
+      setAuthActionMessage('Sign in failed. Please try again.');
       return { error: { message: error.message || 'Sign in failed' } };
     } finally {
-      setLoading(false);
+      setAuthActionLoading(false);
     }
   };
-  
+
   // Enhanced SIGN OUT
   const signOut = async () => {
     try {
