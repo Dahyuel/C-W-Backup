@@ -329,6 +329,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Enhanced SIGN UP for volunteers with immediate profile fetch
 // In AuthContext, update the signUpVolunteerFunc:
+// In AuthContext, update the signUpVolunteerFunc:
 const signUpVolunteerFunc = async (email: string, password: string, profileData: any) => {
   try {
     console.log('Starting volunteer registration...');
@@ -375,8 +376,7 @@ const signUpVolunteerFunc = async (email: string, password: string, profileData:
   } finally {
     setLoading(false);
   }
-};
-  // Enhanced SIGN IN with immediate profile fetch
+}; // Enhanced SIGN IN with immediate profile fetch
   const signIn = async (email: string, password: string) => {
     try {
       console.log('Starting sign in...');
