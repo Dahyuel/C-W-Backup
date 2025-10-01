@@ -30,19 +30,20 @@ export const VolunteerRegistration: React.FC = () => {
   const { signUpVolunteer, signIn, isAuthenticated, profile, loading: authLoading, getRoleBasedRedirect } = useAuth();
   
   const [currentSection, setCurrentSection] = useState(1);
-  const [formData, setFormData] = useState<ExtendedVolunteerRegistrationData>({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    personalId: '',
-    faculty: '',
-    password: '',
-    confirmPassword: '',
-    role: '',
-    gender: '',
-    tl_team: ''
-  });
+const [formData, setFormData] = useState<ExtendedVolunteerRegistrationData>({
+  firstName: '',
+  lastName: '',
+  email: '',
+  phone: '',
+  personalId: '',
+  faculty: '',
+  password: '',
+  confirmPassword: '',
+  role: '',
+  gender: '',
+  tl_team: ''
+  // REMOVE volunteerId
+});
   
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [loading, setLoading] = useState(false);
