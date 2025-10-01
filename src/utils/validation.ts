@@ -83,10 +83,6 @@ export const validateVolunteerId = (volunteerId: string): string | null => {
   return null;
 };
 
-const validateVolunteerId = (volunteerId: string): string | null => {
-  if (!volunteerId || !volunteerId.trim()) {
-    return null; // Volunteer ID is optional
-  }
   
   const volunteerIdRegex = /^[A-Z]{2,6}\d{2,4}$/;
   if (!volunteerIdRegex.test(volunteerId.trim())) {
