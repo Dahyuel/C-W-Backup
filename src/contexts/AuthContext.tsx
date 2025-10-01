@@ -48,6 +48,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [authActionLoading, setAuthActionLoading] = useState(false); // New
   const [authActionMessage, setAuthActionMessage] = useState(''); // New
   const navigate = useNavigate();
+    const clearAuthAction = useCallback(() => {
+    setAuthActionLoading(false);
+    setAuthActionMessage('');
+  }, []);
   // Session storage helpers - optimized to avoid errors
   const saveProfileToSession = useCallback((profileData: any) => {
     try {
