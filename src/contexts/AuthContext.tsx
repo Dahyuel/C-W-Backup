@@ -36,6 +36,8 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -43,10 +45,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [sessionLoaded, setSessionLoaded] = useState(false);
-  const clearAuthAction = useCallback(() => {
-    setAuthActionLoading(false);
-    setAuthActionMessage('');
-  }, []);
+  const [authActionLoading, setAuthActionLoading] = useState(false); // New
+  const [authActionMessage, setAuthActionMessage] = useState(''); // New
+  const navigate = useNavigate();
   // Session storage helpers - optimized to avoid errors
   const saveProfileToSession = useCallback((profileData: any) => {
     try {
