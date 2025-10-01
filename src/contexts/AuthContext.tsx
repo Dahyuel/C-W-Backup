@@ -1,4 +1,4 @@
-// src/contexts/AuthContext.tsx - Enhanced with robust session management and fixed redirects
+// src/contexts/AuthContext.tsx - Fixed with callback pattern
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { supabase, signUpUser, signUpVolunteer, signInUser, validateRegistrationData } from "../lib/supabase";
 import type { User, Session } from '@supabase/supabase-js';
@@ -9,20 +9,22 @@ type AuthContextType = {
   loading: boolean;
   isAuthenticated: boolean;
   sessionLoaded: boolean;
+  authActionLoading: boolean;
+  authActionMessage: string;
   signUp: (
     email: string,
     password: string,
     profileData: any
-  ) => Promise<{ data: any; error: any }>;
+  ) => Promise<{ success: boolean; data?: any; error?: any; redirectPath?: string }>;
   signUpVolunteer: (
     email: string,
     password: string,
     profileData: any
-  ) => Promise<{ data: any; error: any }>;
+  ) => Promise<{ success: boolean; data?: any; error?: any; redirectPath?: string }>;
   signIn: (
     email: string,
     password: string
-  ) => Promise<{ error: any; profile?: any }>;
+  ) => Promise<{ success: boolean; error?: any; redirectPath?: string }>;
   signOut: () => Promise<void>;
   hasRole: (roles: string | string[]) => boolean;
   getRoleBasedRedirect: (role?: string) => string;
@@ -32,6 +34,7 @@ type AuthContextType = {
     volunteerId?: string
   ) => Promise<{ isValid: boolean; errors: string[] }>;
   refreshProfile: () => Promise<void>;
+  clearAuthAction: () => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -43,13 +46,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [sessionLoaded, setSessionLoaded] = useState(false);
-  const [authActionLoading, setAuthActionLoading] = useState(false); // New
-  const [authActionMessage, setAuthActionMessage] = useState(''); // New
-  const navigate = useNavigate();
-    const clearAuthAction = useCallback(() => {
-    setAuthActionLoading(false);
-    setAuthActionMessage('');
-  }, []);
+  const [authActionLoading, setAuthActionLoading] = useState(false);
+  const [authActionMessage, setAuthActionMessage] = useState('');
+
   // Session storage helpers - optimized to avoid errors
   const saveProfileToSession = useCallback((profileData: any) => {
     try {
@@ -300,7 +299,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [user?.id, fetchProfile]);
 
- const signUp = async (email: string, password: string, profileData: any) => {
+  // Clear auth action state
+  const clearAuthAction = useCallback(() => {
+    setAuthActionLoading(false);
+    setAuthActionMessage('');
+  }, []);
+
+  // Enhanced role-based redirect with ALL volunteer roles mapped to /volunteer
+  const getRoleBasedRedirect = useCallback((role?: string) => {
+    const r = role || profile?.role;
+    
+    // Map all volunteer-type roles correctly
+    switch (r) {
+      case "admin":
+        return "/secure-9821panel";
+      case "sadmin":
+        return "/super-ctrl-92k1x";
+      case "team_leader":
+        return "/teamleader";
+      case "registration":
+        return "/regteam";
+      case "building":
+        return "/buildteam";
+      case "info_desk":
+        return "/infodesk";
+      case "attendee":
+        return "/attendee";
+      // ALL these roles should go to volunteer dashboard
+      case "volunteer":
+      case "ushers":
+      case "marketing":
+      case "media":
+      case "ER":
+      case "BD team":
+      case "catering":
+      case "feedback":
+      case "stage":
+        return "/volunteer";
+      default:
+        console.warn('Unknown role for redirect:', r);
+        return "/login";
+    }
+  }, [profile?.role]);
+
+  // SIGN UP - Returns success status and redirect path
+  const signUp = async (email: string, password: string, profileData: any) => {
     try {
       console.log('Starting attendee registration...');
       setAuthActionLoading(true);
@@ -311,7 +354,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (result.error) {
         console.error('Registration failed:', result.error);
         setAuthActionMessage('Registration failed. Please try again.');
-        return result;
+        return { 
+          success: false, 
+          error: result.error 
+        };
       }
 
       console.log('Registration successful');
@@ -324,20 +370,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (result.data?.user?.id) {
         await fetchProfile(result.data.user.id);
         
-        // Navigate after profile is loaded
+        // Return redirect path for the component to handle navigation
         if (profile) {
           const redirectPath = getRoleBasedRedirect(profile.role);
-          setAuthActionMessage('Redirecting to your dashboard...');
-          setTimeout(() => navigate(redirectPath), 500);
+          setAuthActionMessage('Account created successfully!');
+          return { 
+            success: true, 
+            data: result.data,
+            redirectPath 
+          };
         }
       }
       
-      return result;
+      return { 
+        success: true, 
+        data: result.data,
+        redirectPath: '/login'
+      };
     } catch (error: any) {
       console.error('Registration exception:', error);
       setAuthActionMessage('Registration failed. Please try again.');
       return { 
-        data: null, 
+        success: false, 
         error: { message: error.message || 'Registration failed' } 
       };
     } finally {
@@ -345,6 +399,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
+  // SIGN UP VOLUNTEER - Returns success status and redirect path
   const signUpVolunteerFunc = async (email: string, password: string, profileData: any) => {
     try {
       console.log('Starting volunteer registration...');
@@ -366,7 +421,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (result.error) {
         console.error('Volunteer registration failed:', result.error);
         setAuthActionMessage('Volunteer registration failed. Please try again.');
-        return result;
+        return { 
+          success: false, 
+          error: result.error 
+        };
       }
 
       console.log('Volunteer registration successful');
@@ -380,25 +438,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         const profileFetched = await fetchProfile(result.data.user.id, 5);
         
         if (profileFetched && profile) {
-          setAuthActionMessage('Redirecting to volunteer dashboard...');
-          setTimeout(() => navigate("/volunteer"), 500);
+          setAuthActionMessage('Volunteer account created successfully!');
+          return { 
+            success: true, 
+            data: result.data,
+            redirectPath: "/volunteer"
+          };
         }
       }
       
-      return result;
+      return { 
+        success: true, 
+        data: result.data,
+        redirectPath: "/volunteer"
+      };
     } catch (error: any) {
       console.error('Volunteer registration exception:', error);
       setAuthActionMessage('Volunteer registration failed. Please try again.');
       return { 
-        data: null, 
+        success: false, 
         error: { message: error.message || 'Volunteer registration failed' } 
       };
     } finally {
       setAuthActionLoading(false);
     }
   };
-  
- const signIn = async (email: string, password: string) => {
+
+  // SIGN IN - Returns success status and redirect path
+  const signIn = async (email: string, password: string) => {
     try {
       console.log('Starting sign in...');
       setAuthActionLoading(true);
@@ -409,7 +476,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (error) {
         console.error('Sign in failed:', error);
         setAuthActionMessage('Sign in failed. Please check your credentials.');
-        return { error };
+        return { 
+          success: false, 
+          error 
+        };
       }
 
       console.log('Sign in successful');
@@ -424,16 +494,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         
         if (profileFetched && profile) {
           const redirectPath = getRoleBasedRedirect(profile.role);
-          setAuthActionMessage('Redirecting to your dashboard...');
-          setTimeout(() => navigate(redirectPath), 500);
+          setAuthActionMessage('Sign in successful!');
+          return { 
+            success: true, 
+            redirectPath 
+          };
         }
       }
       
-      return { error: null };
+      return { 
+        success: true, 
+        redirectPath: '/login'
+      };
     } catch (error: any) {
       console.error('Sign in exception:', error);
       setAuthActionMessage('Sign in failed. Please try again.');
-      return { error: { message: error.message || 'Sign in failed' } };
+      return { 
+        success: false, 
+        error: { message: error.message || 'Sign in failed' } 
+      };
     } finally {
       setAuthActionLoading(false);
     }
@@ -487,44 +566,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return profile.role === roles;
   }, [profile?.role]);
 
-  // Enhanced role-based redirect with better volunteer role mapping
-// Enhanced role-based redirect with ALL volunteer roles mapped to /volunteer
-// In AuthContext.tsx - update getRoleBasedRedirect
-const getRoleBasedRedirect = useCallback((role?: string) => {
-  const r = role || profile?.role;
-  
-  // Map all volunteer-type roles correctly
-  switch (r) {
-    case "admin":
-      return "/secure-9821panel";
-    case "sadmin":
-      return "/super-ctrl-92k1x";
-    case "team_leader":
-      return "/teamleader";
-    case "registration":
-      return "/regteam";
-    case "building":
-      return "/buildteam";
-    case "info_desk":
-      return "/infodesk";
-    case "attendee":
-      return "/attendee";
-    // ALL these roles should go to volunteer dashboard
-    case "volunteer":
-    case "ushers":
-    case "marketing":
-    case "media": // Make sure media is included
-    case "ER":
-    case "BD team": // Changed from 'BD' to 'BD team'
-    case "catering":
-    case "feedback":
-    case "stage":
-      return "/volunteer";
-    default:
-      console.warn('Unknown role for redirect:', r);
-      return "/login";
-  }
-}, [profile?.role]);
   // Computed values - Updated logic for authentication
   const isAuthenticated = !!user && sessionLoaded;
   
@@ -537,7 +578,7 @@ const getRoleBasedRedirect = useCallback((role?: string) => {
     userRole: profile?.role
   });
 
- return (
+  return (
     <AuthContext.Provider
       value={{
         user,
@@ -545,8 +586,8 @@ const getRoleBasedRedirect = useCallback((role?: string) => {
         loading,
         sessionLoaded,
         isAuthenticated,
-        authActionLoading, // New
-        authActionMessage, // New
+        authActionLoading,
+        authActionMessage,
         signUp,
         signUpVolunteer: signUpVolunteerFunc,
         signIn,
@@ -555,7 +596,7 @@ const getRoleBasedRedirect = useCallback((role?: string) => {
         getRoleBasedRedirect,
         validateRegistration,
         refreshProfile,
-        clearAuthAction, // New
+        clearAuthAction,
       }}
     >
       {children}
