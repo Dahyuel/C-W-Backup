@@ -327,56 +327,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Enhanced SIGN UP for volunteers with immediate profile fetch
-// In AuthContext, update the signUpVolunteerFunc:
-// In AuthContext, update the signUpVolunteerFunc:
-const signUpVolunteerFunc = async (email: string, password: string, profileData: any) => {
-  try {
-    console.log('Starting volunteer registration...');
-    setLoading(true);
-    
-    // Ensure all required fields are passed to the edge function
-    const result = await signUpVolunteer(email, password, {
-      ...profileData,
-      // Make sure these fields are included for edge function validation
-      first_name: profileData.first_name,
-      last_name: profileData.last_name,
-      personal_id: profileData.personal_id,
-      phone: profileData.phone,
-      faculty: profileData.faculty,
-      role: profileData.role,
-      gender: profileData.gender,
-      tl_team: profileData.tl_team || null
-    });
-    
-    if (result.error) {
-      console.error('Volunteer registration failed:', result.error);
-      return result;
-    }
-
-    console.log('Volunteer registration successful');
-    
-    // Force profile refresh after successful volunteer registration
-    if (result.data?.user?.id) {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      const profileFetched = await fetchProfile(result.data.user.id, 5);
+  const signUpVolunteerFunc = async (email: string, password: string, profileData: any) => {
+    try {
+      console.log('Starting volunteer registration...');
+      setAuthActionLoading(true);
+      setAuthActionMessage('Creating your volunteer account...');
       
-      if (!profileFetched) {
-        console.warn('Could not fetch volunteer profile immediately after registration');
+      const result = await signUpVolunteer(email, password, {
+        ...profileData,
+        first_name: profileData.first_name,
+        last_name: profileData.last_name,
+        personal_id: profileData.personal_id,
+        phone: profileData.phone,
+        faculty: profileData.faculty,
+        role: profileData.role,
+        gender: profileData.gender,
+        tl_team: profileData.tl_team || null
+      });
+      
+      if (result.error) {
+        console.error('Volunteer registration failed:', result.error);
+        setAuthActionMessage('Volunteer registration failed. Please try again.');
+        return result;
       }
+
+      console.log('Volunteer registration successful');
+      setAuthActionMessage('Volunteer account created! Verifying authentication...');
+      
+      // Wait 2 seconds for smooth transition
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Force profile refresh after successful volunteer registration
+      if (result.data?.user?.id) {
+        const profileFetched = await fetchProfile(result.data.user.id, 5);
+        
+        if (profileFetched && profile) {
+          setAuthActionMessage('Redirecting to volunteer dashboard...');
+          setTimeout(() => navigate("/volunteer"), 500);
+        }
+      }
+      
+      return result;
+    } catch (error: any) {
+      console.error('Volunteer registration exception:', error);
+      setAuthActionMessage('Volunteer registration failed. Please try again.');
+      return { 
+        data: null, 
+        error: { message: error.message || 'Volunteer registration failed' } 
+      };
+    } finally {
+      setAuthActionLoading(false);
     }
-    
-    return result;
-  } catch (error: any) {
-    console.error('Volunteer registration exception:', error);
-    return { 
-      data: null, 
-      error: { message: error.message || 'Volunteer registration failed' } 
-    };
-  } finally {
-    setLoading(false);
-  }
-}; // Enhanced SIGN IN with immediate profile fetch
+  };
+  
  const signIn = async (email: string, password: string) => {
     try {
       console.log('Starting sign in...');
