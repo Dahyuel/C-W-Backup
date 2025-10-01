@@ -294,36 +294,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [user?.id, fetchProfile]);
 
-  // Enhanced SIGN UP for attendees
-  const signUp = async (email: string, password: string, profileData: any) => {
+ const signUp = async (email: string, password: string, profileData: any) => {
     try {
       console.log('Starting attendee registration...');
-      setLoading(true);
+      setAuthActionLoading(true);
+      setAuthActionMessage('Creating your account...');
       
       const result = await signUpUser(email, password, profileData);
       
       if (result.error) {
         console.error('Registration failed:', result.error);
+        setAuthActionMessage('Registration failed. Please try again.');
         return result;
       }
 
       console.log('Registration successful');
+      setAuthActionMessage('Account created! Verifying authentication...');
+      
+      // Wait 2 seconds for smooth transition
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Force profile refresh after successful registration
       if (result.data?.user?.id) {
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait for DB consistency
         await fetchProfile(result.data.user.id);
+        
+        // Navigate after profile is loaded
+        if (profile) {
+          const redirectPath = getRoleBasedRedirect(profile.role);
+          setAuthActionMessage('Redirecting to your dashboard...');
+          setTimeout(() => navigate(redirectPath), 500);
+        }
       }
       
       return result;
     } catch (error: any) {
       console.error('Registration exception:', error);
+      setAuthActionMessage('Registration failed. Please try again.');
       return { 
         data: null, 
         error: { message: error.message || 'Registration failed' } 
       };
     } finally {
-      setLoading(false);
+      setAuthActionLoading(false);
     }
   };
 
