@@ -106,7 +106,7 @@ export const LoginForm: React.FC = () => {
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
         style={{
-          backgroundImage: 'url("https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/careercenter.png")',
+backgroundImage: 'url("/images/careercenter.png")',
         }}
       >
         {/* Overlay for better readability */}
@@ -121,7 +121,7 @@ export const LoginForm: React.FC = () => {
             {/* Bigger Rounded Logo */}
             <div className="mx-auto w-28 h-28 bg-white rounded-full flex items-center justify-center mb-2 shadow-lg fade-in-scale">
               <img 
-                src="https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/logo.png" 
+                src="/images/logo.png"
                 alt="ASU Career Week Logo" 
                 className="w-24 h-24 rounded-full object-cover"
               />

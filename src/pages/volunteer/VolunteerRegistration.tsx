@@ -8,14 +8,13 @@ import {
 import { 
   FACULTIES
 } from '../../utils/constants';
-import { 
+import {
   validateName,
   validateEmail,
   validatePhone,
   validatePersonalId,
   validatePassword,
   validateConfirmPassword,
-  validateGender
 } from '../../utils/validation';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -598,7 +597,7 @@ const teamOptions = [
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
         style={{
-          backgroundImage: 'url("https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/careercenter.png")',
+          backgroundImage: 'url("/images/careercenter.png")',
         }}
       >
         {/* Overlay for better readability */}

@@ -1,8 +1,19 @@
 // lib/supabase.ts - Enhanced with UUID search support, dynamic attendee search, and session booking
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://ypiwfedtvgmazqcwolac.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlwaXdmZWR0dmdtYXpxY3dvbGFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2NDYxMDIsImV4cCI6MjA3NDIyMjEwMn0.QnHPyeMBpezC-Q72fVDuRPdM5dkSYqoHC3uY_Dgsuxs';
+// Get environment variables for Vite
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+
+// Validate that environment variables are set
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing Supabase environment variables. Please check your .env file.');
+  console.error('VITE_SUPABASE_URL:', supabaseUrl ? 'Set' : 'Missing');
+  console.error('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'Set' : 'Missing');
+  
+  // You might want to throw an error in production
+  // throw new Error('Missing Supabase environment variables');
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
@@ -69,6 +80,7 @@ export const checkPersonalIdUnique = async (personalId: string): Promise<Validat
     return { isValid: false, error: 'Failed to validate Personal ID' };
   }
 };
+
 // Check if email is unique in users_profiles
 export const checkEmailUnique = async (email: string): Promise<ValidationResult> => {
   try {
@@ -90,6 +102,7 @@ export const checkEmailUnique = async (email: string): Promise<ValidationResult>
     return { isValid: false, error: 'Failed to validate email' };
   }
 };
+
 export const checkVolunteerIdExists = async (volunteerId: string): Promise<ValidationResult> => {
   if (!volunteerId || !volunteerId.trim()) {
     return { isValid: true, error: null };
@@ -192,9 +205,7 @@ export const getVolunteerByVolunteerId = async (volunteerId: string) => {
   }
 };
 
-
 // Replace validateRegistrationWithVolunteer with this:
-
 export const validateRegistrationWithEdgeFunction = async (
   personalId: string,
   email: string,
@@ -205,7 +216,7 @@ export const validateRegistrationWithEdgeFunction = async (
   userType: 'attendee' | 'volunteer' = 'attendee',
   role?: string,
   gender?: string,
-  tl_team?: string  // Add this parameter
+  tl_team?: string
 ): Promise<{ 
   isValid: boolean; 
   errors: string[]; 
@@ -232,7 +243,7 @@ export const validateRegistrationWithEdgeFunction = async (
         userType,
         role: role || null,
         gender: gender || null,
-        tl_team: tl_team || null  // Add this to request body
+        tl_team: tl_team || null
       })
     });
 
@@ -254,12 +265,6 @@ export const validateRegistrationWithEdgeFunction = async (
     };
   }
 };
-
-// Updated signUpUser function using the same successful approach as volunteer registration
-// CORRECTED signUpUser function using RPC for proper enum handling
-
-
-// In your supabase.ts file, replace the signUpUser function with this simplified version:
 
 // Updated signUpUser function using Edge Function validation
 export const signUpUser = async (email: string, password: string, userData: any) => {
@@ -376,7 +381,6 @@ export const signUpUser = async (email: string, password: string, userData: any)
 };
 
 // Updated signUpVolunteer function using Edge Function validation
-
 export const signUpVolunteer = async (email: string, password: string, userData: any) => {
   try {
     console.log('Starting volunteer registration with edge function validation...');
@@ -392,7 +396,7 @@ export const signUpVolunteer = async (email: string, password: string, userData:
       'volunteer',
       userData.role,
       userData.gender,
-      userData.tl_team  // Add this parameter
+      userData.tl_team
     );
 
     if (!validation.isValid) {
@@ -443,7 +447,7 @@ export const signUpVolunteer = async (email: string, password: string, userData:
         role: userData.role || 'volunteer',
         gender: userData.gender?.toLowerCase() === 'male' ? 'male' : 
                 userData.gender?.toLowerCase() === 'female' ? 'female' : null,
-        tl_team: userData.tl_team || null,  // Make sure this is included
+        tl_team: userData.tl_team || null,
         score: 0,
         building_entry: false,
         event_entry: false
@@ -492,73 +496,84 @@ export const signUpVolunteer = async (email: string, password: string, userData:
     return { data: null, error: { message: error.message || 'Volunteer registration failed' } };
   }
 };
-const cleanupOrphanedAuthUser = async (userId: string, email: string) => {
-  try {
-    console.log('Attempting to clean up orphaned auth user:', email);
-    
-    // Try using an edge function for cleanup (requires admin privileges)
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (session?.access_token) {
-      const response = await fetch(`${supabaseUrl}/functions/v1/cleanup-auth-user`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          user_id: userId,
-          email: email
-        })
-      });
 
-      if (response.ok) {
-        console.log('Successfully cleaned up orphaned auth user');
-      } else {
-        console.warn('Failed to clean up auth user via edge function');
+const generateVolunteerId = async (role: string): Promise<string> => {
+  try {
+    // Define role prefixes for ALL volunteer roles
+    const rolePrefixes: { [key: string]: string } = {
+      'registration': 'REG',
+      'building': 'BLD',
+      'info_desk': 'INFDSK',
+      'volunteer': 'VOL',
+      'team_leader': 'TLDR',
+      'ushers': 'USHR',
+      'marketing': 'MKTG',
+      'media': 'MEDIA',
+      'ER': 'ER',
+      'BD team': 'BD',
+      'catering': 'CAT',
+      'feedback': 'FDBK',
+      'stage': 'STAGE'
+    };
+    
+    const prefix = rolePrefixes[role] || 'VOL';
+    
+    const { data: volunteers, error } = await supabase
+      .from('users_profiles')
+      .select('volunteer_id')
+      .eq('role', role)
+      .not('volunteer_id', 'is', null)
+      .order('volunteer_id', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching volunteers:', error);
+      return `${prefix}${Date.now().toString().slice(-6)}`;
+    }
+
+    let counter = 1;
+    
+    if (volunteers && volunteers.length > 0) {
+      // Find the highest number for this prefix
+      const numbers = volunteers
+        .map(v => {
+          if (v.volunteer_id && v.volunteer_id.startsWith(prefix)) {
+            const numPart = v.volunteer_id.replace(prefix, '');
+            const num = parseInt(numPart);
+            return isNaN(num) ? 0 : num;
+          }
+          return 0;
+        })
+        .filter(n => n > 0);
+      
+      if (numbers.length > 0) {
+        counter = Math.max(...numbers) + 1;
       }
     }
-  } catch (cleanupError) {
-    console.warn('Auth user cleanup failed:', cleanupError);
-    // Store the orphaned user info for manual cleanup later
-    console.warn(`Orphaned auth user: ${userId} (${email}) - needs manual cleanup`);
+    
+    const paddedCounter = counter.toString().padStart(2, '0');
+    return `${prefix}${paddedCounter}`;
+    
+  } catch (error) {
+    console.error('Error generating volunteer ID:', error);
+    const rolePrefixes: { [key: string]: string } = {
+      'registration': 'REG',
+      'building': 'BLD',
+      'info_desk': 'INFDSK',
+      'volunteer': 'VOL',
+      'team_leader': 'TLDR',
+      'ushers': 'USHR',
+      'marketing': 'MKTG',
+      'media': 'MEDIA',
+      'ER': 'ER',
+      'BD team': 'BD',
+      'catering': 'CAT',
+      'feedback': 'FDBK',
+      'stage': 'STAGE'
+    };
+    const prefix = rolePrefixes[role] || 'VOL';
+    return `${prefix}${Date.now().toString().slice(-6)}`;
   }
 };
-
-// Function to find and report orphaned users (for admin use)
-export const findOrphanedUsers = async () => {
-  try {
-    const { data, error } = await supabase.rpc('find_orphaned_auth_users');
-    
-    if (error) {
-      console.error('Error finding orphaned users:', error);
-      return { data: [], error };
-    }
-    
-    return { data: data || [], error: null };
-  } catch (error: any) {
-    console.error('Find orphaned users exception:', error);
-    return { data: [], error: { message: error.message } };
-  }
-};
-// Function for admin to clean up orphaned users
-export const cleanupOrphanedUsers = async () => {
-  try {
-    const { data, error } = await supabase.rpc('cleanup_orphaned_auth_users');
-    
-    if (error) {
-      console.error('Error cleaning orphaned users:', error);
-      return { data: [], error };
-    }
-    
-    console.log(`Cleaned up ${data?.length || 0} orphaned users`);
-    return { data: data || [], error: null };
-  } catch (error: any) {
-    console.error('Cleanup orphaned users exception:', error);
-    return { data: [], error: { message: error.message } };
-  }
-};
-
 
 // Keep existing functions for backward compatibility
 export const signInUser = async (email: string, password: string) => {
@@ -721,8 +736,6 @@ export const uploadMapImage = async (dayNumber: number, imageFile: File, userId:
     return { data: null, error: { message: error.message } };
   }
 };
-
-
 
 export const uploadFile = async (bucket: string, userId: string, file: File) => {
   try {
@@ -925,7 +938,7 @@ export const processAttendance = async (personalId: string, action: 'enter' | 'e
   }
 };
 
-// Get attendee by personal ID (only attendees) - UPDATED for boolean fields
+// Get attendee by personal ID (only attendees)
 export const getAttendeeByPersonalId = async (personalId: string) => {
   try {
     const { data, error } = await supabase
@@ -967,7 +980,7 @@ export const getAttendeeByPersonalId = async (personalId: string) => {
   }
 };
 
-// Get attendee by UUID (for QR code scans) - only attendees - UPDATED for boolean fields
+// Get attendee by UUID (for QR code scans) - only attendees
 export const getAttendeeByUUID = async (uuid: string) => {
   try {
     const { data, error } = await supabase
@@ -1009,7 +1022,7 @@ export const getAttendeeByUUID = async (uuid: string) => {
   }
 };
 
-// Dynamic search for attendees by partial Personal ID - UPDATED for boolean fields
+// Dynamic search for attendees by partial Personal ID
 export const searchAttendeesByPersonalId = async (partialPersonalId: string) => {
   try {
     if (!partialPersonalId || partialPersonalId.trim().length < 2) {
@@ -1056,7 +1069,7 @@ export const searchAttendeesByPersonalId = async (partialPersonalId: string) => 
   }
 };
 
-// UPDATED: Get registration statistics using new boolean fields
+// Get registration statistics using new boolean fields
 export const getRegistrationStats = async () => {
   try {
     // Total registered users
@@ -1537,85 +1550,6 @@ export const addScheduleItem = async (eventData) => {
   }
 };
 
-// In supabase.ts - update the generateVolunteerId function
-const generateVolunteerId = async (role: string): Promise<string> => {
-  try {
-    // Define role prefixes for ALL volunteer roles
-    const rolePrefixes: { [key: string]: string } = {
-      'registration': 'REG',
-      'building': 'BLD',
-      'info_desk': 'INFDSK',
-      'volunteer': 'VOL',
-      'team_leader': 'TLDR',
-      'ushers': 'USHR',
-      'marketing': 'MKTG',
-      'media': 'MEDIA',
-      'ER': 'ER',
-      'BD team': 'BD', // Changed from 'BD' to 'BD team'
-      'catering': 'CAT',
-      'feedback': 'FDBK',
-      'stage': 'STAGE'
-    };
-    
-    const prefix = rolePrefixes[role] || 'VOL';
-    
-    // Rest of the function remains the same...
-    const { data: volunteers, error } = await supabase
-      .from('users_profiles')
-      .select('volunteer_id')
-      .eq('role', role)
-      .not('volunteer_id', 'is', null)
-      .order('volunteer_id', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching volunteers:', error);
-      return `${prefix}${Date.now().toString().slice(-6)}`;
-    }
-
-    let counter = 1;
-    
-    if (volunteers && volunteers.length > 0) {
-      // Find the highest number for this prefix
-      const numbers = volunteers
-        .map(v => {
-          if (v.volunteer_id && v.volunteer_id.startsWith(prefix)) {
-            const numPart = v.volunteer_id.replace(prefix, '');
-            const num = parseInt(numPart);
-            return isNaN(num) ? 0 : num;
-          }
-          return 0;
-        })
-        .filter(n => n > 0);
-      
-      if (numbers.length > 0) {
-        counter = Math.max(...numbers) + 1;
-      }
-    }
-    
-    const paddedCounter = counter.toString().padStart(2, '0');
-    return `${prefix}${paddedCounter}`;
-    
-  } catch (error) {
-    console.error('Error generating volunteer ID:', error);
-    const rolePrefixes: { [key: string]: string } = {
-      'registration': 'REG',
-      'building': 'BLD',
-      'info_desk': 'INFDSK',
-      'volunteer': 'VOL',
-      'team_leader': 'TLDR',
-      'ushers': 'USHR',
-      'marketing': 'MKTG',
-      'media': 'MEDIA',
-      'ER': 'ER',
-      'BD team': 'BD', // Changed from 'BD' to 'BD team'
-      'catering': 'CAT',
-      'feedback': 'FDBK',
-      'stage': 'STAGE'
-    };
-    const prefix = rolePrefixes[role] || 'VOL';
-    return `${prefix}${Date.now().toString().slice(-6)}`;
-  }
-};
 // Add Company
 export const addCompany = async (companyData) => {
   try {
@@ -1680,7 +1614,7 @@ export const sendAnnouncement = async (announcementData) => {
   }
 };
 
-// UPDATED: Simplified dynamic building stats using new boolean fields
+// Simplified dynamic building stats using new boolean fields
 export async function getDynamicBuildingStats() {
   try {
     // Get counts directly from users_profiles using the boolean fields
@@ -1715,6 +1649,7 @@ export async function getDynamicBuildingStats() {
     return { data: null, error };
   }
 }
+
 export const deleteFile = async (bucket: string, filePath: string) => {
   try {
     const { data, error } = await supabase.storage
@@ -1770,6 +1705,7 @@ export const deleteCompany = async (companyId) => {
     return { data: null, error: { message: error.message } };
   }
 };
+
 const deleteCompanyLogo = async (logoUrl) => {
   try {
     // Check if it's a file stored in our Assets bucket
@@ -1813,8 +1749,6 @@ const deleteCompanyLogo = async (logoUrl) => {
     console.warn('Error deleting logo file:', error);
   }
 };
-
-
 
 export const getFileInfo = async (bucket: string, filePath: string) => {
   try {
@@ -1867,6 +1801,7 @@ export const checkFileExists = async (bucket: string, filePath: string) => {
     return { exists: false, error };
   }
 };
+
 export const getUserRankingAndScore = async (userId: string) => {
   try {
     const { data: userProfile, error: profileError } = await supabase
@@ -1987,7 +1922,7 @@ export const getLeaderboardData = async (userRole: string, leaderboardType?: 'at
   }
 };
 
-// UPDATED: Get building attendance statistics using new boolean fields
+// Get building attendance statistics using new boolean fields
 export const getBuildingStats = async () => {
   try {
     // Total attendees
@@ -2042,7 +1977,7 @@ export const getBuildingStats = async () => {
   }
 };
 
-// NEW: Function to get user's current status by ID
+// Function to get user's current status by ID
 export const getUserCurrentStatus = async (userId: string) => {
   try {
     const { data, error } = await supabase
@@ -2069,7 +2004,7 @@ export const getUserCurrentStatus = async (userId: string) => {
   }
 };
 
-// NEW: Function to get all users with their current status
+// Function to get all users with their current status
 export const getAllUsersWithStatus = async (roleFilter?: string) => {
   try {
     let query = supabase
@@ -2112,7 +2047,7 @@ export const getAllUsersWithStatus = async (roleFilter?: string) => {
   }
 };
 
-// NEW: Function to get real-time status updates
+// Function to get real-time status updates
 export const subscribeToStatusChanges = (callback: (payload: any) => void) => {
   const subscription = supabase
     .channel('users_profiles_changes')
@@ -2130,7 +2065,7 @@ export const subscribeToStatusChanges = (callback: (payload: any) => void) => {
   return subscription;
 };
 
-// NEW: Function to manually update user status (for testing/emergency)
+// Function to manually update user status (for testing/emergency)
 export const updateUserStatus = async (userId: string, updates: { building_entry?: boolean, event_entry?: boolean }) => {
   try {
     const { data, error } = await supabase

@@ -1344,49 +1344,33 @@ export function AdminPanel() {
             <tbody>
               <tr className="border-t">
                 <td className="px-4 py-3">Building</td>
-                <td className="px-4 py-3 text-red-600">500</td>
+<td className="px-4 py-3 text-red-600">350</td>
                 <td className="px-4 py-3">{statsData.currentInBuilding}</td>
                 <td className="px-4 py-3">
-                  <span className={`px-2 py-1 rounded-full text-sm font-medium ${
-                    statsData.currentInBuilding < 400 
-                      ? 'bg-green-100 text-green-800' 
-                      : statsData.currentInBuilding < 450 
-                      ? 'bg-yellow-100 text-yellow-800' 
-                      : 'bg-red-100 text-red-800'
-                  }`}>
-                    {statsData.currentInBuilding > 0 ? Math.round((statsData.currentInBuilding / 500) * 100) : 0}%
+<span className={`px-2 py-1 rounded-full text-sm font-medium ${
+  statsData.currentInBuilding < 280 
+    ? 'bg-green-100 text-green-800' 
+    : statsData.currentInBuilding < 315 
+    ? 'bg-yellow-100 text-yellow-800' 
+    : 'bg-red-100 text-red-800'
+}`}>
+                    {statsData.currentInBuilding > 0 ? Math.round((statsData.currentInBuilding / 350) * 100) : 0}%
                   </span>
                 </td>
               </tr>
               <tr className="border-t">
                 <td className="px-4 py-3">Event</td>
-                <td className="px-4 py-3 text-red-600">4000</td>
+<td className="px-4 py-3 text-red-600">1500</td>
                 <td className="px-4 py-3">{statsData.currentInEvent}</td>
                 <td className="px-4 py-3">
-                  <span className={`px-2 py-1 rounded-full text-sm font-medium ${
-                    statsData.currentInEvent < 3000 
-                      ? 'bg-green-100 text-green-800' 
-                      : statsData.currentInEvent < 3500 
-                      ? 'bg-yellow-100 text-yellow-800' 
-                      : 'bg-red-100 text-red-800'
-                  }`}>
-                    {statsData.currentInEvent > 0 ? Math.round((statsData.currentInEvent / 4000) * 100) : 0}%
-                  </span>
-                </td>
-              </tr>
-              <tr className="border-t">
-                <td className="px-4 py-3">Total Capacity</td>
-                <td className="px-4 py-3 text-red-600">4500</td>
-                <td className="px-4 py-3">{statsData.currentInBuilding + statsData.currentInEvent}</td>
-                <td className="px-4 py-3">
-                  <span className={`px-2 py-1 rounded-full text-sm font-medium ${
-                    (statsData.currentInBuilding + statsData.currentInEvent) < 3500 
-                      ? 'bg-green-100 text-green-800' 
-                      : (statsData.currentInBuilding + statsData.currentInEvent) < 4000 
-                      ? 'bg-yellow-100 text-yellow-800' 
-                      : 'bg-red-100 text-red-800'
-                  }`}>
-                    {(statsData.currentInBuilding + statsData.currentInEvent) > 0 ? Math.round(((statsData.currentInBuilding + statsData.currentInEvent) / 4500) * 100) : 0}%
+<span className={`px-2 py-1 rounded-full text-sm font-medium ${
+  statsData.currentInEvent < 1200 
+    ? 'bg-green-100 text-green-800' 
+    : statsData.currentInEvent < 1350 
+    ? 'bg-yellow-100 text-yellow-800' 
+    : 'bg-red-100 text-red-800'
+}`}>
+                    {statsData.currentInEvent > 0 ? Math.round((statsData.currentInEvent / 1500) * 100) : 0}%
                   </span>
                 </td>
               </tr>
