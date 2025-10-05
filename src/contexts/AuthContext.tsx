@@ -307,90 +307,89 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [fetchProfile, clearProfileFromSession, user, profile]);
 
-  // FIXED: Initialize auth only once with proper cleanup
-  useEffect(() => {
-    // CRITICAL: Prevent duplicate initialization
-    if (initializedRef.current) {
-      console.log('🔄 NOTICE: Auth already initialized - skipping duplicate initialization');
-      return;
-    }
+// FIXED: Initialize auth only once with proper cleanup
+useEffect(() => {
+  // CRITICAL: Prevent duplicate initialization
+  if (initializedRef.current) {
+    console.log('🔄 NOTICE: Auth already initialized - skipping duplicate initialization');
+    return;
+  }
 
-    initializedRef.current = true;
-    let mounted = true;
+  initializedRef.current = true;
+  let mounted = true;
 
-    const initializeAuth = async () => {
-      try {
-        console.log('🚀 NOTICE: Initializing authentication system...');
+  const initializeAuth = async () => {
+    try {
+      console.log('🚀 NOTICE: Initializing authentication system...');
 
-        const { data: { session }, error } = await supabase.auth.getSession();
+      const { data: { session }, error } = await supabase.auth.getSession();
 
-        if (error) {
-          console.error('❌ ERROR: Error getting session:', error);
-          if (mounted) {
-            setUser(null);
-            setProfile(null);
-            clearProfileFromSession();
-            setSessionLoaded(true);
-            setLoading(false);
-          }
-          return;
-        }
-
-        if (session?.user && mounted) {
-          console.log('✅ SUCCESS: Found existing session for user:', session.user.id);
-          setUser(session.user);
-          setSessionLoaded(true);
-
-          // CRITICAL: Fetch profile and wait for completion before setting loading to false
-          const profileData = await fetchProfile(session.user.id);
-
-          if (mounted) {
-            console.log('✅ SUCCESS: Profile fetch completed during initialization');
-            setLoading(false);
-          }
-        } else {
-          console.log('ℹ️ NOTICE: No existing session found');
-          if (mounted) {
-            setUser(null);
-            setProfile(null);
-            clearProfileFromSession();
-            setSessionLoaded(true);
-            setLoading(false);
-          }
-        }
-
-      } catch (error) {
-        console.error('💥 EXCEPTION: Auth initialization error:', error);
+      if (error) {
+        console.error('❌ ERROR: Error getting session:', error);
         if (mounted) {
           setUser(null);
           setProfile(null);
           clearProfileFromSession();
           setSessionLoaded(true);
+          setLoading(false); // CRITICAL: Ensure loading stops on error
+        }
+        return;
+      }
+
+      if (session?.user && mounted) {
+        console.log('✅ SUCCESS: Found existing session for user:', session.user.id);
+        setUser(session.user);
+        setSessionLoaded(true);
+
+        // CRITICAL: Fetch profile and wait for completion before setting loading to false
+        const profileData = await fetchProfile(session.user.id);
+
+        if (mounted) {
+          console.log('✅ SUCCESS: Profile fetch completed during initialization');
           setLoading(false);
         }
+      } else {
+        console.log('ℹ️ NOTICE: No existing session found');
+        if (mounted) {
+          setUser(null);
+          setProfile(null);
+          clearProfileFromSession();
+          setSessionLoaded(true);
+          setLoading(false); // CRITICAL: Ensure loading stops when no session
+        }
       }
-    };
 
-    initializeAuth();
-
-    // CRITICAL: Set up auth listener only once
-    if (!authListenerRef.current) {
-      console.log('🎧 NOTICE: Setting up auth state change listener...');
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange);
-      authListenerRef.current = subscription;
+    } catch (error) {
+      console.error('💥 EXCEPTION: Auth initialization error:', error);
+      if (mounted) {
+        setUser(null);
+        setProfile(null);
+        clearProfileFromSession();
+        setSessionLoaded(true);
+        setLoading(false); // CRITICAL: Ensure loading stops on exception
+      }
     }
+  };
 
-    return () => {
-      mounted = false;
-      // CRITICAL: Clean up listener on unmount
-      if (authListenerRef.current) {
-        console.log('🧹 NOTICE: Cleaning up auth listener...');
-        authListenerRef.current.unsubscribe();
-        authListenerRef.current = null;
-      }
-    };
-  }, [handleAuthStateChange, fetchProfile, clearProfileFromSession]);
+  initializeAuth();
 
+  // CRITICAL: Set up auth listener only once
+  if (!authListenerRef.current) {
+    console.log('🎧 NOTICE: Setting up auth state change listener...');
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange);
+    authListenerRef.current = subscription;
+  }
+
+  return () => {
+    mounted = false;
+    // CRITICAL: Clean up listener on unmount
+    if (authListenerRef.current) {
+      console.log('🧹 NOTICE: Cleaning up auth listener...');
+      authListenerRef.current.unsubscribe();
+      authListenerRef.current = null;
+    }
+  };
+}, [handleAuthStateChange, fetchProfile, clearProfileFromSession]);
   // OPTIMIZATION: Memoize getRoleBasedRedirect
   const getRoleBasedRedirect = useCallback((role?: string, profileComplete?: boolean) => {
     const r = role || profile?.role;
