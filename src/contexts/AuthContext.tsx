@@ -1,5 +1,5 @@
-// src/contexts/AuthContext.tsx - Fixed with proper initialization
-import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
+// src/contexts/AuthContext.tsx - FIXED: Prevents redirect loops, race conditions, and initialization issues
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { supabase, signUpUser, signUpVolunteer, signInUser, validateRegistrationData } from "../lib/supabase";
 import type { User, Session } from '@supabase/supabase-js';
 
@@ -52,10 +52,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [authActionLoading, setAuthActionLoading] = useState(false);
   const [authActionMessage, setAuthActionMessage] = useState('');
 
-  // Use refs to track initialization state
+  // CRITICAL: Use refs to prevent duplicate initialization and track state
   const initializedRef = useRef(false);
   const authListenerRef = useRef<any>(null);
+  const profileFetchInProgressRef = useRef(false);
+  const lastFetchedUserIdRef = useRef<string | null>(null);
 
+  // OPTIMIZATION: Memoize session storage functions
   const saveProfileToSession = useCallback((profileData: any) => {
     try {
       if (typeof Storage !== 'undefined') {
@@ -69,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         sessionStorage.setItem('registration_state', JSON.stringify(registrationState));
       }
     } catch (error) {
-      console.warn('Could not save profile to session storage:', error);
+      console.warn('⚠️ Could not save profile to session storage:', error);
     }
   }, []);
 
@@ -77,10 +80,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       if (typeof Storage !== 'undefined') {
         const stored = sessionStorage.getItem('user_profile');
-        return stored ? JSON.parse(stored) : null;
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          // Cache expiry: 5 minutes
+          const state = sessionStorage.getItem('registration_state');
+          if (state) {
+            const stateData = JSON.parse(state);
+            if (Date.now() - stateData.timestamp < 5 * 60 * 1000) {
+              return parsed;
+            }
+          }
+        }
       }
     } catch (error) {
-      console.warn('Could not read profile from session storage:', error);
+      console.warn('⚠️ Could not read profile from session storage:', error);
     }
     return null;
   }, []);
@@ -92,7 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         return stored ? JSON.parse(stored) : null;
       }
     } catch (error) {
-      console.warn('Could not read registration state from session storage:', error);
+      console.warn('⚠️ Could not read registration state from session storage:', error);
     }
     return null;
   }, []);
@@ -106,7 +119,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }));
       }
     } catch (error) {
-      console.warn('Could not save registration state:', error);
+      console.warn('⚠️ Could not save registration state:', error);
     }
   }, []);
 
@@ -117,152 +130,188 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         sessionStorage.removeItem('registration_state');
       }
     } catch (error) {
-      console.warn('Could not clear profile from session storage:', error);
+      console.warn('⚠️ Could not clear profile from session storage:', error);
     }
   }, []);
 
+  // OPTIMIZATION: Memoize profile complete check
   const isProfileComplete = useCallback((profile: any, role?: string): boolean => {
     if (!profile) return false;
-    
+
     const actualRole = role || profile.role;
-    
-    // Use profile_complete boolean from database
-    if (profile.profile_complete) {
-      return true;
+
+    // CRITICAL: Use profile_complete boolean from database as source of truth
+    if (typeof profile.profile_complete === 'boolean') {
+      return profile.profile_complete;
     }
-    
+
     // Fallback logic for backward compatibility
     if (actualRole === 'attendee') {
       return !!(profile.personal_id && profile.university);
     } else if (actualRole) {
-      // For volunteers and other roles (non-attendee, non-null)
       return !!(profile.personal_id && profile.phone);
     }
-    
-    // No role assigned yet - profile is incomplete
+
     return false;
   }, []);
 
-  // FIXED: Enhanced fetchProfile with better error handling
+  // FIXED: Enhanced fetchProfile with deduplication and race condition prevention
   const fetchProfile = useCallback(async (uid: string, retries = 3): Promise<any> => {
-    console.log(`🔍 Fetching profile for user: ${uid}`);
-    
+    // CRITICAL: Prevent duplicate fetches for the same user
+    if (profileFetchInProgressRef.current && lastFetchedUserIdRef.current === uid) {
+      console.log('🔄 Profile fetch already in progress for user:', uid, '- skipping duplicate');
+      return null;
+    }
+
+    profileFetchInProgressRef.current = true;
+    lastFetchedUserIdRef.current = uid;
+
+    console.log(`🔍 NOTICE: Fetching profile for user: ${uid}`);
+
+    // Try session cache first
+    const cachedProfile = getProfileFromSession();
+    if (cachedProfile && cachedProfile.id === uid) {
+      console.log('✅ NOTICE: Using cached profile');
+      setProfile(cachedProfile);
+      profileFetchInProgressRef.current = false;
+      return cachedProfile;
+    }
+
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
-        console.log(`Attempt ${attempt}/${retries}`);
-        
+        console.log(`🔄 NOTICE: Fetch attempt ${attempt}/${retries}`);
+
         const { data, error } = await supabase
           .from("users_profiles")
           .select("*")
           .eq("id", uid)
-          .single();
+          .maybeSingle(); // CRITICAL: Use maybeSingle() instead of single()
 
         if (error) {
-          console.log(`Profile fetch error (attempt ${attempt}):`, error.message);
-          
-          if (error.code === 'PGRST116') {
-            // Profile not found - this is expected for new users
-            console.log('📝 No profile found - user needs to complete registration');
-            const registrationState = {
-              hasAuth: true,
-              role: null,
-              profileComplete: false,
-              needsRegistration: true,
-              timestamp: Date.now()
-            };
-            setRegistrationState(registrationState);
-            setProfile(null);
-            return null;
-          }
-          
+          console.error(`❌ ERROR: Profile fetch error (attempt ${attempt}):`, error.message);
+
           if (attempt === retries) {
-            console.log('❌ Profile fetch failed after retries');
+            console.error('❌ ERROR: Profile fetch failed after all retries');
+            profileFetchInProgressRef.current = false;
             setProfile(null);
             return null;
           }
-          
+
+          // Exponential backoff
           await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
           continue;
         }
 
         if (data) {
-          console.log('✅ Profile fetched successfully:', { 
-            id: data.id, 
-            role: data.role, 
-            profile_complete: data.profile_complete 
+          console.log('✅ SUCCESS: Profile fetched successfully:', {
+            id: data.id,
+            role: data.role,
+            profile_complete: data.profile_complete
           });
-          
+
           setProfile(data);
           saveProfileToSession(data);
+          profileFetchInProgressRef.current = false;
           return data;
+        } else {
+          // Profile not found - this is expected for new users
+          console.log('📝 NOTICE: No profile found - user needs to complete registration');
+          const registrationState = {
+            hasAuth: true,
+            role: null,
+            profileComplete: false,
+            needsRegistration: true,
+            timestamp: Date.now()
+          };
+          setRegistrationState(registrationState);
+          setProfile(null);
+          profileFetchInProgressRef.current = false;
+          return null;
         }
 
       } catch (error) {
-        console.error(`Profile fetch exception (attempt ${attempt}):`, error);
+        console.error(`💥 EXCEPTION: Profile fetch exception (attempt ${attempt}):`, error);
         if (attempt === retries) {
+          profileFetchInProgressRef.current = false;
           setProfile(null);
           return null;
         }
         await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
       }
     }
-    
-    console.log('❌ Profile fetch failed after all retries');
+
+    console.error('❌ ERROR: Profile fetch failed after all retries');
+    profileFetchInProgressRef.current = false;
     setProfile(null);
     return null;
-  }, [saveProfileToSession, setRegistrationState]);
+  }, [saveProfileToSession, setRegistrationState, getProfileFromSession]);
 
-  // FIXED: Handle auth state changes
+  // FIXED: Handle auth state changes with proper deduplication
   const handleAuthStateChange = useCallback(async (event: string, session: Session | null) => {
-    console.log('🔄 Auth state change:', event, session?.user?.id);
-    
-    // Skip if we're already initialized and this is just a duplicate event
-    if (initializedRef.current && event === 'SIGNED_IN' && user?.id === session?.user?.id) {
-      console.log('🔄 Duplicate SIGNED_IN event, skipping...');
+    console.log('🔄 AUTH EVENT:', event, '| User ID:', session?.user?.id);
+
+    // CRITICAL: Skip duplicate SIGNED_IN events to prevent loops
+    if (event === 'SIGNED_IN' && user?.id === session?.user?.id && profile) {
+      console.log('🔄 NOTICE: Duplicate SIGNED_IN event detected - skipping to prevent loop');
+      return;
+    }
+
+    // CRITICAL: Don't process events during initial load
+    if (!initializedRef.current && event !== 'INITIAL_SESSION') {
+      console.log('🔄 NOTICE: Skipping auth event during initialization');
       return;
     }
 
     try {
       if (session?.user) {
-        console.log('👤 User authenticated:', session.user.id);
+        console.log('👤 NOTICE: User authenticated:', session.user.id);
         setUser(session.user);
         setSessionLoaded(true);
 
-        // Fetch profile but don't block the UI
-        fetchProfile(session.user.id).then((profileData) => {
-          if (profileData) {
-            console.log('✅ Profile loaded during auth state change');
-          } else {
-            console.log('ℹ️ No profile found during auth state change - user needs registration');
-          }
+        // CRITICAL: Only fetch profile if we don't already have it for this user
+        if (!profile || profile.id !== session.user.id) {
+          console.log('🔍 NOTICE: Profile missing or different user - fetching profile...');
+          fetchProfile(session.user.id).then((profileData) => {
+            if (profileData) {
+              console.log('✅ SUCCESS: Profile loaded during auth state change');
+            } else {
+              console.log('ℹ️ NOTICE: No profile found - user needs registration');
+            }
+            setLoading(false);
+          }).catch((error) => {
+            console.error('❌ ERROR: Profile fetch error during auth state change:', error);
+            setLoading(false);
+          });
+        } else {
+          console.log('ℹ️ NOTICE: Profile already loaded for this user - skipping fetch');
           setLoading(false);
-        }).catch((error) => {
-          console.error('❌ Profile fetch error during auth state change:', error);
-          setLoading(false);
-        });
+        }
 
       } else {
         // Signed out
-        console.log('👋 User signed out');
+        console.log('👋 NOTICE: User signed out');
         setUser(null);
         setProfile(null);
         clearProfileFromSession();
         setSessionLoaded(true);
         setLoading(false);
+        profileFetchInProgressRef.current = false;
+        lastFetchedUserIdRef.current = null;
       }
     } catch (error) {
-      console.error('💥 Auth state change error:', error);
+      console.error('💥 EXCEPTION: Auth state change error:', error);
       setUser(null);
       setProfile(null);
       setSessionLoaded(true);
       setLoading(false);
     }
-  }, [fetchProfile, clearProfileFromSession, user]);
+  }, [fetchProfile, clearProfileFromSession, user, profile]);
 
-  // FIXED: Initialize auth only once
+  // FIXED: Initialize auth only once with proper cleanup
   useEffect(() => {
+    // CRITICAL: Prevent duplicate initialization
     if (initializedRef.current) {
-      console.log('🔄 Auth already initialized, skipping...');
+      console.log('🔄 NOTICE: Auth already initialized - skipping duplicate initialization');
       return;
     }
 
@@ -271,12 +320,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     const initializeAuth = async () => {
       try {
-        console.log('🚀 Initializing authentication...');
-        
+        console.log('🚀 NOTICE: Initializing authentication system...');
+
         const { data: { session }, error } = await supabase.auth.getSession();
-        
+
         if (error) {
-          console.error('❌ Error getting session:', error);
+          console.error('❌ ERROR: Error getting session:', error);
           if (mounted) {
             setUser(null);
             setProfile(null);
@@ -288,18 +337,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         if (session?.user && mounted) {
-          console.log('✅ Found existing session for user:', session.user.id);
+          console.log('✅ SUCCESS: Found existing session for user:', session.user.id);
           setUser(session.user);
           setSessionLoaded(true);
-          
-          // Fetch profile
-          await fetchProfile(session.user.id);
-          
+
+          // CRITICAL: Fetch profile and wait for completion before setting loading to false
+          const profileData = await fetchProfile(session.user.id);
+
           if (mounted) {
+            console.log('✅ SUCCESS: Profile fetch completed during initialization');
             setLoading(false);
           }
         } else {
-          console.log('ℹ️ No existing session found');
+          console.log('ℹ️ NOTICE: No existing session found');
           if (mounted) {
             setUser(null);
             setProfile(null);
@@ -310,7 +360,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
       } catch (error) {
-        console.error('💥 Auth initialization error:', error);
+        console.error('💥 EXCEPTION: Auth initialization error:', error);
         if (mounted) {
           setUser(null);
           setProfile(null);
@@ -323,40 +373,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
     initializeAuth();
 
-    // Set up auth listener only once
+    // CRITICAL: Set up auth listener only once
     if (!authListenerRef.current) {
-      console.log('🎧 Setting up auth state change listener...');
+      console.log('🎧 NOTICE: Setting up auth state change listener...');
       const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange);
       authListenerRef.current = subscription;
     }
 
     return () => {
       mounted = false;
-      // Don't unsubscribe here - we want the listener to persist
+      // CRITICAL: Clean up listener on unmount
+      if (authListenerRef.current) {
+        console.log('🧹 NOTICE: Cleaning up auth listener...');
+        authListenerRef.current.unsubscribe();
+        authListenerRef.current = null;
+      }
     };
   }, [handleAuthStateChange, fetchProfile, clearProfileFromSession]);
 
-  // Enhanced getRoleBasedRedirect
+  // OPTIMIZATION: Memoize getRoleBasedRedirect
   const getRoleBasedRedirect = useCallback((role?: string, profileComplete?: boolean) => {
     const r = role || profile?.role;
     const isComplete = profileComplete ?? profile?.profile_complete;
-    
-    console.log('🔧 getRoleBasedRedirect called:', { 
-      role: r, 
+
+    console.log('🔧 NOTICE: getRoleBasedRedirect called:', {
+      role: r,
       profileComplete: isComplete,
       hasProfile: !!profile
     });
-    
-    // If profile is not complete, redirect to appropriate registration form
+
+    // CRITICAL: If profile is not complete, redirect to appropriate registration form
     if (!isComplete) {
       if (r === 'attendee') {
         return '/attendee-register';
       } else {
-        // Default to volunteer registration for all other cases
         return '/V0lunt33ringR3g';
       }
     }
-    
+
     // Profile is complete - redirect to appropriate dashboard
     switch (r) {
       case "admin":
@@ -384,58 +438,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       case "stage":
         return "/volunteer";
       default:
-        console.warn('Unknown role for redirect:', r);
+        console.warn('⚠️ WARNING: Unknown role for redirect:', r);
         return "/V0lunt33ringR3g";
     }
-  }, [profile?.role, profile?.profile_complete]);
+  }, [profile]);
 
-  // FIXED: signUp with immediate profile fetch
+  // FIXED: signUp with proper error handling
   const signUp = async (email: string, password: string, profileData: any) => {
     try {
-      console.log('🚀 Starting registration...');
+      console.log('🚀 NOTICE: Starting registration...');
       setAuthActionLoading(true);
       setAuthActionMessage('Creating your account...');
-      
+
       const result = await signUpUser(email, password, profileData);
-      
-      console.log('Registration result:', result);
-      
+
+      console.log('ℹ️ NOTICE: Registration result:', result.success ? 'SUCCESS' : 'FAILED');
+
       if (result.success && result.data?.user) {
-        console.log('✅ Registration successful');
-        
+        console.log('✅ SUCCESS: Registration successful');
+
         // Update auth state
         setUser(result.data.user);
-        
-        // Try to fetch the profile immediately
-        console.log('Attempting to fetch profile after signup...');
-        const userProfile = await fetchProfile(result.data.user.id, 5); // Try 5 times
-        
+
+        // Try to fetch the profile immediately with more retries
+        console.log('🔍 NOTICE: Attempting to fetch profile after signup...');
+        const userProfile = await fetchProfile(result.data.user.id, 5);
+
         setAuthActionMessage('Account created successfully!');
-        
+
         // Determine redirect path based on role
-        let redirectPath = '/V0lunt33ringR3g'; // Default to volunteer registration
-        
+        let redirectPath = '/V0lunt33ringR3g';
+
         if (userProfile?.role === 'attendee') {
           redirectPath = '/attendee-register';
         }
-        
-        console.log('🔧 Registration redirect path:', redirectPath, { role: userProfile?.role });
-        
-        return { 
-          success: true, 
+
+        console.log('🔧 NOTICE: Registration redirect path:', redirectPath, '| Role:', userProfile?.role);
+
+        return {
+          success: true,
           data: result.data,
           redirectPath
         };
       } else {
-        console.error('Registration failed:', result.error);
+        console.error('❌ ERROR: Registration failed:', result.error?.message);
         return { success: false, error: result.error };
       }
-      
+
     } catch (error: any) {
-      console.error('Registration exception:', error);
-      return { 
-        success: false, 
-        error: { message: error.message || 'Registration failed' } 
+      console.error('💥 EXCEPTION: Registration exception:', error);
+      return {
+        success: false,
+        error: { message: error.message || 'Registration failed. Please try again.' }
       };
     } finally {
       setAuthActionLoading(false);
@@ -445,63 +499,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // FIXED: signUpVolunteer with registration state tracking
   const signUpVolunteerFunc = async (email: string, password: string, profileData: any) => {
     try {
-      console.log('🚀 Starting volunteer registration via Edge Function...');
+      console.log('🚀 NOTICE: Starting volunteer registration via Edge Function...');
       setAuthActionLoading(true);
       setAuthActionMessage('Creating your volunteer account...');
-      
+
       const result = await signUpVolunteer(email, password, profileData);
-      
+
       if (result.error) {
-        console.error('Volunteer registration failed:', result.error);
+        console.error('❌ ERROR: Volunteer registration failed:', result.error.message);
         setAuthActionMessage('Volunteer registration failed. Please try again.');
-        return { 
-          success: false, 
-          error: result.error 
+        return {
+          success: false,
+          error: result.error
         };
       }
 
-      console.log('✅ Volunteer registration successful via Edge Function');
+      console.log('✅ SUCCESS: Volunteer registration successful via Edge Function');
       setAuthActionMessage('Volunteer account created! Loading profile...');
-      
+
       if (result.data?.user?.id) {
-        // Set user immediately
         setUser(result.data.user);
-        
-        // Store registration state for volunteer flow
+
         const registrationState = {
           hasAuth: true,
-          role: null, // Volunteer registration not completed yet
+          role: null,
           profileComplete: false,
           needsVolunteerRegistration: true,
           timestamp: Date.now()
         };
-        
+
         setRegistrationState(registrationState);
 
-        // Set profile from Edge Function response if available
         if (result.data.profile) {
           setProfile(result.data.profile);
           saveProfileToSession(result.data.profile);
         } else {
-          // Fallback: try to fetch profile
-          console.log('Attempting to fetch volunteer profile...');
+          console.log('🔍 NOTICE: Attempting to fetch volunteer profile...');
           await fetchProfile(result.data.user.id, 3);
         }
       }
-      
+
       setAuthActionMessage('Volunteer account created successfully!');
-      
-      return { 
-        success: true, 
+
+      return {
+        success: true,
         data: result.data,
         redirectPath: "/V0lunt33ringR3g"
       };
     } catch (error: any) {
-      console.error('Volunteer registration exception:', error);
+      console.error('💥 EXCEPTION: Volunteer registration exception:', error);
       setAuthActionMessage('Volunteer registration failed. Please try again.');
-      return { 
-        success: false, 
-        error: { message: error.message || 'Volunteer registration failed' } 
+      return {
+        success: false,
+        error: { message: error.message || 'Volunteer registration failed. Please try again.' }
       };
     } finally {
       setAuthActionLoading(false);
@@ -510,57 +560,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const signIn = async (email: string, password: string) => {
     try {
-      console.log('🚀 Starting sign in...');
+      console.log('🚀 NOTICE: Starting sign in...');
       setAuthActionLoading(true);
       setAuthActionMessage('Signing you in...');
-      
+
       const { data, error } = await signInUser(email, password);
-  
+
       if (error) {
-        console.error('Sign in failed:', error);
+        console.error('❌ ERROR: Sign in failed:', error.message);
         setAuthActionMessage('Sign in failed. Please check your credentials.');
-        return { 
-          success: false, 
-          error 
+        return {
+          success: false,
+          error
         };
       }
-  
-      console.log('✅ Sign in successful');
+
+      console.log('✅ SUCCESS: Sign in successful');
       setAuthActionMessage('Success! Loading profile...');
-      
+
       if (data?.user?.id) {
         setUser(data.user);
-        
-        // Wait for profile to be fetched
+
+        // CRITICAL: Wait for profile to be fetched before determining redirect
         const userProfile = await fetchProfile(data.user.id, 5);
-        
+
         setAuthActionMessage('Sign in successful!');
-        
-        // Use the updated getRoleBasedRedirect that handles incomplete profiles
+
         const redirectPath = getRoleBasedRedirect(userProfile?.role, userProfile?.profile_complete);
-        
-        console.log('🔧 Sign in redirect path:', redirectPath, {
+
+        console.log('🔧 NOTICE: Sign in redirect path:', redirectPath, {
           hasProfile: !!userProfile,
           profileRole: userProfile?.role,
           profileComplete: userProfile?.profile_complete
         });
-        
-        return { 
+
+        return {
           success: true,
           redirectPath
         };
       }
-      
-      return { 
-        success: true, 
-        redirectPath: '/V0lunt33ringR3g' // Default to volunteer registration
+
+      return {
+        success: true,
+        redirectPath: '/V0lunt33ringR3g'
       };
     } catch (error: any) {
-      console.error('Sign in exception:', error);
+      console.error('💥 EXCEPTION: Sign in exception:', error);
       setAuthActionMessage('Sign in failed. Please try again.');
-      return { 
-        success: false, 
-        error: { message: error.message || 'Sign in failed' } 
+      return {
+        success: false,
+        error: { message: error.message || 'Sign in failed. Please try again.' }
       };
     } finally {
       setAuthActionLoading(false);
@@ -569,46 +618,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const signOut = async () => {
     try {
-      console.log('🚪 Signing out...');
+      console.log('🚪 NOTICE: Signing out...');
       setLoading(true);
-      
+
       const { error } = await supabase.auth.signOut();
-      
+
       if (error) {
-        console.error('Sign out error:', error);
+        console.error('❌ ERROR: Sign out error:', error);
       } else {
-        console.log('✅ Signed out successfully');
+        console.log('✅ SUCCESS: Signed out successfully');
       }
-      
+
       clearProfileFromSession();
       setUser(null);
       setProfile(null);
-      
+      profileFetchInProgressRef.current = false;
+      lastFetchedUserIdRef.current = null;
+
     } catch (error) {
-      console.error('Sign out exception:', error);
+      console.error('💥 EXCEPTION: Sign out exception:', error);
       clearProfileFromSession();
       setUser(null);
       setProfile(null);
+      profileFetchInProgressRef.current = false;
+      lastFetchedUserIdRef.current = null;
     } finally {
       setLoading(false);
     }
   };
 
-// Add these missing functions to your AuthContext.tsx
+  // OPTIMIZATION: Memoize refreshProfile
+  const refreshProfile = useCallback(async () => {
+    if (user?.id) {
+      console.log('🔄 NOTICE: Manually refreshing profile...');
+      await fetchProfile(user.id);
+    }
+  }, [user?.id, fetchProfile]);
 
-// Refresh profile manually
-const refreshProfile = useCallback(async () => {
-  if (user?.id) {
-    console.log('🔄 Manually refreshing profile...');
-    await fetchProfile(user.id);
-  }
-}, [user?.id, fetchProfile]);
-
-const clearAuthAction = useCallback(() => {
-  setAuthActionLoading(false);
-  setAuthActionMessage('');
-}, []);
-
+  const clearAuthAction = useCallback(() => {
+    setAuthActionLoading(false);
+    setAuthActionMessage('');
+  }, []);
 
   const validateRegistration = async (
     email: string,
@@ -618,6 +668,7 @@ const clearAuthAction = useCallback(() => {
     return await validateRegistrationData(email, personalId, volunteerId);
   };
 
+  // OPTIMIZATION: Memoize hasRole
   const hasRole = useCallback((roles: string | string[]) => {
     if (!profile?.role) return false;
     if (Array.isArray(roles)) {
@@ -630,18 +681,32 @@ const clearAuthAction = useCallback(() => {
     return getRegistrationStateFromSession();
   }, [getRegistrationStateFromSession]);
 
-  const isAuthenticated = !!user && sessionLoaded;
-  
-  console.log('📊 Auth Context State:', {
-    hasUser: !!user,
-    hasProfile: !!profile,
-    loading,
-    sessionLoaded,
-    isAuthenticated,
-    userRole: profile?.role,
-    profileComplete: isProfileComplete(profile),
-    registrationState: getRegistrationState()
-  });
+  // OPTIMIZATION: Memoize isAuthenticated
+  const isAuthenticated = useMemo(() => !!user && sessionLoaded, [user, sessionLoaded]);
+
+  // DEBUGGING: Log auth context state periodically (only in dev)
+  useEffect(() => {
+    const logState = () => {
+      console.log('📊 AUTH CONTEXT STATE:', {
+        hasUser: !!user,
+        userId: user?.id,
+        hasProfile: !!profile,
+        profileRole: profile?.role,
+        profileComplete: profile?.profile_complete,
+        loading,
+        sessionLoaded,
+        isAuthenticated,
+        registrationState: getRegistrationState()
+      });
+    };
+
+    // Log immediately and then every 10 seconds during loading
+    logState();
+    if (loading) {
+      const interval = setInterval(logState, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [user, profile, loading, sessionLoaded, isAuthenticated, getRegistrationState]);
 
   return (
     <AuthContext.Provider
