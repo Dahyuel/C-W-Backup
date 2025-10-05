@@ -27,36 +27,28 @@ export const LoginForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [loginSuccess, setLoginSuccess] = useState(false);
 
-  // Handle authentication and profile-based redirection
+  const redirectedRef = React.useRef(false);
+
   useEffect(() => {
-    if (isAuthenticated && !authLoading && profile) {
-      console.log('🔧 Login successful, checking profile status:', {
-        role: profile.role,
-        profileComplete: profile.profile_complete,
-        isProfileComplete: isProfileComplete(profile)
-      });
-      
-      // Use the profile_complete boolean directly
+    if (isAuthenticated && !authLoading && profile && !redirectedRef.current && loginSuccess) {
+      redirectedRef.current = true;
+
       if (profile.profile_complete) {
-        // Profile is complete - go to dashboard
         const redirectPath = getRoleBasedRedirect();
-        console.log('✅ Profile complete, redirecting to dashboard:', redirectPath);
         navigate(redirectPath, { replace: true });
       } else {
-        // Profile is incomplete - go to appropriate registration form
-        let redirectPath = '/attendee-register'; // default
-        
+        let redirectPath = '/attendee-register';
+
         if (profile.role === 'volunteer') {
           redirectPath = '/V0lunt33ringR3g';
         } else if (profile.role === 'attendee') {
           redirectPath = '/attendee-register';
         }
-        
-        console.log('📝 Profile incomplete, redirecting to registration:', redirectPath);
+
         navigate(redirectPath, { replace: true });
       }
     }
-  }, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect, isProfileComplete]);
+  }, [isAuthenticated, profile?.profile_complete, authLoading, navigate, getRoleBasedRedirect, loginSuccess]);
 
   const updateField = (field: keyof LoginData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));

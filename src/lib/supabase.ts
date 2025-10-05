@@ -505,30 +505,6 @@ export const resetPassword = async (email: string) => {
   });
   return { data, error };
 };
-
-export const resetPasswordWithPersonalId = async (personalId: string, email: string) => {
-  try {
-    // Verify personal ID exists
-    const { data: profileData, error: profileError } = await supabase
-      .from('users_profiles')
-      .select('id')
-      .eq('personal_id', personalId.trim())
-      .limit(1);
-
-    if (profileError || !profileData || profileData.length === 0) {
-      return { 
-        data: null, 
-        error: { message: 'Personal ID not found' }
-      };
-    }
-
-    const { data, error } = await resetPassword(email);
-    return { data, error };
-
-  } catch (error: any) {
-    return { data: null, error: { message: error.message || 'Password reset failed' } };
-  }
-};
 export const uploadFile = async (bucket: BucketType, userId: string, file: File) => {
   try {
     // ... existing validation code ...

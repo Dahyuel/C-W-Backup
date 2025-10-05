@@ -338,13 +338,31 @@ export function AdminPanel() {
 
   const fetchEnhancedStatistics = async () => {
     try {
-      const { data: eventUsers, error } = await supabase
-        .from('users_profiles')
-        .select('*')
-        .eq('event_entry', true)
-        .eq('role', 'attendee');
+      let allEventUsers: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (error) throw error;
+      while (hasMore) {
+        const { data: eventUsers, error } = await supabase
+          .from('users_profiles')
+          .select('*')
+          .eq('event_entry', true)
+          .eq('role', 'attendee')
+          .range(from, from + pageSize - 1);
+
+        if (error) throw error;
+
+        if (eventUsers && eventUsers.length > 0) {
+          allEventUsers = [...allEventUsers, ...eventUsers];
+          from += pageSize;
+          hasMore = eventUsers.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      const eventUsers = allEventUsers;
 
       if (eventUsers && eventUsers.length > 0) {
         const genderStats: { male: number; female: number } = { male: 0, female: 0 };
@@ -921,6 +939,11 @@ export function AdminPanel() {
     };
 
     const fetchRegistrationStats = async () => {
+      let allUsers: UserProfileItem[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      let hasMore = true;
+
       let dateFilter: { created_at?: string } = {};
       if (timeRange === 'today') {
         const today = new Date();
@@ -932,19 +955,30 @@ export function AdminPanel() {
         dateFilter = { created_at: `gte.${weekAgo.toISOString()}` };
       }
 
-      let query = supabase
-        .from('users_profiles')
-        .select('*');
+      while (hasMore) {
+        let query = supabase
+          .from('users_profiles')
+          .select('*')
+          .range(from, from + pageSize - 1);
 
-      if (dateFilter.created_at) {
-        query = query.gte('created_at', dateFilter.created_at.replace('gte.', ''));
+        if (dateFilter.created_at) {
+          query = query.gte('created_at', dateFilter.created_at.replace('gte.', ''));
+        }
+
+        const { data: users, error } = await query;
+
+        if (error) throw error;
+
+        if (users && users.length > 0) {
+          allUsers = [...allUsers, ...users as UserProfileItem[]];
+          from += pageSize;
+          hasMore = users.length === pageSize;
+        } else {
+          hasMore = false;
+        }
       }
 
-      const { data: users, error } = await query;
-
-      if (error) throw error;
-
-      const stats = processUserStatistics((users || []) as UserProfileItem[]);
+      const stats = processUserStatistics(allUsers);
       setStatsData(prev => ({ ...prev, ...stats } as StatsData));
     };
 

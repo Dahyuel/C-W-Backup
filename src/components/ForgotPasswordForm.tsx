@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { KeyRound, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { resetPasswordWithPersonalId } from '../lib/supabase'; // Adjust path as needed
+import { resetPassword } from '../lib/supabase';
 
 interface ForgotPasswordData {
-  personalId: string;
   email: string;
 }
 
@@ -15,55 +14,36 @@ interface ValidationError {
 
 export const ForgotPasswordForm: React.FC = () => {
   const navigate = useNavigate();
-  
+
   const [formData, setFormData] = useState<ForgotPasswordData>({
-    personalId: '',
     email: ''
   });
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const validatePersonalId = (personalId: string): string | null => {
-    const trimmed = personalId.trim();
-    
-    if (!trimmed) {
-      return 'Personal ID is required';
-    }
-    
-    if (!/^\d{14}$/.test(trimmed)) {
-      return 'Personal ID must be exactly 14 digits';
-    }
-    
-    return null;
-  };
-
   const validateEmail = (email: string): string | null => {
     const trimmed = email.trim();
-    
+
     if (!trimmed) {
       return 'Email is required';
     }
-    
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(trimmed)) {
       return 'Please enter a valid email address';
     }
-    
+
     return null;
   };
 
   const updateField = (field: keyof ForgotPasswordData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Clear specific field error when user starts typing
     setErrors(prev => prev.filter(error => error.field !== field));
   };
 
   const validateForm = (): ValidationError[] => {
     const validationErrors: ValidationError[] = [];
-
-    const personalIdError = validatePersonalId(formData.personalId);
-    if (personalIdError) validationErrors.push({ field: 'personalId', message: personalIdError });
 
     const emailError = validateEmail(formData.email);
     if (emailError) validationErrors.push({ field: 'email', message: emailError });
@@ -73,7 +53,7 @@ export const ForgotPasswordForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const validationErrors = validateForm();
     if (validationErrors.length > 0) {
       setErrors(validationErrors);
@@ -84,7 +64,7 @@ export const ForgotPasswordForm: React.FC = () => {
     setErrors([]);
 
     try {
-      const { error } = await resetPasswordWithPersonalId(formData.personalId, formData.email);
+      const { error } = await resetPassword(formData.email);
 
       if (error) {
         setErrors([{ field: 'general', message: error.message }]);
@@ -92,7 +72,7 @@ export const ForgotPasswordForm: React.FC = () => {
       }
 
       setSuccess(true);
-      
+
     } catch (error) {
       setErrors([{ field: 'general', message: 'Password reset failed. Please try again.' }]);
     } finally {
@@ -172,26 +152,6 @@ export const ForgotPasswordForm: React.FC = () => {
             )}
 
             <div className="space-y-6">
-              {/* Personal ID */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Personal ID
-                </label>
-                <input
-                  type="text"
-                  value={formData.personalId}
-                  onChange={(e) => updateField('personalId', e.target.value)}
-                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${
-                    getFieldError('personalId') ? 'border-red-300' : 'border-gray-300'
-                  }`}
-                  placeholder="Enter your 14-digit Personal ID"
-                  maxLength={14}
-                />
-                {getFieldError('personalId') && (
-                  <p className="text-sm text-red-600 mt-2">{getFieldError('personalId')}</p>
-                )}
-              </div>
-
               {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -205,10 +165,14 @@ export const ForgotPasswordForm: React.FC = () => {
                     getFieldError('email') ? 'border-red-300' : 'border-gray-300'
                   }`}
                   placeholder="Enter your registered email address"
+                  autoFocus
                 />
                 {getFieldError('email') && (
                   <p className="text-sm text-red-600 mt-2">{getFieldError('email')}</p>
                 )}
+                <p className="text-sm text-gray-500 mt-2">
+                  A password reset link will be sent to this email address
+                </p>
               </div>
 
               {/* Submit Button */}

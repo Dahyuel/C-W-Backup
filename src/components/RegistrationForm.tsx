@@ -192,67 +192,38 @@ export const RegistrationForm: React.FC = () => {
     const checkProfileAndRedirect = async () => {
       if (!authLoading) {
         if (!isAuthenticated) {
-          console.log('Not authenticated, redirecting to login');
           navigate('/login', { replace: true });
           return;
         }
-        
+
         if (user && !profile) {
-          console.log('User authenticated but profile not loaded, attempting to fetch...');
           await refreshProfile();
-          
-          if (profile) {
-            console.log('Profile found after refresh:', { 
-              role: profile.role, 
-              profile_complete: profile.profile_complete 
-            });
-          } else {
-            console.log('Profile still not found - user needs to complete registration');
-            return;
-          }
+          return;
         }
-        
+
         if (profile && profile.profile_complete) {
-          console.log('Profile already complete (profile_complete=true), redirecting to dashboard');
           navigate(getRoleBasedRedirect(), { replace: true });
-        } else if (profile) {
-          console.log('Profile exists but profile_complete=false, staying on registration form');
-          // Pre-fill name and email from auth (read-only)
-          if (profile.first_name && !formData.firstName) {
-            setFormData(prev => ({ ...prev, firstName: profile.first_name }));
-          }
-          if (profile.last_name && !formData.lastName) {
-            setFormData(prev => ({ ...prev, lastName: profile.last_name }));
-          }
-          if (profile.email && !formData.email) {
-            setFormData(prev => ({ ...prev, email: profile.email }));
-          }
         }
       }
     };
 
     checkProfileAndRedirect();
   }, [
-    isAuthenticated, 
-    profile, 
-    authLoading, 
-    navigate, 
-    getRoleBasedRedirect, 
+    isAuthenticated,
+    profile?.profile_complete,
+    authLoading,
+    navigate,
+    getRoleBasedRedirect,
     user,
-    refreshProfile,
-    formData.firstName,
-    formData.lastName,
-    formData.email
+    refreshProfile
   ]);
 
+  const profileLoadedRef = React.useRef(false);
+
   useEffect(() => {
-    if (user && profile) {
-      console.log('Profile loaded, updating form data:', {
-        firstName: profile.first_name,
-        lastName: profile.last_name,
-        email: profile.email
-      });
-      
+    if (user && profile && !profileLoadedRef.current) {
+      profileLoadedRef.current = true;
+
       setFormData(prev => ({
         ...prev,
         firstName: profile.first_name || prev.firstName,
@@ -266,7 +237,7 @@ export const RegistrationForm: React.FC = () => {
         ...(profile.nationality && { nationality: profile.nationality })
       }));
     }
-  }, [user, profile]);
+  }, [user?.id, profile?.id]);
 
   useEffect(() => {
     const timeout = setTimeout(() => {

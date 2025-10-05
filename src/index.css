@@ -1,9 +1,9 @@
+/* Import animation system first */
+@import './styles/animations.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Import animation system */
-@import './styles/animations.css';
 
 /* Enhanced fade and blur animations */
 .fade-in-blur {

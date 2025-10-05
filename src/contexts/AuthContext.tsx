@@ -684,29 +684,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // OPTIMIZATION: Memoize isAuthenticated
   const isAuthenticated = useMemo(() => !!user && sessionLoaded, [user, sessionLoaded]);
 
-  // DEBUGGING: Log auth context state periodically (only in dev)
-  useEffect(() => {
-    const logState = () => {
-      console.log('📊 AUTH CONTEXT STATE:', {
-        hasUser: !!user,
-        userId: user?.id,
-        hasProfile: !!profile,
-        profileRole: profile?.role,
-        profileComplete: profile?.profile_complete,
-        loading,
-        sessionLoaded,
-        isAuthenticated,
-        registrationState: getRegistrationState()
-      });
-    };
-
-    // Log immediately and then every 10 seconds during loading
-    logState();
-    if (loading) {
-      const interval = setInterval(logState, 10000);
-      return () => clearInterval(interval);
-    }
-  }, [user, profile, loading, sessionLoaded, isAuthenticated, getRegistrationState]);
 
   return (
     <AuthContext.Provider
