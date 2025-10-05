@@ -155,6 +155,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return false;
   }, []);
 
+// Add this useEffect to your AuthContext as a safety net
+useEffect(() => {
+  const safetyTimeout = setTimeout(() => {
+    if (loading && sessionLoaded) {
+      console.warn('⚠️ WARNING: Loading timeout - forcing state reset');
+      setLoading(false);
+    }
+  }, 10000); // 10 second timeout
+
+  return () => clearTimeout(safetyTimeout);
+}, [loading, sessionLoaded]);
+  
   // FIXED: Enhanced fetchProfile with deduplication and race condition prevention
   const fetchProfile = useCallback(async (uid: string, retries = 3): Promise<any> => {
     // CRITICAL: Prevent duplicate fetches for the same user
