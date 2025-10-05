@@ -247,66 +247,67 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [saveProfileToSession, setRegistrationState, getProfileFromSession]);
 
   // FIXED: Handle auth state changes with proper deduplication
-  const handleAuthStateChange = useCallback(async (event: string, session: Session | null) => {
-    console.log('🔄 AUTH EVENT:', event, '| User ID:', session?.user?.id);
+// FIXED: Handle auth state changes with proper deduplication
+const handleAuthStateChange = useCallback(async (event: string, session: Session | null) => {
+  console.log('🔄 AUTH EVENT:', event, '| User ID:', session?.user?.id);
 
-    // CRITICAL: Skip duplicate SIGNED_IN events to prevent loops
-    if (event === 'SIGNED_IN' && user?.id === session?.user?.id && profile) {
-      console.log('🔄 NOTICE: Duplicate SIGNED_IN event detected - skipping to prevent loop');
-      return;
-    }
+  // CRITICAL: Handle SIGNED_OUT event immediately
+  if (event === 'SIGNED_OUT') {
+    console.log('👋 NOTICE: User signed out');
+    setUser(null);
+    setProfile(null);
+    clearProfileFromSession();
+    setSessionLoaded(true);
+    setLoading(false);
+    profileFetchInProgressRef.current = false;
+    lastFetchedUserIdRef.current = null;
+    return;
+  }
 
-    // CRITICAL: Don't process events during initial load
-    if (!initializedRef.current && event !== 'INITIAL_SESSION') {
-      console.log('🔄 NOTICE: Skipping auth event during initialization');
-      return;
-    }
+  // CRITICAL: Skip duplicate SIGNED_IN events to prevent loops
+  if (event === 'SIGNED_IN' && user?.id === session?.user?.id && profile) {
+    console.log('🔄 NOTICE: Duplicate SIGNED_IN event detected - skipping to prevent loop');
+    return;
+  }
 
-    try {
-      if (session?.user) {
-        console.log('👤 NOTICE: User authenticated:', session.user.id);
-        setUser(session.user);
-        setSessionLoaded(true);
+  // CRITICAL: Don't process events during initial load except INITIAL_SESSION
+  if (!initializedRef.current && event !== 'INITIAL_SESSION') {
+    console.log('🔄 NOTICE: Skipping auth event during initialization');
+    return;
+  }
 
-        // CRITICAL: Only fetch profile if we don't already have it for this user
-        if (!profile || profile.id !== session.user.id) {
-          console.log('🔍 NOTICE: Profile missing or different user - fetching profile...');
-          fetchProfile(session.user.id).then((profileData) => {
-            if (profileData) {
-              console.log('✅ SUCCESS: Profile loaded during auth state change');
-            } else {
-              console.log('ℹ️ NOTICE: No profile found - user needs registration');
-            }
-            setLoading(false);
-          }).catch((error) => {
-            console.error('❌ ERROR: Profile fetch error during auth state change:', error);
-            setLoading(false);
-          });
-        } else {
-          console.log('ℹ️ NOTICE: Profile already loaded for this user - skipping fetch');
-          setLoading(false);
-        }
+  try {
+    if (session?.user) {
+      console.log('👤 NOTICE: User authenticated:', session.user.id);
+      setUser(session.user);
+      setSessionLoaded(true);
 
+      // CRITICAL: Only fetch profile if we don't already have it for this user
+      if (!profile || profile.id !== session.user.id) {
+        console.log('🔍 NOTICE: Profile missing or different user - fetching profile...');
+        await fetchProfile(session.user.id);
       } else {
-        // Signed out
-        console.log('👋 NOTICE: User signed out');
-        setUser(null);
-        setProfile(null);
-        clearProfileFromSession();
-        setSessionLoaded(true);
-        setLoading(false);
-        profileFetchInProgressRef.current = false;
-        lastFetchedUserIdRef.current = null;
+        console.log('ℹ️ NOTICE: Profile already loaded for this user - skipping fetch');
       }
-    } catch (error) {
-      console.error('💥 EXCEPTION: Auth state change error:', error);
+      
+      setLoading(false);
+    } else {
+      // No session - ensure we're properly signed out
+      console.log('ℹ️ NOTICE: No session in auth state change');
       setUser(null);
       setProfile(null);
+      clearProfileFromSession();
       setSessionLoaded(true);
       setLoading(false);
     }
-  }, [fetchProfile, clearProfileFromSession, user, profile]);
-
+  } catch (error) {
+    console.error('💥 EXCEPTION: Auth state change error:', error);
+    setUser(null);
+    setProfile(null);
+    setSessionLoaded(true);
+    setLoading(false);
+  }
+}, [fetchProfile, clearProfileFromSession, user, profile]);
 // FIXED: Initialize auth only once with proper cleanup
 useEffect(() => {
   // CRITICAL: Prevent duplicate initialization
