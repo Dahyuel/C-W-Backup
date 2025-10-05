@@ -259,7 +259,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         return "/infodesk";
       case "attendee":
         return "/attendee";
-      case "volunteer":
       case "ushers":
       case "marketing":
       case "media":
