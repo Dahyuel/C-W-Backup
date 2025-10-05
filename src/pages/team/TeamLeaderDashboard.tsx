@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { 
   Users, QrCode, Gift, Building, Megaphone, Search, 
-  X, CheckCircle, AlertCircle, Sliders, Plus 
+  X, CheckCircle, AlertCircle, Sliders, Plus, Calendar
 } from "lucide-react";
 import DashboardLayout from "../../components/shared/DashboardLayout";
 import { useAuth } from "../../contexts/AuthContext";
@@ -29,12 +29,13 @@ interface AttendanceRecord {
   user_id: string;
   scanned_at: string;
   scan_type: string;
+  volunteer?: Volunteer;
 }
 
 export const TeamLeaderDashboard: React.FC = () => {
   const { profile } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'team'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'team' | 'attendance'>('dashboard');
 
   // Attendance State
   const [attendanceModal, setAttendanceModal] = useState(false);
@@ -74,6 +75,11 @@ export const TeamLeaderDashboard: React.FC = () => {
   const [selectedTeamMember, setSelectedTeamMember] = useState<Volunteer | null>(null);
   const [showTeamMemberCard, setShowTeamMemberCard] = useState(false);
   const [teamMemberAttendanceStatus, setTeamMemberAttendanceStatus] = useState<boolean>(false);
+
+  // Attendance Tab State
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
 
   // Flow Dashboard State
   const [buildingStats, setBuildingStats] = useState({
@@ -170,7 +176,87 @@ export const TeamLeaderDashboard: React.FC = () => {
     setShowTeamMemberCard(false);
   };
 
-  // Fetch building stats
+  // Fetch attendance records for the selected date
+  const fetchAttendanceRecords = async () => {
+    try {
+      setAttendanceLoading(true);
+      const teamLeaderTeam = getTeamLeaderTeam();
+      if (!teamLeaderTeam) return;
+
+      // Get the start and end of the selected date
+      const startDate = new Date(selectedDate);
+      startDate.setHours(0, 0, 0, 0);
+      
+      const endDate = new Date(selectedDate);
+      endDate.setHours(23, 59, 59, 999);
+
+      // Fetch attendance records with volunteer information
+      const { data: attendances, error } = await supabase
+        .from('attendances')
+        .select(`
+          id,
+          user_id,
+          scanned_at,
+          scan_type,
+          users_profiles!attendances_user_id_fkey (
+            id,
+            first_name,
+            last_name,
+            email,
+            personal_id,
+            volunteer_id,
+            role,
+            faculty,
+            phone,
+            score
+          )
+        `)
+        .eq('scan_type', 'vol_attendance')
+        .gte('scanned_at', startDate.toISOString())
+        .lte('scanned_at', endDate.toISOString())
+        .order('scanned_at', { ascending: false });
+
+      if (error) {
+        console.error("Error fetching attendance records:", error);
+        setAttendanceRecords([]);
+        return;
+      }
+
+      // Filter records to only include volunteers from the team leader's team
+      const filteredRecords = attendances?.filter(record => 
+        record.users_profiles?.role === teamLeaderTeam
+      ) || [];
+
+      // Transform the data to match our interface
+      const transformedRecords: AttendanceRecord[] = filteredRecords.map(record => ({
+        id: record.id,
+        user_id: record.user_id,
+        scanned_at: record.scanned_at,
+        scan_type: record.scan_type,
+        volunteer: record.users_profiles ? {
+          id: record.users_profiles.id,
+          first_name: record.users_profiles.first_name,
+          last_name: record.users_profiles.last_name,
+          email: record.users_profiles.email,
+          personal_id: record.users_profiles.personal_id,
+          volunteer_id: record.users_profiles.volunteer_id,
+          role: record.users_profiles.role,
+          faculty: record.users_profiles.faculty,
+          phone: record.users_profiles.phone,
+          score: record.users_profiles.score
+        } : undefined
+      }));
+
+      setAttendanceRecords(transformedRecords);
+    } catch (error) {
+      console.error("Error fetching attendance records:", error);
+      setAttendanceRecords([]);
+    } finally {
+      setAttendanceLoading(false);
+    }
+  };
+
+  // Update the fetchBuildingStats function to use the same capacity numbers as Admin Panel
   const fetchBuildingStats = async () => {
     try {
       const { data: dynamicStats, error } = await getDynamicBuildingStats();
@@ -180,9 +266,37 @@ export const TeamLeaderDashboard: React.FC = () => {
           inside_event: dynamicStats.inside_event,
           total_attendees: dynamicStats.total_attendees
         });
+      } else {
+        // Fallback to basic counts if dynamic stats fail
+        const { count: insideBuilding } = await supabase
+          .from('users_profiles')
+          .select('*', { count: 'exact', head: true })
+          .eq('building_entry', true);
+
+        const { count: insideEvent } = await supabase
+          .from('users_profiles')
+          .select('*', { count: 'exact', head: true })
+          .eq('event_entry', true);
+
+        const { count: totalAttendees } = await supabase
+          .from('users_profiles')
+          .select('*', { count: 'exact', head: true })
+          .eq('role', 'attendee');
+
+        setBuildingStats({
+          inside_building: insideBuilding || 0,
+          inside_event: insideEvent || 0,
+          total_attendees: totalAttendees || 0
+        });
       }
     } catch (error) {
       console.error("Error fetching building stats:", error);
+      // Set default values on error
+      setBuildingStats({
+        inside_building: 0,
+        inside_event: 0,
+        total_attendees: 0
+      });
     }
   };
 
@@ -193,6 +307,13 @@ export const TeamLeaderDashboard: React.FC = () => {
     const interval = setInterval(fetchBuildingStats, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // Fetch attendance records when tab or date changes
+  useEffect(() => {
+    if (activeTab === 'attendance') {
+      fetchAttendanceRecords();
+    }
+  }, [activeTab, selectedDate]);
 
   // Handle QR Scan for Attendance
   const handleScan = async (qrData: string) => {
@@ -337,6 +458,10 @@ export const TeamLeaderDashboard: React.FC = () => {
       
       // Refresh team members to update attendance status
       fetchTeamMembers();
+      // Refresh attendance records if on attendance tab
+      if (activeTab === 'attendance') {
+        fetchAttendanceRecords();
+      }
       
     } catch (error) {
       console.error("Attendance action error:", error);
@@ -535,7 +660,7 @@ export const TeamLeaderDashboard: React.FC = () => {
       showFeedback('error', 'Please select a user and set bonus amount (1-30)');
       return;
     }
-
+  
     setLoading(true);
     try {
       const { error } = await supabase
@@ -546,24 +671,10 @@ export const TeamLeaderDashboard: React.FC = () => {
           activity_type: 'vol_bonus',
           activity_description: `Bonus points assigned by team leader`
         }]);
-
+  
       if (error) {
         showFeedback('error', 'Failed to assign bonus');
       } else {
-        // Update user's total score
-        const { data: userProfile } = await supabase
-          .from('users_profiles')
-          .select('score')
-          .eq('id', selectedUser.id)
-          .single();
-
-        if (userProfile) {
-          await supabase
-            .from('users_profiles')
-            .update({ score: (userProfile.score || 0) + bonusAmount })
-            .eq('id', selectedUser.id);
-        }
-
         showFeedback('success', `Bonus of ${bonusAmount} points assigned successfully!`);
         setBonusModal(false);
         setSelectedUser(null);
@@ -571,7 +682,7 @@ export const TeamLeaderDashboard: React.FC = () => {
         setBonusAmount(5);
         setShowBonusConfirmCard(false);
         
-        // Refresh team members to update scores
+        // Refresh team members to update scores (the trigger will have updated users_profiles)
         fetchTeamMembers();
       }
     } catch (err) {
@@ -620,6 +731,26 @@ export const TeamLeaderDashboard: React.FC = () => {
     setScanPurpose('bonus');
     setScannerOpen(true);
     setBonusModal(false);
+  };
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  // Format time for display
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   // Render Team Tab
@@ -692,114 +823,362 @@ export const TeamLeaderDashboard: React.FC = () => {
     </div>
   );
 
-  // Render Dashboard Tab
-  const renderDashboardTab = () => (
-    <div className="space-y-8">
-      {/* Quick Actions */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 fade-in-blur card-hover dashboard-card">
-        <div className="flex justify-center">
-          <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2 mb-8">
-            <Users className="h-8 w-8 text-orange-500" />
-            Manage Your Team
+ // Render Attendance Tab
+const renderAttendanceTab = () => (
+  <div className="space-y-6">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6 fade-in-blur card-hover dashboard-card">
+      <div className="flex flex-col gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2">
+            <Calendar className="h-6 w-6 md:h-8 md:w-8 text-orange-500" />
+            Attendance Records
           </h2>
+          
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
+            <label htmlFor="date-selector" className="text-sm font-medium text-gray-700 whitespace-nowrap">
+              Select Date:
+            </label>
+            <input
+              id="date-selector"
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="w-full sm:w-48 border border-gray-300 rounded-lg px-3 py-2 text-sm md:text-base focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+              max={new Date().toISOString().split('T')[0]}
+            />
+          </div>
         </div>
 
-        <div className="flex flex-col md:flex-row gap-4 justify-center stagger-children">
-          {/* Attendance */}
-          <button
-            onClick={() => setAttendanceModal(true)}
-            className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all duration-300 smooth-hover"
-          >
-            <QrCode className="h-8 w-8 mb-2" />
-            <span className="text-base font-medium">Mark Attendance</span>
-          </button>
-
-          {/* Bonus */}
-          <button
-            onClick={() => setBonusModal(true)}
-            className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-all duration-300 smooth-hover"
-          >
-            <Gift className="h-8 w-8 mb-2" />
-            <span className="text-base font-medium">Assign Bonus</span>
-          </button>
-
-          {/* Announcements */}
-          <button
-            onClick={() => setAnnouncementModal(true)}
-            className="flex-1 flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-all duration-300 smooth-hover"
-          >
-            <Megaphone className="h-8 w-8 mb-2" />
-            <span className="text-base font-medium">Send Announcement</span>
-          </button>
+        <div className="bg-gray-50 rounded-lg p-3 md:p-4">
+          <p className="text-base md:text-lg text-gray-600">
+            Showing attendance for <span className="font-semibold text-orange-600">{formatDate(selectedDate)}</span>
+          </p>
+          <p className="text-sm text-gray-500 mt-1">
+            Total records: <span className="font-medium">{attendanceRecords.length}</span>
+          </p>
         </div>
       </div>
 
-      {/* Flow Dashboard Widget */}
-      <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden fade-in-blur card-hover dashboard-card">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
-          <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2 mx-auto">
-            <Building className="h-7 w-7 text-orange-500" />
-            Flow Dashboard
-          </h2>
+      {attendanceLoading ? (
+        <div className="text-center py-8 md:py-12">
+          <div className="animate-spin rounded-full h-8 w-8 md:h-12 md:w-12 border-b-2 border-orange-500 mx-auto mb-3 md:mb-4"></div>
+          <p className="text-gray-500 text-base md:text-lg">Loading attendance records...</p>
         </div>
-
-        <div className="grid grid-cols-3 gap-4 px-6 py-6 text-center stagger-children">
-          <div className="bg-green-100 p-4 rounded-lg shadow-sm card-hover smooth-hover">
-            <p className="text-2xl font-bold text-green-900">{buildingStats.inside_building}</p>
-            <p className="text-lg font-bold text-gray-700">Inside Building</p>
-          </div>
-          <div className="bg-teal-100 p-4 rounded-lg shadow-sm card-hover smooth-hover">
-            <p className="text-2xl font-bold text-teal-900">{buildingStats.inside_event}</p>
-            <p className="text-lg font-bold text-gray-700">Inside Event</p>
-          </div>
-          <div className="bg-blue-100 p-4 rounded-lg shadow-sm card-hover smooth-hover">
-            <p className="text-2xl font-bold text-blue-900">{buildingStats.total_attendees}</p>
-            <p className="text-lg font-bold text-gray-700">Total Attendees</p>
-          </div>
+      ) : attendanceRecords.length === 0 ? (
+        <div className="text-center py-8 md:py-12">
+          <Calendar className="h-12 w-12 md:h-16 md:w-16 text-gray-400 mx-auto mb-3 md:mb-4" />
+          <p className="text-gray-500 text-base md:text-lg">No attendance records found for this date.</p>
+          <p className="text-gray-400 text-sm mt-2">Attendance will appear here once marked for your team members.</p>
         </div>
+      ) : (
+        <div className="space-y-4">
+          {/* Mobile Cards View */}
+          <div className="block md:hidden space-y-3">
+            {attendanceRecords.map((record) => (
+              <div key={record.id} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow duration-200">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-orange-600 font-bold text-sm">
+                        {record.volunteer?.first_name?.[0]}{record.volunteer?.last_name?.[0]}
+                      </span>
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm font-semibold text-gray-900 truncate">
+                        {record.volunteer?.first_name} {record.volunteer?.last_name}
+                      </h3>
+                      <p className="text-xs text-gray-500 truncate">{record.volunteer?.email}</p>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 whitespace-nowrap">
+                    Present
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <span className="font-medium text-gray-500 text-xs">Volunteer ID:</span>
+                    <p className="text-gray-900 font-mono text-xs truncate">{record.volunteer?.volunteer_id}</p>
+                  </div>
+                  <div>
+                    <span className="font-medium text-gray-500 text-xs">Personal ID:</span>
+                    <p className="text-gray-900 font-mono text-xs truncate">{record.volunteer?.personal_id}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="font-medium text-gray-500 text-xs">Time Scanned:</span>
+                    <p className="text-gray-900 text-sm font-medium">{formatTime(record.scanned_at)}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
 
-        <div className="p-6">
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-lg font-bold text-left border border-gray-200 rounded-lg overflow-hidden">
-              <thead className="bg-gray-100 text-gray-800 text-xl font-extrabold">
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
+            <table className="min-w-full bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3">Site</th>
-                  <th className="px-4 py-3">Maximum Capacity</th>
-                  <th className="px-4 py-3">Current Capacity</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Volunteer
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Volunteer ID
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Personal ID
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Time Scanned
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
                 </tr>
               </thead>
-              <tbody>
-                <tr className="border-t">
-                  <td className="px-4 py-3">Building</td>
-                  <td className="px-4 py-3 text-red-600">500</td>
-                  <td className="px-4 py-3">
-                    {buildingStats.inside_building > 0 ? 
-                      Math.round((buildingStats.inside_building / 500) * 100) : 0}%
-                  </td>
-                </tr>
-                <tr className="border-t">
-                  <td className="px-4 py-3">Event</td>
-                  <td className="px-4 py-3 text-red-600">4000</td>
-                  <td className="px-4 py-3">
-                    {buildingStats.inside_event > 0 ? 
-                      Math.round((buildingStats.inside_event / 4000) * 100) : 0}%
-                  </td>
-                </tr>
-                <tr className="border-t">
-                  <td className="px-4 py-3">Total</td>
-                  <td className="px-4 py-3 text-red-600">4500</td>
-                  <td className="px-4 py-3">
-                    {(buildingStats.inside_building + buildingStats.inside_event) > 0 ? 
-                      Math.round(((buildingStats.inside_building + buildingStats.inside_event) / 4500) * 100) : 0}%
-                  </td>
-                </tr>
+              <tbody className="divide-y divide-gray-200">
+                {attendanceRecords.map((record) => (
+                  <tr key={record.id} className="hover:bg-gray-50 transition-colors duration-200">
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center mr-3 flex-shrink-0">
+                          <span className="text-orange-600 font-bold text-sm">
+                            {record.volunteer?.first_name?.[0]}{record.volunteer?.last_name?.[0]}
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-gray-900 truncate">
+                            {record.volunteer?.first_name} {record.volunteer?.last_name}
+                          </div>
+                          <div className="text-sm text-gray-500 truncate">{record.volunteer?.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-mono">
+                      {record.volunteer?.volunteer_id}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 font-mono">
+                      {record.volunteer?.personal_id}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                      {formatTime(record.scanned_at)}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        Present
+                      </span>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Summary for Mobile */}
+          <div className="block md:hidden bg-blue-50 rounded-lg p-3 mt-4">
+            <p className="text-sm text-blue-800 text-center">
+              Showing {attendanceRecords.length} attendance record{attendanceRecords.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
+);
+  // Render Dashboard Tab
+const renderDashboardTab = () => (
+  <div className="space-y-6">
+    {/* Quick Actions */}
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 md:p-6 fade-in-blur card-hover dashboard-card">
+      <div className="flex justify-center">
+        <h2 className="text-2xl md:text-3xl font-bold text-gray-800 flex items-center gap-2 mb-6 md:mb-8">
+          <Users className="h-6 w-6 md:h-8 md:w-8 text-orange-500" />
+          Manage Your Team
+        </h2>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center stagger-children">
+        {/* Attendance */}
+        <button
+          onClick={() => setAttendanceModal(true)}
+          className="flex flex-col items-center justify-center py-4 md:py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all duration-300 smooth-hover flex-1 min-h-[100px] md:min-h-[120px]"
+        >
+          <QrCode className="h-6 w-6 md:h-8 md:w-8 mb-2" />
+          <span className="text-sm md:text-base font-medium text-center">Mark Attendance</span>
+        </button>
+
+        {/* Bonus */}
+        <button
+          onClick={() => setBonusModal(true)}
+          className="flex flex-col items-center justify-center py-4 md:py-6 px-4 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-all duration-300 smooth-hover flex-1 min-h-[100px] md:min-h-[120px]"
+        >
+          <Gift className="h-6 w-6 md:h-8 md:w-8 mb-2" />
+          <span className="text-sm md:text-base font-medium text-center">Assign Bonus</span>
+        </button>
+
+        {/* Announcements */}
+        <button
+          onClick={() => setAnnouncementModal(true)}
+          className="flex flex-col items-center justify-center py-4 md:py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-all duration-300 smooth-hover flex-1 min-h-[100px] md:min-h-[120px]"
+        >
+          <Megaphone className="h-6 w-6 md:h-8 md:w-8 mb-2" />
+          <span className="text-sm md:text-base font-medium text-center">Send Announcement</span>
+        </button>
+      </div>
+    </div>
+
+    {/* Flow Dashboard Widget - Admin Panel Style */}
+    <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden fade-in-blur card-hover dashboard-card">
+      <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-gray-100 bg-gray-50">
+        <h2 className="text-xl md:text-3xl font-bold text-gray-800 flex items-center gap-2 mx-auto">
+          <Building className="h-5 w-5 md:h-7 md:w-7 text-orange-500" />
+          Flow Dashboard
+        </h2>
+      </div>
+
+      {/* Stats Cards Row */}
+      <div className="grid grid-cols-2 gap-3 md:gap-4 px-4 md:px-6 py-4 md:py-6 text-center stagger-children">
+        <div className="bg-green-100 p-3 md:p-4 rounded-lg shadow-sm card-hover smooth-hover">
+          <p className="text-xl md:text-2xl font-bold text-green-900">{buildingStats.inside_building}</p>
+          <p className="text-sm md:text-lg font-bold text-gray-700">Inside Building</p>
+        </div>
+        <div className="bg-teal-100 p-3 md:p-4 rounded-lg shadow-sm card-hover smooth-hover">
+          <p className="text-xl md:text-2xl font-bold text-teal-900">{buildingStats.inside_event}</p>
+          <p className="text-sm md:text-lg font-bold text-gray-700">Inside Event</p>
+        </div>
+      </div>
+
+      {/* Current State Table - Admin Panel Style */}
+      <div className="p-4 md:p-6">
+        <div className="overflow-x-auto">
+          {/* Mobile Cards View for Capacity */}
+          <div className="block md:hidden space-y-3">
+            {/* Building Capacity Card */}
+            <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Building</h3>
+                  <p className="text-sm text-gray-600">Maximum: 350</p>
+                </div>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  buildingStats.inside_building < 280 
+                    ? 'bg-green-100 text-green-800' 
+                    : buildingStats.inside_building < 315 
+                    ? 'bg-yellow-100 text-yellow-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {buildingStats.inside_building > 0 ? Math.round((buildingStats.inside_building / 350) * 100) : 0}%
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-2xl font-bold text-gray-900">{buildingStats.inside_building}</span>
+                <span className="text-sm text-gray-500">Current</span>
+              </div>
+            </div>
+
+            {/* Event Capacity Card */}
+            <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Event</h3>
+                  <p className="text-sm text-gray-600">Maximum: 1500</p>
+                </div>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  buildingStats.inside_event < 1200 
+                    ? 'bg-green-100 text-green-800' 
+                    : buildingStats.inside_event < 1350 
+                    ? 'bg-yellow-100 text-yellow-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  {buildingStats.inside_event > 0 ? Math.round((buildingStats.inside_event / 1500) * 100) : 0}%
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-2xl font-bold text-gray-900">{buildingStats.inside_event}</span>
+                <span className="text-sm text-gray-500">Current</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Desktop Table View */}
+          <table className="min-w-full text-base md:text-lg font-bold text-left border border-gray-200 rounded-lg overflow-hidden hidden md:table">
+            <thead className="bg-gray-100 text-gray-800 text-lg md:text-xl font-extrabold">
+              <tr>
+                <th className="px-4 py-3">Site</th>
+                <th className="px-4 py-3">Maximum Capacity</th>
+                <th className="px-4 py-3">Current Capacity</th>
+                <th className="px-4 py-3">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-t">
+                <td className="px-4 py-3">Building</td>
+                <td className="px-4 py-3 text-red-600">350</td>
+                <td className="px-4 py-3">{buildingStats.inside_building}</td>
+                <td className="px-4 py-3">
+                  <span className={`px-2 py-1 rounded-full text-sm font-medium ${
+                    buildingStats.inside_building < 280 
+                      ? 'bg-green-100 text-green-800' 
+                      : buildingStats.inside_building < 315 
+                      ? 'bg-yellow-100 text-yellow-800' 
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {buildingStats.inside_building > 0 ? Math.round((buildingStats.inside_building / 350) * 100) : 0}%
+                  </span>
+                </td>
+              </tr>
+              <tr className="border-t">
+                <td className="px-4 py-3">Event</td>
+                <td className="px-4 py-3 text-red-600">1500</td>
+                <td className="px-4 py-3">{buildingStats.inside_event}</td>
+                <td className="px-4 py-3">
+                  <span className={`px-2 py-1 rounded-full text-sm font-medium ${
+                    buildingStats.inside_event < 1200 
+                      ? 'bg-green-100 text-green-800' 
+                      : buildingStats.inside_event < 1350 
+                      ? 'bg-yellow-100 text-yellow-800' 
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {buildingStats.inside_event > 0 ? Math.round((buildingStats.inside_event / 1500) * 100) : 0}%
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Additional Stats Section */}
+      <div className="bg-gray-50 px-4 md:px-6 py-3 md:py-4 border-t border-gray-200">
+        <div className="grid grid-cols-2 gap-3 md:gap-4 text-center">
+          <div className="bg-white p-2 md:p-3 rounded-lg shadow-sm card-hover">
+            <p className="text-xs md:text-sm font-medium text-gray-600">Building Capacity</p>
+            <p className="text-base md:text-lg font-bold text-gray-900">
+              {Math.round((buildingStats.inside_building / 350) * 100)}%
+            </p>
+          </div>
+          <div className="bg-white p-2 md:p-3 rounded-lg shadow-sm card-hover">
+            <p className="text-xs md:text-sm font-medium text-gray-600">Event Capacity</p>
+            <p className="text-base md:text-lg font-bold text-gray-900">
+              {Math.round((buildingStats.inside_event / 1500) * 100)}%
+            </p>
+          </div>
+        </div>
+        
+        {/* Mobile Summary */}
+        <div className="block md:hidden mt-3">
+          <div className="bg-blue-50 rounded-lg p-3 text-center">
+            <p className="text-sm text-blue-800 font-medium">
+              Total Inside: {buildingStats.inside_building + buildingStats.inside_event}
+            </p>
+            <p className="text-xs text-blue-600 mt-1">
+              Building: {buildingStats.inside_building} • Event: {buildingStats.inside_event}
+            </p>
           </div>
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 
   return (
     <DashboardLayout
@@ -829,6 +1208,16 @@ export const TeamLeaderDashboard: React.FC = () => {
           >
             Team
           </button>
+          <button
+            onClick={() => setActiveTab('attendance')}
+            className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
+              activeTab === 'attendance'
+                ? 'bg-white text-orange-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Attendance
+          </button>
         </div>
 
         {/* Feedback Toast */}
@@ -855,7 +1244,9 @@ export const TeamLeaderDashboard: React.FC = () => {
         )}
 
         {/* Tab Content */}
-        {activeTab === 'dashboard' ? renderDashboardTab() : renderTeamTab()}
+        {activeTab === 'dashboard' && renderDashboardTab()}
+        {activeTab === 'team' && renderTeamTab()}
+        {activeTab === 'attendance' && renderAttendanceTab()}
 
         {/* All Modals using React Portal with Animations */}
 

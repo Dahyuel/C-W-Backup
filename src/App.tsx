@@ -1,14 +1,17 @@
+// src/App.tsx - Fixed with complete routing logic
 import React, { Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ResetPasswordForm } from './components/ResetPasswordForm';
 
-// Auth Components (keep these regular imports since they're small and frequently used)
+// Auth Components
 import { LoginForm } from './components/LoginForm';
 import { RegistrationForm } from './components/RegistrationForm';
 import { ForgotPasswordForm } from './components/ForgotPasswordForm';
+import { AuthRegistration } from './components/AuthRegistration';
+import { VolunteerAuthRegistration } from './components/VolunteerAuthRegistration';
 
-// Lazy load all dashboard components to improve initial load time
+// Lazy load dashboards
 const AttendeeDashboard = React.lazy(() => import('./pages/user/AttendeeDashboard'));
 const VolunteerRegistration = React.lazy(() => import('./pages/volunteer/VolunteerRegistration').then(module => ({ default: module.VolunteerRegistration })));
 const VolunteerDashboard = React.lazy(() => import('./pages/volunteer/VolunteerDashboard').then(module => ({ default: module.VolunteerDashboard })));
@@ -19,7 +22,6 @@ const TeamLeaderDashboard = React.lazy(() => import('./pages/team/TeamLeaderDash
 const AdminPanel = React.lazy(() => import('./pages/admin/AdminPanel').then(module => ({ default: module.AdminPanel })));
 const SuperAdminPanel = React.lazy(() => import('./pages/admin/SuperAdminPanel').then(module => ({ default: module.SuperAdminPanel })));
 
-// Enhanced Loading component with better UX
 const LoadingScreen: React.FC<{ message?: string }> = ({ message = "Loading..." }) => (
   <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center">
     <div className="text-center">
@@ -29,11 +31,9 @@ const LoadingScreen: React.FC<{ message?: string }> = ({ message = "Loading..." 
   </div>
 );
 
-// Lazy loading fallback component with skeleton
 const LazyLoadingFallback: React.FC = () => (
   <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white">
     <div className="animate-pulse">
-      {/* Header skeleton */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
@@ -43,7 +43,6 @@ const LazyLoadingFallback: React.FC = () => (
         </div>
       </div>
       
-      {/* Content skeleton */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {[1, 2, 3].map((i) => (
@@ -74,29 +73,57 @@ const LazyLoadingFallback: React.FC = () => (
   </div>
 );
 
-// Enhanced Protected Route component with better role mapping
+// Fixed ProtectedRoute Component
 const ProtectedRoute: React.FC<{ 
   children: React.ReactNode; 
   requiredRole?: string | string[];
-}> = ({ children, requiredRole }) => {
-  const { isAuthenticated, profile, loading, sessionLoaded, hasRole, getRoleBasedRedirect } = useAuth();
+  requireCompleteProfile?: boolean;
+  allowIncompleteVolunteer?: boolean;
+}> = ({ children, requiredRole, requireCompleteProfile = true, allowIncompleteVolunteer = false }) => {
+  const { 
+    isAuthenticated, 
+    profile, 
+    loading, 
+    sessionLoaded, 
+    hasRole, 
+    getRoleBasedRedirect
+  } = useAuth();
   
-  // Still loading session or auth state
   if (!sessionLoaded || loading) {
     return <LoadingScreen message="Checking authentication..." />;
   }
   
-  // Not authenticated - redirect to login
   if (!isAuthenticated) {
     console.log('Not authenticated, redirecting to login');
     return <Navigate to="/login" replace />;
   }
-  
-  // User is authenticated but profile is not loaded yet
-  if (isAuthenticated && !profile) {
-    return <LoadingScreen message="Loading your profile..." />;
+
+  // Handle incomplete profiles
+  if (profile && !profile.profile_complete) {
+    console.log('🔧 Profile incomplete, checking redirect logic:', {
+      role: profile.role,
+      requireCompleteProfile,
+      allowIncompleteVolunteer
+    });
+    
+    // If this route allows incomplete volunteer profiles and user is volunteer
+    if (allowIncompleteVolunteer && profile.role === 'volunteer') {
+      console.log('✅ Allowing incomplete volunteer access');
+      return <>{children}</>;
+    }
+    
+    // If this route allows incomplete profiles in general
+    if (!requireCompleteProfile) {
+      console.log('✅ Allowing incomplete profile access');
+      return <>{children}</>;
+    }
+    
+    // Redirect to appropriate registration form
+    const redirectPath = getRoleBasedRedirect(profile.role, profile.profile_complete);
+    console.log('🔧 Redirecting incomplete profile to:', redirectPath);
+    return <Navigate to={redirectPath} replace />;
   }
-  
+
   // Check role permissions if specified
   if (requiredRole && profile) {
     const hasRequiredRole = Array.isArray(requiredRole) 
@@ -104,63 +131,95 @@ const ProtectedRoute: React.FC<{
       : hasRole(requiredRole);
       
     if (!hasRequiredRole) {
-      console.log('Access denied for role:', profile.role, 'Required:', requiredRole);
-      
-      // Redirect to appropriate dashboard instead of showing error
+      console.log('❌ Access denied for role:', profile.role, 'Required:', requiredRole);
       const redirectPath = getRoleBasedRedirect();
       return <Navigate to={redirectPath} replace />;
     }
   }
   
-  console.log('Access granted for role:', profile?.role);
+  console.log('✅ Access granted for role:', profile?.role, 'Profile complete:', profile?.profile_complete);
   return <>{children}</>;
 };
 
-// Enhanced Public Route component
-const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isAuthenticated, profile, loading, sessionLoaded, getRoleBasedRedirect } = useAuth();
+// Fixed PublicRoute Component
+const PublicRoute: React.FC<{ 
+  children: React.ReactNode;
+  allowIncompleteProfile?: boolean;
+}> = ({ children, allowIncompleteProfile = false }) => {
+  const { 
+    isAuthenticated, 
+    profile, 
+    loading, 
+    sessionLoaded, 
+    getRoleBasedRedirect
+  } = useAuth();
   
-  // Still loading session
   if (!sessionLoaded || loading) {
     return <LoadingScreen message="Loading..." />;
   }
   
-  // Already authenticated and has profile, redirect to appropriate dashboard
   if (isAuthenticated && profile) {
-    const redirectPath = getRoleBasedRedirect();
-    console.log('Already authenticated, redirecting to:', redirectPath);
-    return <Navigate to={redirectPath} replace />;
+    // Use the updated getRoleBasedRedirect that handles incomplete profiles
+    const redirectPath = getRoleBasedRedirect(profile.role, profile.profile_complete);
+    
+    console.log('🔧 PublicRoute redirecting to:', redirectPath, {
+      role: profile.role,
+      profileComplete: profile.profile_complete
+    });
+    
+    // Only allow access to public routes if explicitly allowed for incomplete profiles
+    if (!allowIncompleteProfile) {
+      return <Navigate to={redirectPath} replace />;
+    }
   }
   
   return <>{children}</>;
 };
 
-// Lazy Route wrapper component
+// Wrapper Components
+const VolunteerAuthRegistrationWrapper: React.FC = () => {
+  const navigate = useNavigate();
+  return <VolunteerAuthRegistration onSuccess={() => navigate('/V0lunt33ringR3g')} />;
+};
+
+const AuthRegistrationWrapper: React.FC = () => {
+  const navigate = useNavigate();
+  return <AuthRegistration onSuccess={() => navigate('/attendee-register')} />;
+};
+
+// Lazy Route Helper
 const LazyRoute: React.FC<{ 
   component: React.LazyExoticComponent<React.ComponentType<any>>;
   requiredRole?: string | string[];
-}> = ({ component: Component, requiredRole }) => (
-  <ProtectedRoute requiredRole={requiredRole}>
+  requireCompleteProfile?: boolean;
+}> = ({ component: Component, requiredRole, requireCompleteProfile = true }) => (
+  <ProtectedRoute requiredRole={requiredRole} requireCompleteProfile={requireCompleteProfile}>
     <Suspense fallback={<LazyLoadingFallback />}>
       <Component />
     </Suspense>
   </ProtectedRoute>
 );
 
-// App Router component that uses the auth context
+// Main App Router
 const AppRouter: React.FC = () => {
   return (
     <Routes>
-      {/* Public Routes - No lazy loading for auth forms */}
+      {/* Public Routes - Redirect authenticated users with incomplete profiles */}
       <Route path="/login" element={
         <PublicRoute>
           <LoginForm />
         </PublicRoute>
       } />
-      
-      <Route path="/register" element={
+
+      <Route path="/volunteer-auth-register" element={
         <PublicRoute>
-          <RegistrationForm />
+          <VolunteerAuthRegistrationWrapper />
+        </PublicRoute>
+      } />
+      
+      <Route path="/auth-register" element={
+        <PublicRoute>
+          <AuthRegistrationWrapper />
         </PublicRoute>
       } />
       
@@ -170,84 +229,124 @@ const AppRouter: React.FC = () => {
         </PublicRoute>
       } />
       
-      {/* Volunteer Registration - Lazy loaded since it's accessed less frequently */}
-      <Route path="/V0lunt33ringR3g" element={
+      <Route path="/reset-password" element={
         <PublicRoute>
-          <Suspense fallback={<LoadingScreen message="Loading registration form..." />}>
-            <VolunteerRegistration />
-          </Suspense>
+          <ResetPasswordForm />
         </PublicRoute>
       } />
       
-      {/* Protected Routes - All lazy loaded */}
+      {/* Registration Forms - Allow incomplete profiles */}
+      <Route path="/attendee-register" element={
+        <ProtectedRoute requireCompleteProfile={false}>
+          <RegistrationForm />
+        </ProtectedRoute>
+      } />
+      
+      <Route path="/V0lunt33ringR3g" element={
+        <ProtectedRoute requireCompleteProfile={false} allowIncompleteVolunteer={true}>
+          <Suspense fallback={<LoadingScreen message="Loading volunteer registration form..." />}>
+            <VolunteerRegistration />
+          </Suspense>
+        </ProtectedRoute>
+      } />
+      
+      {/* Dashboards - Require complete profiles and specific roles */}
       <Route 
         path="/attendee" 
-        element={<LazyRoute component={AttendeeDashboard} requiredRole="attendee" />}
+        element={
+          <LazyRoute 
+            component={AttendeeDashboard} 
+            requiredRole="attendee" 
+            requireCompleteProfile={true}
+          />
+        }
       />
-      
-<Route 
-  path="/volunteer" 
-  element={
-    <LazyRoute 
-      component={VolunteerDashboard} 
-      requiredRole={[
-        'volunteer',
-        'ushers',
-        'marketing', 
-        'media', // Make sure media is included
-        'ER',
-        'BD team', // Changed from 'BD' to 'BD team'
-        'catering',
-        'feedback',
-        'stage'
-      ]} 
-    />
-  }
-/>
       
       <Route 
         path="/regteam" 
-        element={<LazyRoute component={RegTeamDashboard} requiredRole="registration" />}
+        element={
+          <LazyRoute 
+            component={RegTeamDashboard} 
+            requiredRole="registration" 
+            requireCompleteProfile={true}
+          />
+        }
       />
       
       <Route 
         path="/buildteam" 
-        element={<LazyRoute component={BuildTeamDashboard} requiredRole="building" />}
+        element={
+          <LazyRoute 
+            component={BuildTeamDashboard} 
+            requiredRole="building" 
+            requireCompleteProfile={true}
+          />
+        }
       />
+        <Route 
+    path="/volunteer" 
+    element={
+      <LazyRoute 
+        component={VolunteerDashboard} 
+        requiredRole={['ushers', 'marketing', 'media', 'ER', 'BD team', 'catering', 'feedback', 'stage']} 
+        requireCompleteProfile={true}
+      />
+    }
+  />
       
       <Route 
         path="/infodesk" 
-        element={<LazyRoute component={InfoDeskDashboard} requiredRole="info_desk" />}
+        element={
+          <LazyRoute 
+            component={InfoDeskDashboard} 
+            requiredRole="info_desk" 
+            requireCompleteProfile={true}
+          />
+        }
       />
       
       <Route 
         path="/teamleader" 
-        element={<LazyRoute component={TeamLeaderDashboard} requiredRole="team_leader" />}
+        element={
+          <LazyRoute 
+            component={TeamLeaderDashboard} 
+            requiredRole="team_leader" 
+            requireCompleteProfile={true}
+          />
+        }
       />
       
       <Route 
         path="/secure-9821panel" 
-        element={<LazyRoute component={AdminPanel} requiredRole="admin" />}
+        element={
+          <LazyRoute 
+            component={AdminPanel} 
+            requiredRole="admin" 
+            requireCompleteProfile={true}
+          />
+        }
       />
       
       <Route 
         path="/super-ctrl-92k1x" 
-        element={<LazyRoute component={SuperAdminPanel} requiredRole="sadmin" />}
+        element={
+          <LazyRoute 
+            component={SuperAdminPanel} 
+            requiredRole="sadmin" 
+            requireCompleteProfile={true}
+          />
+        }
       />
-<Route path="/reset-password" element={
-  <PublicRoute>
-    <ResetPasswordForm />
-  </PublicRoute>
-} />
       
-      {/* Default redirect - Enhanced to handle edge cases */}
+      {/* Redirects */}
+      <Route path="/register" element={<Navigate to="/auth-register" replace />} />
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
 };
 
-// Main App component with error boundary
+// Error Boundary
 class ErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean; error: Error | null }
@@ -290,7 +389,7 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-// Main App component
+// Main App Component
 function App() {
   return (
     <ErrorBoundary>

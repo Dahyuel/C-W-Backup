@@ -12,12 +12,11 @@ import {
   X,
   AlertCircle,
   CheckCircle,
-  UserPlus,
 } from "lucide-react";
 import DashboardLayout from "../../components/shared/DashboardLayout";
 import { QRScanner } from "../../components/shared/QRScanner";
-import { AttendeeCard } from "../../components/shared/AttendeeCard";
-import { useAuth } from "../../contexts/AuthContext";
+// import { AttendeeCard } from "../../components/shared/AttendeeCard";
+// import { useAuth } from "../../contexts/AuthContext";
 import { 
   processBuildingAttendance,
   getAttendeeByPersonalId,
@@ -57,10 +56,7 @@ interface Attendee {
   last_scan?: string;
 }
 
-interface SessionBooking {
-  session_id: string;
-  booked_at: string;
-}
+//
 
 const castToAttendee = (data: any): Attendee => {
   return {
@@ -71,7 +67,6 @@ const castToAttendee = (data: any): Attendee => {
 };
 
 export const BuildTeamDashboard: React.FC = () => {
-  const { profile } = useAuth();
 
   // Tab state
   const [activeTab, setActiveTab] = useState<"building" | "session">("building");
@@ -527,7 +522,7 @@ export const BuildTeamDashboard: React.FC = () => {
     }
   };
 
-  const handleSessionAttendanceAction = async (action: 'enter' | 'exit') => {
+  const handleSessionAttendanceAction = async () => {
     if (!selectedAttendee || !selectedSession) return;
 
     try {
@@ -893,9 +888,9 @@ export const BuildTeamDashboard: React.FC = () => {
                             <span className="text-sm font-medium text-gray-700 flex items-center">
                               <Users className="inline-block h-4 w-4 mr-1" />
                               {session.current_attendees}
-                              {session.capacity && `/${session.capacity}`} attendees
+                              {(typeof session.capacity === 'number' && session.capacity > 0) && `/${session.capacity}`} attendees
                             </span>
-                            {session.capacity && session.current_attendees >= session.capacity && (
+                            {(typeof session.capacity === 'number' && session.capacity > 0) && (session.current_attendees >= session.capacity) && (
                               <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full">
                                 Full
                               </span>
@@ -961,12 +956,12 @@ export const BuildTeamDashboard: React.FC = () => {
                 <div className="pt-4">
                   <button
                     onClick={() => setSessionMode("session_entry")}
-                    disabled={selectedSession.capacity && selectedSession.current_attendees >= selectedSession.capacity}
+                    disabled={(typeof selectedSession.capacity === 'number' && selectedSession.capacity > 0) && (selectedSession.current_attendees >= selectedSession.capacity)}
                     className="w-full flex items-center justify-center p-4 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
                   >
                     <PlusCircle className="h-5 w-5 mr-2" />
                     Add Attendee to Session
-                    {selectedSession.capacity && selectedSession.current_attendees >= selectedSession.capacity && (
+                    {(typeof selectedSession.capacity === 'number' && selectedSession.capacity > 0) && (selectedSession.current_attendees >= selectedSession.capacity) && (
                       <span className="ml-2 text-xs">(Session Full)</span>
                     )}
                   </button>
@@ -1258,8 +1253,8 @@ export const BuildTeamDashboard: React.FC = () => {
                   <div className="pt-4 fade-in-blur">
                     {activeTab === "session" && sessionMode === "session_entry" ? (
                       <button
-                        onClick={() => handleSessionAttendanceAction('enter')}
-                        disabled={actionLoading || !hasSessionBooking || hasSessionAttendance || bookingCheckLoading}
+                        onClick={() => handleSessionAttendanceAction()}
+                        disabled={actionLoading || !hasSessionBooking || hasSessionAttendance || Boolean(bookingCheckLoading)}
                         className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
                       >
                         {actionLoading ? 'Adding to Session...' : 

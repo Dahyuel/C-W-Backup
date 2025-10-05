@@ -1,71 +1,35 @@
-// Example for LoginForm component
-import React, { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
-import { AuthTransition } from '../components/AuthTransition';
+// src/components/AuthTransition.tsx
+import React from 'react';
 
-export const LoginForm: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const { signIn, authActionLoading, authActionMessage, clearAuthAction } = useAuth();
+interface AuthTransitionProps {
+  isLoading: boolean;
+  message: string;
+}
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await signIn(email, password);
-  };
-
-  // Clear loading state when component unmounts
-  React.useEffect(() => {
-    return () => {
-      clearAuthAction();
-    };
-  }, [clearAuthAction]);
+export const AuthTransition: React.FC<AuthTransitionProps> = ({ 
+  isLoading, 
+  message 
+}) => {
+  if (!isLoading) return null;
 
   return (
-    <>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-            Email
-          </label>
-          <input
-            type="email"
-            id="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            disabled={authActionLoading}
-          />
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-8 max-w-md mx-4 shadow-xl">
+        <div className="flex items-center justify-center mb-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
         </div>
-        
-        <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-            Password
-          </label>
-          <input
-            type="password"
-            id="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            disabled={authActionLoading}
-          />
+        <div className="text-center">
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            Authentication in Progress
+          </h3>
+          <p className="text-gray-600">{message}</p>
+          <div className="mt-4 flex justify-center space-x-2">
+            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+          </div>
         </div>
-
-        <button
-          type="submit"
-          disabled={authActionLoading}
-          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {authActionLoading ? 'Signing In...' : 'Sign In'}
-        </button>
-      </form>
-
-      <AuthTransition 
-        isLoading={authActionLoading} 
-        message={authActionMessage} 
-      />
-    </>
+      </div>
+    </div>
   );
 };

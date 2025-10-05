@@ -6,8 +6,6 @@ import {
   Building,
   Calendar,
   Megaphone,
-  XCircle,
-  CheckCircle2,
   Sparkles,
   Plus,
   Clock,
@@ -19,17 +17,105 @@ import {
   Trash2,
   TrendingUp,
   BarChart3,
-  Search,
   CheckCircle,
   AlertCircle
 } from "lucide-react";
 import DashboardLayout from "../../components/shared/DashboardLayout";
-import { supabase, uploadFile, getDynamicBuildingStats, deleteCompany } from "../../lib/supabase";
+import { supabase, getDynamicBuildingStats, deleteCompany } from "../../lib/supabase";
+
+// Types
+interface StatsSummary {
+  total_users: number;
+  total_sessions: number;
+  total_attendees: number;
+  total_volunteers: number;
+}
+
+interface CompanyItem {
+  id: string;
+  name: string;
+  logo_url?: string;
+  description?: string;
+  website?: string;
+  booth_number?: string;
+  created_at?: string;
+}
+
+interface SessionItem {
+  id: string;
+  title: string;
+  description?: string;
+  speaker?: string;
+  start_time: string;
+  end_time?: string;
+  location?: string;
+  capacity?: number;
+  current_bookings?: number;
+  session_type?: string;
+  max_attendees?: number;
+}
+
+interface EventItem {
+  id: string;
+  title: string;
+  description?: string;
+  start_time: string;
+  end_time?: string;
+  location?: string;
+  item_type?: string;
+}
+
+interface UserProfileItem {
+  id: string;
+  first_name: string;
+  last_name: string;
+  personal_id: string;
+  role: string;
+  email: string;
+  volunteer_id?: string;
+  event_entry?: boolean;
+  building_entry?: boolean;
+  faculty?: string;
+  university?: string;
+  gender?: string;
+  created_at?: string;
+  degree_level?: 'student' | 'graduate' | string;
+  how_did_hear_about_event?: string;
+  class?: string;
+}
+
+type DayKey = `day${1|2|3|4|5}`;
+
+interface DayStats {
+  entries: number;
+  exits: number;
+  building_entries: number;
+  building_exits: number;
+  session_entries: number;
+  registrations: number;
+}
+
+interface StatsData {
+  totalRegistrations: number;
+  graduates: number;
+  students: number;
+  currentInEvent: number;
+  currentInBuilding: number;
+  universities: Array<{ name: string; count: number }>;
+  faculties: Array<{ name: string; count: number }>;
+  genderStats: { male: number; female: number };
+  roleStats: Record<string, number>;
+  marketingSources: Array<{ name: string; count: number }>;
+  degreeLevelStats: { student: number; graduate: number };
+  classYearStats: Record<string, number>;
+  currentGenderStats: { male: number; female: number };
+  eventStats: Record<DayKey, DayStats>;
+}
 
 export function AdminPanel() {
   const [deleteCompanyModal, setDeleteCompanyModal] = useState(false);
-  const [selectedCompanyDelete, setSelectedCompanyDelete] = useState(null);
-  const [stats, setStats] = useState({ total_users: 0, total_sessions: 0 });
+  const [selectedCompanyDelete, setSelectedCompanyDelete] = useState<CompanyItem | null>(null);
+  const [stats, setStats] = useState<StatsSummary>({ total_users: 0, total_sessions: 0, total_attendees: 0, total_volunteers: 0 });
   const [buildingStats, setBuildingStats] = useState({
     inside_building: 0,
     inside_event: 0,
@@ -37,17 +123,17 @@ export function AdminPanel() {
   });
   const [deleteSessionModal, setDeleteSessionModal] = useState(false);
   const [deleteEventModal, setDeleteEventModal] = useState(false);
-  const [selectedSessionDelete, setSelectedSessionDelete] = useState(null);
-  const [selectedEventDelete, setSelectedEventDelete] = useState(null);
+  const [selectedSessionDelete, setSelectedSessionDelete] = useState<SessionItem | null>(null);
+  const [selectedEventDelete, setSelectedEventDelete] = useState<EventItem | null>(null);
   const [editSessionModal, setEditSessionModal] = useState(false);
   const [editEventModal, setEditEventModal] = useState(false);
-  const [selectedSessionEdit, setSelectedSessionEdit] = useState(null);
-  const [selectedEventEdit, setSelectedEventEdit] = useState(null);
-  const [sessions, setSessions] = useState([]);
-  const [events, setEvents] = useState([]);
-  const [companies, setCompanies] = useState([]);
+  const [selectedSessionEdit, setSelectedSessionEdit] = useState<SessionItem | null>(null);
+  const [selectedEventEdit, setSelectedEventEdit] = useState<EventItem | null>(null);
+  const [sessions, setSessions] = useState<SessionItem[]>([]);
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const [companies, setCompanies] = useState<CompanyItem[]>([]);
   const [activeDay, setActiveDay] = useState(1);
-  const [mapImages, setMapImages] = useState([]);
+  const [mapImages, setMapImages] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [companyModal, setCompanyModal] = useState(false);
   const [sessionModal, setSessionModal] = useState(false);
@@ -56,20 +142,20 @@ export function AdminPanel() {
   const [announcementModal, setAnnouncementModal] = useState(false);
   const [sessionDetailModal, setSessionDetailModal] = useState(false);
   const [companyDetailModal, setCompanyDetailModal] = useState(false);
-  const [selectedSessionDetail, setSelectedSessionDetail] = useState(null);
-  const [selectedCompanyDetail, setSelectedCompanyDetail] = useState(null);
+  const [selectedSessionDetail, setSelectedSessionDetail] = useState<SessionItem | null>(null);
+  const [selectedCompanyDetail, setSelectedCompanyDetail] = useState<CompanyItem | null>(null);
   const [mapLoading, setMapLoading] = useState(true);
   const [announcementTitle, setAnnouncementTitle] = useState("");
   const [announcementDescription, setAnnouncementDescription] = useState("");
   const [announcementRole, setAnnouncementRole] = useState("");
-  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [userSearch, setUserSearch] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
+  const [searchResults, setSearchResults] = useState<UserProfileItem[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [editCompanyModal, setEditCompanyModal] = useState(false);
-  const [selectedCompanyEdit, setSelectedCompanyEdit] = useState(null);
+  const [selectedCompanyEdit, setSelectedCompanyEdit] = useState<CompanyItem | null>(null);
   const [eventDetailModal, setEventDetailModal] = useState(false);
-  const [selectedEventDetail, setSelectedEventDetail] = useState(null);
+  const [selectedEventDetail, setSelectedEventDetail] = useState<EventItem | null>(null);
   
   const announcementRoleOptions = [
     { value: "", label: "Select Target" },
@@ -92,7 +178,7 @@ export function AdminPanel() {
     { value: "custom", label: "Custom Selection" }
   ];
   
-  const [editCompany, setEditCompany] = useState({
+  const [editCompany, setEditCompany] = useState<{ id: string; name: string; logo: File | null; logoUrl: string; logoType: 'link' | 'upload'; description: string; website: string; boothNumber: string;}>({
     id: "",
     name: "",
     logo: null,
@@ -103,7 +189,7 @@ export function AdminPanel() {
     boothNumber: "",
   });
 
-  const [editSession, setEditSession] = useState({
+  const [editSession, setEditSession] = useState<{ id: string; title: string; date: string; speaker: string; capacity: string | number; type: 'session' | string; hour: string; location: string; description: string;}>({
     id: "",
     title: "",
     date: "",
@@ -115,7 +201,7 @@ export function AdminPanel() {
     description: "",
   });
 
-  const [editEvent, setEditEvent] = useState({
+  const [editEvent, setEditEvent] = useState<{ id: string; title: string; description: string; startDate: string; endDate: string; startTime: string; endTime: string; location: string; type: 'general' | string;}>({
     id: "",
     title: "",
     description: "",
@@ -127,7 +213,7 @@ export function AdminPanel() {
     type: "general",
   });
   
-  const [newCompany, setNewCompany] = useState({
+  const [newCompany, setNewCompany] = useState<{ name: string; logo: File | null; logoUrl: string; logoType: 'link' | 'upload'; description: string; website: string; boothNumber: string;}>({
     name: "",
     logo: null,
     logoUrl: "",
@@ -137,7 +223,7 @@ export function AdminPanel() {
     boothNumber: "",
   });
 
-  const [newSession, setNewSession] = useState({
+  const [newSession, setNewSession] = useState<{ title: string; date: string; speaker: string; capacity: string | number; type: 'session' | string; hour: string; location: string; description: string;}>({
     title: "",
     date: "",
     speaker: "",
@@ -148,7 +234,7 @@ export function AdminPanel() {
     description: "",
   });
 
-  const [newEvent, setNewEvent] = useState({
+  const [newEvent, setNewEvent] = useState<{ title: string; description: string; startDate: string; endDate: string; startTime: string; endTime: string; location: string; type: 'general' | string;}>({
     title: "",
     description: "",
     startDate: "",
@@ -159,7 +245,7 @@ export function AdminPanel() {
     type: "general",
   });
 
-  const [mapForm, setMapForm] = useState({
+  const [mapForm, setMapForm] = useState<{ day: number; image: File | null;}>({
     day: 1,
     image: null
   });
@@ -168,7 +254,13 @@ export function AdminPanel() {
   const [loadingData, setLoadingData] = useState(true);
   
   // Enhanced statistics state
-  const [enhancedStats, setEnhancedStats] = useState({
+  const [enhancedStats, setEnhancedStats] = useState<{
+    eventGenderRatio: { male: number; female: number };
+    eventFaculties: Array<{ name: string; count: number }>;
+    eventUniversities: Array<{ name: string; count: number }>;
+    eventDegreeLevel: { student: number; graduate: number };
+    eventStudentGraduateRatio: { student: number; graduate: number };
+  }>({
     eventGenderRatio: { male: 0, female: 0 },
     eventFaculties: [],
     eventUniversities: [],
@@ -255,13 +347,13 @@ export function AdminPanel() {
       if (error) throw error;
 
       if (eventUsers && eventUsers.length > 0) {
-        const genderStats = { male: 0, female: 0 };
-        const facultiesCount = {};
-        const universitiesCount = {};
-        const degreeLevelStats = { student: 0, graduate: 0 };
-        const studentGraduateStats = { student: 0, graduate: 0 };
+        const genderStats: { male: number; female: number } = { male: 0, female: 0 };
+        const facultiesCount: Record<string, number> = {};
+        const universitiesCount: Record<string, number> = {};
+        const degreeLevelStats: { student: number; graduate: number } = { student: 0, graduate: 0 };
+        const studentGraduateStats: { student: number; graduate: number } = { student: 0, graduate: 0 };
 
-        eventUsers.forEach(user => {
+        (eventUsers as UserProfileItem[]).forEach((user) => {
           if (user.gender === 'male') genderStats.male++;
           else if (user.gender === 'female') genderStats.female++;
 
@@ -282,12 +374,12 @@ export function AdminPanel() {
           }
         });
 
-        const topFaculties = Object.entries(facultiesCount)
+        const topFaculties = (Object.entries(facultiesCount) as Array<[string, number]>)
           .map(([name, count]) => ({ name, count }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 10);
 
-        const topUniversities = Object.entries(universitiesCount)
+        const topUniversities = (Object.entries(universitiesCount) as Array<[string, number]>)
           .map(([name, count]) => ({ name, count }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 10);
@@ -305,7 +397,7 @@ export function AdminPanel() {
     }
   };
 
-  const handleEditSession = (session) => {
+  const handleEditSession = (session: SessionItem) => {
     setSelectedSessionEdit(session);
     const startTime = new Date(session.start_time);
     setEditSession({
@@ -313,7 +405,7 @@ export function AdminPanel() {
       title: session.title || "",
       description: session.description || "",
       speaker: session.speaker || "",
-      capacity: session.max_attendees || "",
+      capacity: (session.current_bookings ?? "") as any,
       type: session.session_type || "session",
       date: startTime.toISOString().split('T')[0],
       hour: startTime.toTimeString().slice(0, 5),
@@ -322,7 +414,7 @@ export function AdminPanel() {
     setEditSessionModal(true);
   };
 
-  const handleEditEvent = (event) => {
+  const handleEditEvent = (event: EventItem) => {
     setSelectedEventEdit(event);
     const startTime = new Date(event.start_time);
     const endTime = event.end_time ? new Date(event.end_time) : null;
@@ -341,7 +433,7 @@ export function AdminPanel() {
     setEditEventModal(true);
   };
 
-  const handleEventClick = (event) => {
+  const handleEventClick = (event: EventItem) => {
     setSelectedEventDetail(event);
     setEventDetailModal(true);
   };
@@ -356,7 +448,13 @@ export function AdminPanel() {
     try {
       const startDateTime = new Date(`${editSession.date}T${editSession.hour}`);
       const endDateTime = new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000);
-      const capacityValue = parseInt(editSession.capacity) || null;
+      let capacityValue: number | null = null;
+      if (typeof editSession.capacity === 'number') {
+        capacityValue = editSession.capacity;
+      } else if (typeof editSession.capacity === 'string') {
+        const parsed = parseInt(editSession.capacity, 10);
+        capacityValue = isNaN(parsed) ? null : parsed;
+      }
 
       const { error } = await supabase.from("sessions").update({
         title: editSession.title,
@@ -442,7 +540,7 @@ export function AdminPanel() {
     }
   };
 
-  const handleEditCompany = (company) => {
+  const handleEditCompany = (company: CompanyItem) => {
     setSelectedCompanyEdit(company);
     setEditCompany({
       id: company.id,
@@ -458,7 +556,7 @@ export function AdminPanel() {
   };
 
   // Enhanced Stat Card Component with animations
-  const StatCard = ({ title, value, icon, color }) => {
+  const StatCard: React.FC<{ title: string; value: number | string | JSX.Element; icon: JSX.Element; color: 'blue' | 'green' | 'purple' | 'orange' | 'red'; }> = ({ title, value, icon, color }) => {
     const colorClasses = {
       blue: 'bg-blue-500',
       green: 'bg-green-500',
@@ -485,7 +583,7 @@ export function AdminPanel() {
   };
 
   // Gender Chart Component
-  const GenderChart = ({ data, title = "Gender Distribution" }) => {
+  const GenderChart: React.FC<{ data: { male: number; female: number }; title?: string }> = ({ data, title = "Gender Distribution" }) => {
     const total = data.male + data.female;
     const malePercentage = total > 0 ? (data.male / total) * 100 : 0;
     const femalePercentage = total > 0 ? (data.female / total) * 100 : 0;
@@ -512,7 +610,7 @@ export function AdminPanel() {
   };
 
   // Role Chart Component
-  const RoleChart = ({ data }) => {
+  const RoleChart: React.FC<{ data: Record<string, number> }> = ({ data }) => {
     const roles = Object.entries(data).sort((a, b) => b[1] - a[1]);
     const total = roles.reduce((sum, [_, count]) => sum + count, 0);
 
@@ -540,7 +638,7 @@ export function AdminPanel() {
   };
 
   // Bar Chart Component
-  const BarChart = ({ data, color, title }) => {
+  const BarChart: React.FC<{ data: Array<{ name: string; count: number }>; color: 'blue' | 'green' | 'purple' | 'orange'; title: string }> = ({ data, color, title }) => {
     const maxCount = Math.max(...data.map(item => item.count), 1);
     const colorClasses = {
       blue: 'bg-blue-500',
@@ -574,7 +672,7 @@ export function AdminPanel() {
   };
 
   // Marketing Chart Component
-  const MarketingChart = ({ data }) => {
+  const MarketingChart: React.FC<{ data: Array<{ name: string; count: number }> }> = ({ data }) => {
     const total = data.reduce((sum, item) => sum + item.count, 0);
 
     return (
@@ -605,7 +703,7 @@ export function AdminPanel() {
   };
 
   // Degree Chart Component
-  const DegreeChart = ({ data, title = "Degree Level" }) => {
+  const DegreeChart: React.FC<{ data: { student: number; graduate: number }; title?: string }> = ({ data, title = "Degree Level" }) => {
     const total = data.student + data.graduate;
     const studentPercentage = total > 0 ? (data.student / total) * 100 : 0;
     const graduatePercentage = total > 0 ? (data.graduate / total) * 100 : 0;
@@ -766,7 +864,7 @@ export function AdminPanel() {
 
   // Enhanced StatisticsTab Component with Inside Event Stats
   const StatisticsTab = () => {
-    const [statsData, setStatsData] = useState({
+    const [statsData, setStatsData] = useState<StatsData>({
       totalRegistrations: 0,
       graduates: 0,
       students: 0,
@@ -823,7 +921,7 @@ export function AdminPanel() {
     };
 
     const fetchRegistrationStats = async () => {
-      let dateFilter = {};
+      let dateFilter: { created_at?: string } = {};
       if (timeRange === 'today') {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -846,8 +944,8 @@ export function AdminPanel() {
 
       if (error) throw error;
 
-      const stats = processUserStatistics(users || []);
-      setStatsData(stats);
+      const stats = processUserStatistics((users || []) as UserProfileItem[]);
+      setStatsData(prev => ({ ...prev, ...stats } as StatsData));
     };
 
     const fetchEventStats = async () => {
@@ -882,8 +980,8 @@ export function AdminPanel() {
       }
     };
 
-    const processUserStatistics = (users) => {
-      const stats = {
+    const processUserStatistics = (users: UserProfileItem[]) => {
+      const stats: Omit<StatsData, 'eventStats'> = {
         totalRegistrations: users.length,
         graduates: 0,
         students: 0,
@@ -899,11 +997,11 @@ export function AdminPanel() {
         currentGenderStats: { male: 0, female: 0 }
       };
 
-      const universityCount = {};
-      const facultyCount = {};
-      const roleCount = {};
-      const marketingCount = {};
-      const classYearCount = {};
+      const universityCount: Record<string, number> = {};
+      const facultyCount: Record<string, number> = {};
+      const roleCount: Record<string, number> = {};
+      const marketingCount: Record<string, number> = {};
+      const classYearCount: Record<string, number> = {};
 
       users.forEach(user => {
         if (user.degree_level === 'graduate') {
@@ -944,18 +1042,18 @@ export function AdminPanel() {
         }
       });
 
-      stats.universities = Object.entries(universityCount)
+      stats.universities = (Object.entries(universityCount) as Array<[string, number]>)
         .map(([name, count]) => ({ name, count }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 10);
 
-      stats.faculties = Object.entries(facultyCount)
+      stats.faculties = (Object.entries(facultyCount) as Array<[string, number]>)
         .map(([name, count]) => ({ name, count }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 10);
 
       stats.roleStats = roleCount;
-      stats.marketingSources = Object.entries(marketingCount)
+      stats.marketingSources = (Object.entries(marketingCount) as Array<[string, number]>)
         .map(([name, count]) => ({ name, count }))
         .sort((a, b) => b.count - a.count);
 
@@ -964,8 +1062,8 @@ export function AdminPanel() {
       return stats;
     };
 
-    const processEventStatistics = (attendances) => {
-      const dayStats = {
+    const processEventStatistics = (attendances: Array<{ scan_type: string }>): DayStats => {
+      return {
         entries: attendances.filter(a => a.scan_type === 'entry').length,
         exits: attendances.filter(a => a.scan_type === 'exit').length,
         building_entries: attendances.filter(a => a.scan_type === 'building_entry').length,
@@ -973,8 +1071,6 @@ export function AdminPanel() {
         session_entries: attendances.filter(a => a.scan_type === 'session_entry').length,
         registrations: 0
       };
-
-      return dayStats;
     };
 
     if (loading) {
@@ -1081,7 +1177,7 @@ export function AdminPanel() {
   };
 
   // Registration Stats View Component
-  const RegistrationStatsView = ({ statsData }) => (
+  const RegistrationStatsView: React.FC<{ statsData: StatsData }> = ({ statsData }) => (
     <div className="space-y-8 fade-in-blur">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 stagger-children">
         <StatCard
@@ -1149,8 +1245,13 @@ export function AdminPanel() {
   );
 
   // Event Stats View Component
-  const EventStatsView = ({ statsData, selectedDay }) => {
-    const [eventAnalytics, setEventAnalytics] = useState({
+  const EventStatsView: React.FC<{ statsData: StatsData; selectedDay: number }> = ({ statsData, selectedDay }) => {
+    const [eventAnalytics, setEventAnalytics] = useState<{
+      faculties: Array<{ name: string; count: number }>;
+      universities: Array<{ name: string; count: number }>;
+      genderStats: { male: number; female: number };
+      degreeStats: { student: number; graduate: number };
+    }>({
       faculties: [],
       universities: [],
       genderStats: { male: 0, female: 0 },
@@ -1172,10 +1273,10 @@ export function AdminPanel() {
         if (error) throw error;
 
         if (eventUsers && eventUsers.length > 0) {
-          const facultiesCount = {};
-          const universitiesCount = {};
-          const genderStats = { male: 0, female: 0 };
-          const degreeStats = { student: 0, graduate: 0 };
+          const facultiesCount: Record<string, number> = {};
+          const universitiesCount: Record<string, number> = {};
+          const genderStats: { male: number; female: number } = { male: 0, female: 0 };
+          const degreeStats: { student: number; graduate: number } = { student: 0, graduate: 0 };
 
           eventUsers.forEach(user => {
             if (user.faculty) {
@@ -1191,12 +1292,12 @@ export function AdminPanel() {
             else if (user.degree_level === 'graduate') degreeStats.graduate++;
           });
 
-          const topFaculties = Object.entries(facultiesCount)
+          const topFaculties = (Object.entries(facultiesCount) as Array<[string, number]>)
             .map(([name, count]) => ({ name, count }))
             .sort((a, b) => b.count - a.count)
             .slice(0, 10);
 
-          const topUniversities = Object.entries(universitiesCount)
+          const topUniversities = (Object.entries(universitiesCount) as Array<[string, number]>)
             .map(([name, count]) => ({ name, count }))
             .sort((a, b) => b.count - a.count)
             .slice(0, 10);
@@ -1213,7 +1314,8 @@ export function AdminPanel() {
       }
     };
 
-    const dayStats = statsData?.eventStats?.[`day${selectedDay}`] || {
+    const dayKey = (`day${selectedDay}` as DayKey);
+    const dayStats = statsData?.eventStats?.[dayKey] || {
       entries: 0,
       exits: 0,
       building_entries: 0,
@@ -1321,7 +1423,7 @@ export function AdminPanel() {
   };
   
   // Current State Widget
-  const CurrentStateWidget = ({ statsData }) => (
+  const CurrentStateWidget: React.FC<{ statsData: StatsData }> = ({ statsData }) => (
     <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden fade-in-blur card-hover dashboard-card">
       <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
         <h2 className="text-3xl font-bold text-black-800 flex items-center gap-2 mx-auto">
@@ -1382,14 +1484,14 @@ export function AdminPanel() {
   );
 
   // Chart Components
-  const DailyActivityChart = ({ selectedDay }) => {
-    const [dailyData, setDailyData] = useState([]);
+  const DailyActivityChart: React.FC<{ selectedDay: number }> = ({ selectedDay }) => {
+    const [dailyData, setDailyData] = useState<Array<{ hour: string; entries: number; exits: number }>>([]);
 
     useEffect(() => {
       fetchDailyActivity(selectedDay);
     }, [selectedDay]);
 
-    const fetchDailyActivity = async (day) => {
+    const fetchDailyActivity = async (_day: number) => {
       try {
         const today = new Date();
         const startOfDay = new Date(today);
@@ -1407,8 +1509,8 @@ export function AdminPanel() {
 
         if (error) throw error;
 
-        const hourlyData = {};
-        attendances.forEach(attendance => {
+        const hourlyData: Record<string, { entries: number; exits: number }> = {};
+        (attendances || []).forEach((attendance: { scanned_at: string; scan_type: string }) => {
           const hour = new Date(attendance.scanned_at).getHours();
           const hourKey = `${hour}:00`;
           
@@ -1423,12 +1525,8 @@ export function AdminPanel() {
           }
         });
 
-        const processedData = Object.entries(hourlyData)
-          .map(([hour, data]) => ({
-            hour,
-            entries: data.entries,
-            exits: data.exits
-          }))
+        const processedData = (Object.entries(hourlyData) as Array<[string, { entries: number; exits: number }]>)
+          .map(([hour, data]) => ({ hour, entries: data.entries, exits: data.exits }))
           .sort((a, b) => a.hour.localeCompare(b.hour));
 
         setDailyData(processedData);
@@ -1470,7 +1568,7 @@ export function AdminPanel() {
     );
   };
 
-  const AttendanceFlowChart = ({ dayStats }) => {
+  const AttendanceFlowChart: React.FC<{ dayStats: DayStats }> = ({ dayStats }) => {
     const flowData = [
       { label: 'Total Entries', value: dayStats.entries, color: 'bg-green-500' },
       { label: 'Total Exits', value: dayStats.exits, color: 'bg-red-500' },
@@ -1500,14 +1598,14 @@ export function AdminPanel() {
     );
   };
 
-  const SessionPopularityChart = ({ selectedDay }) => {
-    const [sessionData, setSessionData] = useState([]);
+  const SessionPopularityChart: React.FC<{ selectedDay: number }> = ({ selectedDay }) => {
+    const [sessionData, setSessionData] = useState<Array<{ name: string; attendees: number; capacity: number; popularity: number }>>([]);
 
     useEffect(() => {
       fetchSessionPopularity(selectedDay);
     }, [selectedDay]);
 
-    const fetchSessionPopularity = async (day) => {
+    const fetchSessionPopularity = async (day: number) => {
       try {
         const { data: sessions, error } = await supabase
           .from('sessions')
@@ -1597,7 +1695,7 @@ export function AdminPanel() {
     }
   };
 
-  const fetchEventsByDay = async (day) => {
+  const fetchEventsByDay = async (day: number) => {
     try {
       const { data, error } = await supabase
         .from("schedule_items")
@@ -1616,7 +1714,7 @@ export function AdminPanel() {
     }
   };
 
-  const getDayFromDate = (dateString) => {
+  const getDayFromDate = (dateString: string) => {
     const date = new Date(dateString);
     const today = new Date();
     const diffTime = date.getTime() - today.getTime();
@@ -1725,7 +1823,13 @@ export function AdminPanel() {
     try {
       const startDateTime = new Date(`${newSession.date}T${newSession.hour}`);
       const endDateTime = new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000);
-      const capacityValue = parseInt(newSession.capacity) || null;
+      let capacityValue: number | null = null;
+      if (typeof newSession.capacity === 'number') {
+        capacityValue = newSession.capacity;
+      } else if (typeof newSession.capacity === 'string') {
+        const parsed = parseInt(newSession.capacity, 10);
+        capacityValue = isNaN(parsed) ? null : parsed;
+      }
 
       const { error } = await supabase.from("sessions").insert({
         title: newSession.title,
@@ -1763,7 +1867,7 @@ export function AdminPanel() {
     }
   };
 
-  const openDeleteCompanyModal = (company) => {
+  const openDeleteCompanyModal = (company: CompanyItem) => {
     setSelectedCompanyDelete(company);
     setDeleteCompanyModal(true);
   };
@@ -1837,18 +1941,18 @@ export function AdminPanel() {
     }
   };
 
-  const handleDeleteSession = async (session) => {
+  const handleDeleteSession = async (session: SessionItem) => {
     setSelectedSessionDelete(session);
     setDeleteSessionModal(true);
   };
 
-  const handleDeleteEvent = async (event) => {
+  const handleDeleteEvent = async (event: EventItem) => {
     setSelectedEventDelete(event);
     setDeleteEventModal(true);
   };
 
   // Get role options for Admin
-  const getAdminRoleOptions = () => {
+  const getAdminRoleOptions = (): Array<{ value: string; label: string }> => {
     return [
       { value: "", label: "Select Target" },
       { value: "all", label: "All Users" },
@@ -1872,7 +1976,7 @@ export function AdminPanel() {
   };
 
   // Get team leader sub-options
-  const getTeamLeaderOfOptions = () => {
+  const getTeamLeaderOfOptions = (): Array<{ value: string; label: string }> => {
     return [
       { value: "all", label: "All Team Leaders" },
       { value: "registration", label: "Registration Team Leaders" },
@@ -1890,7 +1994,7 @@ export function AdminPanel() {
   };
 
   // User search function for Admin
-  const searchUsersByPersonalId = async (searchTerm) => {
+  const searchUsersByPersonalId = async (searchTerm: string) => {
     if (!searchTerm || searchTerm.trim().length < 2) {
       setSearchResults([]);
       return;
@@ -1909,8 +2013,8 @@ export function AdminPanel() {
         console.error('Search error:', error);
         setSearchResults([]);
       } else {
-        const filteredResults = (data || []).filter(user => 
-          !selectedUsers.some(selected => selected.id === user.id)
+        const filteredResults = (data || []).filter((user: UserProfileItem) => 
+          !selectedUsers.some((selectedId: string) => selectedId === user.id)
         );
         setSearchResults(filteredResults);
       }
@@ -1922,14 +2026,14 @@ export function AdminPanel() {
     }
   };
 
-  const addUserToSelection = (user) => {
-    setSelectedUsers(prev => [...prev, user]);
+  const addUserToSelection = (user: UserProfileItem) => {
+    setSelectedUsers(prev => [...prev, user.id]);
     setSearchResults(prev => prev.filter(result => result.id !== user.id));
     setUserSearch("");
   };
 
-  const removeUserFromSelection = (userId) => {
-    setSelectedUsers(prev => prev.filter(user => user.id !== userId));
+  const removeUserFromSelection = (userId: string) => {
+    setSelectedUsers(prev => prev.filter(id => id !== userId));
   };
 
   const clearUserSelection = () => {
@@ -1965,7 +2069,14 @@ export function AdminPanel() {
         return;
       }
 
-      let notificationData = {
+      const notificationData: {
+        title: string;
+        message: string;
+        created_by: string;
+        target_type?: 'all' | 'volunteers' | 'specific_users' | 'role';
+        target_role?: string | null;
+        target_user_ids?: string[] | null;
+      } = {
         title: announcementTitle,
         message: announcementDescription,
         created_by: session.user.id
@@ -2011,7 +2122,7 @@ export function AdminPanel() {
       else if (announcementRole === "custom") {
         notificationData.target_type = 'specific_users';
         notificationData.target_role = null;
-        notificationData.target_user_ids = selectedUsers.map(user => user.id);
+        notificationData.target_user_ids = selectedUsers;
       }
       else {
         notificationData.target_type = 'role';
@@ -2043,12 +2154,12 @@ export function AdminPanel() {
     }
   };
 
-  const handleSessionClick = (session) => {
+  const handleSessionClick = (session: SessionItem) => {
     setSelectedSessionDetail(session);
     setSessionDetailModal(true);
   };
 
-  const handleCompanyClick = (company) => {
+  const handleCompanyClick = (company: CompanyItem) => {
     setSelectedCompanyDetail(company);
     setCompanyDetailModal(true);
   };
@@ -2460,7 +2571,7 @@ export function AdminPanel() {
                 onLoad={handleMapLoad}
                 onError={(e) => {
                   handleMapError();
-                  e.target.src = "/src/Assets/placeholder-map.png";
+                  (e.currentTarget as HTMLImageElement).src = "/src/Assets/placeholder-map.png";
                 }}
               />
             </div>
@@ -2495,7 +2606,7 @@ export function AdminPanel() {
                       alt={`${company.name} logo`} 
                       className="h-16 w-auto mx-auto mb-4 object-contain"
                       onError={(e) => {
-                        e.target.src = "https://via.placeholder.com/64x64/orange/white?text=Logo";
+                        (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/64x64/orange/white?text=Logo";
                       }}
                     />
                     <h3 className="text-lg font-bold text-gray-900 mb-2">{company.name}</h3>
@@ -3038,7 +3149,7 @@ export function AdminPanel() {
                           </button>
                         </div>
                         <div className="max-h-32 overflow-y-auto border rounded-lg bg-gray-50">
-                          {selectedUsers.map((user) => (
+                          {(searchResults as UserProfileItem[]).filter(u => selectedUsers.includes(u.id)).map((user) => (
                             <div
                               key={user.id}
                               className="p-2 flex justify-between items-center border-b last:border-b-0"
@@ -3193,7 +3304,7 @@ export function AdminPanel() {
                       alt={`${selectedCompanyDetail.name} logo`} 
                       className="h-24 w-auto mx-auto mb-4 object-contain"
                       onError={(e) => {
-                        e.target.src = "https://via.placeholder.com/96x96/orange/white?text=Logo";
+                        (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/96x96/orange/white?text=Logo";
                       }}
                     />
                     <h3 className="text-2xl font-bold text-gray-900">{selectedCompanyDetail.name}</h3>
@@ -3505,7 +3616,7 @@ export function AdminPanel() {
                         alt="Current logo" 
                         className="h-16 w-auto object-contain"
                         onError={(e) => {
-                          e.target.src = "https://via.placeholder.com/64x64/orange/white?text=Logo";
+                          (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/64x64/orange/white?text=Logo";
                         }}
                       />
                     </div>
@@ -3715,7 +3826,7 @@ export function AdminPanel() {
         )}
       </div>
 
-      <style jsx>{`
+      <style>{`
         .fade-in-blur {
           animation: fadeInBlur 0.5s ease-out forwards;
         }

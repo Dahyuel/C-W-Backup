@@ -1,3 +1,4 @@
+// components/LoginForm.tsx - Fixed with correct redirect logic
 import React, { useState, useEffect } from 'react';
 import { Eye, EyeOff, Mail, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -7,7 +8,15 @@ import { validateEmail, validatePassword } from '../utils/validation';
 
 export const LoginForm: React.FC = () => {
   const navigate = useNavigate();
-  const { signIn, isAuthenticated, getRoleBasedRedirect, loading: authLoading, profile } = useAuth();
+  const { 
+    signIn, 
+    isAuthenticated, 
+    getRoleBasedRedirect, 
+    loading: authLoading, 
+    profile, 
+    user,
+    isProfileComplete 
+  } = useAuth();
   
   const [formData, setFormData] = useState<LoginData>({
     email: '',
@@ -18,12 +27,36 @@ export const LoginForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [loginSuccess, setLoginSuccess] = useState(false);
 
-  // Redirect when authentication is complete and profile is loaded
+  // Handle authentication and profile-based redirection
   useEffect(() => {
-    if (isAuthenticated && profile && !authLoading) {
-      navigate(getRoleBasedRedirect(), { replace: true });
+    if (isAuthenticated && !authLoading && profile) {
+      console.log('🔧 Login successful, checking profile status:', {
+        role: profile.role,
+        profileComplete: profile.profile_complete,
+        isProfileComplete: isProfileComplete(profile)
+      });
+      
+      // Use the profile_complete boolean directly
+      if (profile.profile_complete) {
+        // Profile is complete - go to dashboard
+        const redirectPath = getRoleBasedRedirect();
+        console.log('✅ Profile complete, redirecting to dashboard:', redirectPath);
+        navigate(redirectPath, { replace: true });
+      } else {
+        // Profile is incomplete - go to appropriate registration form
+        let redirectPath = '/attendee-register'; // default
+        
+        if (profile.role === 'volunteer') {
+          redirectPath = '/V0lunt33ringR3g';
+        } else if (profile.role === 'attendee') {
+          redirectPath = '/attendee-register';
+        }
+        
+        console.log('📝 Profile incomplete, redirecting to registration:', redirectPath);
+        navigate(redirectPath, { replace: true });
+      }
     }
-  }, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect]);
+  }, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect, isProfileComplete]);
 
   const updateField = (field: keyof LoginData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -55,18 +88,21 @@ export const LoginForm: React.FC = () => {
     setErrors([]);
 
     try {
-      const { error } = await signIn(formData.email, formData.password);
+      console.log('🚀 Starting login process...');
+      const result = await signIn(formData.email, formData.password);
 
-      if (error) {
-        setErrors([{ field: 'general', message: 'Invalid email or password' }]);
+      if (!result.success) {
+        console.error('❌ Login failed:', result.error);
+        setErrors([{ field: 'general', message: result.error?.message || 'Invalid email or password' }]);
         return;
       }
 
-      // Set login success flag - redirection will be handled by useEffect
+      console.log('✅ Login successful, setting success flag');
       setLoginSuccess(true);
       
-    } catch (error) {
-      setErrors([{ field: 'general', message: 'Login failed. Please try again.' }]);
+    } catch (error: any) {
+      console.error('💥 Login exception:', error);
+      setErrors([{ field: 'general', message: error.message || 'Login failed. Please try again.' }]);
     } finally {
       setLoading(false);
     }
@@ -82,7 +118,7 @@ export const LoginForm: React.FC = () => {
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center">
         <div className="text-center fade-in-scale">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+          <p className="text-gray-600">Checking authentication...</p>
         </div>
       </div>
     );
@@ -94,7 +130,7 @@ export const LoginForm: React.FC = () => {
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center">
         <div className="text-center fade-in-scale">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Login successful! Redirecting...</p>
+          <p className="text-gray-600">Login successful! Checking your profile...</p>
         </div>
       </div>
     );
@@ -106,7 +142,7 @@ export const LoginForm: React.FC = () => {
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
         style={{
-backgroundImage: 'url("/images/careercenter.png")',
+          backgroundImage: 'url("/images/careercenter.png")',
         }}
       >
         {/* Overlay for better readability */}
@@ -225,20 +261,10 @@ backgroundImage: 'url("/images/careercenter.png")',
                   Don't have an account?{' '}
                   <button
                     type="button"
-                    onClick={() => navigate('/register')}
+                    onClick={() => navigate('/auth-register')}
                     className="text-orange-600 hover:text-orange-700 font-medium hover:underline transition-colors"
                   >
                     Create Attendee Account
-                  </button>
-                </p>
-                <p className="text-gray-600">
-                  Want to volunteer?{' '}
-                  <button
-                    type="button"
-                    onClick={() => navigate('/V0lunt33ringR3g')}
-                    className="text-orange-600 hover:text-orange-700 font-medium hover:underline transition-colors"
-                  >
-                    Register as Volunteer
                   </button>
                 </p>
               </div>

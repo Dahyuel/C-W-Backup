@@ -66,8 +66,7 @@ export const SuperAdminPanel: React.FC = () => {
     try {
       await Promise.all([
         fetchSystemMetrics(),
-        fetchAdminUsers(),
-        fetchSecurityLogs()
+        fetchAdminUsers()
       ]);
     } catch (error) {
       console.error('Error fetching super admin data:', error);
@@ -114,36 +113,6 @@ export const SuperAdminPanel: React.FC = () => {
     }
   };
 
-  const fetchSecurityLogs = async () => {
-    try {
-      const { data } = await supabase
-        .from('security_logs')
-        .select(`
-          id,
-          event_type,
-          ip_address,
-          timestamp,
-          details,
-          risk_level,
-          users_profiles!security_logs_user_id_fkey (
-            first_name,
-            last_name
-          )
-        `)
-        .order('timestamp', { ascending: false })
-        .limit(50);
-
-      if (data) {
-        const formattedLogs = data.map(log => ({
-          ...log,
-          user_name: `${log.users_profiles?.first_name} ${log.users_profiles?.last_name}`
-        }));
-        setSecurityLogs(formattedLogs);
-      }
-    } catch (error) {
-      console.error('Error fetching security logs:', error);
-    }
-  };
 
   const createAdminUser = async () => {
     const email = prompt('Enter admin email:');

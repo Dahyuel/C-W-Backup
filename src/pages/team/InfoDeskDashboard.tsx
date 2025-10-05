@@ -12,7 +12,6 @@ import {
   UserPlus,
   UserX,
   AlertCircle,
-  CheckCircle,
   XCircle,
   X,
 } from "lucide-react";
@@ -822,7 +821,7 @@ export const InfoDeskDashboard: React.FC = () => {
                     disabled={
                       actionLoading || 
                       !selectedAttendee.event_entry || 
-                      (selectedSession.max_attendees && selectedSession.current_bookings >= selectedSession.max_attendees)
+                      ((typeof selectedSession.max_attendees === 'number' && selectedSession.max_attendees > 0) && (selectedSession.current_bookings >= selectedSession.max_attendees))
                     }
                     className="flex-1 flex items-center justify-center p-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                   >

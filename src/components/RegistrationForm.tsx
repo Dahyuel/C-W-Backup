@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { User, GraduationCap, Users, Lock, ChevronRight, CheckCircle, AlertCircle } from 'lucide-react';
+// components/RegistrationForm.tsx - FIXED: Only submits on "Complete Profile", CV optional, ID required, name fields disabled
+import React, { useState, useEffect } from 'react';
+import { User, GraduationCap, ChevronRight, CheckCircle, AlertCircle, FileText, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { 
   RegistrationData, 
@@ -14,17 +15,62 @@ import {
 } from '../utils/constants';
 import { 
   validateName,
-  validateEmail,
   validatePhone,
   validatePersonalId,
-  validatePassword,
-  validateConfirmPassword,
   validateVolunteerId
 } from '../utils/validation';
-import { uploadFile, updateUserFiles, signUpUser } from '../lib/supabase';
+import { uploadFile, cleanupUploadedFiles, supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { AuthTransition } from '../components/AuthTransition';
 
-// FileUpload Component with animations
+// Error Popup Component
+const ErrorPopup: React.FC<{
+  message: string;
+  onClose: () => void;
+  type?: 'error' | 'warning';
+}> = ({ message, onClose, type = 'error' }) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className="fixed top-4 right-4 z-50 animate-fade-in">
+      <div className={`rounded-lg shadow-lg border p-4 max-w-sm ${
+        type === 'error' 
+          ? 'bg-red-50 border-red-200' 
+          : 'bg-yellow-50 border-yellow-200'
+      }`}>
+        <div className="flex items-start space-x-3">
+          <div className={`flex-shrink-0 ${
+            type === 'error' ? 'text-red-600' : 'text-yellow-600'
+          }`}>
+            <AlertCircle className="w-5 h-5" />
+          </div>
+          <div className="flex-1">
+            <p className={`text-sm font-medium ${
+              type === 'error' ? 'text-red-800' : 'text-yellow-800'
+            }`}>
+              {message}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className={`flex-shrink-0 hover:opacity-70 transition-opacity ${
+              type === 'error' ? 'text-red-600' : 'text-yellow-600'
+            }`}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const FileUpload: React.FC<{
   accept: string;
   maxSize: number;
@@ -44,7 +90,7 @@ const FileUpload: React.FC<{
       onFileSelect(file);
     }
   };
-
+  
   return (
     <div className="space-y-2 fade-in-blur">
       <div className={`border-2 border-dashed rounded-lg p-6 text-center transition-all duration-300 ${
@@ -78,7 +124,7 @@ const FileUpload: React.FC<{
               htmlFor={`file-${label.replace(/\s+/g, '-').toLowerCase()}`}
               className="cursor-pointer text-sm font-medium text-orange-600 hover:text-orange-700 transition-colors duration-200 smooth-hover"
             >
-              {label} {required && '*'}
+              {label} {required ? '*' : '(Optional)'}
             </label>
           </div>
         )}
@@ -89,7 +135,7 @@ const FileUpload: React.FC<{
 
 export const RegistrationForm: React.FC = () => {
   const navigate = useNavigate();
-  const { signIn, isAuthenticated, profile, loading: authLoading, getRoleBasedRedirect } = useAuth();
+  const { user, profile, isAuthenticated, loading: authLoading, getRoleBasedRedirect, refreshProfile } = useAuth();
   
   const [currentSection, setCurrentSection] = useState(1);
   const [formData, setFormData] = useState<RegistrationData>({
@@ -116,96 +162,197 @@ export const RegistrationForm: React.FC = () => {
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showAuthTransition, setShowAuthTransition] = useState(false);
+  const [errorPopup, setErrorPopup] = useState<{ message: string; type?: 'error' | 'warning' } | null>(null);
 
   const sections = [
     { id: 1, title: 'Personal Information', icon: User },
     { id: 2, title: 'Academic Information', icon: GraduationCap },
-    { id: 3, title: 'Event & Volunteer Info', icon: Users },
-    { id: 4, title: 'Account Security', icon: Lock }
+    { id: 3, title: 'Event & Documents', icon: FileText }
   ];
 
-  // Redirect when authentication is complete after auto-login
+  const universities = [
+    'Ain Shams University',
+    'Helwan University',
+    'Canadian Ahram University',
+    'Banha University',
+    'Cairo University',
+    'Other'
+  ];
+
+  const showErrorPopup = (message: string, type: 'error' | 'warning' = 'error') => {
+    setErrorPopup({ message, type });
+  };
+
+  const closeErrorPopup = () => {
+    setErrorPopup(null);
+  };
+
   useEffect(() => {
-    if (isAuthenticated && profile && !authLoading) {
-      console.log('Auth context ready, redirecting to dashboard...');
-      navigate(getRoleBasedRedirect(), { replace: true });
+    const checkProfileAndRedirect = async () => {
+      if (!authLoading) {
+        if (!isAuthenticated) {
+          console.log('Not authenticated, redirecting to login');
+          navigate('/login', { replace: true });
+          return;
+        }
+        
+        if (user && !profile) {
+          console.log('User authenticated but profile not loaded, attempting to fetch...');
+          await refreshProfile();
+          
+          if (profile) {
+            console.log('Profile found after refresh:', { 
+              role: profile.role, 
+              profile_complete: profile.profile_complete 
+            });
+          } else {
+            console.log('Profile still not found - user needs to complete registration');
+            return;
+          }
+        }
+        
+        if (profile && profile.profile_complete) {
+          console.log('Profile already complete (profile_complete=true), redirecting to dashboard');
+          navigate(getRoleBasedRedirect(), { replace: true });
+        } else if (profile) {
+          console.log('Profile exists but profile_complete=false, staying on registration form');
+          // Pre-fill name and email from auth (read-only)
+          if (profile.first_name && !formData.firstName) {
+            setFormData(prev => ({ ...prev, firstName: profile.first_name }));
+          }
+          if (profile.last_name && !formData.lastName) {
+            setFormData(prev => ({ ...prev, lastName: profile.last_name }));
+          }
+          if (profile.email && !formData.email) {
+            setFormData(prev => ({ ...prev, email: profile.email }));
+          }
+        }
+      }
+    };
+
+    checkProfileAndRedirect();
+  }, [
+    isAuthenticated, 
+    profile, 
+    authLoading, 
+    navigate, 
+    getRoleBasedRedirect, 
+    user,
+    refreshProfile,
+    formData.firstName,
+    formData.lastName,
+    formData.email
+  ]);
+
+  useEffect(() => {
+    if (user && profile) {
+      console.log('Profile loaded, updating form data:', {
+        firstName: profile.first_name,
+        lastName: profile.last_name,
+        email: profile.email
+      });
+      
+      setFormData(prev => ({
+        ...prev,
+        firstName: profile.first_name || prev.firstName,
+        lastName: profile.last_name || prev.lastName,
+        email: profile.email || prev.email,
+        ...(profile.personal_id && { personalId: profile.personal_id }),
+        ...(profile.phone && { phone: profile.phone }),
+        ...(profile.university && { university: profile.university }),
+        ...(profile.faculty && { faculty: profile.faculty }),
+        ...(profile.gender && { gender: profile.gender }),
+        ...(profile.nationality && { nationality: profile.nationality })
+      }));
     }
-  }, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect]);
+  }, [user, profile]);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (authLoading) {
+        console.warn('Auth loading timeout - forcing state');
+        if (isAuthenticated && user) {
+          console.log('Timeout: User is authenticated, allowing registration form');
+        }
+      }
+    }, 10000);
+
+    return () => clearTimeout(timeout);
+  }, [authLoading, isAuthenticated, user]);
 
   const updateField = (field: keyof RegistrationData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setErrors(prev => prev.filter(error => error.field !== field));
   };
 
-// In your RegistrationForm component, update the validateSection function:
+  const validateSection = async (section: number): Promise<ValidationError[]> => {
+    const validationErrors: ValidationError[] = [];
 
-const validateSection = async (section: number): Promise<ValidationError[]> => {
-  const validationErrors: ValidationError[] = [];
+    if (section === 1) {
+      // First name and last name come from auth - skip validation
+      if (!formData.firstName) validationErrors.push({ field: 'firstName', message: 'First name is required' });
+      if (!formData.lastName) validationErrors.push({ field: 'lastName', message: 'Last name is required' });
 
-  if (section === 1) {
-    const firstNameError = validateName(formData.firstName, 'First name');
-    if (firstNameError) validationErrors.push({ field: 'firstName', message: firstNameError });
+      if (!formData.gender) validationErrors.push({ field: 'gender', message: 'Gender is required' });
+      if (!formData.nationality) validationErrors.push({ field: 'nationality', message: 'Nationality is required' });
 
-    const lastNameError = validateName(formData.lastName, 'Last name');
-    if (lastNameError) validationErrors.push({ field: 'lastName', message: lastNameError });
+      const phoneError = validatePhone(formData.phone);
+      if (phoneError) validationErrors.push({ field: 'phone', message: phoneError });
 
-    if (!formData.gender) validationErrors.push({ field: 'gender', message: 'Gender is required' });
-    if (!formData.nationality) validationErrors.push({ field: 'nationality', message: 'Nationality is required' });
-
-    const emailError = validateEmail(formData.email);
-    if (emailError) validationErrors.push({ field: 'email', message: emailError });
-
-    const phoneError = validatePhone(formData.phone);
-    if (phoneError) validationErrors.push({ field: 'phone', message: phoneError });
-
-    const personalIdError = validatePersonalId(formData.personalId);
-    if (personalIdError) validationErrors.push({ field: 'personalId', message: personalIdError });
-  }
-
-  if (section === 2) {
-    if (!formData.university) validationErrors.push({ field: 'university', message: 'University is required' });
-    if (!formData.faculty) validationErrors.push({ field: 'faculty', message: 'Faculty is required' });
-    if (!formData.degreeLevel) validationErrors.push({ field: 'degreeLevel', message: 'Degree level is required' });
-    if (!formData.program) validationErrors.push({ field: 'program', message: 'Program/Major is required' });
-    if (formData.degreeLevel === 'student' && !formData.classYear) {
-      validationErrors.push({ field: 'classYear', message: 'Class year is required for students' });
+      const personalIdError = validatePersonalId(formData.personalId);
+      if (personalIdError) validationErrors.push({ field: 'personalId', message: personalIdError });
     }
-  }
 
-  if (section === 3) {
-    if (!formData.howDidYouHear) validationErrors.push({ field: 'howDidYouHear', message: 'This field is required' });
-    
-    // ✅ ADD VOLUNTEER ID VALIDATION HERE
-    if (formData.volunteerId && formData.volunteerId.trim()) {
-      const volunteerIdError = validateVolunteerId(formData.volunteerId);
-      if (volunteerIdError) {
-        validationErrors.push({ field: 'volunteerId', message: volunteerIdError });
+    if (section === 2) {
+      if (!formData.university) validationErrors.push({ field: 'university', message: 'University is required' });
+      if (formData.university === 'Other' && !formData.customUniversity) {
+        validationErrors.push({ field: 'customUniversity', message: 'Please specify your university' });
+      }
+      if (!formData.faculty) validationErrors.push({ field: 'faculty', message: 'Faculty is required' });
+      if (!formData.degreeLevel) validationErrors.push({ field: 'degreeLevel', message: 'Degree level is required' });
+      if (!formData.program) validationErrors.push({ field: 'program', message: 'Program/Major is required' });
+      if (formData.degreeLevel === 'student' && !formData.classYear) {
+        validationErrors.push({ field: 'classYear', message: 'Class year is required for students' });
       }
     }
-    
-    if (!fileUploads.universityId) validationErrors.push({ field: 'universityId', message: 'University ID is required' });
-    if (!fileUploads.resume) validationErrors.push({ field: 'resume', message: 'CV/Resume is required' });
-  }
 
-  if (section === 4) {
-    const passwordError = validatePassword(formData.password);
-    if (passwordError) validationErrors.push({ field: 'password', message: passwordError });
+    if (section === 3) {
+      if (!formData.howDidYouHear) validationErrors.push({ field: 'howDidYouHear', message: 'This field is required' });
+      
+      if (formData.volunteerId && formData.volunteerId.trim()) {
+        const volunteerIdError = validateVolunteerId(formData.volunteerId);
+        if (volunteerIdError) {
+          validationErrors.push({ field: 'volunteerId', message: volunteerIdError });
+        }
+      }
+          
+      // University ID is REQUIRED
+      if (!fileUploads.universityId) {
+        validationErrors.push({ field: 'universityId', message: 'University ID is required' });
+      }
+      // CV/Resume is OPTIONAL - no validation needed
+    }
 
-    const confirmPasswordError = validateConfirmPassword(formData.password, formData.confirmPassword);
-    if (confirmPasswordError) validationErrors.push({ field: 'confirmPassword', message: confirmPasswordError });
-  }
+    return validationErrors;
+  };
 
-  return validationErrors;
-};
   const nextSection = async () => {
     const sectionErrors = await validateSection(currentSection);
     if (sectionErrors.length > 0) {
       setErrors(sectionErrors);
+      
+      if (sectionErrors.length > 0) {
+        showErrorPopup(sectionErrors[0].message, 'error');
+      }
+      
       return;
     }
     
+    // IMPORTANT: Only clear errors and move to next section
+    // NO DATABASE UPDATE HERE - data stays in React state
     setErrors([]);
-    if (currentSection < 4) {
+    if (currentSection < 3) {
       setCurrentSection(currentSection + 1);
     }
   };
@@ -216,141 +363,187 @@ const validateSection = async (section: number): Promise<ValidationError[]> => {
     }
   };
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-
-  const allErrors = await Promise.all([1, 2, 3, 4].map(section => validateSection(section)))
-    .then(errorArrays => errorArrays.flat());
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     
-  if (allErrors.length > 0) {
-    setErrors(allErrors);
-    const sectionMap: Record<string, number> = {
-      firstName: 1, lastName: 1, gender: 1, nationality: 1,
-      email: 1, phone: 1, personalId: 1,
-      university: 2, faculty: 2, degreeLevel: 2,
-      program: 2, classYear: 2,
-      howDidYouHear: 3, universityId: 3, resume: 3, volunteerId: 3,
-      password: 4, confirmPassword: 4,
-    };
-
-    const firstErrorSection = Math.min(
-      ...allErrors.map(error => sectionMap[error.field] ?? 1)
-    );
-    setCurrentSection(firstErrorSection);
-    return;
-  }
-
-  setLoading(true);
-  setErrors([]);
-
-  try {
-    const profileData = {
-      first_name: formData.firstName.trim(),
-      last_name: formData.lastName.trim(),
-      gender: formData.gender,
-      nationality: formData.nationality,
-      phone: formData.phone.trim(),
-      personal_id: formData.personalId.trim(),
-      university: formData.university === 'Other' ? formData.customUniversity : formData.university,
-      faculty: formData.faculty,
-      degree_level: formData.degreeLevel,
-      program: formData.program,
-      class: formData.degreeLevel === 'student' ? formData.classYear : null,
-      how_did_hear_about_event: formData.howDidYouHear,
-      volunteer_id: formData.volunteerId?.trim() || null,
-    };
-
-    console.log("🚀 Starting attendee registration with pre-validation...");
-
-    const { data, error } = await signUpUser(formData.email, formData.password, profileData);
-
-    if (error) {
-      console.error("❌ Registration failed:", error);
+    // Validate all sections first
+    const allErrors = await Promise.all([1, 2, 3].map(section => validateSection(section)))
+      .then(errorArrays => errorArrays.flat());
       
-      // Handle edge function validation errors
-      if (error.validationErrors && Array.isArray(error.validationErrors)) {
-        const edgeFunctionErrors: ValidationError[] = error.validationErrors.map((msg: string) => ({
-          field: "general",
-          message: msg
-        }));
-        setErrors(edgeFunctionErrors);
-      } else {
-        setErrors([{ field: "general", message: error.message || "Failed to create account." }]);
+    if (allErrors.length > 0) {
+      setErrors(allErrors);
+      
+      if (allErrors.length > 0) {
+        showErrorPopup(allErrors[0].message, 'error');
       }
+      
+      const sectionMap: Record<string, number> = {
+        firstName: 1, lastName: 1, gender: 1, nationality: 1,
+        phone: 1, personalId: 1,
+        university: 2, faculty: 2, degreeLevel: 2,
+        program: 2, classYear: 2,
+        howDidYouHear: 3, volunteerId: 3, universityId: 3
+      };
+
+      const firstErrorSection = Math.min(
+        ...allErrors.map(error => sectionMap[error.field] ?? 1)
+      );
+      setCurrentSection(firstErrorSection);
       return;
     }
 
-    console.log("✅ Attendee registration successful, uploading files...");
+    // THIS IS THE ONLY PLACE WHERE WE UPDATE THE DATABASE
+    setLoading(true);
+    setErrors([]);
+    setShowAuthTransition(true);
 
-    // ... rest of your file upload logic remains the same
-    if (data?.user?.id) {
-      const userId = data.user.id;
-      const fileUpdates: Partial<{
-        university_id_path: string;
-        cv_path: string;
-      }> = {};
-
-      if (fileUploads.universityId) {
-        const { data: uniData, error: uniError } = await uploadFile(
-          'university-ids',
-          userId,
-          fileUploads.universityId
-        );
-
-        if (uniError) {
-          console.error('University ID upload failed:', uniError);
-          setErrors([{ field: "general", message: 'Failed to upload University ID. Please try again.' }]);
-          return;
-        }
-        fileUpdates.university_id_path = uniData?.path;
-      }
-
-      if (fileUploads.resume) {
-        const { data: resumeData, error: resumeError } = await uploadFile(
-          'cvs',
-          userId,
-          fileUploads.resume
-        );
-
-        if (resumeError) {
-          console.error('Resume upload failed:', resumeError);
-          setErrors([{ field: "general", message: 'Failed to upload Resume. Please try again.' }]);
-          return;
-        }
-        fileUpdates.cv_path = resumeData?.path;
-      }
-
-      if (Object.keys(fileUpdates).length > 0) {
-        const { error: updateError } = await updateUserFiles(userId, fileUpdates);
-        if (updateError) {
-          console.warn('Profile file paths update failed (user still created):', updateError);
-        }
-      }
-    }
-
-    console.log("✅ Registration completed successfully, attempting auto-login...");
+    const uploadedFiles: { bucket: string; path: string }[] = [];
 
     try {
-      const { error: signInError } = await signIn(formData.email, formData.password);
-      if (signInError) {
-        console.warn("⚠️ Auto-login failed:", signInError.message);
-        setShowSuccess(true);
+      if (!user?.id) {
+        throw new Error('User not authenticated');
       }
-    } catch (loginError) {
-      console.warn("⚠️ Auto-login exception:", loginError);
-      setShowSuccess(true);
-    }
 
-  } catch (error: any) {
-    console.error("Unexpected error during registration:", error);
-    setErrors([{
-      field: "general",
-      message: error.message || "An unexpected error occurred. Please try again.",
-    }]);
-  } finally {
-    setLoading(false);
-  }
-};
+      const profileData = {
+        id: user.id,
+        first_name: formData.firstName.trim(),
+        last_name: formData.lastName.trim(),
+        gender: formData.gender,
+        nationality: formData.nationality,
+        phone: formData.phone.trim(),
+        personal_id: formData.personalId.trim(),
+        university: formData.university === 'Other' ? formData.customUniversity : formData.university,
+        faculty: formData.faculty,
+        degree_level: formData.degreeLevel,
+        program: formData.program,
+        class: formData.degreeLevel === 'student' ? formData.classYear : null,
+        how_did_hear_about_event: formData.howDidYouHear,
+        reg_id: formData.volunteerId?.trim() || null, // ← CHANGED FROM volunteer_id TO reg_id
+        university_id_path: null,
+        cv_path: null,
+        profile_complete: true,
+        updated_at: new Date().toISOString()
+      };
+
+      console.log("Starting attendee profile completion...");
+
+      // File uploads
+      const fileUpdates: { university_id_path?: string; cv_path?: string } = {};
+      
+      // University ID is REQUIRED
+      if (fileUploads.universityId) {
+        const uniResult = await uploadFile(
+          'university-ids',
+          user.id,
+          fileUploads.universityId
+        );
+        if (uniResult && 'error' in uniResult && uniResult.error) {
+          console.error('University ID upload failed:', uniResult.error.message);
+          showErrorPopup('Failed to upload University ID. Please try again.', 'error');
+          await cleanupUploadedFiles(uploadedFiles);
+          setShowAuthTransition(false);
+          setLoading(false);
+          return;
+        } else if (uniResult && 'data' in uniResult && uniResult.data) {
+          fileUpdates.university_id_path = uniResult.data.path;
+          if (uniResult.data.path) {
+            uploadedFiles.push({ bucket: 'university-ids', path: uniResult.data.path });
+          }
+          console.log("University ID uploaded successfully");
+        }
+      }
+
+      // CV/Resume is OPTIONAL
+      if (fileUploads.resume) {
+        const resumeResult = await uploadFile(
+          'cvs',
+          user.id,
+          fileUploads.resume
+        );
+        if (resumeResult && 'error' in resumeResult && resumeResult.error) {
+          console.warn('Resume upload failed:', resumeResult.error.message);
+          // Don't block registration if CV upload fails
+        } else if (resumeResult && 'data' in resumeResult && resumeResult.data) {
+          fileUpdates.cv_path = resumeResult.data.path;
+          if (resumeResult.data.path) {
+            uploadedFiles.push({ bucket: 'cvs', path: resumeResult.data.path });
+          }
+          console.log("Resume uploaded successfully");
+        }
+      }
+
+      const profileDataWithFiles = {
+        ...profileData,
+        ...fileUpdates,
+        reg_id: formData.volunteerId?.trim() || null
+      };
+
+      console.log("Checking if profile exists...");
+      
+      const { data: existingProfile, error: checkError } = await supabase
+        .from('users_profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+
+      if (checkError && !existingProfile) {
+        console.warn('Profile lookup error (continuing with insert if needed):', checkError);
+      }
+
+      let updateError = null;
+
+      if (existingProfile) {
+        console.log("Updating existing profile...");
+        const { error } = await supabase
+          .from('users_profiles')
+          .update(profileDataWithFiles)
+          .eq('id', user.id);
+        updateError = error;
+      } else {
+        console.log("Creating new profile...");
+        const { error } = await supabase
+          .from('users_profiles')
+          .insert([profileDataWithFiles]);
+        updateError = error;
+      }
+
+      if (updateError) {
+        console.error("Profile operation failed:", updateError);
+        
+        if (updateError.code === '23505' && updateError.message?.includes('personal_id')) {
+          showErrorPopup("This Personal ID is already registered. Please use a different ID.", 'error');
+        } else {
+          showErrorPopup("Failed to save profile. Please try again.", 'error');
+        }
+        
+        await cleanupUploadedFiles(uploadedFiles);
+        setShowAuthTransition(false);
+        return;
+      }
+
+      console.log("Profile saved successfully!");
+      await refreshProfile();
+
+      console.log("Attendee registration completed successfully!");
+      setShowAuthTransition(false);
+      setShowSuccess(true);
+
+      setTimeout(() => {
+        navigate(getRoleBasedRedirect(), { replace: true });
+      }, 3000);
+
+    } catch (error: unknown) {
+      console.error("Unexpected error during profile completion:", error);
+      await cleanupUploadedFiles(uploadedFiles);
+      
+      showErrorPopup("An unexpected error occurred. Please try again or contact support if the problem persists.", 'error');
+      
+      setShowAuthTransition(false);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const getFieldError = (field: string) => {
     return errors.find(error => error.field === field)?.message;
   };
@@ -360,38 +553,30 @@ const handleSubmit = async (e: React.FormEvent) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="fade-in-blur">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            First Name *
+            First Name
           </label>
           <input
             type="text"
             value={formData.firstName}
-            onChange={(e) => updateField('firstName', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 ${
-              getFieldError('firstName') ? 'border-red-300' : 'border-gray-300'
-            }`}
-            placeholder="Enter your first name"
+            disabled
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+            placeholder="First name from account"
           />
-          {getFieldError('firstName') && (
-            <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('firstName')}</p>
-          )}
+          <p className="mt-1 text-sm text-gray-500">Name cannot be changed</p>
         </div>
 
         <div className="fade-in-blur">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Last Name *
+            Last Name
           </label>
           <input
             type="text"
             value={formData.lastName}
-            onChange={(e) => updateField('lastName', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 ${
-              getFieldError('lastName') ? 'border-red-300' : 'border-gray-300'
-            }`}
-            placeholder="Enter your last name"
+            disabled
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+            placeholder="Last name from account"
           />
-          {getFieldError('lastName') && (
-            <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('lastName')}</p>
-          )}
+          <p className="mt-1 text-sm text-gray-500">Name cannot be changed</p>
         </div>
       </div>
 
@@ -439,22 +624,16 @@ const handleSubmit = async (e: React.FormEvent) => {
 
       <div className="fade-in-blur">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Email Address *
+          Email Address
         </label>
-        <div className="relative">
-          <input
-            type="email"
-            value={formData.email}
-            onChange={(e) => updateField('email', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 ${
-              getFieldError('email') ? 'border-red-300' : 'border-gray-300'
-            }`}
-            placeholder="Enter your email address"
-          />
-        </div>
-        {getFieldError('email') && (
-          <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('email')}</p>
-        )}
+        <input
+          type="email"
+          value={formData.email}
+          disabled
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+          placeholder="Your email address"
+        />
+        <p className="mt-1 text-sm text-gray-500">Email cannot be changed</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -514,7 +693,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           }`}
         >
           <option value="">Select university</option>
-          {UNIVERSITIES.map(uni => (
+          {universities.map(uni => (
             <option key={uni} value={uni}>{uni}</option>
           ))}
         </select>
@@ -651,7 +830,7 @@ const handleSubmit = async (e: React.FormEvent) => {
           <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('howDidYouHear')}</p>
         )}
       </div>
-
+  
       <div className="fade-in-blur">
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Volunteer ID (Optional)
@@ -671,10 +850,11 @@ const handleSubmit = async (e: React.FormEvent) => {
           <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('volunteerId')}</p>
         )}
       </div>
-
+  
       <div className="space-y-4 fade-in-blur">
         <h3 className="text-lg font-medium text-gray-900">Required Documents</h3>
         
+        {/* University ID Upload - REQUIRED */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             University ID *
@@ -695,10 +875,11 @@ const handleSubmit = async (e: React.FormEvent) => {
             <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('universityId')}</p>
           )}
         </div>
-
+  
+        {/* CV/Resume Upload - OPTIONAL */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            CV/Resume *
+            CV/Resume (Optional)
           </label>
           <FileUpload
             accept=".pdf,.doc,.docx"
@@ -710,52 +891,21 @@ const handleSubmit = async (e: React.FormEvent) => {
             onFileRemove={() => setFileUploads(prev => ({ ...prev, resume: undefined }))}
             label="Upload CV/Resume (PDF, DOC, DOCX - Max 10MB)"
             currentFile={fileUploads.resume}
-            required={true}
+            required={false}
           />
-          {getFieldError('resume') && (
-            <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('resume')}</p>
-          )}
         </div>
-      </div>
-    </div>
-  );
 
-  const renderAccountSecurity = () => (
-    <div className="space-y-6 stagger-children">
-      <div className="fade-in-blur">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Password *
-        </label>
-        <input
-          type="password"
-          value={formData.password}
-          onChange={(e) => updateField('password', e.target.value)}
-          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 ${
-            getFieldError('password') ? 'border-red-300' : 'border-gray-300'
-          }`}
-          placeholder="Enter your password (minimum 6 characters)"
-        />
-        {getFieldError('password') && (
-          <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('password')}</p>
-        )}
-      </div>
-
-      <div className="fade-in-blur">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Confirm Password *
-        </label>
-        <input
-          type="password"
-          value={formData.confirmPassword}
-          onChange={(e) => updateField('confirmPassword', e.target.value)}
-          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 ${
-            getFieldError('confirmPassword') ? 'border-red-300' : 'border-gray-300'
-          }`}
-          placeholder="Confirm your password"
-        />
-        {getFieldError('confirmPassword') && (
-          <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('confirmPassword')}</p>
-        )}
+        {/* Info Notice */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-start">
+            <AlertCircle className="w-5 h-5 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-blue-800 text-sm">
+                <strong>Note:</strong> University ID is required. CV/Resume is optional and can be uploaded later if needed.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -768,14 +918,11 @@ const handleSubmit = async (e: React.FormEvent) => {
         return renderAcademicInfo();
       case 3:
         return renderEventInfo();
-      case 4:
-        return renderAccountSecurity();
       default:
         return null;
     }
   };
 
-  // Show loading while AuthContext is initializing
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center">
@@ -787,7 +934,6 @@ const handleSubmit = async (e: React.FormEvent) => {
     );
   }
 
-  // Show success message only when auto-login fails
   if (showSuccess) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center p-4">
@@ -795,16 +941,13 @@ const handleSubmit = async (e: React.FormEvent) => {
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 fade-in-scale">
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4 fade-in-blur">Registration Successful!</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4 fade-in-blur">Profile Complete!</h2>
           <p className="text-gray-600 mb-6 fade-in-blur">
-            Your account has been created successfully. You can now log in to access Career Week Account.
+            Your attendee profile has been completed successfully. Redirecting to your dashboard...
           </p>
-          <button
-            onClick={() => navigate('/login')}
-            className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-300 transform hover:scale-105 smooth-hover fade-in-blur"
-          >
-            Go to Login
-          </button>
+          <div className="animate-pulse">
+            <p className="text-orange-600 font-medium">Redirecting...</p>
+          </div>
         </div>
       </div>
     );
@@ -812,26 +955,36 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   return (
     <div className="min-h-screen relative">
-      {/* Background Image */}
+      {errorPopup && (
+        <ErrorPopup 
+          message={errorPopup.message} 
+          type={errorPopup.type}
+          onClose={closeErrorPopup}
+        />
+      )}
+
+      <AuthTransition 
+        isLoading={showAuthTransition}
+        message="Completing your profile..."
+      />
+
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
         style={{
           backgroundImage: 'url("/images/careercenter.png")',
         }}
       >
-        {/* Overlay for better readability */}
         <div className="absolute inset-0 bg-black bg-opacity-10"></div>
       </div>
 
       <div className="relative z-10 py-8 px-4">
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8 fade-in-up-blur">
-            <h1 className="text-4xl font-bold text-white mb-2 drop-shadow-lg">Join Career Week</h1>
-            <p className="text-white drop-shadow">Create your attendee account to access exclusive events</p>
+            <h1 className="text-4xl font-bold text-white mb-2 drop-shadow-lg">Complete Your Profile</h1>
+            <p className="text-white drop-shadow">Finish setting up your attendee account</p>
           </div>
         </div>
           
-        {/* Progress Steps */}
         <div className="mb-8 fade-in-up-blur">
           <div className="flex items-center max-w-2xl mx-auto">
             {sections.map((section, index) => (
@@ -869,15 +1022,6 @@ const handleSubmit = async (e: React.FormEvent) => {
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-2xl p-8 border border-orange-100 fade-in-up-blur modal-content-blur">
-          {/* General Error */}
-          {getFieldError('general') && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center fade-in-blur">
-              <AlertCircle className="w-5 h-5 text-red-600 mr-3" />
-              <p className="text-red-700">{getFieldError('general')}</p>
-            </div>
-          )}
-
-          {/* Section Header */}
           <div className="mb-8 fade-in-blur">
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
               {sections[currentSection - 1].title}
@@ -885,17 +1029,15 @@ const handleSubmit = async (e: React.FormEvent) => {
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div 
                 className="bg-gradient-to-r from-orange-500 to-orange-600 h-2 rounded-full transition-all duration-500 ease-out"
-                style={{ width: `${(currentSection / 4) * 100}%` }}
+                style={{ width: `${(currentSection / 3) * 100}%` }}
               />
             </div>
           </div>
 
-          {/* Section Content */}
           <div className="stagger-children">
             {renderSectionContent()}
           </div>
 
-          {/* Navigation Buttons */}
           <div className="flex justify-between mt-8 pt-6 border-t border-gray-200 fade-in-blur">
             <button
               type="button"
@@ -910,7 +1052,7 @@ const handleSubmit = async (e: React.FormEvent) => {
               Previous
             </button>
 
-            {currentSection < 4 ? (
+            {currentSection < 3 ? (
               <button
                 type="button"
                 onClick={nextSection}
@@ -928,27 +1070,13 @@ const handleSubmit = async (e: React.FormEvent) => {
                 {loading ? (
                   <>
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Creating Account...
+                    Completing Profile...
                   </>
                 ) : (
-                  'Create Account'
+                  'Complete Profile'
                 )}
               </button>
             )}
-          </div>
-
-          {/* Login Link */}
-          <div className="text-center mt-6 pt-6 border-t border-gray-200 fade-in-blur">
-            <p className="text-gray-600">
-              Already have an account?{' '}
-              <button
-                type="button"
-                onClick={() => navigate('/login')}
-                className="text-orange-600 hover:text-orange-700 font-medium transition-colors duration-200 hover:underline"
-              >
-                Sign in here
-              </button>
-            </p>
           </div>
         </form>
       </div>

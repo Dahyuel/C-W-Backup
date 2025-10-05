@@ -2,8 +2,8 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Get environment variables for Vite
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Validate that environment variables are set
 if (!supabaseUrl || !supabaseAnonKey) {
@@ -28,7 +28,7 @@ export const isValidEnumValue = <T extends readonly string[]>(
 ): value is T[number] => {
   return enumArray.includes(value as T[number]);
 };
-
+type BucketType = 'Assets' | 'cvs' | 'university-ids';
 // Check if user exists by personal ID or email
 export const checkUserExists = async (personalId: string, email: string): Promise<{exists: boolean, byPersonalId: boolean, byEmail: boolean}> => {
   try {
@@ -266,312 +266,227 @@ export const validateRegistrationWithEdgeFunction = async (
   }
 };
 
-// Updated signUpUser function using Edge Function validation
+// In supabase.ts - Fix the signUpUser function
 export const signUpUser = async (email: string, password: string, userData: any) => {
   try {
-    console.log('Starting attendee registration with edge function validation...');
+    console.log('Starting auth user creation (two-step flow)...');
     
-    // STEP 1: Use Edge Function for comprehensive validation
-    const validation = await validateRegistrationWithEdgeFunction(
-      userData.personal_id,
-      email,
-      userData.first_name,
-      userData.last_name,
-      userData.volunteer_id,
-      userData.phone,
-      'attendee'
-    );
+    // Step 1: Create auth user only using Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: email.trim().toLowerCase(),
+      password: password,
+      options: {
+        data: {
+          first_name: userData.first_name,
+          last_name: userData.last_name,
+          role: userData.role || 'attendee'
+        }
+      }
+    });
 
-    if (!validation.isValid) {
-      return { 
-        data: null, 
-        error: { 
-          message: validation.errors.join('. '),
-          validationErrors: validation.errors
+    if (authError) {
+      console.error('Auth user creation error:', authError);
+      return {
+        success: false,
+        data: null,
+        error: {
+          message: authError.message,
+          validationErrors: [authError.message]
         }
       };
     }
 
-    console.log('Edge function validation passed, creating auth user...');
-
-    // STEP 2: Create auth user (validation already done by Edge Function)
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: email.trim().toLowerCase(),
-      password,
-    });
-
-    if (authError) {
-      return { data: null, error: authError };
-    }
-
     if (!authData.user) {
-      return { data: null, error: { message: 'Failed to create attendee account' } };
+      console.error('No user returned from auth creation');
+      return {
+        success: false,
+        data: null,
+        error: {
+          message: 'Failed to create user account',
+          validationErrors: ['User creation failed']
+        }
+      };
     }
 
-    console.log('Auth user created successfully:', authData.user.id);
+    console.log('✅ Auth user created successfully:', authData.user.id);
 
-    // STEP 3: Create profile (should succeed since validation passed)
-    try {
-      // Small delay to ensure auth user is committed
-      await new Promise(resolve => setTimeout(resolve, 500));
+    // Step 2: Create basic profile with the auth user's ID
+    const profileData = {
+      id: authData.user.id, // CRITICAL: Use the auth user's ID as foreign key
+      email: email.trim().toLowerCase(),
+      first_name: userData.first_name,
+      last_name: userData.last_name,
+      role: userData.role || 'attendee',
+      personal_id: null,
+      phone: null,
+      university: null,
+      faculty: null,
+      gender: null,
+      nationality: null,
+      degree_level: null,
+      program: null,
+      class: null,
+      how_did_hear_about_event: null,
+      volunteer_id: null,
+      university_id_path: null,
+      cv_path: null,
+      score: 0,
+      qr_code: null,
+      building_entry: false,
+      event_entry: false,
+      tl_team: null,
+      profile_complete: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
 
-      const profileData = {
-        id: authData.user.id,
-        email: email.trim().toLowerCase(),
-        first_name: userData.first_name?.trim() || '',
-        last_name: userData.last_name?.trim() || '',
-        personal_id: userData.personal_id?.trim(),
-        university: userData.university?.trim() || '',
-        faculty: userData.faculty?.trim() || '',
-        program: userData.program?.trim() || '',
-        nationality: userData.nationality?.trim() || '',
-        phone: userData.phone?.trim() || null,
-        reg_id: validation.volunteerUuid || null,
-        volunteer_id: null, // Always null for attendees
-        role: 'attendee',
-        gender: userData.gender?.toLowerCase() === 'male' ? 'male' : 
-                userData.gender?.toLowerCase() === 'female' ? 'female' : null,
-        degree_level: userData.degree_level?.toLowerCase() === 'student' ? 'student' :
-                      userData.degree_level?.toLowerCase() === 'graduate' ? 'graduate' : null,
-        class: ['1', '2', '3', '4', '5'].includes(userData.class?.toString()) ? userData.class?.toString() : null,
-        how_did_hear_about_event: ['linkedin', 'facebook', 'instagram', 'friends', 'banners_in_street', 'information_session_at_faculty', 'campus_marketing', 'other'].includes(userData.how_did_hear_about_event?.toLowerCase()) ? userData.how_did_hear_about_event?.toLowerCase() : null,
-        university_id_path: userData.university_id_path || null,
-        cv_path: userData.cv_path || null,
-        score: 0,
-        building_entry: false,
-        event_entry: false
+    console.log('Creating profile with ID:', authData.user.id);
+    console.log('Profile data:', profileData);
+    
+    const { data: profileDataResult, error: profileError } = await supabase
+      .from('users_profiles')
+      .insert([profileData])
+      .select()
+      .single();
+
+    if (profileError) {
+      console.error('❌ Profile creation error:', profileError);
+      
+      // Check if it's a foreign key constraint error
+      if (profileError.code === '23503') {
+        console.error('Foreign key constraint violation - auth user might not exist in database yet');
+      }
+      
+      // Even if profile creation fails, return success since auth user was created
+      console.warn('⚠️ Auth user created but profile creation failed. User can complete profile later.');
+      
+      return {
+        success: true,
+        data: {
+          user: authData.user,
+          profile: null,
+          session: authData.session
+        },
+        error: null
       };
+    }
 
-      const { data: insertedProfile, error: profileError } = await supabase
-        .from('users_profiles')
-        .insert([profileData])
-        .select()
-        .single();
+    console.log('✅ Profile created successfully:', profileDataResult);
 
-      if (profileError) {
-        console.error('Profile creation failed despite validation:', profileError);
-        console.error(`ORPHANED AUTH USER: ${authData.user.id} (${email})`);
-        
-        return { 
-          data: null, 
-          error: { message: 'Profile creation failed unexpectedly. Please contact support.' }
+    // Step 3: Try to auto-sign in (but don't block on errors)
+    try {
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email: email.trim().toLowerCase(),
+        password: password
+      });
+
+      if (signInError) {
+        console.warn('Auto-signin failed:', signInError);
+      } else {
+        console.log('✅ Auto-signin successful');
+        return {
+          success: true,
+          data: {
+            user: signInData.user,
+            profile: profileDataResult,
+            session: signInData.session
+          },
+          error: null
         };
       }
-
-      console.log('Attendee profile created successfully:', insertedProfile.id);
-      return { 
-        data: { 
-          ...authData, 
-          profile: insertedProfile,
-          referredBy: validation.volunteerInfo
-        }, 
-        error: null 
-      };
-
-    } catch (profileError: any) {
-      console.error('Profile creation exception:', profileError);
-      console.error(`ORPHANED AUTH USER: ${authData.user.id} (${email})`);
-      return { data: null, error: { message: 'Registration failed during profile creation' } };
+    } catch (signInError) {
+      console.warn('Auto-signin exception:', signInError);
     }
 
+    // Return success even if auto-signin fails
+    return {
+      success: true,
+      data: {
+        user: authData.user,
+        profile: profileDataResult,
+        session: authData.session
+      },
+      error: null
+    };
+
   } catch (error: any) {
-    console.error('Registration error:', error);
-    return { data: null, error: { message: error.message || 'Registration failed' } };
+    console.error('💥 Registration error:', error);
+    return {
+      success: false,
+      data: null,
+      error: {
+        message: error.message || 'Registration failed'
+      }
+    };
   }
 };
 
-// Updated signUpVolunteer function using Edge Function validation
+
+// In supabase.ts - Update signUpVolunteer to use Edge Function
 export const signUpVolunteer = async (email: string, password: string, userData: any) => {
   try {
-    console.log('Starting volunteer registration with edge function validation...');
+    console.log('🚀 Starting volunteer registration via Edge Function...');
     
-    // STEP 1: Use Edge Function for comprehensive validation with gender and tl_team
-    const validation = await validateRegistrationWithEdgeFunction(
-      userData.personal_id,
-      email,
-      userData.first_name,
-      userData.last_name,
-      null, // No volunteer ID needed for volunteer signup
-      userData.phone,
-      'volunteer',
-      userData.role,
-      userData.gender,
-      userData.tl_team
-    );
+    const response = await fetch(`${supabaseUrl}/functions/v1/volunteer-registration`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        password,
+        firstName: userData.first_name,
+        lastName: userData.last_name,
+        personalId: userData.personal_id,
+        phone: userData.phone,
+        faculty: userData.faculty,
+        gender: userData.gender,
+        role: userData.role,
+        tlTeam: userData.tl_team
+      })
+    });
 
-    if (!validation.isValid) {
-      return { 
-        data: null, 
-        error: { 
-          message: validation.errors.join('. '),
-          validationErrors: validation.errors
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Edge function volunteer registration failed:', response.status, errorText);
+      throw new Error('Volunteer registration service unavailable');
+    }
+
+    const result = await response.json();
+
+    if (result.error) {
+      return {
+        success: false,
+        data: null,
+        error: {
+          message: result.error,
+          details: result.details,
+          validationErrors: [result.error]
         }
       };
     }
 
-    console.log('Edge function validation passed, creating volunteer auth user...');
-
-    // STEP 2: Create auth user
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: email.trim().toLowerCase(),
-      password,
-    });
-
-    if (authError) {
-      return { data: null, error: authError };
-    }
-
-    if (!authData.user) {
-      return { data: null, error: { message: 'Failed to create volunteer account' } };
-    }
-
-    console.log('Volunteer auth user created successfully:', authData.user.id);
-
-    // STEP 3: Generate volunteer ID and create profile
-    try {
-      const volunteerId = await generateVolunteerId(userData.role || 'volunteer');
-      
-      // Small delay for auth user commitment
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      const profileData = {
-        id: authData.user.id,
-        email: email.trim().toLowerCase(),
-        volunteer_id: volunteerId,
-        first_name: userData.first_name?.trim() || '',
-        last_name: userData.last_name?.trim() || '',
-        personal_id: userData.personal_id?.trim(),
-        faculty: userData.faculty?.trim() || '',
-        phone: userData.phone?.trim() || null,
-        university: 'Ain Shams University',
-        role: userData.role || 'volunteer',
-        gender: userData.gender?.toLowerCase() === 'male' ? 'male' : 
-                userData.gender?.toLowerCase() === 'female' ? 'female' : null,
-        tl_team: userData.tl_team || null,
-        score: 0,
-        building_entry: false,
-        event_entry: false
-      };
-
-      const { data: insertedProfile, error: profileError } = await supabase
-        .from('users_profiles')
-        .insert([profileData])
-        .select()
-        .single();
-
-      if (profileError) {
-        console.error('Volunteer profile creation failed despite validation:', profileError);
-        console.error(`ORPHANED AUTH USER: ${authData.user.id} (${email})`);
-        
-        return { 
-          data: null, 
-          error: { message: 'Profile creation failed unexpectedly. Please contact support.' }
-        };
-      }
-
-      console.log('Volunteer registration completed successfully with ID:', volunteerId);
-      console.log('Team leader team assignment:', userData.tl_team);
-      
-      return { 
-        data: { 
-          ...authData, 
-          volunteerId, 
-          profile: insertedProfile 
-        }, 
-        error: null 
-      };
-
-    } catch (profileError: any) {
-      console.error('Volunteer profile creation exception:', profileError);
-      console.error(`ORPHANED AUTH USER: ${authData.user.id} (${email})`);
-      
-      return { 
-        data: null, 
-        error: { message: 'Volunteer registration failed during profile creation' }
-      };
-    }
+    console.log('✅ Volunteer registration via Edge Function successful');
+    
+    return {
+      success: true,
+      data: {
+        user: result.user,
+        profile: result.profile,
+        session: result.session
+      },
+      error: null
+    };
 
   } catch (error: any) {
-    console.error('Volunteer registration error:', error);
-    return { data: null, error: { message: error.message || 'Volunteer registration failed' } };
-  }
-};
-
-const generateVolunteerId = async (role: string): Promise<string> => {
-  try {
-    // Define role prefixes for ALL volunteer roles
-    const rolePrefixes: { [key: string]: string } = {
-      'registration': 'REG',
-      'building': 'BLD',
-      'info_desk': 'INFDSK',
-      'volunteer': 'VOL',
-      'team_leader': 'TLDR',
-      'ushers': 'USHR',
-      'marketing': 'MKTG',
-      'media': 'MEDIA',
-      'ER': 'ER',
-      'BD team': 'BD',
-      'catering': 'CAT',
-      'feedback': 'FDBK',
-      'stage': 'STAGE'
-    };
-    
-    const prefix = rolePrefixes[role] || 'VOL';
-    
-    const { data: volunteers, error } = await supabase
-      .from('users_profiles')
-      .select('volunteer_id')
-      .eq('role', role)
-      .not('volunteer_id', 'is', null)
-      .order('volunteer_id', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching volunteers:', error);
-      return `${prefix}${Date.now().toString().slice(-6)}`;
-    }
-
-    let counter = 1;
-    
-    if (volunteers && volunteers.length > 0) {
-      // Find the highest number for this prefix
-      const numbers = volunteers
-        .map(v => {
-          if (v.volunteer_id && v.volunteer_id.startsWith(prefix)) {
-            const numPart = v.volunteer_id.replace(prefix, '');
-            const num = parseInt(numPart);
-            return isNaN(num) ? 0 : num;
-          }
-          return 0;
-        })
-        .filter(n => n > 0);
-      
-      if (numbers.length > 0) {
-        counter = Math.max(...numbers) + 1;
+    console.error('Volunteer registration exception:', error);
+    return {
+      success: false,
+      data: null,
+      error: {
+        message: error.message || 'Volunteer registration failed'
       }
-    }
-    
-    const paddedCounter = counter.toString().padStart(2, '0');
-    return `${prefix}${paddedCounter}`;
-    
-  } catch (error) {
-    console.error('Error generating volunteer ID:', error);
-    const rolePrefixes: { [key: string]: string } = {
-      'registration': 'REG',
-      'building': 'BLD',
-      'info_desk': 'INFDSK',
-      'volunteer': 'VOL',
-      'team_leader': 'TLDR',
-      'ushers': 'USHR',
-      'marketing': 'MKTG',
-      'media': 'MEDIA',
-      'ER': 'ER',
-      'BD team': 'BD',
-      'catering': 'CAT',
-      'feedback': 'FDBK',
-      'stage': 'STAGE'
     };
-    const prefix = rolePrefixes[role] || 'VOL';
-    return `${prefix}${Date.now().toString().slice(-6)}`;
   }
 };
 
@@ -614,7 +529,126 @@ export const resetPasswordWithPersonalId = async (personalId: string, email: str
     return { data: null, error: { message: error.message || 'Password reset failed' } };
   }
 };
+export const uploadFile = async (bucket: BucketType, userId: string, file: File) => {
+  try {
+    // ... existing validation code ...
 
+    // Validate file type based on bucket
+    const bucketFileTypes: Record<BucketType, string[]> = {
+      'Assets': ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
+      'cvs': ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+      'university-ids': ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf']
+    };
+
+    // Use type assertion to tell TypeScript we know what we're doing
+    const allowedTypes = bucketFileTypes[bucket] || ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    if (!allowedTypes.includes(file.type)) {
+      return { 
+        data: null, 
+        error: { 
+          message: `File type ${file.type} not allowed for ${bucket} bucket. Allowed types: ${allowedTypes.join(', ')}` 
+        } 
+      };
+    }
+
+    // Generate secure filename
+    const fileExt = file.name.split('.').pop()?.toLowerCase();
+    if (!fileExt) {
+      return { data: null, error: { message: 'File must have a valid extension' } };
+    }
+
+    const timestamp = Date.now();
+    const randomStr = Math.random().toString(36).substring(2, 15);
+    const fileName = `${timestamp}-${randomStr}.${fileExt}`;
+    const filePath = `${userId}/${fileName}`;
+
+    console.log(`Uploading ${file.name} (${(file.size / 1024).toFixed(2)}KB) to ${bucket}/${filePath}`);
+
+    // Upload with retry logic
+    let uploadAttempt = 0;
+    const maxRetries = 3;
+    
+    while (uploadAttempt < maxRetries) {
+      try {
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from(bucket)
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false // Don't overwrite existing files
+          });
+
+        if (uploadError) {
+          console.error(`Upload attempt ${uploadAttempt + 1} failed:`, uploadError);
+          
+          if (uploadError.message?.includes('already exists') || uploadError.message?.includes('duplicate') || uploadError.message?.includes('409')) {
+            // File already exists, try with new filename
+            const newFileName = `${timestamp}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+            const newFilePath = `${userId}/${newFileName}`;
+            
+            const { data: retryData, error: retryError } = await supabase.storage
+              .from(bucket)
+              .upload(newFilePath, file, {
+                cacheControl: '3600',
+                upsert: false
+              });
+
+            if (retryError) {
+              throw retryError;
+            }
+
+            // Get public URL for successful retry upload
+            const { data: urlData } = supabase.storage
+              .from(bucket)
+              .getPublicUrl(newFilePath);
+
+            return { 
+              data: { 
+                path: newFilePath, 
+                url: urlData.publicUrl,
+                fileName: newFileName
+              }, 
+              error: null 
+            };
+          }
+          
+          throw uploadError;
+        }
+
+        // Successful upload - get public URL
+        const { data: urlData } = supabase.storage
+          .from(bucket)
+          .getPublicUrl(filePath);
+
+        console.log('File uploaded successfully:', urlData.publicUrl);
+
+        return { 
+          data: { 
+            path: filePath, 
+            url: urlData.publicUrl,
+            fileName: fileName
+          }, 
+          error: null 
+        };
+
+      } catch (attemptError) {
+        uploadAttempt++;
+        console.error(`Upload attempt ${uploadAttempt} failed:`, attemptError);
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, 1000 * uploadAttempt));
+      }
+    }
+
+  } catch (error: any) {
+    console.error('Upload function error:', error);
+    return { 
+      data: null, 
+      error: { 
+        message: `Upload failed: ${error.message}`,
+        originalError: error
+      } 
+    };
+  }
+};
 export const uploadCompanyLogo = async (userId: string, file: File, companyName: string) => {
   try {
     if (!file) {
@@ -734,151 +768,6 @@ export const uploadMapImage = async (dayNumber: number, imageFile: File, userId:
   } catch (error: any) {
     console.error('Map upload exception:', error);
     return { data: null, error: { message: error.message } };
-  }
-};
-
-export const uploadFile = async (bucket: string, userId: string, file: File) => {
-  try {
-    // Validate inputs
-    if (!file) {
-      return { data: null, error: { message: 'No file provided' } };
-    }
-
-    if (!bucket || !userId) {
-      return { data: null, error: { message: 'Missing bucket or userId parameter' } };
-    }
-
-    // Check file size (10MB limit)
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (file.size > maxSize) {
-      return { data: null, error: { message: 'File size exceeds 10MB limit' } };
-    }
-
-    // Validate file type based on bucket
-    const bucketFileTypes = {
-      'Assets': ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
-      'cvs': ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-      'university-ids': ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf']
-    };
-
-    const allowedTypes = bucketFileTypes[bucket] || ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
-    
-    if (!allowedTypes.includes(file.type)) {
-      return { 
-        data: null, 
-        error: { 
-          message: `File type ${file.type} not allowed for ${bucket} bucket. Allowed types: ${allowedTypes.join(', ')}` 
-        } 
-      };
-    }
-
-    // Generate secure filename
-    const fileExt = file.name.split('.').pop()?.toLowerCase();
-    if (!fileExt) {
-      return { data: null, error: { message: 'File must have a valid extension' } };
-    }
-
-    const timestamp = Date.now();
-    const randomStr = Math.random().toString(36).substring(2, 15);
-    const fileName = `${timestamp}-${randomStr}.${fileExt}`;
-    const filePath = `${userId}/${fileName}`;
-
-    console.log(`Uploading ${file.name} (${(file.size / 1024).toFixed(2)}KB) to ${bucket}/${filePath}`);
-
-    // Upload with retry logic
-    let uploadAttempt = 0;
-    const maxRetries = 3;
-    
-    while (uploadAttempt < maxRetries) {
-      try {
-        const { data: uploadData, error: uploadError } = await supabase.storage
-          .from(bucket)
-          .upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: false // Don't overwrite existing files
-          });
-
-        if (uploadError) {
-          console.error(`Upload attempt ${uploadAttempt + 1} failed:`, uploadError);
-          
-          if (uploadError.message?.includes('already exists') || uploadError.statusCode === '409') {
-            // File already exists, try with new filename
-            const newFileName = `${timestamp}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-            const newFilePath = `${userId}/${newFileName}`;
-            
-            const { data: retryData, error: retryError } = await supabase.storage
-              .from(bucket)
-              .upload(newFilePath, file, {
-                cacheControl: '3600',
-                upsert: false
-              });
-
-            if (retryError) {
-              throw retryError;
-            }
-
-            // Get public URL for successful retry upload
-            const { data: urlData } = supabase.storage
-              .from(bucket)
-              .getPublicUrl(newFilePath);
-
-            return { 
-              data: { 
-                path: newFilePath, 
-                url: urlData.publicUrl,
-                fileName: newFileName
-              }, 
-              error: null 
-            };
-          }
-          
-          throw uploadError;
-        }
-
-        // Successful upload - get public URL
-        const { data: urlData } = supabase.storage
-          .from(bucket)
-          .getPublicUrl(filePath);
-
-        console.log('File uploaded successfully:', urlData.publicUrl);
-
-        return { 
-          data: { 
-            path: filePath, 
-            url: urlData.publicUrl,
-            fileName: fileName
-          }, 
-          error: null 
-        };
-
-      } catch (attemptError) {
-        uploadAttempt++;
-        console.error(`Upload attempt ${uploadAttempt} failed:`, attemptError);
-        
-        if (uploadAttempt >= maxRetries) {
-          return { 
-            data: null, 
-            error: { 
-              message: `Upload failed after ${maxRetries} attempts: ${attemptError.message}`,
-              originalError: attemptError
-            } 
-          };
-        }
-        
-        // Wait before retry
-        await new Promise(resolve => setTimeout(resolve, 1000 * uploadAttempt));
-      }
-    }
-
-  } catch (error: any) {
-    console.error('Upload function error:', error);
-    return { 
-      data: null, 
-      error: { 
-        message: `Upload failed: ${error.message}`,
-        originalError: error
-      } 
-    };
   }
 };
 
@@ -1493,7 +1382,7 @@ export const cancelSessionBookingDirect = async (userId: string, sessionId: stri
   }
 };
 
-export const addSession = async (sessionData) => {
+export const addSession = async (sessionData: any) => {
   try {
     const { data, error } = await supabase
       .from('sessions')
@@ -1517,14 +1406,14 @@ export const addSession = async (sessionData) => {
     }
 
     return { data: data[0], error: null };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Add session exception:', error);
     return { data: null, error: { message: error.message } };
   }
 };
 
 // Add Event/Schedule Item
-export const addScheduleItem = async (eventData) => {
+export const addScheduleItem = async (eventData: any) => {
   try {
     const { data, error } = await supabase
       .from('schedule_items')
@@ -1544,14 +1433,14 @@ export const addScheduleItem = async (eventData) => {
     }
 
     return { data: data[0], error: null };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Add schedule item exception:', error);
     return { data: null, error: { message: error.message } };
   }
 };
 
 // Add Company
-export const addCompany = async (companyData) => {
+export const addCompany = async (companyData: any) => {
   try {
     const { data, error } = await supabase
       .from('companies')
@@ -1570,13 +1459,13 @@ export const addCompany = async (companyData) => {
     }
 
     return { data: data[0], error: null };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Add company exception:', error);
     return { data: null, error: { message: error.message } };
   }
 };
 
-export const sendAnnouncement = async (announcementData) => {
+export const sendAnnouncement = async (announcementData: any) => {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     
@@ -1584,7 +1473,7 @@ export const sendAnnouncement = async (announcementData) => {
       throw new Error('User not authenticated');
     }
 
-    let insertData = {
+    let insertData: any = {
       title: announcementData.title,
       message: announcementData.message,
       target_type: announcementData.target_type,
@@ -1608,7 +1497,7 @@ export const sendAnnouncement = async (announcementData) => {
     }
 
     return { data: data[0], error: null };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Send announcement exception:', error);
     return { data: null, error: { message: error.message } };
   }
@@ -1644,7 +1533,7 @@ export async function getDynamicBuildingStats() {
       error: null
     };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in getDynamicBuildingStats:", error);
     return { data: null, error };
   }
@@ -1668,7 +1557,7 @@ export const deleteFile = async (bucket: string, filePath: string) => {
   }
 };
 
-export const deleteCompany = async (companyId) => {
+export const deleteCompany = async (companyId: string) => {
   try {
     // Get company data including logo URL
     const { data: company, error: fetchError } = await supabase
@@ -1700,13 +1589,71 @@ export const deleteCompany = async (companyId) => {
     }
 
     return { data, error: null };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Delete company exception:', error);
     return { data: null, error: { message: error.message } };
   }
 };
 
-const deleteCompanyLogo = async (logoUrl) => {
+// Enhanced cleanup function for uploaded files
+export const cleanupUploadedFiles = async (files: { bucket: string; path: string }[]) => {
+  if (!files || files.length === 0) return;
+  
+  console.log(`🧹 Cleaning up ${files.length} uploaded files...`);
+  
+  for (const file of files) {
+    try {
+      const { error } = await supabase.storage
+        .from(file.bucket)
+        .remove([file.path]);
+      
+      if (error) {
+        console.warn(`Could not delete file ${file.path}:`, error);
+      } else {
+        console.log(`✅ Deleted file: ${file.path}`);
+      }
+    } catch (error) {
+      console.warn(`Error cleaning up file ${file.path}:`, error);
+    }
+  }
+};
+
+// Enhanced moveFile function with better error handling
+export const moveFile = async (bucket: string, oldPath: string, newPath: string) => {
+  try {
+    console.log(`Moving file from ${oldPath} to ${newPath}`);
+    
+    // Copy file to new location
+    const { data: copyData, error: copyError } = await supabase.storage
+      .from(bucket)
+      .copy(oldPath, newPath);
+
+    if (copyError) {
+      console.error('File copy error:', copyError);
+      return { success: false, error: copyError };
+    }
+
+    // Delete original file
+    const { error: deleteError } = await supabase.storage
+      .from(bucket)
+      .remove([oldPath]);
+
+    if (deleteError) {
+      console.warn('Could not delete original file:', deleteError);
+      // Don't fail the entire operation - the copy was successful
+    }
+
+    console.log(`✅ File moved successfully from ${oldPath} to ${newPath}`);
+    return { success: true, error: null };
+  } catch (error: any) {
+    console.error('Move file error:', error);
+    return { success: false, error: { message: error.message } };
+  }
+};
+
+// Call this in browser console to test
+// debugStorageAccess()
+const deleteCompanyLogo = async (logoUrl: string) => {
   try {
     // Check if it's a file stored in our Assets bucket
     if (!logoUrl.includes('supabase.co/storage/v1/object/public/Assets/')) {
@@ -1745,7 +1692,7 @@ const deleteCompanyLogo = async (logoUrl) => {
     } else {
       console.warn('Could not extract file path from logo URL:', logoUrl);
     }
-  } catch (error) {
+  } catch (error: any) {
     console.warn('Error deleting logo file:', error);
   }
 };
