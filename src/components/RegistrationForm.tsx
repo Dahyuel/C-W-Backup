@@ -1,39 +1,21 @@
-// components/RegistrationForm.tsx - FIXED: Only submits on "Complete Profile", CV optional, ID required, name fields disabled
-import React, { useState, useEffect } from 'react';
-import { User, GraduationCap, ChevronRight, CheckCircle, AlertCircle, FileText, X } from 'lucide-react';
+// components/RegistrationForm.tsx - UPDATED with logout button
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { User, GraduationCap, ChevronRight, CheckCircle, AlertCircle, FileText, X, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  RegistrationData, 
-  ValidationError, 
-  FileUpload as FileUploadType 
-} from '../types';
-import { 
-  UNIVERSITIES, 
-  FACULTIES, 
-  CLASS_YEARS, 
-  HOW_DID_YOU_HEAR_OPTIONS 
-} from '../utils/constants';
-import { 
-  validateName,
-  validatePhone,
-  validatePersonalId,
-  validateVolunteerId
-} from '../utils/validation';
+import { RegistrationData, ValidationError, FileUpload as FileUploadType } from '../types';
+import { FACULTIES, CLASS_YEARS, HOW_DID_YOU_HEAR_OPTIONS } from '../utils/constants';
+import { validatePhone, validatePersonalId, validateVolunteerId } from '../utils/validation';
 import { uploadFile, cleanupUploadedFiles, supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { AuthTransition } from '../components/AuthTransition';
 
-// Error Popup Component
 const ErrorPopup: React.FC<{
   message: string;
   onClose: () => void;
   type?: 'error' | 'warning';
 }> = ({ message, onClose, type = 'error' }) => {
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onClose();
-    }, 5000);
-
+    const timer = setTimeout(onClose, 5000);
     return () => clearTimeout(timer);
   }, [onClose]);
 
@@ -133,9 +115,40 @@ const FileUpload: React.FC<{
   );
 };
 
+const LogoutButton: React.FC = () => {
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    
+    setIsLoggingOut(true);
+    try {
+      await signOut();
+      navigate('/login', { replace: true });
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleLogout}
+      disabled={isLoggingOut}
+      className="fixed bottom-6 right-6 z-50 flex items-center space-x-2 px-4 py-3 bg-red-600 text-white rounded-lg shadow-lg hover:bg-red-700 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed smooth-hover"
+    >
+      <LogOut className="w-4 h-4" />
+      <span>{isLoggingOut ? 'Logging out...' : 'Logout'}</span>
+    </button>
+  );
+};
+
 export const RegistrationForm: React.FC = () => {
   const navigate = useNavigate();
-  const { user, profile, isAuthenticated, loading: authLoading, getRoleBasedRedirect, refreshProfile } = useAuth();
+  const { user, profile, isAuthenticated, loading: authLoading, getRoleBasedRedirect, refreshProfile, signOut } = useAuth();
   
   const [currentSection, setCurrentSection] = useState(1);
   const [formData, setFormData] = useState<RegistrationData>({
@@ -161,9 +174,19 @@ export const RegistrationForm: React.FC = () => {
   const [fileUploads, setFileUploads] = useState<FileUploadType>({});
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
   const [showAuthTransition, setShowAuthTransition] = useState(false);
   const [errorPopup, setErrorPopup] = useState<{ message: string; type?: 'error' | 'warning' } | null>(null);
+
+  // Refs to prevent form resets
+  const formDataRef = useRef(formData);
+  const hasInitialized = useRef(false);
+  const hasRedirected = useRef(false);
+  const sectionChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Update ref when form data changes
+  useEffect(() => {
+    formDataRef.current = formData;
+  }, [formData]);
 
   const sections = [
     { id: 1, title: 'Personal Information', icon: User },
@@ -180,91 +203,67 @@ export const RegistrationForm: React.FC = () => {
     'Other'
   ];
 
-  const showErrorPopup = (message: string, type: 'error' | 'warning' = 'error') => {
+  const showErrorPopup = useCallback((message: string, type: 'error' | 'warning' = 'error') => {
     setErrorPopup({ message, type });
-  };
+  }, []);
 
-  const closeErrorPopup = () => {
+  const closeErrorPopup = useCallback(() => {
     setErrorPopup(null);
-  };
+  }, []);
 
+  // Single initialization effect
   useEffect(() => {
-    const checkProfileAndRedirect = async () => {
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
+
+    const checkAuth = async () => {
       if (!authLoading) {
         if (!isAuthenticated) {
           navigate('/login', { replace: true });
           return;
         }
-
-        if (user && !profile) {
-          await refreshProfile();
+        
+        // If profile is already complete, redirect directly to dashboard
+        if (profile?.profile_complete && !hasRedirected.current) {
+          hasRedirected.current = true;
+          const redirectPath = getRoleBasedRedirect();
+          console.log('🔄 Profile already complete, redirecting to:', redirectPath);
+          navigate(redirectPath, { replace: true });
           return;
         }
-
-        if (profile && profile.profile_complete) {
-          navigate(getRoleBasedRedirect(), { replace: true });
+        
+        // Pre-fill form with existing data if available
+        if (profile) {
+          setFormData(prev => ({
+            ...prev,
+            firstName: profile.first_name || prev.firstName,
+            lastName: profile.last_name || prev.lastName,
+            email: profile.email || prev.email,
+            ...(profile.personal_id && { personalId: profile.personal_id }),
+            ...(profile.phone && { phone: profile.phone }),
+            ...(profile.university && { university: profile.university }),
+            ...(profile.faculty && { faculty: profile.faculty }),
+            ...(profile.gender && { gender: profile.gender }),
+            ...(profile.nationality && { nationality: profile.nationality })
+          }));
         }
       }
     };
 
-    checkProfileAndRedirect();
-  }, [
-    isAuthenticated,
-    profile?.profile_complete,
-    authLoading,
-    navigate,
-    getRoleBasedRedirect,
-    user,
-    refreshProfile
-  ]);
+    checkAuth();
+  }, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect]);
 
-  const profileLoadedRef = React.useRef(false);
-
-  useEffect(() => {
-    if (user && profile && !profileLoadedRef.current) {
-      profileLoadedRef.current = true;
-
-      setFormData(prev => ({
-        ...prev,
-        firstName: profile.first_name || prev.firstName,
-        lastName: profile.last_name || prev.lastName,
-        email: profile.email || prev.email,
-        ...(profile.personal_id && { personalId: profile.personal_id }),
-        ...(profile.phone && { phone: profile.phone }),
-        ...(profile.university && { university: profile.university }),
-        ...(profile.faculty && { faculty: profile.faculty }),
-        ...(profile.gender && { gender: profile.gender }),
-        ...(profile.nationality && { nationality: profile.nationality })
-      }));
-    }
-  }, [user?.id, profile?.id]);
-
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (authLoading) {
-        console.warn('Auth loading timeout - forcing state');
-        if (isAuthenticated && user) {
-          console.log('Timeout: User is authenticated, allowing registration form');
-        }
-      }
-    }, 10000);
-
-    return () => clearTimeout(timeout);
-  }, [authLoading, isAuthenticated, user]);
-
-  const updateField = (field: keyof RegistrationData, value: string) => {
+  const updateField = useCallback((field: keyof RegistrationData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setErrors(prev => prev.filter(error => error.field !== field));
-  };
+  }, []);
 
   const validateSection = async (section: number): Promise<ValidationError[]> => {
     const validationErrors: ValidationError[] = [];
 
     if (section === 1) {
-      // First name and last name come from auth - skip validation
       if (!formData.firstName) validationErrors.push({ field: 'firstName', message: 'First name is required' });
       if (!formData.lastName) validationErrors.push({ field: 'lastName', message: 'Last name is required' });
-
       if (!formData.gender) validationErrors.push({ field: 'gender', message: 'Gender is required' });
       if (!formData.nationality) validationErrors.push({ field: 'nationality', message: 'Nationality is required' });
 
@@ -298,52 +297,63 @@ export const RegistrationForm: React.FC = () => {
         }
       }
           
-      // University ID is REQUIRED
       if (!fileUploads.universityId) {
         validationErrors.push({ field: 'universityId', message: 'University ID is required' });
       }
-      // CV/Resume is OPTIONAL - no validation needed
     }
 
     return validationErrors;
   };
 
   const nextSection = async () => {
+    // Clear any pending timeout
+    if (sectionChangeTimeoutRef.current) {
+      clearTimeout(sectionChangeTimeoutRef.current);
+    }
+
     const sectionErrors = await validateSection(currentSection);
     if (sectionErrors.length > 0) {
       setErrors(sectionErrors);
-      
       if (sectionErrors.length > 0) {
         showErrorPopup(sectionErrors[0].message, 'error');
       }
-      
       return;
     }
     
-    // IMPORTANT: Only clear errors and move to next section
-    // NO DATABASE UPDATE HERE - data stays in React state
     setErrors([]);
-    if (currentSection < 3) {
-      setCurrentSection(currentSection + 1);
-    }
+    
+    // Debounce section change to prevent rapid navigation
+    sectionChangeTimeoutRef.current = setTimeout(() => {
+      if (currentSection < 3) {
+        setCurrentSection(currentSection + 1);
+      }
+    }, 100);
   };
 
   const prevSection = () => {
-    if (currentSection > 1) {
-      setCurrentSection(currentSection - 1);
+    if (sectionChangeTimeoutRef.current) {
+      clearTimeout(sectionChangeTimeoutRef.current);
     }
+
+    sectionChangeTimeoutRef.current = setTimeout(() => {
+      if (currentSection > 1) {
+        setCurrentSection(currentSection - 1);
+      }
+    }, 100);
   };
 
+  // OPTIMIZED: Direct redirection without success screen
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate all sections first
+    // Prevent double submission
+    if (loading) return;
+    
     const allErrors = await Promise.all([1, 2, 3].map(section => validateSection(section)))
       .then(errorArrays => errorArrays.flat());
       
     if (allErrors.length > 0) {
       setErrors(allErrors);
-      
       if (allErrors.length > 0) {
         showErrorPopup(allErrors[0].message, 'error');
       }
@@ -363,7 +373,6 @@ export const RegistrationForm: React.FC = () => {
       return;
     }
 
-    // THIS IS THE ONLY PLACE WHERE WE UPDATE THE DATABASE
     setLoading(true);
     setErrors([]);
     setShowAuthTransition(true);
@@ -389,27 +398,19 @@ export const RegistrationForm: React.FC = () => {
         program: formData.program,
         class: formData.degreeLevel === 'student' ? formData.classYear : null,
         how_did_hear_about_event: formData.howDidYouHear,
-        reg_id: formData.volunteerId?.trim() || null, // ← CHANGED FROM volunteer_id TO reg_id
+        reg_id: formData.volunteerId?.trim() || null,
         university_id_path: null,
         cv_path: null,
-        profile_complete: true,
+        profile_complete: true, // CRITICAL: Set profile_complete to true
+        role: 'attendee', // CRITICAL: Ensure role is set to attendee
         updated_at: new Date().toISOString()
       };
 
-      console.log("Starting attendee profile completion...");
-
-      // File uploads
       const fileUpdates: { university_id_path?: string; cv_path?: string } = {};
       
-      // University ID is REQUIRED
       if (fileUploads.universityId) {
-        const uniResult = await uploadFile(
-          'university-ids',
-          user.id,
-          fileUploads.universityId
-        );
+        const uniResult = await uploadFile('university-ids', user.id, fileUploads.universityId);
         if (uniResult && 'error' in uniResult && uniResult.error) {
-          console.error('University ID upload failed:', uniResult.error.message);
           showErrorPopup('Failed to upload University ID. Please try again.', 'error');
           await cleanupUploadedFiles(uploadedFiles);
           setShowAuthTransition(false);
@@ -420,26 +421,16 @@ export const RegistrationForm: React.FC = () => {
           if (uniResult.data.path) {
             uploadedFiles.push({ bucket: 'university-ids', path: uniResult.data.path });
           }
-          console.log("University ID uploaded successfully");
         }
       }
 
-      // CV/Resume is OPTIONAL
       if (fileUploads.resume) {
-        const resumeResult = await uploadFile(
-          'cvs',
-          user.id,
-          fileUploads.resume
-        );
-        if (resumeResult && 'error' in resumeResult && resumeResult.error) {
-          console.warn('Resume upload failed:', resumeResult.error.message);
-          // Don't block registration if CV upload fails
-        } else if (resumeResult && 'data' in resumeResult && resumeResult.data) {
+        const resumeResult = await uploadFile('cvs', user.id, fileUploads.resume);
+        if (resumeResult && 'data' in resumeResult && resumeResult.data) {
           fileUpdates.cv_path = resumeResult.data.path;
           if (resumeResult.data.path) {
             uploadedFiles.push({ bucket: 'cvs', path: resumeResult.data.path });
           }
-          console.log("Resume uploaded successfully");
         }
       }
 
@@ -449,29 +440,21 @@ export const RegistrationForm: React.FC = () => {
         reg_id: formData.volunteerId?.trim() || null
       };
 
-      console.log("Checking if profile exists...");
-      
       const { data: existingProfile, error: checkError } = await supabase
         .from('users_profiles')
         .select('id')
         .eq('id', user.id)
-        .single();
-
-      if (checkError && !existingProfile) {
-        console.warn('Profile lookup error (continuing with insert if needed):', checkError);
-      }
+        .maybeSingle();
 
       let updateError = null;
 
       if (existingProfile) {
-        console.log("Updating existing profile...");
         const { error } = await supabase
           .from('users_profiles')
           .update(profileDataWithFiles)
           .eq('id', user.id);
         updateError = error;
       } else {
-        console.log("Creating new profile...");
         const { error } = await supabase
           .from('users_profiles')
           .insert([profileDataWithFiles]);
@@ -479,8 +462,6 @@ export const RegistrationForm: React.FC = () => {
       }
 
       if (updateError) {
-        console.error("Profile operation failed:", updateError);
-        
         if (updateError.code === '23505' && updateError.message?.includes('personal_id')) {
           showErrorPopup("This Personal ID is already registered. Please use a different ID.", 'error');
         } else {
@@ -489,28 +470,27 @@ export const RegistrationForm: React.FC = () => {
         
         await cleanupUploadedFiles(uploadedFiles);
         setShowAuthTransition(false);
+        setLoading(false);
         return;
       }
 
-      console.log("Profile saved successfully!");
+      // CRITICAL: Refresh profile and wait for it to complete
       await refreshProfile();
-
-      console.log("Attendee registration completed successfully!");
+      
+      // Add a small delay to ensure state is updated
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       setShowAuthTransition(false);
-      setShowSuccess(true);
-
-      setTimeout(() => {
-        navigate(getRoleBasedRedirect(), { replace: true });
-      }, 3000);
+      
+      // DIRECT REDIRECTION: Navigate immediately without showing success screen
+      console.log('✅ Registration complete, redirecting directly to dashboard');
+      navigate('/attendee', { replace: true });
 
     } catch (error: unknown) {
-      console.error("Unexpected error during profile completion:", error);
+      console.error("Profile completion error:", error);
       await cleanupUploadedFiles(uploadedFiles);
-      
-      showErrorPopup("An unexpected error occurred. Please try again or contact support if the problem persists.", 'error');
-      
+      showErrorPopup("An unexpected error occurred. Please try again.", 'error');
       setShowAuthTransition(false);
-    } finally {
       setLoading(false);
     }
   };
@@ -630,18 +610,16 @@ export const RegistrationForm: React.FC = () => {
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Personal ID *
           </label>
-          <div className="relative">
-            <input
-              type="text"
-              value={formData.personalId}
-              onChange={(e) => updateField('personalId', e.target.value)}
-              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 ${
-                getFieldError('personalId') ? 'border-red-300' : 'border-gray-300'
-              }`}
-              placeholder="14-digit Egyptian ID"
-              maxLength={14}
-            />
-          </div>
+          <input
+            type="text"
+            value={formData.personalId}
+            onChange={(e) => updateField('personalId', e.target.value)}
+            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 ${
+              getFieldError('personalId') ? 'border-red-300' : 'border-gray-300'
+            }`}
+            placeholder="14-digit Egyptian ID"
+            maxLength={14}
+          />
           {getFieldError('personalId') && (
             <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('personalId')}</p>
           )}
@@ -806,17 +784,15 @@ export const RegistrationForm: React.FC = () => {
         <label className="block text-sm font-medium text-gray-700 mb-2">
           Volunteer ID (Optional)
         </label>
-        <div className="relative">
-          <input
-            type="text"
-            value={formData.volunteerId}
-            onChange={(e) => updateField('volunteerId', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 ${
-              getFieldError('volunteerId') ? 'border-red-300' : 'border-gray-300'
-            }`}
-            placeholder="Enter volunteer ID (if applicable)"
-          />
-        </div>
+        <input
+          type="text"
+          value={formData.volunteerId}
+          onChange={(e) => updateField('volunteerId', e.target.value)}
+          className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 ${
+            getFieldError('volunteerId') ? 'border-red-300' : 'border-gray-300'
+          }`}
+          placeholder="Enter volunteer ID (if applicable)"
+        />
         {getFieldError('volunteerId') && (
           <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('volunteerId')}</p>
         )}
@@ -825,7 +801,6 @@ export const RegistrationForm: React.FC = () => {
       <div className="space-y-4 fade-in-blur">
         <h3 className="text-lg font-medium text-gray-900">Required Documents</h3>
         
-        {/* University ID Upload - REQUIRED */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             University ID *
@@ -847,7 +822,6 @@ export const RegistrationForm: React.FC = () => {
           )}
         </div>
   
-        {/* CV/Resume Upload - OPTIONAL */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             CV/Resume (Optional)
@@ -866,7 +840,6 @@ export const RegistrationForm: React.FC = () => {
           />
         </div>
 
-        {/* Info Notice */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-start">
             <AlertCircle className="w-5 h-5 text-blue-600 mr-2 flex-shrink-0 mt-0.5" />
@@ -894,31 +867,21 @@ export const RegistrationForm: React.FC = () => {
     }
   };
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (sectionChangeTimeoutRef.current) {
+        clearTimeout(sectionChangeTimeoutRef.current);
+      }
+    };
+  }, []);
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center">
         <div className="text-center fade-in-scale">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto mb-4"></div>
           <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (showSuccess) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center border border-orange-100 fade-in-scale modal-content-blur">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 fade-in-scale">
-            <CheckCircle className="w-8 h-8 text-green-600" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4 fade-in-blur">Profile Complete!</h2>
-          <p className="text-gray-600 mb-6 fade-in-blur">
-            Your attendee profile has been completed successfully. Redirecting to your dashboard...
-          </p>
-          <div className="animate-pulse">
-            <p className="text-orange-600 font-medium">Redirecting...</p>
-          </div>
         </div>
       </div>
     );
@@ -938,6 +901,9 @@ export const RegistrationForm: React.FC = () => {
         isLoading={showAuthTransition}
         message="Completing your profile..."
       />
+
+      {/* Logout Button */}
+      <LogoutButton />
 
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
@@ -992,7 +958,7 @@ export const RegistrationForm: React.FC = () => {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-2xl p-8 border border-orange-100 fade-in-up-blur modal-content-blur">
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-2xl p-8 border border-orange-100 fade-in-up-blur modal-content-blur max-w-4xl mx-auto">
           <div className="mb-8 fade-in-blur">
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
               {sections[currentSection - 1].title}
@@ -1013,9 +979,9 @@ export const RegistrationForm: React.FC = () => {
             <button
               type="button"
               onClick={prevSection}
-              disabled={currentSection === 1}
+              disabled={currentSection === 1 || loading}
               className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
-                currentSection === 1
+                currentSection === 1 || loading
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300 smooth-hover transform hover:scale-105'
               }`}
@@ -1027,7 +993,8 @@ export const RegistrationForm: React.FC = () => {
               <button
                 type="button"
                 onClick={nextSection}
-                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-300 transform hover:scale-105 flex items-center smooth-hover"
+                disabled={loading}
+                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-300 transform hover:scale-105 flex items-center smooth-hover disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next
                 <ChevronRight className="w-4 h-4 ml-2" />

@@ -1,6 +1,6 @@
-// components/VolunteerRegistration.tsx - Profile completion form (after auth)
-import React, { useState, useEffect } from 'react';
-import { User, ChevronRight, CheckCircle, AlertCircle, Heart, Users } from 'lucide-react';
+// components/VolunteerRegistration.tsx - UPDATED with logout button
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { User, ChevronRight, CheckCircle, AlertCircle, Heart, Users, X, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ValidationError } from '../../types';
 import { FACULTIES } from '../../utils/constants';
@@ -12,6 +12,83 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { AuthTransition } from '../../components/AuthTransition';
+
+// Add ErrorPopup component (same as in RegistrationForm)
+const ErrorPopup: React.FC<{
+  message: string;
+  onClose: () => void;
+  type?: 'error' | 'warning';
+}> = ({ message, onClose, type = 'error' }) => {
+  useEffect(() => {
+    const timer = setTimeout(onClose, 5000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className="fixed top-4 right-4 z-50 animate-fade-in">
+      <div className={`rounded-lg shadow-lg border p-4 max-w-sm ${
+        type === 'error' 
+          ? 'bg-red-50 border-red-200' 
+          : 'bg-yellow-50 border-yellow-200'
+      }`}>
+        <div className="flex items-start space-x-3">
+          <div className={`flex-shrink-0 ${
+            type === 'error' ? 'text-red-600' : 'text-yellow-600'
+          }`}>
+            <AlertCircle className="w-5 h-5" />
+          </div>
+          <div className="flex-1">
+            <p className={`text-sm font-medium ${
+              type === 'error' ? 'text-red-800' : 'text-yellow-800'
+            }`}>
+              {message}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className={`flex-shrink-0 hover:opacity-70 transition-opacity ${
+              type === 'error' ? 'text-red-600' : 'text-yellow-600'
+            }`}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Logout Button Component
+const LogoutButton: React.FC = () => {
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    
+    setIsLoggingOut(true);
+    try {
+      await signOut();
+      navigate('/login', { replace: true });
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleLogout}
+      disabled={isLoggingOut}
+      className="fixed bottom-6 right-6 z-50 flex items-center space-x-2 px-4 py-3 bg-red-600 text-white rounded-lg shadow-lg hover:bg-red-700 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed smooth-hover"
+    >
+      <LogOut className="w-4 h-4" />
+      <span>{isLoggingOut ? 'Logging out...' : 'Logout'}</span>
+    </button>
+  );
+};
 
 interface VolunteerFormData {
   firstName: string;
@@ -44,6 +121,10 @@ export const VolunteerRegistration: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [showAuthTransition, setShowAuthTransition] = useState(false);
+  const [errorPopup, setErrorPopup] = useState<{ message: string; type?: 'error' | 'warning' } | null>(null);
+
+  // Refs for better state management
+  const sectionChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const sections = [
     { id: 1, title: 'Personal Information', icon: User },
@@ -84,15 +165,22 @@ export const VolunteerRegistration: React.FC = () => {
     { value: 'female', label: 'Female' }
   ];
 
+  // Error popup handlers
+  const showErrorPopup = useCallback((message: string, type: 'error' | 'warning' = 'error') => {
+    setErrorPopup({ message, type });
+  }, []);
+
+  const closeErrorPopup = useCallback(() => {
+    setErrorPopup(null);
+  }, []);
+
   useEffect(() => {
     const checkProfileAndRedirect = async () => {
       if (!authLoading && isAuthenticated) {
-        // Only redirect if profile is complete AND user has a specific role (not just 'volunteer')
         if (profile?.profile_complete && profile.role && profile.role !== 'volunteer') {
           console.log('Profile complete with specific role, redirecting:', profile.role);
           navigate(getRoleBasedRedirect(), { replace: true });
         }
-        // Otherwise, stay on the form to let user complete registration
       } else if (!authLoading && !isAuthenticated) {
         console.log('Not authenticated, redirecting to login');
         navigate('/login', { replace: true });
@@ -124,9 +212,6 @@ export const VolunteerRegistration: React.FC = () => {
     const timeout = setTimeout(() => {
       if (authLoading) {
         console.warn('Auth loading timeout - forcing state');
-        if (isAuthenticated && user) {
-          console.log('Timeout: User is authenticated, allowing registration form');
-        }
       }
     }, 10000);
 
@@ -192,12 +277,14 @@ export const VolunteerRegistration: React.FC = () => {
 
     return validationErrors;
   };
+
   const handleFormKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && currentSection < 2) {
-      e.preventDefault(); // Prevent form submission on Enter
+      e.preventDefault();
       nextSection();
     }
   };
+
   const nextSection = (e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
@@ -210,6 +297,10 @@ export const VolunteerRegistration: React.FC = () => {
     if (sectionErrors.length > 0) {
       console.log('Section errors:', sectionErrors);
       setErrors(sectionErrors);
+      // Show popup error for the first error
+      if (sectionErrors.length > 0) {
+        showErrorPopup(sectionErrors[0].message, 'error');
+      }
       return;
     }
     
@@ -221,23 +312,39 @@ export const VolunteerRegistration: React.FC = () => {
   };
 
   const prevSection = () => {
-    if (currentSection > 1) {
-      setCurrentSection(currentSection - 1);
+    if (sectionChangeTimeoutRef.current) {
+      clearTimeout(sectionChangeTimeoutRef.current);
     }
+
+    sectionChangeTimeoutRef.current = setTimeout(() => {
+      if (currentSection > 1) {
+        setCurrentSection(currentSection - 1);
+      }
+    }, 100);
   };
 
+  // UPDATED SUBMIT HANDLER - Only submits when pressing "Complete Profile"
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    e.stopPropagation(); // Add this to prevent event bubbling
+    e.stopPropagation();
     
     console.log('Form submission started...');
     
-    // Validate all sections
+    // Prevent double submission
+    if (loading) return;
+    
+    // Validate ALL sections (like RegistrationForm)
     const allErrors = [1, 2].flatMap(section => validateSection(section));
     if (allErrors.length > 0) {
       console.log('Validation errors found:', allErrors);
       setErrors(allErrors);
-      // Find the first section with errors
+      
+      // Show popup error for the first error
+      if (allErrors.length > 0) {
+        showErrorPopup(allErrors[0].message, 'error');
+      }
+      
+      // Find the first section with errors and navigate to it
       const firstErrorSection = Math.min(...allErrors.map(error => {
         if (['firstName', 'lastName', 'phone', 'personalId', 'faculty', 'gender'].includes(error.field)) return 1;
         if (['role', 'tlTeam'].includes(error.field)) return 2;
@@ -283,17 +390,12 @@ export const VolunteerRegistration: React.FC = () => {
       if (updateError) {
         console.error("❌ Profile update failed:", updateError);
         if (updateError.code === '23505' && updateError.message?.includes('personal_id')) {
-          setErrors([{ 
-            field: "personalId", 
-            message: "This Personal ID is already registered. Please use a different ID." 
-          }]);
+          showErrorPopup("This Personal ID is already registered. Please use a different ID.", 'error');
         } else {
-          setErrors([{ 
-            field: "general", 
-            message: "Failed to save profile. Please try again." 
-          }]);
+          showErrorPopup("Failed to save profile. Please try again.", 'error');
         }
         setShowAuthTransition(false);
+        setLoading(false);
         return;
       }
   
@@ -311,12 +413,8 @@ export const VolunteerRegistration: React.FC = () => {
   
     } catch (error: any) {
       console.error("💥 Unexpected error during profile completion:", error);
-      setErrors([{
-        field: "general",
-        message: "An unexpected error occurred. Please try again or contact support if the problem persists.",
-      }]);
+      showErrorPopup("An unexpected error occurred. Please try again or contact support if the problem persists.", 'error');
       setShowAuthTransition(false);
-    } finally {
       setLoading(false);
     }
   };
@@ -330,41 +428,34 @@ export const VolunteerRegistration: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="fade-in-blur">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            First Name *
+            First Name
           </label>
           <input
             type="text"
             value={formData.firstName}
-            onChange={(e) => updateField('firstName', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 ${
-              getFieldError('firstName') ? 'border-red-300' : 'border-gray-300'
-            }`}
-            placeholder="Enter your first name"
+            disabled
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+            placeholder="First name from account"
           />
-          {getFieldError('firstName') && (
-            <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('firstName')}</p>
-          )}
+          <p className="mt-1 text-sm text-gray-500">Name cannot be changed</p>
         </div>
-
+  
         <div className="fade-in-blur">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Last Name *
+            Last Name
           </label>
           <input
             type="text"
             value={formData.lastName}
-            onChange={(e) => updateField('lastName', e.target.value)}
-            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300 ${
-              getFieldError('lastName') ? 'border-red-300' : 'border-gray-300'
-            }`}
-            placeholder="Enter your last name"
+            disabled
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500 cursor-not-allowed"
+            placeholder="Last name from account"
           />
-          {getFieldError('lastName') && (
-            <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('lastName')}</p>
-          )}
+          <p className="mt-1 text-sm text-gray-500">Name cannot be changed</p>
         </div>
       </div>
-
+  
+      {/* Rest of the personal info fields remain the same */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="fade-in-blur">
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -383,7 +474,7 @@ export const VolunteerRegistration: React.FC = () => {
             <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('phone')}</p>
           )}
         </div>
-
+  
         <div className="fade-in-blur">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Personal ID *
@@ -403,7 +494,7 @@ export const VolunteerRegistration: React.FC = () => {
           )}
         </div>
       </div>
-
+  
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="fade-in-blur">
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -425,7 +516,7 @@ export const VolunteerRegistration: React.FC = () => {
             <p className="mt-1 text-sm text-red-600 fade-in-blur">{getFieldError('faculty')}</p>
           )}
         </div>
-
+  
         <div className="fade-in-blur">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Gender *
@@ -509,8 +600,6 @@ export const VolunteerRegistration: React.FC = () => {
         )}
       </div>
   
-  
-      {/* Team Leader Section - ADD THIS COMPLETE SECTION */}
       {formData.role === 'team_leader' && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 fade-in-scale">
           <div className="flex items-center mb-4">
@@ -545,6 +634,7 @@ export const VolunteerRegistration: React.FC = () => {
       )}
     </div>
   );
+
   const renderSectionContent = () => {
     switch (currentSection) {
       case 1:
@@ -555,6 +645,15 @@ export const VolunteerRegistration: React.FC = () => {
         return null;
     }
   };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (sectionChangeTimeoutRef.current) {
+        clearTimeout(sectionChangeTimeoutRef.current);
+      }
+    };
+  }, []);
 
   if (authLoading) {
     return (
@@ -588,10 +687,22 @@ export const VolunteerRegistration: React.FC = () => {
 
   return (
     <div className="min-h-screen relative">
+      {/* ADD ERROR POPUP */}
+      {errorPopup && (
+        <ErrorPopup 
+          message={errorPopup.message} 
+          type={errorPopup.type}
+          onClose={closeErrorPopup}
+        />
+      )}
+
       <AuthTransition 
         isLoading={showAuthTransition}
         message="Completing your volunteer profile..."
       />
+
+      {/* ADD LOGOUT BUTTON */}
+      <LogoutButton />
 
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
@@ -650,13 +761,6 @@ export const VolunteerRegistration: React.FC = () => {
         </div>
 
         <form onSubmit={handleSubmit} onKeyDown={handleFormKeyDown} className="bg-white rounded-2xl shadow-2xl p-8 border border-orange-100 fade-in-up-blur modal-content-blur">
-          {getFieldError('general') && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center fade-in-blur">
-              <AlertCircle className="w-5 h-5 text-red-600 mr-3" />
-              <p className="text-red-700">{getFieldError('general')}</p>
-            </div>
-          )}
-
           <div className="mb-8 fade-in-blur">
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
               {sections[currentSection - 1].title}
@@ -677,9 +781,9 @@ export const VolunteerRegistration: React.FC = () => {
             <button
               type="button"
               onClick={prevSection}
-              disabled={currentSection === 1}
+              disabled={currentSection === 1 || loading}
               className={`px-6 py-3 rounded-lg font-medium transition-all duration-300 ${
-                currentSection === 1
+                currentSection === 1 || loading
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300 smooth-hover transform hover:scale-105'
               }`}
@@ -688,30 +792,31 @@ export const VolunteerRegistration: React.FC = () => {
             </button>
 
             {currentSection < 2 ? (
-  <button
-    type="button" // Make sure this is explicitly set
-    onClick={nextSection}
-    className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-300 transform hover:scale-105 flex items-center smooth-hover"
-  >
-    Next
-    <ChevronRight className="w-4 h-4 ml-2" />
-  </button>
-) : (
-  <button
-    type="submit" // Only the final button should be type="submit"
-    disabled={loading}
-    className="px-8 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center smooth-hover"
-  >
-    {loading ? (
-      <>
-        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-        Completing Profile...
-      </>
-    ) : (
-      'Complete Profile'
-    )}
-  </button>
-)}
+              <button
+                type="button"
+                onClick={nextSection}
+                disabled={loading}
+                className="px-6 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-300 transform hover:scale-105 flex items-center smooth-hover disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+                <ChevronRight className="w-4 h-4 ml-2" />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-8 py-3 bg-gradient-to-r from-orange-500 to-orange-600 text-white rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none flex items-center smooth-hover"
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Completing Profile...
+                  </>
+                ) : (
+                  'Complete Profile'
+                )}
+              </button>
+            )}
           </div>
         </form>
       </div>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { KeyRound, ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { resetPassword } from '../lib/supabase';
+import { resetPassword } from '../lib/supabase'; // Use the direct resetPassword function
 
 interface ForgotPasswordData {
   email: string;
@@ -14,7 +14,7 @@ interface ValidationError {
 
 export const ForgotPasswordForm: React.FC = () => {
   const navigate = useNavigate();
-
+  
   const [formData, setFormData] = useState<ForgotPasswordData>({
     email: ''
   });
@@ -24,21 +24,22 @@ export const ForgotPasswordForm: React.FC = () => {
 
   const validateEmail = (email: string): string | null => {
     const trimmed = email.trim();
-
+    
     if (!trimmed) {
       return 'Email is required';
     }
-
+    
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(trimmed)) {
       return 'Please enter a valid email address';
     }
-
+    
     return null;
   };
 
   const updateField = (field: keyof ForgotPasswordData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    // Clear specific field error when user starts typing
     setErrors(prev => prev.filter(error => error.field !== field));
   };
 
@@ -53,7 +54,7 @@ export const ForgotPasswordForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    
     const validationErrors = validateForm();
     if (validationErrors.length > 0) {
       setErrors(validationErrors);
@@ -72,7 +73,7 @@ export const ForgotPasswordForm: React.FC = () => {
       }
 
       setSuccess(true);
-
+      
     } catch (error) {
       setErrors([{ field: 'general', message: 'Password reset failed. Please try again.' }]);
     } finally {
@@ -91,7 +92,7 @@ export const ForgotPasswordForm: React.FC = () => {
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
           style={{
-            backgroundImage: 'url("https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/careercenter.png")',
+            backgroundImage: 'url("/images/careercenter.png")',
           }}
         >
           {/* Overlay for better readability */}
@@ -124,7 +125,7 @@ export const ForgotPasswordForm: React.FC = () => {
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
         style={{
-          backgroundImage: 'url("https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/careercenter.png")',
+          backgroundImage: 'url("/images/careercenter.png")',
         }}
       >
         {/* Overlay for better readability */}
@@ -138,7 +139,7 @@ export const ForgotPasswordForm: React.FC = () => {
           <div className="bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-6 text-center">
             <KeyRound className="mx-auto h-12 w-12 text-white mb-3" />
             <h1 className="text-2xl font-bold text-white mb-2">Reset Password</h1>
-            <p className="text-orange-100">Enter your details to reset your password</p>
+            <p className="text-orange-100">Enter your email to reset your password</p>
           </div>
 
           {/* Form */}
@@ -165,14 +166,10 @@ export const ForgotPasswordForm: React.FC = () => {
                     getFieldError('email') ? 'border-red-300' : 'border-gray-300'
                   }`}
                   placeholder="Enter your registered email address"
-                  autoFocus
                 />
                 {getFieldError('email') && (
                   <p className="text-sm text-red-600 mt-2">{getFieldError('email')}</p>
                 )}
-                <p className="text-sm text-gray-500 mt-2">
-                  A password reset link will be sent to this email address
-                </p>
               </div>
 
               {/* Submit Button */}

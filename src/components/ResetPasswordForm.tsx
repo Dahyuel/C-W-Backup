@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { KeyRound, ArrowLeft, CheckCircle, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase'; // Adjust path as needed
+import { supabase } from '../lib/supabase';
 
 export const ResetPasswordForm: React.FC = () => {
   const navigate = useNavigate();
@@ -21,39 +21,66 @@ export const ResetPasswordForm: React.FC = () => {
   // Check if we have valid reset token on component mount
   useEffect(() => {
     const checkToken = async () => {
-      // Parse tokens from URL hash instead of search params
+      console.log('Checking reset password tokens...');
+      
+      // Check URL search parameters first (newer Supabase format)
+      const typeFromParams = searchParams.get('type');
+      const accessTokenFromParams = searchParams.get('access_token');
+      const refreshTokenFromParams = searchParams.get('refresh_token');
+
+      // Check URL hash parameters (older Supabase format)
       const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const accessToken = hashParams.get('access_token');
-      const refreshToken = hashParams.get('refresh_token');
-      const type = hashParams.get('type');
+      const typeFromHash = hashParams.get('type');
+      const accessTokenFromHash = hashParams.get('access_token');
+      const refreshTokenFromHash = hashParams.get('refresh_token');
 
-      if (type !== 'recovery' || !accessToken || !refreshToken) {
-        setTokenValid(false);
-        return;
-      }
+      // Use whichever has the tokens
+      const type = typeFromParams || typeFromHash;
+      const accessToken = accessTokenFromParams || accessTokenFromHash;
+      const refreshToken = refreshTokenFromParams || refreshTokenFromHash;
 
-      try {
-        // Set the session with the tokens from the URL
-        const { data, error } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken
-        });
+      console.log('Token check results:', {
+        type,
+        hasAccessToken: !!accessToken,
+        hasRefreshToken: !!refreshToken,
+        source: accessTokenFromParams ? 'params' : accessTokenFromHash ? 'hash' : 'none'
+      });
 
-        if (error) {
-          console.error('Token validation error:', error);
+      if (type === 'recovery' && accessToken && refreshToken) {
+        try {
+          console.log('Setting session with recovery tokens...');
+          
+          // Set the session with the tokens
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          });
+
+          if (error) {
+            console.error('Token validation error:', error);
+            setTokenValid(false);
+          } else {
+            console.log('✅ Token validated successfully');
+            setTokenValid(true);
+          }
+        } catch (error) {
+          console.error('Session setup error:', error);
           setTokenValid(false);
-        } else {
-          setTokenValid(true);
         }
-      } catch (error) {
-        console.error('Session setup error:', error);
+      } else {
+        console.error('Missing required parameters for password reset');
+        console.log('Available parameters:', {
+          searchParams: Object.fromEntries(searchParams.entries()),
+          hashParams: Object.fromEntries(hashParams.entries())
+        });
         setTokenValid(false);
       }
     };
 
     checkToken();
-  }, []); // Remove searchParams dependency since we're not using it
+  }, [searchParams]);
 
+  // Rest of your component remains the same...
   const validatePassword = (password: string): string[] => {
     const errors: string[] = [];
     
@@ -70,7 +97,7 @@ export const ResetPasswordForm: React.FC = () => {
       errors.push('Password must contain at least one number');
     }
     if (!/(?=.*[@$!%*?&])/.test(password)) {
-      errors.push('Password must contain at least one special character');
+      errors.push('Password must contain at least one special character (@$!%*?&)');
     }
     
     return errors;
@@ -106,16 +133,20 @@ export const ResetPasswordForm: React.FC = () => {
     setErrors([]);
 
     try {
+      console.log('Updating user password...');
+      
       // Update the user's password
       const { error } = await supabase.auth.updateUser({
         password: formData.password
       });
 
       if (error) {
+        console.error('Password update error:', error);
         setErrors([error.message]);
         return;
       }
 
+      console.log('✅ Password updated successfully');
       setSuccess(true);
       
       // Auto-redirect to login after 3 seconds
@@ -124,6 +155,7 @@ export const ResetPasswordForm: React.FC = () => {
       }, 3000);
       
     } catch (error: any) {
+      console.error('Password reset exception:', error);
       setErrors(['Password reset failed. Please try again.']);
     } finally {
       setLoading(false);
@@ -146,7 +178,7 @@ export const ResetPasswordForm: React.FC = () => {
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
           style={{
-            backgroundImage: 'url("https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/careercenter.png")',
+            backgroundImage: 'url("/images/careercenter.png")',
           }}
         >
           <div className="absolute inset-0 bg-black bg-opacity-20"></div>
@@ -171,7 +203,7 @@ export const ResetPasswordForm: React.FC = () => {
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
           style={{
-            backgroundImage: 'url("https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/careercenter.png")',
+            backgroundImage: 'url("/images/careercenter.png")',
           }}
         >
           <div className="absolute inset-0 bg-black bg-opacity-20"></div>
@@ -182,8 +214,11 @@ export const ResetPasswordForm: React.FC = () => {
           <div className="bg-white rounded-2xl shadow-2xl border border-red-100 w-full max-w-md p-8 text-center">
             <AlertCircle className="mx-auto h-16 w-16 text-red-500 mb-4" />
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Invalid Reset Link</h2>
-            <p className="text-gray-600 mb-6">
-              This password reset link is invalid or has expired. Please request a new password reset.
+            <p className="text-gray-600 mb-4">
+              This password reset link is invalid or has expired.
+            </p>
+            <p className="text-gray-500 text-sm mb-6">
+              Please request a new password reset link from the login page.
             </p>
             <div className="space-y-3">
               <button
@@ -214,7 +249,7 @@ export const ResetPasswordForm: React.FC = () => {
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
           style={{
-            backgroundImage: 'url("https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/careercenter.png")',
+            backgroundImage: 'url("/images/careercenter.png")',
           }}
         >
           <div className="absolute inset-0 bg-black bg-opacity-20"></div>
@@ -232,7 +267,7 @@ export const ResetPasswordForm: React.FC = () => {
               onClick={() => navigate('/login')}
               className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:from-orange-600 hover:to-orange-700 transition-all duration-200"
             >
-              Go to Login
+              Go to Login Now
             </button>
           </div>
         </div>
@@ -247,7 +282,7 @@ export const ResetPasswordForm: React.FC = () => {
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
         style={{
-          backgroundImage: 'url("https://ypiwfedtvgmazqcwolac.supabase.co/storage/v1/object/public/Assets/careercenter.png")',
+          backgroundImage: 'url("/images/careercenter.png")',
         }}
       >
         <div className="absolute inset-0 bg-black bg-opacity-20"></div>

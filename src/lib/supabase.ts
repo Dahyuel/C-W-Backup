@@ -498,12 +498,26 @@ export const signInUser = async (email: string, password: string) => {
   });
   return { data, error };
 };
-
 export const resetPassword = async (email: string) => {
-  const { data, error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-    redirectTo: `${window.location.origin}/reset-password`
-  });
-  return { data, error };
+  try {
+    const { data, error } = await supabase.auth.resetPasswordForEmail(
+      email.trim().toLowerCase(), 
+      {
+        redirectTo: `https://port.asucareercenter.com/reset-password#type=recovery`
+      }
+    );
+    
+    if (error) {
+      console.error('Password reset error:', error);
+      return { data: null, error };
+    }
+
+    console.log('✅ Password reset email sent to:', email);
+    return { data, error: null };
+  } catch (error: any) {
+    console.error('Password reset exception:', error);
+    return { data: null, error: { message: error.message || 'Password reset failed' } };
+  }
 };
 export const uploadFile = async (bucket: BucketType, userId: string, file: File) => {
   try {
@@ -1724,56 +1738,84 @@ export const checkFileExists = async (bucket: string, filePath: string) => {
     return { exists: false, error };
   }
 };
+export const getUserTotalScore = async (userId: string) => {
+  try {
+    // Calculate total score by summing all points from user_scores
+    const { data, error, count } = await supabase
+      .from('user_scores')
+      .select('points', { count: 'exact' })
+      .eq('user_id', userId);
 
+    if (error) {
+      console.error('Error fetching user scores:', error);
+      return { totalScore: 0, activitiesCount: 0, error };
+    }
+
+    const totalScore = data?.reduce((sum, record) => sum + (record.points || 0), 0) || 0;
+    const activitiesCount = count || 0;
+
+    return { 
+      totalScore, 
+      activitiesCount, 
+      error: null 
+    };
+  } catch (error: any) {
+    console.error('Get user total score exception:', error);
+    return { totalScore: 0, activitiesCount: 0, error: { message: error.message } };
+  }
+};
+
+// Get user ranking and score from users_profiles table (matches DashboardLayout pattern)
 export const getUserRankingAndScore = async (userId: string) => {
   try {
-    const { data: userProfile, error: profileError } = await supabase
+    // Get user's score and role directly from users_profiles
+    const { data: userData, error: userError } = await supabase
       .from('users_profiles')
       .select('score, role')
       .eq('id', userId)
       .single();
 
-    if (profileError) {
-      console.error('Error fetching user profile:', profileError);
-      return { data: null, error: profileError };
+    if (userError) {
+      console.error('Error fetching user data:', userError);
+      return { data: null, error: userError };
     }
 
-    // Get ranking based on role
-    let query = supabase
+    // Determine which roles to rank against based on user's role
+    const isVolunteer = !['admin', 'attendee'].includes(userData.role);
+    const roleFilter = isVolunteer 
+      ? ['volunteer', 'registration', 'building', 'team_leader', 'info_desk', 'ushers', 'marketing', 'media', 'ER', 'BD team', 'catering', 'feedback', 'stage']
+      : [userData.role];
+
+    // Get all users in the same category ordered by score
+    const { data: allUsers, error: usersError } = await supabase
       .from('users_profiles')
       .select('id, score')
+      .in('role', roleFilter)
       .order('score', { ascending: false });
 
-    if (userProfile.role === 'attendee') {
-      query = query.eq('role', 'attendee');
-    } else if (userProfile.role !== 'admin') {
-      query = query.not('role', 'in', '("attendee","admin")');
+    if (usersError) {
+      console.error('Error fetching users for ranking:', usersError);
+      return { data: null, error: usersError };
     }
 
-    const { data: allUsers, error: rankError } = await query;
-
-    if (rankError) {
-      console.error('Error fetching ranking:', rankError);
-      return { data: null, error: rankError };
-    }
-
-    const userRank = allUsers?.findIndex(user => user.id === userId) + 1 || 0;
+    // Find user's rank
+    const userRank = (allUsers || []).findIndex(user => user.id === userId) + 1;
     const totalUsers = allUsers?.length || 0;
 
-    return {
+    return { 
       data: {
-        score: userProfile.score || 0,
+        user_id: userId,
+        score: userData.score || 0, // Score from users_profiles
         rank: userRank,
         total_users: totalUsers
-      },
-      error: null
+      }, 
+      error: null 
     };
   } catch (error: any) {
     console.error('Get user ranking exception:', error);
     return { data: null, error: { message: error.message } };
   }
 };
-
 // Get recent activities for a user
 export const getRecentActivities = async (userId: string, limit: number = 5) => {
   try {
@@ -1801,39 +1843,83 @@ export const getRecentActivities = async (userId: string, limit: number = 5) => 
     return { data: [], error: { message: error.message } };
   }
 };
+export const getUserScoreBreakdown = async (userId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('user_scores')
+      .select('*')
+      .eq('user_id', userId)
+      .order('awarded_at', { ascending: false });
 
+    if (error) {
+      console.error('Error fetching score breakdown:', error);
+      return { data: [], error };
+    }
+
+    // Calculate total from the fetched data
+    const totalScore = data?.reduce((sum, record) => sum + (record.points || 0), 0) || 0;
+
+    return { 
+      data: {
+        activities: data || [],
+        totalScore,
+        activitiesCount: data?.length || 0
+      }, 
+      error: null 
+    };
+  } catch (error: any) {
+    console.error('Get score breakdown exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
 // Get leaderboard data based on role
+// Get leaderboard data with correct scores
 export const getLeaderboardData = async (userRole: string, leaderboardType?: 'attendees' | 'volunteers') => {
   try {
+    // Get all users first
     let query = supabase
       .from('users_profiles')
       .select('id, first_name, last_name, role, score')
       .order('score', { ascending: false });
 
     if (userRole === 'admin') {
-      // Admin can see both - controlled by leaderboardType
       if (leaderboardType === 'attendees') {
         query = query.eq('role', 'attendee');
       } else if (leaderboardType === 'volunteers') {
         query = query.in('role', ['volunteer', 'registration', 'building', 'team_leader', 'info_desk']);
       }
     } else if (userRole === 'attendee') {
-      // Attendees only see other attendees
       query = query.eq('role', 'attendee');
     } else {
-      // Other roles see all non-attendees and non-admins
       query = query.not('role', 'in', '("attendee","admin")');
     }
 
-    const { data, error } = await query;
+    const { data: users, error } = await query;
 
     if (error) {
       console.error('Error fetching leaderboard:', error);
       return { data: [], error };
     }
 
-    // Add ranking to the data
-    const rankedData = (data || []).map((user, index) => ({
+    // For each user, calculate their actual total from user_scores
+    const leaderboardWithActualScores = await Promise.all(
+      (users || []).map(async (user, index) => {
+        const { totalScore } = await getUserTotalScore(user.id);
+        
+        return {
+          ...user,
+          actual_score: totalScore, // Score from user_scores table
+          displayed_score: user.score, // Score from users_profiles table
+          rank: index + 1
+        };
+      })
+    );
+
+    // Sort by actual score
+    leaderboardWithActualScores.sort((a, b) => b.actual_score - a.actual_score);
+
+    // Update ranks based on actual scores
+    const rankedData = leaderboardWithActualScores.map((user, index) => ({
       ...user,
       rank: index + 1
     }));

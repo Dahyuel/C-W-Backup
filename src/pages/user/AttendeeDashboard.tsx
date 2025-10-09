@@ -63,8 +63,19 @@ interface Company {
   description: string;
   website: string;
   booth_number: string;
+  partner_type: string; // Add this field
   created_at: string;
 }
+
+// Add partner type order
+const PARTNER_TYPES = [
+  "Strategic Partner",
+  "Main Partners", 
+  "Regular Partners",
+  "Tech Partners",
+  "Educational Partners",
+  "Community Partners"
+];
 
 // Faculty constants
 const DAY4_FACULTIES = [
@@ -285,22 +296,64 @@ const AttendeeDashboard: React.FC = () => {
       setLoading(false);
     }
   };
-
   const fetchUserScore = async () => {
     if (!profile?.id) return;
-
+  
     try {
-      const { data, error } = await getUserRankingAndScore(profile.id);
+      // Use RPC function for attendee score and rank
+      const { data, error } = await supabase.rpc('get_attendee_score_and_rank', {
+        user_uuid: profile.id
+      });
+  
       if (error) {
-        console.error('Error fetching user score:', error);
-      } else if (data) {
-        setUserScore(data);
+        console.error('RPC function error:', error);
+        // Fallback to direct query
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('users_profiles')
+          .select('score')
+          .eq('id', profile.id)
+          .single();
+  
+        if (fallbackError) {
+          console.error('Fallback query error:', fallbackError);
+          setUserScore({
+            score: profile.score || 0,
+            rank: 0,
+            total_users: 0
+          });
+        } else {
+          setUserScore({
+            score: fallbackData?.score || 0,
+            rank: 0,
+            total_users: 0
+          });
+        }
+      } else if (data && data.length > 0) {
+        // RPC function returns a table, so we get the first row
+        const result = data[0];
+        console.log('✅ RPC result:', result);
+        setUserScore({
+          score: result.score || 0,
+          rank: result.user_rank || 0,
+          total_users: result.total_users || 0
+        });
+      } else {
+        console.log('❌ No data returned from RPC');
+        setUserScore({
+          score: profile.score || 0,
+          rank: 0,
+          total_users: 0
+        });
       }
     } catch (error) {
       console.error('Error fetching user score:', error);
+      setUserScore({
+        score: profile.score || 0,
+        rank: 0,
+        total_users: 0
+      });
     }
   };
-
   const fetchRecentActivities = async () => {
     if (!profile?.id) return;
 
@@ -342,15 +395,14 @@ const AttendeeDashboard: React.FC = () => {
   };
 
 // Helper function to get day number from date (1-5)
+// Helper function to get day number from date (1-5)
 const getDayFromDate = (dateString: string): number => {
   const date = new Date(dateString);
-  // Change this to your new event start date
-  const eventStartDate = new Date('2025-10-19'); // Updated to 19/10/2025
+  const eventStartDate = new Date('2025-10-19'); // Day 1 starts on Oct 19
   const diffTime = date.getTime() - eventStartDate.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
   return Math.max(1, Math.min(5, diffDays + 1)); // Ensure day is between 1-5
 };
-
   const fetchSessions = async () => {
     setSessionsLoading(true);
     try {
@@ -434,8 +486,9 @@ const getDayFromDate = (dateString: string): number => {
       const { data, error } = await supabase
         .from("companies")
         .select("*")
+        .order("partner_type", { ascending: true })
         .order("name", { ascending: true });
-
+  
       if (error) {
         console.error("Error fetching companies:", error);
       } else if (data) {
@@ -679,14 +732,15 @@ const getDayFromDate = (dateString: string): number => {
     window.open(url, "_blank");
   };
 
-  const tabItems = [
-    { key: "overview", label: "Overview" },
-    { key: "stage-activities", label: "Stage Activities" },
-    { key: "building-sessions", label: "Building Sessions" },
-    { key: "open-recruitment", label: "Open Recruitment Days" },
-    { key: "maps", label: "Maps" },
-    { key: "employers", label: "Employers" }
-  ];
+// Update tabItems to use "Companies" instead of "Employers"
+const tabItems = [
+  { key: "overview", label: "Overview" },
+  { key: "stage-activities", label: "Stage Activities" },
+  { key: "building-sessions", label: "Building Sessions" },
+  { key: "open-recruitment", label: "Open Recruitment Days" },
+  { key: "maps", label: "Maps" },
+  { key: "companies", label: "Companies" } // Changed from "employers"
+];
 
   // Render session cards with faculty restrictions
   const renderSessionCards = (sessionsToRender: Session[]) => {
@@ -866,21 +920,23 @@ const getDayFromDate = (dateString: string): number => {
           {/* Overview - Responsive */}
           {activeTab === "overview" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 grid-stagger-blur stagger-animation">
-              {/* Score */}
-              <div 
-                className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 card-hover-enhanced dashboard-card transform transition-all duration-500 hover:scale-105 hover:shadow-xl"
-                style={{ animationDelay: '0ms' }}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-600">Your Score</p>
-                    <p className="text-2xl sm:text-3xl font-bold text-orange-600 animate-pulse">{userScore?.score || 0}</p>
-                  </div>
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-orange-100 rounded-lg flex items-center justify-center transform transition-all duration-500 hover:rotate-12">
-                    <Trophy className="h-5 w-5 sm:h-6 sm:w-6 text-orange-600" />
-                  </div>
-                </div>
-              </div>
+{/* Score */}
+<div 
+  className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 card-hover-enhanced dashboard-card transform transition-all duration-500 hover:scale-105 hover:shadow-xl"
+  style={{ animationDelay: '0ms' }}
+>
+  <div className="flex items-center justify-between">
+    <div>
+      <p className="text-sm font-medium text-gray-600">Your Score</p>
+      <p className="text-2xl sm:text-3xl font-bold text-orange-600 animate-pulse">
+        {userScore?.score || 0}
+      </p>
+    </div>
+    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-orange-100 rounded-lg flex items-center justify-center transform transition-all duration-500 hover:rotate-12">
+      <Trophy className="h-5 w-5 sm:h-6 sm:w-6 text-orange-600" />
+    </div>
+  </div>
+</div>
 
               {/* Rank */}
               <div 
@@ -974,23 +1030,23 @@ const getDayFromDate = (dateString: string): number => {
                   <span className="text-sm sm:text-lg">5-Day Stage Activities</span>
                 </h2>
                 
-                {/* Day Selector - Responsive */}
-                <div className="flex space-x-1 sm:space-x-2 overflow-x-auto pb-2 sm:pb-0 transform transition-all duration-500">
-                  {[1, 2, 3, 4, 5].map((day, index) => (
-                    <button
-                      key={day}
-                      onClick={() => setActiveDay(day)}
-                      className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-300 flex-shrink-0 transform hover:scale-110 ${
-                        activeDay === day 
-                          ? "bg-orange-500 text-white shadow-lg scale-110" 
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md"
-                      }`}
-                      style={{ animationDelay: `${index * 100}ms` }}
-                    >
-                      Day {day}
-                    </button>
-                  ))}
-                </div>
+               {/* Day Selector - Responsive */}
+<div className="flex space-x-1 sm:space-x-2 overflow-x-auto pb-2 sm:pb-0 transform transition-all duration-500">
+  {[1, 2, 3, 4, 5].map((day, index) => (
+    <button
+      key={day}
+      onClick={() => setActiveDay(day)}
+      className={`px-2 py-1 rounded-lg text-xs font-medium transition-all duration-300 flex-shrink-0 transform hover:scale-105 min-w-10 ${
+        activeDay === day 
+          ? "bg-orange-500 text-white shadow-lg scale-110" 
+          : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md"
+      }`}
+      style={{ animationDelay: `${index * 100}ms` }}
+    >
+      {day}
+    </button>
+  ))}
+</div>
               </div>
 
               {eventsLoading ? (
@@ -1180,19 +1236,34 @@ const getDayFromDate = (dateString: string): number => {
           </div>
         )}
 
-        {/* Employers - Responsive */}
-        {activeTab === "employers" && (
-          <div className="tab-content-animate">
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center">
-              <Building className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600" /> 
-              <span className="text-sm sm:text-lg">Participating Companies</span>
-            </h2>
+      {/* Companies - Responsive */}
+{activeTab === "companies" && (
+  <div className="tab-content-animate">
+    <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center">
+      <Building className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600" /> 
+      <span className="text-sm sm:text-lg">Participating Companies</span>
+    </h2>
+    
+    <div className="space-y-8">
+      {PARTNER_TYPES.map((partnerType) => {
+        const partnerCompanies = companies.filter(company => 
+          company.partner_type === partnerType
+        );
+        
+        if (partnerCompanies.length === 0) return null;
+        
+        return (
+          <div key={partnerType} className="fade-in-up-blur">
+            <h3 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">
+              {partnerType}
+            </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur">
-              {companies.map((company) => (
+              {partnerCompanies.map((company, index) => (
                 <div
                   key={company.id}
                   onClick={() => handleCompanyClick(company)}
-                  className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 cursor-pointer card-hover-enhanced dashboard-card"
+                  className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 cursor-pointer card-hover-enhanced dashboard-card transform transition-all duration-300 hover:scale-105"
+                  style={{ animationDelay: `${index * 100}ms` }}
                 >
                   <div className="text-center">
                     <img 
@@ -1217,7 +1288,19 @@ const getDayFromDate = (dateString: string): number => {
               ))}
             </div>
           </div>
-        )}
+        );
+      })}
+      
+      {/* Fallback if no companies found */}
+      {companies.length === 0 && (
+        <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200">
+          <Building className="h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mx-auto mb-3 sm:mb-4" />
+          <p className="text-gray-500 text-sm sm:text-base">No companies available</p>
+        </div>
+      )}
+    </div>
+  </div>
+)}
         </div>
       {/* All Modals using React Portal with Animations */}
 
@@ -1533,93 +1616,102 @@ const getDayFromDate = (dateString: string): number => {
       )}
 
       {/* Company Details Modal */}
-      {showCompanyModal && selectedCompany && createPortal(
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
-          onClick={() => {
-            setShowCompanyModal(false);
-            setSelectedCompany(null);
-          }}
-        >
-          <div 
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
-            onClick={(e) => e.stopPropagation()}
+      {/* Company Details Modal */}
+{showCompanyModal && selectedCompany && createPortal(
+  <div 
+    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
+    onClick={() => {
+      setShowCompanyModal(false);
+      setSelectedCompany(null);
+    }}
+  >
+    <div 
+      className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="p-6 stagger-children">
+        <div className="flex items-center justify-between mb-6 fade-in-blur">
+          <h2 className="text-xl font-bold text-gray-900">Company Details</h2>
+          <button
+            onClick={() => {
+              setShowCompanyModal(false);
+              setSelectedCompany(null);
+            }}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <div className="p-6 stagger-children">
-              <div className="flex items-center justify-between mb-6 fade-in-blur">
-                <h2 className="text-xl font-bold text-gray-900">Company Details</h2>
-                <button
-                  onClick={() => {
-                    setShowCompanyModal(false);
-                    setSelectedCompany(null);
-                  }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X className="h-6 w-6" />
-                </button>
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        <div className="space-y-6">
+          {/* Company Logo and Name */}
+          <div className="text-center fade-in-blur">
+            <img 
+              src={selectedCompany.logo_url} 
+              alt={`${selectedCompany.name} logo`} 
+              className="h-24 w-auto mx-auto mb-4 object-contain" 
+            />
+            <h3 className="text-2xl font-bold text-gray-900">{selectedCompany.name}</h3>
+            
+            {/* Partner Type Badge */}
+            {selectedCompany.partner_type && (
+              <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 mt-2">
+                {selectedCompany.partner_type}
               </div>
-
-              <div className="space-y-6">
-                {/* Company Logo and Name */}
-                <div className="text-center fade-in-blur">
-                  <img 
-                    src={selectedCompany.logo_url} 
-                    alt={`${selectedCompany.name} logo`} 
-                    className="h-24 w-auto mx-auto mb-4 object-contain" 
-                  />
-                  <h3 className="text-2xl font-bold text-gray-900">{selectedCompany.name}</h3>
-                  {selectedCompany.booth_number && (
-                    <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800 mt-2">
-                      <MapPin className="h-4 w-4 mr-1" />
-                      Booth {selectedCompany.booth_number}
-                    </div>
-                  )}
-                </div>
-
-                {/* Company Description */}
-                <div className="fade-in-blur">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">About Company</label>
-                  <p className="text-gray-700 leading-relaxed">{selectedCompany.description}</p>
-                </div>
-
-                {/* Website */}
-                <div className="fade-in-blur">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Website</label>
-                  <a 
-                    href={selectedCompany.website} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-orange-600 hover:text-orange-700 break-all"
-                  >
-                    {selectedCompany.website}
-                  </a>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="pt-4 space-y-3 fade-in-blur">
-                  <button
-                    onClick={() => handleEmployerWebsiteClick(selectedCompany.website)}
-                    className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
-                  >
-                    Visit Career Page
-                  </button>
-                  
-                  <button
-                    onClick={() => {
-                      setShowCompanyModal(false);
-                      setSelectedCompany(null);
-                    }}
-                    className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium"
-                  >
-                    Close
-                  </button>
-                </div>
+            )}
+            
+            {selectedCompany.booth_number && (
+              <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800 mt-2 ml-2">
+                <MapPin className="h-4 w-4 mr-1" />
+                Booth {selectedCompany.booth_number}
               </div>
-            </div>
+            )}
           </div>
-        </div>,
-        document.body
-      )}
+
+          {/* Company Description */}
+          <div className="fade-in-blur">
+            <label className="block text-sm font-medium text-gray-700 mb-2">About Company</label>
+            <p className="text-gray-700 leading-relaxed">{selectedCompany.description}</p>
+          </div>
+
+          {/* Website */}
+          <div className="fade-in-blur">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Website</label>
+            <a 
+              href={selectedCompany.website} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-orange-600 hover:text-orange-700 break-all"
+            >
+              {selectedCompany.website}
+            </a>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="pt-4 space-y-3 fade-in-blur">
+            <button
+              onClick={() => handleEmployerWebsiteClick(selectedCompany.website)}
+              className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+            >
+              Visit Career Page
+            </button>
+            
+            <button
+              onClick={() => {
+                setShowCompanyModal(false);
+                setSelectedCompany(null);
+              }}
+              className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
       </div>
     </DashboardLayout>
   );

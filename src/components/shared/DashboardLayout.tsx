@@ -903,7 +903,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
         </div>
       )}
 
-      <style jsx>{`
+      <style>{`
         @keyframes scale-in {
           0% {
             opacity: 0;
