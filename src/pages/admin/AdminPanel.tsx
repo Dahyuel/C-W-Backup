@@ -20,7 +20,8 @@ import {
   CheckCircle,
   AlertCircle,
   BookOpen,
-  Briefcase
+  Briefcase,
+  User
 } from "lucide-react";
 import DashboardLayout from "../../components/shared/DashboardLayout";
 import { supabase, getDynamicBuildingStats, deleteCompany } from "../../lib/supabase";
@@ -135,6 +136,18 @@ interface UserProfileItem {
   class?: string;
 }
 
+interface AttendanceItem {
+  id: string;
+  user_id: string;
+  session_id: string;
+  scan_type: string;
+  scanned_by: string;
+  scanned_at: string;
+  location?: string;
+  user?: UserProfileItem;
+  session?: SessionItem;
+}
+
 type DayKey = `day${1|2|3|4|5}`;
 
 interface DayStats {
@@ -213,6 +226,14 @@ export function AdminPanel() {
   const [selectedVacanciesTypes, setSelectedVacanciesTypes] = useState<string[]>([]);
   const [editSelectedAcademicFaculties, setEditSelectedAcademicFaculties] = useState<string[]>([]);
   const [editSelectedVacanciesTypes, setEditSelectedVacanciesTypes] = useState<string[]>([]);
+
+  // New state for Open Recruitment Days
+  const [openRecruitmentDay, setOpenRecruitmentDay] = useState<number>(4);
+  const [day4Bookings, setDay4Bookings] = useState<AttendanceItem[]>([]);
+  const [day5Bookings, setDay5Bookings] = useState<AttendanceItem[]>([]);
+  const [selectedBooking, setSelectedBooking] = useState<AttendanceItem | null>(null);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [deleteBookingModal, setDeleteBookingModal] = useState(false);
   
   const announcementRoleOptions = [
     { value: "", label: "Select Target" },
@@ -421,6 +442,106 @@ export function AdminPanel() {
     const diffTime = date.getTime() - eventStartDate.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     return Math.max(1, Math.min(5, diffDays + 1));
+  };
+
+  // Fetch Open Recruitment Day bookings
+  const fetchOpenRecruitmentBookings = async (day: number) => {
+    try {
+      // Calculate the date for the specific day
+      const eventStartDate = new Date('2025-10-19');
+      const targetDate = new Date(eventStartDate);
+      targetDate.setDate(eventStartDate.getDate() + (day - 1));
+      
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      // Fetch bookings for the specific day
+      const { data: bookings, error } = await supabase
+        .from('attendances')
+        .select(`
+          *,
+          user:users_profiles(*),
+          session:sessions(*)
+        `)
+        .eq('scan_type', 'booking')
+        .gte('scanned_at', startOfDay.toISOString())
+        .lte('scanned_at', endOfDay.toISOString())
+        .order('scanned_at', { ascending: false });
+
+      if (error) {
+        console.error(`Error fetching day ${day} bookings:`, error);
+        return [];
+      }
+
+      return bookings || [];
+    } catch (error) {
+      console.error(`Error fetching day ${day} bookings:`, error);
+      return [];
+    }
+  };
+
+  // Load bookings when Open Recruitment tab is active
+  useEffect(() => {
+    if (activeTab === "open-recruitment") {
+      loadOpenRecruitmentBookings();
+    }
+  }, [activeTab, openRecruitmentDay]);
+
+  const loadOpenRecruitmentBookings = async () => {
+    setLoading(true);
+    try {
+      const day4Data = await fetchOpenRecruitmentBookings(4);
+      const day5Data = await fetchOpenRecruitmentBookings(5);
+      
+      setDay4Bookings(day4Data);
+      setDay5Bookings(day5Data);
+    } catch (error) {
+      console.error('Error loading open recruitment bookings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle booking click
+  const handleBookingClick = (booking: AttendanceItem) => {
+    setSelectedBooking(booking);
+    setShowBookingModal(true);
+  };
+
+  // Handle booking deletion
+  const handleDeleteBooking = async () => {
+    if (!selectedBooking) return;
+
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('attendances')
+        .delete()
+        .eq('id', selectedBooking.id);
+
+      if (error) {
+        showFeedback("Failed to delete booking", "error");
+      } else {
+        showFeedback("Booking deleted successfully!", "success");
+        setDeleteBookingModal(false);
+        setSelectedBooking(null);
+        // Refresh the bookings
+        await loadOpenRecruitmentBookings();
+      }
+    } catch (error) {
+      showFeedback("Failed to delete booking", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Open delete booking modal
+  const openDeleteBookingModal = (booking: AttendanceItem) => {
+    setSelectedBooking(booking);
+    setDeleteBookingModal(true);
   };
 
   useEffect(() => {
@@ -2557,7 +2678,8 @@ export function AdminPanel() {
     { key: "sessions", label: "Sessions" },
     { key: "events", label: "Events" },
     { key: "maps", label: "Maps" },
-    { key: "companies", label: "Companies" }
+    { key: "companies", label: "Companies" },
+    { key: "open-recruitment", label: "Open Recruitment Days" }
   ];
 
   if (loadingData) {
@@ -2725,6 +2847,7 @@ export function AdminPanel() {
               {sessions.map((session) => (
                 <div 
                   key={session.id} 
+                  onClick={() => handleSessionClick(session)}
                   className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-md transition-all duration-300 smooth-hover card-hover fade-in-blur"
                 >
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">{session.title}</h3>
@@ -3051,6 +3174,121 @@ export function AdminPanel() {
           </div>
         )}
 
+        {/* Open Recruitment Days Tab */}
+        {activeTab === "open-recruitment" && (
+          <div className="fade-in-blur">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center mb-4 sm:mb-0 fade-in-blur">
+                <Calendar className="h-5 w-5 mr-2 text-orange-600" /> Open Recruitment Days
+              </h2>
+              
+              {/* Day Selector */}
+              <div className="flex space-x-2 mb-4 sm:mb-0 fade-in-blur">
+                <button
+                  onClick={() => setOpenRecruitmentDay(4)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 smooth-hover ${
+                    openRecruitmentDay === 4 
+                      ? "bg-orange-500 text-white" 
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  Day 4 (22-10-2025)
+                </button>
+                <button
+                  onClick={() => setOpenRecruitmentDay(5)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 smooth-hover ${
+                    openRecruitmentDay === 5 
+                      ? "bg-orange-500 text-white" 
+                      : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  }`}
+                >
+                  Day 5 (23-10-2025)
+                </button>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="flex items-center justify-center h-32 fade-in-blur">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 stagger-children">
+                {(openRecruitmentDay === 4 ? day4Bookings : day5Bookings).map((booking) => (
+                  <div 
+                    key={booking.id} 
+                    onClick={() => handleBookingClick(booking)}
+                    className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 hover:shadow-md transition-all duration-300 smooth-hover card-hover fade-in-blur cursor-pointer"
+                  >
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                          <User className="h-5 w-5 text-orange-600" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-900">
+                            {booking.user?.first_name} {booking.user?.last_name}
+                          </h3>
+                          <p className="text-sm text-gray-500">{booking.user?.personal_id}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 text-sm text-gray-600">
+                      <div className="flex items-center">
+                        <Calendar className="h-4 w-4 mr-2" />
+                        <span>Booked: {new Date(booking.scanned_at).toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <Clock className="h-4 w-4 mr-2" />
+                        <span>{new Date(booking.scanned_at).toLocaleTimeString()}</span>
+                      </div>
+                      {booking.session && (
+                        <div className="flex items-center">
+                          <BookOpen className="h-4 w-4 mr-2" />
+                          <span className="font-medium">{booking.session.title}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 mt-4">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleBookingClick(booking);
+                        }}
+                        className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover text-sm font-medium"
+                      >
+                        <Eye className="h-3 w-3 mr-1 inline" />
+                        View
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openDeleteBookingModal(booking);
+                        }}
+                        className="flex-1 bg-red-500 text-white py-2 px-3 rounded-lg hover:bg-red-600 transition-all duration-300 smooth-hover text-sm font-medium"
+                      >
+                        <Trash2 className="h-3 w-3 mr-1 inline" />
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {(openRecruitmentDay === 4 ? day4Bookings : day5Bookings).length === 0 && !loading && (
+              <div className="text-center py-12 bg-white rounded-xl border border-gray-200 fade-in-blur">
+                <Calendar className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Bookings Found</h3>
+                <p className="text-gray-500">
+                  No session bookings found for Day {openRecruitmentDay} ({openRecruitmentDay === 4 ? '22-10-2025' : '23-10-2025'})
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* All Modals */}
 
         {/* Company Detail Modal */}
@@ -3222,6 +3460,178 @@ export function AdminPanel() {
                       className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover font-medium"
                     >
                       Close Details
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+        {/* Booking Detail Modal */}
+        {showBookingModal && selectedBooking && createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
+              <div className="p-6 stagger-children">
+                <div className="flex items-center justify-between mb-6 fade-in-blur">
+                  <h2 className="text-xl font-bold text-gray-900">Booking Details</h2>
+                  <button
+                    onClick={() => {
+                      setShowBookingModal(false);
+                      setSelectedBooking(null);
+                    }}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+
+                <div className="space-y-6 fade-in-blur">
+                  {/* User Information */}
+                  <div className="text-center">
+                    <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <User className="h-10 w-10 text-orange-600" />
+                    </div>
+                    <h3 className="text-2xl font-bold text-gray-900">
+                      {selectedBooking.user?.first_name} {selectedBooking.user?.last_name}
+                    </h3>
+                    <p className="text-gray-600 mt-2">{selectedBooking.user?.email}</p>
+                    <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 mt-2">
+                      Personal ID: {selectedBooking.user?.personal_id}
+                    </div>
+                  </div>
+
+                  {/* Session Information */}
+                  {selectedBooking.session && (
+                    <div className="fade-in-blur">
+                      <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                        <BookOpen className="h-4 w-4 mr-2" />
+                        Session Details
+                      </label>
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <h4 className="font-semibold text-gray-900">{selectedBooking.session.title}</h4>
+                        {selectedBooking.session.description && (
+                          <p className="text-gray-600 mt-1 text-sm">{selectedBooking.session.description}</p>
+                        )}
+                        {selectedBooking.session.speaker && (
+                          <p className="text-gray-700 mt-2 text-sm">
+                            <strong>Speaker:</strong> {selectedBooking.session.speaker}
+                          </p>
+                        )}
+                        <div className="grid grid-cols-2 gap-4 mt-3 text-sm">
+                          <div>
+                            <strong>Date:</strong><br />
+                            {new Date(selectedBooking.session.start_time).toLocaleDateString()}
+                          </div>
+                          <div>
+                            <strong>Time:</strong><br />
+                            {new Date(selectedBooking.session.start_time).toLocaleTimeString()} - {new Date(selectedBooking.session.end_time).toLocaleTimeString()}
+                          </div>
+                          <div>
+                            <strong>Location:</strong><br />
+                            {selectedBooking.session.location}
+                          </div>
+                          <div>
+                            <strong>Type:</strong><br />
+                            {selectedBooking.session.session_type}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Booking Information */}
+                  <div className="fade-in-blur">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Booking Information</label>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <strong>Booked On:</strong><br />
+                        {new Date(selectedBooking.scanned_at).toLocaleDateString()}
+                      </div>
+                      <div>
+                        <strong>Booked At:</strong><br />
+                        {new Date(selectedBooking.scanned_at).toLocaleTimeString()}
+                      </div>
+                      <div>
+                        <strong>Booking ID:</strong><br />
+                        <code className="text-xs">{selectedBooking.id}</code>
+                      </div>
+                      <div>
+                        <strong>Scan Type:</strong><br />
+                        {selectedBooking.scan_type}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="pt-4 space-y-3 fade-in-blur">
+                    <button
+                      onClick={() => openDeleteBookingModal(selectedBooking)}
+                      className="w-full bg-red-500 text-white py-3 px-4 rounded-lg hover:bg-red-600 transition-all duration-300 smooth-hover font-medium"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2 inline" />
+                      Delete Booking
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        setShowBookingModal(false);
+                        setSelectedBooking(null);
+                      }}
+                      className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover font-medium"
+                    >
+                      Close Details
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+        {/* Delete Booking Confirmation Modal */}
+        {deleteBookingModal && selectedBooking && createPortal(
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md modal-content-blur fade-in-up-blur">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4 fade-in-blur">
+                  <h3 className="text-lg font-bold text-gray-900">Confirm Deletion</h3>
+                  <button
+                    onClick={() => {
+                      setDeleteBookingModal(false);
+                      setSelectedBooking(null);
+                    }}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+
+                <div className="fade-in-blur">
+                  <p className="text-gray-600 mb-6">
+                    Are you sure you want to delete the booking for{" "}
+                    <strong>{selectedBooking.user?.first_name} {selectedBooking.user?.last_name}</strong>?
+                    This action cannot be undone.
+                  </p>
+
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => {
+                        setDeleteBookingModal(false);
+                        setSelectedBooking(null);
+                      }}
+                      className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleDeleteBooking}
+                      disabled={loading}
+                      className="flex-1 bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                    >
+                      {loading ? 'Deleting...' : 'Delete Booking'}
                     </button>
                   </div>
                 </div>
@@ -3758,6 +4168,53 @@ export function AdminPanel() {
             opacity: 1;
             transform: translateY(0);
             filter: blur(0);
+          }
+        }
+
+        /* Responsive styles */
+        @media (max-width: 640px) {
+          .grid-cols-1 {
+            grid-template-columns: 1fr;
+          }
+          
+          .grid-cols-2 {
+            grid-template-columns: 1fr;
+          }
+          
+          .grid-cols-3 {
+            grid-template-columns: 1fr;
+          }
+          
+          .p-6 {
+            padding: 1rem;
+          }
+          
+          .text-3xl {
+            font-size: 1.5rem;
+          }
+          
+          .text-2xl {
+            font-size: 1.25rem;
+          }
+          
+          .text-xl {
+            font-size: 1.125rem;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .grid-cols-3 {
+            grid-template-columns: repeat(2, 1fr);
+          }
+          
+          .lg\\:grid-cols-3 {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+
+        @media (max-width: 1024px) {
+          .lg\\:grid-cols-3 {
+            grid-template-columns: repeat(2, 1fr);
           }
         }
       `}</style>
