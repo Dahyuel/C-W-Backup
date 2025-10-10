@@ -156,6 +156,8 @@ const AttendeeDashboard: React.FC = () => {
   const [showQR, setShowQR] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [qrCodeLoading, setQrCodeLoading] = useState(false);
+  const [companiesLoading, setCompaniesLoading] = useState(false);
+const [userBookingsLoading, setUserBookingsLoading] = useState(false);
   
   // Session modal states
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
