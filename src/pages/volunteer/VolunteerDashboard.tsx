@@ -145,56 +145,38 @@ export const VolunteerDashboard: React.FC = () => {
       subtitle={`Welcome back, ${profile?.first_name}!`}
     >
       <div className="fade-in-up-blur">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto grid-stagger-blur">
-        {/* Points Card */}
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 card-hover-enhanced dashboard-card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Points Earned</p>
-              <p className="text-3xl font-bold text-green-600">{stats?.score || 0}</p>
-            </div>
-            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <Heart className="h-6 w-6 text-green-600" />
-            </div>
-          </div>
-        </div>
-
-        {/* Leaderboard Rank Card */}
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 card-hover-enhanced dashboard-card">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Your Rank</p>
-              <p className="text-3xl font-bold text-blue-600">
-                {stats?.rank ? `#${stats.rank}` : 'N/A'}
-              </p>
-              {stats?.total_users && (
-                <p className="text-xs text-gray-500">of {stats.total_users}</p>
-              )}
-            </div>
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Trophy className="h-6 w-6 text-blue-600" />
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Activities Card */}
-        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 card-hover-enhanced dashboard-card">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <p className="text-sm font-medium text-gray-600">Recent Activity</p>
-              <p className="text-2xl font-bold text-purple-600">
-                {recentActivities.length > 0 ? `+${recentActivities[0]?.points || 0}` : '0'}
-              </p>
-              {recentActivities.length > 0 && (
-                <p className="text-xs text-gray-500">Latest points</p>
-              )}
-            </div>
-            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-              <Activity className="h-6 w-6 text-purple-600" />
-            </div>
-          </div>
-        </div>
+     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto grid-stagger-blur">
+  {/* Points Card */}
+  <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 card-hover-enhanced dashboard-card">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-medium text-gray-600">Points Earned</p>
+        <p className="text-3xl font-bold text-green-600">{stats?.score || 0}</p>
       </div>
+      <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+        <Heart className="h-6 w-6 text-green-600" />
+      </div>
+    </div>
+  </div>
+
+  {/* Recent Activities Card */}
+  <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 card-hover-enhanced dashboard-card">
+    <div className="flex items-center justify-between mb-4">
+      <div>
+        <p className="text-sm font-medium text-gray-600">Recent Activity</p>
+        <p className="text-2xl font-bold text-purple-600">
+          {recentActivities.length > 0 ? `+${recentActivities[0]?.points || 0}` : '0'}
+        </p>
+        {recentActivities.length > 0 && (
+          <p className="text-xs text-gray-500">Latest points</p>
+        )}
+      </div>
+      <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+        <Activity className="h-6 w-6 text-purple-600" />
+      </div>
+    </div>
+  </div>
+</div>
 
       {/* Recent Activities List */}
       <div className="max-w-4xl mx-auto mt-8">
