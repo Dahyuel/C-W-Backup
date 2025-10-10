@@ -23,8 +23,9 @@ import {
   Crown,
   Upload,
   FileText,
-  IdCard,
-  Download
+  Download,
+  CreditCard, // Replaced IdCard with CreditCard
+  FileUp // Added for upload icon alternative
 } from 'lucide-react';
 import { supabase, uploadFile, updateUserFiles } from '../../lib/supabase';
 import QRCode from 'qrcode';
