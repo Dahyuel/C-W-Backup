@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trophy, Medal, Crown, Star, User, Heart, Shield, Users, Building, UserCheck, Camera, Megaphone, Stethoscope, Briefcase, Utensils, MessageSquare, Radio, ChevronDown, EyeOff } from 'lucide-react';
+import { Trophy, Medal, Crown, Star, User, Heart, Shield, Users, Building, UserCheck, Camera, Megaphone, Stethoscope, Briefcase, Utensils, MessageSquare, Radio, ChevronDown, EyeOff, Search, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface LeaderboardEntry {
@@ -10,6 +10,8 @@ interface LeaderboardEntry {
   score: number;
   rank: number;
   tl_team?: string;
+  personal_id?: string;
+  volunteer_id?: string;
 }
 
 interface LeaderboardProps {
@@ -27,9 +29,16 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
   const [error, setError] = useState<string | null>(null);
   const [teamDropdownOpen, setTeamDropdownOpen] = useState(false);
   const [currentUserData, setCurrentUserData] = useState<LeaderboardEntry | null>(null);
+  
+  // Admin search functionality
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<LeaderboardEntry[]>([]);
+  const [selectedUser, setSelectedUser] = useState<LeaderboardEntry | null>(null);
+  const [userDetails, setUserDetails] = useState<any>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
 
-  // Blind mode is active for non-admin users
-  const isBlindMode = userRole !== 'admin';
+  // Blind mode is active for non-admin and non-team_leader users
+  const isBlindMode = !['admin', 'team_leader'].includes(userRole || '');
 
   useEffect(() => {
     fetchAvailableTeams();
@@ -56,26 +65,16 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
       // Fetch current user's data
       const { data: userData, error: userError } = await supabase
         .from('users_profiles')
-        .select('id, first_name, last_name, role, score, tl_team')
+        .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
         .eq('id', currentUserId)
         .single();
 
       if (userError) throw userError;
 
       if (userData) {
-        // Get user's rank by counting how many users have a higher score
-        const { count, error: countError } = await supabase
-          .from('users_profiles')
-          .select('*', { count: 'exact', head: true })
-          .gt('score', userData.score);
-
-        if (countError) throw countError;
-
-        const rank = (count || 0) + 1;
-
         setCurrentUserData({
           ...userData,
-          rank
+          rank: 0 // Don't show rank in blind mode
         });
       }
     } catch (err) {
@@ -143,7 +142,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
       } else {
         let query = supabase
           .from('users_profiles')
-          .select('id, first_name, last_name, role, score, tl_team')
+          .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
           .order('score', { ascending: false });
 
         if (userRole === 'admin') {
@@ -203,6 +202,61 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
     } finally {
       setLoading(false);
     }
+  };
+
+  // Admin search functionality
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    setSearchLoading(true);
+    try {
+      // Search by personal ID or volunteer ID
+      const { data, error } = await supabase
+        .from('users_profiles')
+        .select('id, first_name, last_name, role, score, personal_id, volunteer_id, tl_team')
+        .or(`personal_id.ilike.%${query}%,volunteer_id.ilike.%${query}%`)
+        .limit(10);
+
+      if (error) throw error;
+
+      setSearchResults(data || []);
+    } catch (err) {
+      console.error('Search error:', err);
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleUserSelect = async (user: LeaderboardEntry) => {
+    setSelectedUser(user);
+    setSearchQuery('');
+    setSearchResults([]);
+
+    // Fetch additional user details if needed
+    try {
+      const { data, error } = await supabase
+        .from('users_profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (!error && data) {
+        setUserDetails(data);
+      }
+    } catch (err) {
+      console.error('Error fetching user details:', err);
+    }
+  };
+
+  const closeUserModal = () => {
+    setSelectedUser(null);
+    setUserDetails(null);
   };
 
   const getRankIcon = (rank: number) => {
@@ -390,7 +444,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
     );
   }
 
-  // Blind Mode View for Non-Admin Users
+  // Blind Mode View for Non-Admin and Non-Team Leader Users
   if (isBlindMode) {
     return (
       <div className="w-full fade-in-up-blur">
@@ -438,14 +492,6 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
                 <p className="text-sm text-gray-600 font-medium uppercase tracking-wide">Points</p>
               </div>
 
-              {/* Rank */}
-              <div className="text-center bg-white rounded-lg px-6 py-4 shadow-md">
-                <div className="flex items-center justify-center space-x-2 mb-1">
-                  {getRankIcon(currentUserData.rank)}
-                </div>
-                <p className="text-lg font-semibold text-gray-700">Rank #{currentUserData.rank}</p>
-              </div>
-
               {/* Motivational Message */}
               <div className="mt-4 p-4 bg-white rounded-lg border border-orange-200">
                 <p className="text-center text-gray-700 text-sm">
@@ -465,9 +511,70 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
     );
   }
 
-  // Admin Full Leaderboard View
+  // Admin/Team Leader Full Leaderboard View
   return (
     <div className="w-full fade-in-up-blur">
+      {/* Admin Search Bar */}
+      {userRole === 'admin' && (
+        <div className="mb-6 fade-in-down">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <input
+              type="text"
+              placeholder="Search by Personal ID or Volunteer ID..."
+              value={searchQuery}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Search Results */}
+          {searchResults.length > 0 && (
+            <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+              {searchResults.map((user) => (
+                <button
+                  key={user.id}
+                  onClick={() => handleUserSelect(user)}
+                  className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {user.first_name} {user.last_name}
+                      </p>
+                      <div className="flex items-center space-x-2 mt-1">
+                        {user.personal_id && (
+                          <span className="text-sm text-gray-600">
+                            Personal ID: {user.personal_id}
+                          </span>
+                        )}
+                        {user.volunteer_id && (
+                          <span className="text-sm text-gray-600">
+                            Volunteer ID: {user.volunteer_id}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-orange-600">{user.score}</p>
+                      <p className="text-xs text-gray-500">points</p>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Tab Controls */}
       <div className="flex flex-col space-y-4 mb-6 border-b pb-4 fade-in-left">
         <div className="flex space-x-4">
@@ -612,6 +719,99 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
           </div>
         )}
       </div>
+
+      {/* User Details Modal */}
+      {selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 fade-in-blur">
+          <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">User Details</h3>
+              <button
+                onClick={closeUserModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Avatar and Basic Info */}
+              <div className="flex items-center space-x-4">
+                <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center">
+                  <span className="text-white font-bold text-xl">
+                    {selectedUser.first_name?.charAt(0)}{selectedUser.last_name?.charAt(0)}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-xl font-bold text-gray-900">
+                    {selectedUser.first_name} {selectedUser.last_name}
+                  </p>
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-1 ${getRoleColor(selectedUser.role)}`}>
+                    {getRoleIcon(selectedUser.role)}
+                    <span className="ml-1 capitalize">{selectedUser.role.replace('_', ' ')}</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* IDs */}
+              <div className="grid grid-cols-1 gap-3">
+                {selectedUser.personal_id && (
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <p className="text-sm font-medium text-gray-700">Personal ID</p>
+                    <p className="text-lg font-mono text-gray-900">{selectedUser.personal_id}</p>
+                  </div>
+                )}
+                {selectedUser.volunteer_id && (
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <p className="text-sm font-medium text-gray-700">Volunteer ID</p>
+                    <p className="text-lg font-mono text-gray-900">{selectedUser.volunteer_id}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Score */}
+              <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                <p className="text-sm font-medium text-orange-800 mb-1">Total Score</p>
+                <p className="text-3xl font-bold text-orange-600">{selectedUser.score}</p>
+                <p className="text-xs text-orange-600">points</p>
+              </div>
+
+              {/* Additional Details from userDetails */}
+              {userDetails && (
+                <div className="space-y-3">
+                  {userDetails.email && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">Email</p>
+                      <p className="text-gray-900">{userDetails.email}</p>
+                    </div>
+                  )}
+                  {userDetails.phone && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">Phone</p>
+                      <p className="text-gray-900">{userDetails.phone}</p>
+                    </div>
+                  )}
+                  {userDetails.tl_team && (
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">Team</p>
+                      <p className="text-gray-900 capitalize">{userDetails.tl_team.replace('_', ' ')}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={closeUserModal}
+                className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
