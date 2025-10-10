@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Trophy, Star, QrCode, Calendar, MapPin, Clock, Building, Users, X, CheckCircle, XCircle, Activity, BookOpen, Menu } from "lucide-react";
+import { 
+  Trophy, Star, QrCode, Calendar, MapPin, Clock, Building, Users, X, 
+  CheckCircle, XCircle, Activity, BookOpen, Menu, Sparkles, Briefcase, Eye 
+} from "lucide-react";
 import DashboardLayout from "../../components/shared/DashboardLayout";
 import { supabase, getUserRankingAndScore, getRecentActivities } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
@@ -1279,7 +1282,6 @@ const tabItems = [
         )}
 
       {/* Companies - Responsive */}
-// Update the companies tab in the AttendeeDashboard component
 {activeTab === "companies" && (
   <div className="tab-content-animate">
     <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center">
