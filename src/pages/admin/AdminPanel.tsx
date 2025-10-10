@@ -3386,9 +3386,9 @@ export function AdminPanel() {
           )}
         </div>
 
-        {/* All Modals remain the same as in your original code */}
-        {/* Company Detail Modal, Booking Detail Modal, Add Company Modal, etc. */}
-        {/* ... (modal code remains unchanged) */}
+
+
+        
       </div>
     </DashboardLayout>
   );
