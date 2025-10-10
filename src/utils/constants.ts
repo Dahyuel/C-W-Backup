@@ -23,7 +23,7 @@ export const FACULTIES = [
   'Faculty of Alsun',
   'Faculty of Business Administration',
   'Faculty of Applied Arts',
-    'Faculty of Girls',
+  'Faculty of Girls',
   'Other'
 ];
 export const ENUM_VALUES = {
