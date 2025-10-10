@@ -69,7 +69,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
         // Use the team leaderboard function
         const result = await supabase.rpc('get_team_leaderboard', {
           p_team_name: selectedTeam,
-          p_limit_param: 10
+          p_limit_param: 100
         });
         
         if (result.error) {
@@ -113,7 +113,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
           if (userTeam) {
             const result = await supabase.rpc('get_team_leaderboard', {
               p_team_name: userTeam,
-              p_limit_param: 10
+              p_limit_param: 100
             });
             
             if (result.error) throw result.error;
@@ -151,22 +151,24 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
         rank: user.rank || index + 1
       }));
 
-      // Optimize: Show only top 10 and current user's position
-      if (currentUserId && rankedData.length > 10) {
+      // Optimize: Show top 100 for admin, top 10 for others
+      const limitCount = userRole === 'admin' ? 100 : 10;
+      
+      if (currentUserId && rankedData.length > limitCount) {
         const currentUserIndex = rankedData.findIndex(user => user.id === currentUserId);
 
-        if (currentUserIndex > 9) {
-          // User is not in top 10, so include them separately
-          const top10 = rankedData.slice(0, 10);
+        if (currentUserIndex > limitCount - 1) {
+          // User is not in top limit, so include them separately
+          const topEntries = rankedData.slice(0, limitCount);
           const currentUser = rankedData[currentUserIndex];
-          rankedData = [...top10];
+          rankedData = [...topEntries];
         } else {
-          // User is in top 10, just show top 10
-          rankedData = rankedData.slice(0, 10);
+          // User is in top limit, just show top entries
+          rankedData = rankedData.slice(0, limitCount);
         }
-      } else if (!currentUserId && rankedData.length > 10) {
-        // No current user, just show top 10
-        rankedData = rankedData.slice(0, 10);
+      } else if (!currentUserId && rankedData.length > limitCount) {
+        // No current user, just show top entries
+        rankedData = rankedData.slice(0, limitCount);
       }
 
       setLeaderboardData(rankedData);
@@ -465,7 +467,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
             <Trophy className="h-5 w-5 mr-2 text-orange-600" />
             {getTabTitle()}
           </h3>
-          <p className="text-sm text-gray-500">Top {Math.min(leaderboardData.length, 10)}</p>
+          <p className="text-sm text-gray-500">Top {Math.min(leaderboardData.length, userRole === 'admin' ? 100 : 10)}</p>
         </div>
 
         {leaderboardData.length === 0 ? (
