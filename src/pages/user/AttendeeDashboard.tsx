@@ -5,8 +5,6 @@ import { supabase, getUserRankingAndScore, getRecentActivities } from "../../lib
 import { useAuth } from "../../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import QRCodeLib from 'qrcode';
-// Add these imports if not already present
-import { BookOpen, Briefcase, Sparkles } from "lucide-react";
 import { createPortal } from 'react-dom';
 
 // Types
