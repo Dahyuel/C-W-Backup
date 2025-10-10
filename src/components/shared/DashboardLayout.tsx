@@ -20,9 +20,13 @@ import {
   CheckCircle,
   AlertCircle,
   Trophy,
-  Crown
+  Crown,
+  Upload,
+  FileText,
+  IdCard,
+  Download
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { supabase, uploadFile, updateUserFiles } from '../../lib/supabase';
 import QRCode from 'qrcode';
 import Leaderboard from './Leaderboard';
 
@@ -47,8 +51,13 @@ interface PasswordChangeData {
   confirmPassword: string;
 }
 
+interface FileUploadState {
+  universityId: File | null;
+  cv: File | null;
+}
+
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subtitle }) => {
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, refreshProfile } = useAuth();
   
   // State management
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
@@ -62,6 +71,18 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
   // QR Code state
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [qrCodeLoading, setQrCodeLoading] = useState(false);
+  
+  // File upload state
+  const [fileUploads, setFileUploads] = useState<FileUploadState>({
+    universityId: null,
+    cv: null
+  });
+  const [uploadLoading, setUploadLoading] = useState({
+    universityId: false,
+    cv: false
+  });
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   
   // Data state
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -109,6 +130,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
       if (showProfileModal && profileModalRef.current && !profileModalRef.current.contains(event.target as Node)) {
         setShowProfileModal(false);
         setQrCodeUrl('');
+        setFileUploads({ universityId: null, cv: null });
+        setUploadError(null);
+        setUploadSuccess(null);
       }
     };
 
@@ -234,6 +258,213 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
     } finally {
       setQrCodeLoading(false);
     }
+  };
+
+  const handleFileUpload = async (type: 'universityId' | 'cv') => {
+    if (!profile?.id || !fileUploads[type]) return;
+
+    setUploadLoading(prev => ({ ...prev, [type]: true }));
+    setUploadError(null);
+    setUploadSuccess(null);
+
+    try {
+      const file = fileUploads[type];
+      if (!file) throw new Error('No file selected');
+
+      // Validate file type and size
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        throw new Error('File size must be less than 10MB');
+      }
+
+      // Upload file to appropriate bucket
+      const bucket = type === 'universityId' ? 'university-ids' : 'cvs';
+      const result = await uploadFile(bucket, profile.id, file);
+
+      if (result.error) {
+        throw new Error(result.error.message || `Failed to upload ${type === 'universityId' ? 'University ID' : 'CV'}`);
+      }
+
+      if (!result.data?.path) {
+        throw new Error('Upload failed - no file path returned');
+      }
+
+      // Update user profile with file path
+      const updateField = type === 'universityId' ? 'university_id_path' : 'cv_path';
+      const { error: updateError } = await updateUserFiles(profile.id, {
+        [updateField]: result.data.path
+      });
+
+      if (updateError) {
+        throw new Error(`Failed to update profile: ${updateError.message}`);
+      }
+
+      // Refresh profile to get updated data
+      await refreshProfile();
+      
+      setUploadSuccess(`${type === 'universityId' ? 'University ID' : 'CV'} uploaded successfully!`);
+      setFileUploads(prev => ({ ...prev, [type]: null }));
+
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setUploadSuccess(null);
+      }, 3000);
+
+    } catch (error: any) {
+      console.error(`Upload error for ${type}:`, error);
+      setUploadError(error.message || `Failed to upload ${type === 'universityId' ? 'University ID' : 'CV'}`);
+    } finally {
+      setUploadLoading(prev => ({ ...prev, [type]: false }));
+    }
+  };
+
+  const handleFileSelect = (type: 'universityId' | 'cv', file: File) => {
+    setFileUploads(prev => ({ ...prev, [type]: file }));
+    setUploadError(null);
+  };
+
+  const handleFileRemove = (type: 'universityId' | 'cv') => {
+    setFileUploads(prev => ({ ...prev, [type]: null }));
+    setUploadError(null);
+  };
+
+  const downloadFile = async (type: 'universityId' | 'cv') => {
+    if (!profile?.id) return;
+
+    const filePath = type === 'universityId' ? profile.university_id_path : profile.cv_path;
+    if (!filePath) return;
+
+    try {
+      const bucket = type === 'universityId' ? 'university-ids' : 'cvs';
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .download(filePath);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      // Create download link
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${type === 'universityId' ? 'university-id' : 'cv'}-${profile.first_name}-${profile.last_name}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+    } catch (error: any) {
+      console.error(`Download error for ${type}:`, error);
+      setUploadError(`Failed to download ${type === 'universityId' ? 'University ID' : 'CV'}`);
+    }
+  };
+
+  const getUploadStatus = (filePath: string | null) => {
+    return filePath ? 'Uploaded' : 'Not Uploaded';
+  };
+
+  const getStatusColor = (filePath: string | null) => {
+    return filePath ? 'text-green-600' : 'text-red-600';
+  };
+
+  const getStatusIcon = (filePath: string | null) => {
+    return filePath ? CheckCircle : AlertCircle;
+  };
+
+  const renderFileUploadSection = (type: 'universityId' | 'cv') => {
+    const filePath = type === 'universityId' ? profile?.university_id_path : profile?.cv_path;
+    const isUploaded = !!filePath;
+    const StatusIcon = getStatusIcon(filePath);
+    const label = type === 'universityId' ? 'University ID' : 'CV/Resume';
+    const accept = type === 'universityId' ? '.jpg,.jpeg,.png,.pdf' : '.pdf,.doc,.docx';
+    
+    return (
+      <div className="border border-gray-200 rounded-lg p-4 fade-in-blur">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center space-x-2">
+            {type === 'universityId' ? <IdCard className="h-5 w-5 text-blue-600" /> : <FileText className="h-5 w-5 text-green-600" />}
+            <span className="font-medium text-gray-900">{label}</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <StatusIcon className={`h-4 w-4 ${getStatusColor(filePath)}`} />
+            <span className={`text-sm font-medium ${getStatusColor(filePath)}`}>
+              {getUploadStatus(filePath)}
+            </span>
+          </div>
+        </div>
+
+        {isUploaded ? (
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600">File is uploaded and verified</span>
+            <button
+              onClick={() => downloadFile(type)}
+              className="flex items-center space-x-1 px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+            >
+              <Download className="h-3 w-3" />
+              <span>Download</span>
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+              {fileUploads[type] ? (
+                <div className="flex items-center justify-center space-x-2">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span className="text-sm text-gray-900">{fileUploads[type]?.name}</span>
+                  <button
+                    onClick={() => handleFileRemove(type)}
+                    className="text-red-600 hover:text-red-800 text-sm"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="file"
+                    accept={accept}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleFileSelect(type, file);
+                    }}
+                    className="hidden"
+                    id={`file-${type}`}
+                  />
+                  <label
+                    htmlFor={`file-${type}`}
+                    className="cursor-pointer text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Choose File
+                  </label>
+                  <p className="text-xs text-gray-500 mt-1">Max 10MB</p>
+                </>
+              )}
+            </div>
+
+            {fileUploads[type] && (
+              <button
+                onClick={() => handleFileUpload(type)}
+                disabled={uploadLoading[type]}
+                className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {uploadLoading[type] ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    <span>Uploading...</span>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4" />
+                    <span>Upload {label}</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const handleSignOut = async () => {
@@ -426,45 +657,45 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                     </span>
                   )}
                 </button>
-{/* Notification Dropdown - Fixed mobile positioning */}
-{showNotificationDropdown && (
-  <div className="fixed sm:absolute right-0 left-0 sm:left-auto mt-2 mx-4 sm:mx-0 sm:w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-y-auto fade-in-up-blur modal-content-blur">
-    <div className="p-4 border-b border-gray-200">
-      <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
-    </div>
-    <div className="max-h-64 overflow-y-auto stagger-children">
-      {notifications.length > 0 ? (
-        notifications.map((notification) => (
-          <button
-            key={notification.id}
-            onClick={() => handleNotificationClick(notification)}
-            className={`w-full text-left p-4 hover:bg-gray-50 border-b border-gray-100 transition-all duration-300 smooth-hover ${
-              !notification.is_read ? 'bg-orange-50' : ''
-            }`}
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <h4 className="font-medium text-gray-900 text-sm">{notification.title}</h4>
-                <p className="text-sm text-gray-600 mt-1 line-clamp-2">{notification.message}</p>
-                <p className="text-xs text-gray-500 mt-2">
-                  {new Date(notification.created_at).toLocaleDateString()}
-                </p>
-              </div>
-              {!notification.is_read && (
-                <div className="w-2 h-2 bg-orange-500 rounded-full ml-2 mt-1 flex-shrink-0"></div>
-              )}
-            </div>
-          </button>
-        ))
-      ) : (
-        <div className="p-8 text-center text-gray-500 fade-in-scale">
-          <Bell className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-          <p>No notifications yet</p>
-        </div>
-      )}
-    </div>
-  </div>
-)}
+
+                {showNotificationDropdown && (
+                  <div className="fixed sm:absolute right-0 left-0 sm:left-auto mt-2 mx-4 sm:mx-0 sm:w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-y-auto fade-in-up-blur modal-content-blur">
+                    <div className="p-4 border-b border-gray-200">
+                      <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto stagger-children">
+                      {notifications.length > 0 ? (
+                        notifications.map((notification) => (
+                          <button
+                            key={notification.id}
+                            onClick={() => handleNotificationClick(notification)}
+                            className={`w-full text-left p-4 hover:bg-gray-50 border-b border-gray-100 transition-all duration-300 smooth-hover ${
+                              !notification.is_read ? 'bg-orange-50' : ''
+                            }`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h4 className="font-medium text-gray-900 text-sm">{notification.title}</h4>
+                                <p className="text-sm text-gray-600 mt-1 line-clamp-2">{notification.message}</p>
+                                <p className="text-xs text-gray-500 mt-2">
+                                  {new Date(notification.created_at).toLocaleDateString()}
+                                </p>
+                              </div>
+                              {!notification.is_read && (
+                                <div className="w-2 h-2 bg-orange-500 rounded-full ml-2 mt-1 flex-shrink-0"></div>
+                              )}
+                            </div>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="p-8 text-center text-gray-500 fade-in-scale">
+                          <Bell className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                          <p>No notifications yet</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Profile Menu */}
@@ -482,34 +713,34 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                   <ChevronDown className="h-4 w-4 text-gray-400" />
                 </button>
 
-               {showProfileDropdown && (
-  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50 fade-in-up-blur modal-content-blur">
-    <div className="p-2 stagger-children">
-      <button
-        onClick={handleProfileClick}
-        className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-all duration-300 smooth-hover"
-      >
-        <User className="h-4 w-4 mr-3" />
-        Profile
-      </button>
-      <button
-        onClick={handleLeaderboardClick}
-        className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-all duration-300 smooth-hover"
-      >
-        <Trophy className="h-4 w-4 mr-3" />
-        Leaderboard
-      </button>
-      <button
-        onClick={handleSignOut}
-        disabled={loggingOut}
-        className="w-full flex items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-all duration-300 smooth-hover disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        <LogOut className="h-4 w-4 mr-3" />
-        {loggingOut ? 'Logging out...' : 'Logout'}
-      </button>
-    </div>
-  </div>
-)}
+                {showProfileDropdown && (
+                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50 fade-in-up-blur modal-content-blur">
+                    <div className="p-2 stagger-children">
+                      <button
+                        onClick={handleProfileClick}
+                        className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-all duration-300 smooth-hover"
+                      >
+                        <User className="h-4 w-4 mr-3" />
+                        Profile
+                      </button>
+                      <button
+                        onClick={handleLeaderboardClick}
+                        className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-all duration-300 smooth-hover"
+                      >
+                        <Trophy className="h-4 w-4 mr-3" />
+                        Leaderboard
+                      </button>
+                      <button
+                        onClick={handleSignOut}
+                        disabled={loggingOut}
+                        className="w-full flex items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-md transition-all duration-300 smooth-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <LogOut className="h-4 w-4 mr-3" />
+                        {loggingOut ? 'Logging out...' : 'Logout'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -527,174 +758,201 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
         {children}
       </main>
 
-     {/* Footer */}
+      {/* Footer */}
       <footer className="bg-white border-t border-orange-100">
-       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-         <div className="text-center">
-           <p className="text-sm text-gray-600">
-             Powered By{' '}
-             <button
-               onClick={() => window.open('https://www.nilebyte.info', '_blank')}
-               className="text-orange-600 hover:text-orange-700 font-medium transition-colors underline"
-             >
-               @Nilebyte
-             </button>
-           </p>
-         </div>
-       </div>
-     </footer>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="text-center">
+            <p className="text-sm text-gray-600">
+              Powered By{' '}
+              <button
+                onClick={() => window.open('https://www.nilebyte.info', '_blank')}
+                className="text-orange-600 hover:text-orange-700 font-medium transition-colors underline"
+              >
+                @Nilebyte
+              </button>
+            </p>
+          </div>
+        </div>
+      </footer>
 
       {/* Profile Modal */}
-{showProfileModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
-    <div 
-      ref={profileModalRef}
-      className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
-    >
-      <div className="p-6 stagger-children">
-        <div className="flex items-center justify-between mb-6 fade-in-blur">
-          <h2 className="text-xl font-bold text-gray-900">Profile Information</h2>
-          <button
-            onClick={() => {
-              setShowProfileModal(false);
-              setQrCodeUrl('');
-            }}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+      {showProfileModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+          <div 
+            ref={profileModalRef}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
           >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-
-        {/* QR Code Section */}
-        <div className="text-center mb-6 fade-in-blur card-hover">
-          <div className="w-48 h-48 bg-white border-2 border-gray-200 rounded-lg mx-auto mb-4 flex items-center justify-center overflow-hidden smooth-hover">
-            {qrCodeLoading ? (
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
-                <p className="text-xs text-gray-500">Generating QR Code...</p>
+            <div className="p-6 stagger-children">
+              <div className="flex items-center justify-between mb-6 fade-in-blur">
+                <h2 className="text-xl font-bold text-gray-900">Profile Information</h2>
+                <button
+                  onClick={() => {
+                    setShowProfileModal(false);
+                    setQrCodeUrl('');
+                    setFileUploads({ universityId: null, cv: null });
+                    setUploadError(null);
+                    setUploadSuccess(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
               </div>
-            ) : qrCodeUrl ? (
-              <img 
-                src={qrCodeUrl} 
-                alt="Profile QR Code" 
-                className="w-full h-full object-contain"
-              />
-            ) : (
-              <div className="text-center">
-                <QrCode className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                <p className="text-xs text-gray-500">QR Code unavailable</p>
-              </div>
-            )}
-          </div>
-          <p className="text-sm text-gray-600">Show this QR code for check-ins</p>
-          {profile?.id && (
-            <p className="text-xs text-gray-400 mt-1 font-mono break-all px-4">
-              ID: {profile.id}
-            </p>
-          )}
-        </div>
 
-        {/* Score Display */}
-        <div className="bg-orange-50 rounded-lg p-4 mb-6 text-center fade-in-blur card-hover">
-          <div className="flex items-center justify-center mb-2">
-            <Trophy className="h-6 w-6 text-orange-600 mr-2" />
-            <span className="text-lg font-semibold text-orange-900">Your Score</span>
-          </div>
-          <div className="text-3xl font-bold text-orange-600">{userScore}</div>
-        </div>
-
-        {/* Profile Information */}
-        <div className="space-y-4 fade-in-blur">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">First Name</label>
-            <p className="mt-1 text-sm text-gray-900">{profile?.first_name}</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Last Name</label>
-            <p className="mt-1 text-sm text-gray-900">{profile?.last_name}</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Email</label>
-            <p className="mt-1 text-sm text-gray-900 break-all">{profile?.email || 'Not provided'}</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Phone</label>
-            <p className="mt-1 text-sm text-gray-900">{profile?.phone || 'Not provided'}</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Personal ID</label>
-            <p className="mt-1 text-sm text-gray-900">{profile?.personal_id || 'Not provided'}</p>
-          </div>
-          
-          {/* Volunteer ID - Show only for non-admin and non-attendee roles */}
-          {profile?.role && !['admin', 'attendee'].includes(profile.role) && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Volunteer ID</label>
-              <p className="mt-1 text-sm text-gray-900 font-mono">
-                {profile?.volunteer_id || 'Not assigned'}
-              </p>
-              {!profile?.volunteer_id && (
-                <p className="text-xs text-gray-500 mt-1">
-                  Your volunteer ID will be assigned by the event organizers
-                </p>
+              {/* Upload Status Messages */}
+              {uploadError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center animate-fade-in">
+                  <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
+                  <p className="text-red-700 text-sm">{uploadError}</p>
+                </div>
               )}
-            </div>
-          )}
-          
-          {/* Team Leader Section */}
-          {profile?.tl_team && (
-            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 fade-in-blur card-hover">
-              <div className="flex items-center justify-center mb-2">
-                <Crown className="h-5 w-5 text-indigo-600 mr-2" />
-                <span className="text-md font-semibold text-indigo-900">Leader Of Team</span>
+
+              {uploadSuccess && (
+                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center animate-fade-in">
+                  <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                  <p className="text-green-700 text-sm">{uploadSuccess}</p>
+                </div>
+              )}
+
+              {/* QR Code Section */}
+              <div className="text-center mb-6 fade-in-blur card-hover">
+                <div className="w-48 h-48 bg-white border-2 border-gray-200 rounded-lg mx-auto mb-4 flex items-center justify-center overflow-hidden smooth-hover">
+                  {qrCodeLoading ? (
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
+                      <p className="text-xs text-gray-500">Generating QR Code...</p>
+                    </div>
+                  ) : qrCodeUrl ? (
+                    <img 
+                      src={qrCodeUrl} 
+                      alt="Profile QR Code" 
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <div className="text-center">
+                      <QrCode className="h-12 w-12 text-gray-400 mx-auto mb-2" />
+                      <p className="text-xs text-gray-500">QR Code unavailable</p>
+                    </div>
+                  )}
+                </div>
+                <p className="text-sm text-gray-600">Show this QR code for check-ins</p>
+                {profile?.id && (
+                  <p className="text-xs text-gray-400 mt-1 font-mono break-all px-4">
+                    ID: {profile.id}
+                  </p>
+                )}
               </div>
-              <div className="text-center">
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
-                  {getTeamLabel(profile.tl_team)}
-                </span>
+
+              {/* Score Display */}
+              <div className="bg-orange-50 rounded-lg p-4 mb-6 text-center fade-in-blur card-hover">
+                <div className="flex items-center justify-center mb-2">
+                  <Trophy className="h-6 w-6 text-orange-600 mr-2" />
+                  <span className="text-lg font-semibold text-orange-900">Your Score</span>
+                </div>
+                <div className="text-3xl font-bold text-orange-600">{userScore}</div>
               </div>
-            </div>
-          )}
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Role</label>
-            <div className="mt-1 flex items-center">
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor()}`}>
-                {getRoleIcon()}
-                <span className="ml-1 capitalize">{profile?.role?.replace('_', ' ')}</span>
-              </span>
+
+              {/* Document Upload Section */}
+              <div className="mb-6 fade-in-blur">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Document Status</h3>
+                <div className="space-y-4">
+                  {renderFileUploadSection('universityId')}
+                  {renderFileUploadSection('cv')}
+                </div>
+              </div>
+
+              {/* Profile Information */}
+              <div className="space-y-4 fade-in-blur">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">First Name</label>
+                  <p className="mt-1 text-sm text-gray-900">{profile?.first_name}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Last Name</label>
+                  <p className="mt-1 text-sm text-gray-900">{profile?.last_name}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Email</label>
+                  <p className="mt-1 text-sm text-gray-900 break-all">{profile?.email || 'Not provided'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Phone</label>
+                  <p className="mt-1 text-sm text-gray-900">{profile?.phone || 'Not provided'}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Personal ID</label>
+                  <p className="mt-1 text-sm text-gray-900">{profile?.personal_id || 'Not provided'}</p>
+                </div>
+                
+                {/* Volunteer ID - Show only for non-admin and non-attendee roles */}
+                {profile?.role && !['admin', 'attendee'].includes(profile.role) && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Volunteer ID</label>
+                    <p className="mt-1 text-sm text-gray-900 font-mono">
+                      {profile?.volunteer_id || 'Not assigned'}
+                    </p>
+                    {!profile?.volunteer_id && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Your volunteer ID will be assigned by the event organizers
+                      </p>
+                    )}
+                  </div>
+                )}
+                
+                {/* Team Leader Section */}
+                {profile?.tl_team && (
+                  <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 fade-in-blur card-hover">
+                    <div className="flex items-center justify-center mb-2">
+                      <Crown className="h-5 w-5 text-indigo-600 mr-2" />
+                      <span className="text-md font-semibold text-indigo-900">Leader Of Team</span>
+                    </div>
+                    <div className="text-center">
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
+                        {getTeamLabel(profile.tl_team)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Role</label>
+                  <div className="mt-1 flex items-center">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleColor()}`}>
+                      {getRoleIcon()}
+                      <span className="ml-1 capitalize">{profile?.role?.replace('_', ' ')}</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="mt-6 pt-6 border-t border-gray-200 space-y-3 fade-in-blur">
+                <button
+                  onClick={() => setShowPasswordModal(true)}
+                  className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors"
+                >
+                  Change Password
+                </button>
+                
+                {qrCodeUrl && (
+                  <button
+                    onClick={() => {
+                      const link = document.createElement('a');
+                      link.download = `qr-code-${profile?.first_name}-${profile?.last_name}.png`;
+                      link.href = qrCodeUrl;
+                      link.click();
+                    }}
+                    className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    Download QR Code
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
+      )}
 
-        {/* Action Buttons */}
-        <div className="mt-6 pt-6 border-t border-gray-200 space-y-3 fade-in-blur">
-          <button
-            onClick={() => setShowPasswordModal(true)}
-            className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors"
-          >
-            Change Password
-          </button>
-          
-          {qrCodeUrl && (
-            <button
-              onClick={() => {
-                const link = document.createElement('a');
-                link.download = `qr-code-${profile?.first_name}-${profile?.last_name}.png`;
-                link.href = qrCodeUrl;
-                link.click();
-              }}
-              className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              Download QR Code
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  </div>
-)}
-     
       {/* Change Password Modal */}
       {showPasswordModal && (
         <div 
@@ -813,60 +1071,61 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
         </div>
       )}
 
-    {/* Notification Modal */}
-{showNotificationModal && selectedNotification && (
-  <div 
-    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur"
-    onClick={() => {
-      setShowNotificationModal(false);
-      setSelectedNotification(null);
-    }}
-  >
-    <div 
-      className="bg-white rounded-2xl shadow-2xl w-full max-w-md modal-content-blur fade-in-up-blur"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div className="p-6 stagger-children">
-        <div className="flex items-center justify-between mb-6 fade-in-blur">
-          <h2 className="text-xl font-bold text-gray-900">Notification</h2>
-          <button
-            onClick={() => {
-              setShowNotificationModal(false);
-              setSelectedNotification(null);
-            }}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
+      {/* Notification Modal */}
+      {showNotificationModal && selectedNotification && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur"
+          onClick={() => {
+            setShowNotificationModal(false);
+            setSelectedNotification(null);
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md modal-content-blur fade-in-up-blur"
+            onClick={(e) => e.stopPropagation()}
           >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
+            <div className="p-6 stagger-children">
+              <div className="flex items-center justify-between mb-6 fade-in-blur">
+                <h2 className="text-xl font-bold text-gray-900">Notification</h2>
+                <button
+                  onClick={() => {
+                    setShowNotificationModal(false);
+                    setSelectedNotification(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
 
-        <div className="space-y-4 fade-in-blur">
-          <div>
-            <h3 className="font-semibold text-gray-900">{selectedNotification.title}</h3>
-          </div>
-          <div>
-            <p className="text-gray-700">{selectedNotification.message}</p>
-          </div>
-          <div className="text-sm text-gray-500">
-            <p>From: {selectedNotification.sender}</p>
-            <p>Date: {new Date(selectedNotification.created_at).toLocaleString()}</p>
+              <div className="space-y-4 fade-in-blur">
+                <div>
+                  <h3 className="font-semibold text-gray-900">{selectedNotification.title}</h3>
+                </div>
+                <div>
+                  <p className="text-gray-700">{selectedNotification.message}</p>
+                </div>
+                <div className="text-sm text-gray-500">
+                  <p>From: {selectedNotification.sender}</p>
+                  <p>Date: {new Date(selectedNotification.created_at).toLocaleString()}</p>
+                </div>
+              </div>
+
+              {!selectedNotification.is_read && (
+                <div className="mt-6 pt-6 border-t border-gray-200 fade-in-blur">
+                  <button
+                    onClick={() => markNotificationAsRead(selectedNotification.id)}
+                    className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors"
+                  >
+                    Mark as Read
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
+      )}
 
-        {!selectedNotification.is_read && (
-          <div className="mt-6 pt-6 border-t border-gray-200 fade-in-blur">
-            <button
-              onClick={() => markNotificationAsRead(selectedNotification.id)}
-              className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors"
-            >
-              Mark as Read
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  </div>
-)}
       {/* Leaderboard Modal */}
       {showLeaderboard && (
         <div 
