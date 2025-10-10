@@ -18,11 +18,45 @@ interface RecentActivity {
   awarded_at: string;
 }
 
+// Role display name mapping
+const getRoleDisplayName = (role: string): string => {
+  const roleMap: { [key: string]: string } = {
+    'admin': 'Admin',
+    'team_leader': 'Team Leader',
+    'attendee': 'Attendee',
+    'volunteer': 'Volunteer',
+    'registration': 'Registration',
+    'building': 'Building',
+    'info_desk': 'Info Desk',
+    'ushers': 'Ushers',
+    'marketing': 'Marketing',
+    'media': 'Media',
+    'ER': 'Emergency Response',
+    'BD': 'Business Development',
+    'catering': 'Catering',
+    'feedback': 'Feedback',
+    'stage': 'Stage'
+  };
+
+  return roleMap[role] || role.split('_').map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1)
+  ).join(' ');
+};
+
+const getDashboardTitle = (role: string): string => {
+  const roleName = getRoleDisplayName(role);
+  return `${roleName} Dashboard`;
+};
+
 export const VolunteerDashboard: React.FC = () => {
   const { profile } = useAuth();
   const [stats, setStats] = useState<VolunteerStats | null>(null);
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Get dashboard title based on user role
+  const dashboardTitle = profile?.role ? getDashboardTitle(profile.role) : 'Dashboard';
+  const roleDisplayName = profile?.role ? getRoleDisplayName(profile.role) : 'User';
 
   useEffect(() => {
     fetchDashboardData();
@@ -97,7 +131,7 @@ export const VolunteerDashboard: React.FC = () => {
 
   if (loading) {
     return (
-      <DashboardLayout title="Volunteer Dashboard" subtitle="Welcome to your volunteer portal">
+      <DashboardLayout title={dashboardTitle} subtitle={`Welcome to your ${roleDisplayName.toLowerCase()} portal`}>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
         </div>
@@ -107,7 +141,7 @@ export const VolunteerDashboard: React.FC = () => {
 
   return (
     <DashboardLayout 
-      title="Volunteer Dashboard" 
+      title={dashboardTitle} 
       subtitle={`Welcome back, ${profile?.first_name}!`}
     >
       <div className="fade-in-up-blur">
@@ -214,12 +248,35 @@ export const VolunteerDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Volunteer Information */}
+      {/* Role-Specific Information */}
       <div className="max-w-4xl mx-auto mt-8 text-center">
         <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-xl p-6 border border-orange-200 fade-in-blur card-hover">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">Volunteer Information</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">{roleDisplayName} Information</h3>
           <p className="text-gray-700 leading-relaxed">
-            Thank you for your dedication and hard work! Your contributions make this event possible.
+            {profile?.role === 'marketing' && 
+              "Thank you for promoting our event! Your marketing efforts help us reach more attendees and create buzz around the event."}
+            {profile?.role === 'media' && 
+              "Thank you for capturing our event moments! Your media coverage helps us document and share the experience with everyone."}
+            {profile?.role === 'registration' && 
+              "Thank you for managing registrations! You're the first point of contact for our attendees and help create a smooth check-in experience."}
+            {profile?.role === 'building' && 
+              "Thank you for maintaining our venue! Your work ensures everything runs smoothly and safely throughout the event."}
+            {profile?.role === 'info_desk' && 
+              "Thank you for assisting attendees! You provide valuable information and help create a positive experience for everyone."}
+            {profile?.role === 'ushers' && 
+              "Thank you for guiding our attendees! You help maintain order and ensure everyone finds their way around the venue."}
+            {profile?.role === 'ER' && 
+              "Thank you for keeping everyone safe! Your emergency response skills provide crucial support throughout the event."}
+            {profile?.role === 'BD' && 
+              "Thank you for your business development efforts! You help build valuable partnerships and opportunities."}
+            {profile?.role === 'catering' && 
+              "Thank you for keeping everyone nourished! Your catering services help maintain energy and satisfaction throughout the event."}
+            {profile?.role === 'feedback' && 
+              "Thank you for gathering valuable feedback! Your work helps us improve future events and understand attendee needs."}
+            {profile?.role === 'stage' && 
+              "Thank you for managing the stage! You ensure smooth transitions and technical excellence for all presentations."}
+            {!['marketing', 'media', 'registration', 'building', 'info_desk', 'ushers', 'ER', 'BD', 'catering', 'feedback', 'stage'].includes(profile?.role || '') && 
+              "Thank you for your dedication and hard work! Your contributions make this event possible."}
             <br />
             If anything comes up, refer to your team leader.
           </p>
