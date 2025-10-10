@@ -523,6 +523,7 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
   };
 
   const fetchCompanies = async () => {
+    setCompaniesLoading(true);
     try {
       const { data, error } = await supabase
         .from("companies")
