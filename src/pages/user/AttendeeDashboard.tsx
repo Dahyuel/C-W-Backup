@@ -1645,9 +1645,450 @@ const AttendeeDashboard: React.FC = () => {
           </div>,
           document.body
         )}
+      {/* All Modals using React Portal with Animations */}
 
-        {/* Keep all other existing modals (QR, Event, Session, Company) */}
-        {/* ... (existing modal code remains the same) */}
+      {/* QR Code Modal */}
+      {showQR && createPortal(
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
+          onClick={() => {
+            setShowQR(false);
+            setQrCodeUrl('');
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center modal-content-blur fade-in-up-blur"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4 fade-in-blur">
+              <h3 className="text-xl font-bold text-gray-900">Your QR Code</h3>
+              <button
+                onClick={() => {
+                  setShowQR(false);
+                  setQrCodeUrl('');
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            
+            <div className="w-48 h-48 bg-gray-100 rounded-lg mx-auto mb-4 flex items-center justify-center fade-in-blur">
+              {qrCodeLoading ? (
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
+                  <p className="text-xs text-gray-500">Generating...</p>
+                </div>
+              ) : qrCodeUrl ? (
+                <img 
+                  src={qrCodeUrl} 
+                  alt="QR Code" 
+                  className="w-full h-full object-contain rounded-lg"
+                />
+              ) : (
+                <div className="text-center">
+                  <QrCode className="h-16 w-16 text-gray-400 mx-auto mb-2" />
+                  <p className="text-xs text-gray-500">QR Code</p>
+                </div>
+              )}
+            </div>
+            
+            <p className="text-sm text-gray-600 mb-4 fade-in-blur">Show this QR code for check-ins</p>
+            {profile?.id && (
+              <p className="text-xs text-gray-400 mt-1 font-mono break-all fade-in-blur">
+                {profile.id}
+              </p>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Event Details Modal */}
+      {showEventModal && selectedEvent && createPortal(
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
+          onClick={() => {
+            setShowEventModal(false);
+            setSelectedEvent(null);
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 stagger-children">
+              <div className="flex items-center justify-between mb-6 fade-in-blur">
+                <h2 className="text-xl font-bold text-gray-900">Event Details</h2>
+                <button
+                  onClick={() => {
+                    setShowEventModal(false);
+                    setSelectedEvent(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div className="fade-in-blur">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{selectedEvent.title}</h3>
+                  <p className="text-gray-700 leading-relaxed">{selectedEvent.description}</p>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 fade-in-blur">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time</label>
+                    <p className="text-gray-900">
+                      {new Date(selectedEvent.start_time).toLocaleDateString('en-US', { 
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
+                    <p className="text-gray-600 text-sm">
+                      {new Date(selectedEvent.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - 
+                      {new Date(selectedEvent.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
+
+                  <div className="fade-in-blur">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                    <p className="text-gray-900 flex items-center">
+                      <MapPin className="h-4 w-4 mr-2" />
+                      {selectedEvent.location}
+                    </p>
+                  </div>
+
+                  {selectedEvent.item_type && (
+                    <div className="fade-in-blur">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Event Type</label>
+                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                        {selectedEvent.item_type}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-4 border-t border-gray-200 fade-in-blur">
+                  <button
+                    onClick={() => setShowEventModal(false)}
+                    className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+                  >
+                    Close Details
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Session Details Modal */}
+      {showSessionModal && selectedSession && createPortal(
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
+          onClick={() => {
+            setShowSessionModal(false);
+            setSelectedSession(null);
+            setBookingError(null);
+            setBookingSuccess(null);
+          }}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 stagger-children">
+              <div className="flex items-center justify-between mb-6 fade-in-blur">
+                <h2 className="text-xl font-bold text-gray-900">Session Details</h2>
+                <button
+                  onClick={() => {
+                    setShowSessionModal(false);
+                    setSelectedSession(null);
+                    setBookingError(null);
+                    setBookingSuccess(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="fade-in-blur">
+                  <h3 className="text-lg font-semibold text-gray-900">{selectedSession.title}</h3>
+                  <p className="text-gray-600 mt-2">{selectedSession.description}</p>
+                </div>
+
+                {selectedSession.speaker && (
+                  <div className="fade-in-blur">
+                    <label className="block text-sm font-medium text-gray-700">Speaker</label>
+                    <p className="text-gray-900">{selectedSession.speaker}</p>
+                  </div>
+                )}
+
+                <div className="fade-in-blur">
+                  <label className="block text-sm font-medium text-gray-700">Date & Time</label>
+                  <p className="text-gray-900">
+                    {new Date(selectedSession.start_time).toLocaleDateString()} at{' '}
+                    {new Date(selectedSession.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </p>
+                </div>
+
+                <div className="fade-in-blur">
+                  <label className="block text-sm font-medium text-gray-700">Location</label>
+                  <p className="text-gray-900">{selectedSession.location}</p>
+                </div>
+
+                <div className="fade-in-blur">
+                  <label className="block text-sm font-medium text-gray-700">Capacity</label>
+                  <p className="text-gray-900">
+                    {selectedSession.current_bookings || 0} / {selectedSession.max_attendees || 'Unlimited'} booked
+                  </p>
+                </div>
+
+                {/* Faculty Eligibility Warning */}
+                {(() => {
+                  const { canBook, reason } = canBookSession(selectedSession);
+                  if (!canBook) {
+                    return (
+                      <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg fade-in-blur">
+                        <div className="flex items-start">
+                          <BookOpen className="h-5 w-5 text-gray-500 mr-2 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-gray-800 font-medium text-sm">Not Eligible</p>
+                            <p className="text-gray-700 text-xs mt-1">{reason}</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+
+                {/* Time Conflict Warning */}
+                {!isSessionBooked(selectedSession.id) && hasOverlappingBooking(selectedSession).hasOverlap && (
+                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg fade-in-blur">
+                    <div className="flex items-start">
+                      <Clock className="h-5 w-5 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-yellow-800 font-medium text-sm">Time Conflict</p>
+                        <p className="text-yellow-700 text-xs mt-1">
+                          You already have a booking at this time. Please cancel your existing booking first.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Booking Status */}
+                <div className="pt-4 border-t border-gray-200 fade-in-blur">
+                  {isSessionBooked(selectedSession.id) ? (
+                    <div className="flex items-center p-3 bg-green-50 rounded-lg">
+                      <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                      <span className="text-green-800 font-medium">You have booked this session</span>
+                    </div>
+                  ) : isSessionFull(selectedSession) ? (
+                    <div className="flex items-center p-3 bg-red-50 rounded-lg">
+                      <XCircle className="h-5 w-5 text-red-500 mr-2" />
+                      <span className="text-red-800 font-medium">This session is fully booked</span>
+                    </div>
+                  ) : hasOverlappingBooking(selectedSession).hasOverlap ? (
+                    <div className="flex items-center p-3 bg-yellow-50 rounded-lg">
+                      <Clock className="h-5 w-5 text-yellow-500 mr-2" />
+                      <span className="text-yellow-800 font-medium">You have a conflicting booking</span>
+                    </div>
+                  ) : !canBookSession(selectedSession).canBook ? (
+                    <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                      <BookOpen className="h-5 w-5 text-gray-500 mr-2" />
+                      <span className="text-gray-800 font-medium">Not eligible for this session</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center p-3 bg-blue-50 rounded-lg">
+                      <Users className="h-5 w-5 text-blue-500 mr-2" />
+                      <span className="text-blue-800 font-medium">Available for booking</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Error/Success Messages */}
+                {bookingError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg fade-in-blur">
+                    <p className="text-red-700 text-sm">{bookingError}</p>
+                  </div>
+                )}
+                {bookingSuccess && (
+                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg fade-in-blur">
+                    <p className="text-green-700 text-sm">{bookingSuccess}</p>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="pt-4 space-y-3 fade-in-blur">
+                  {isSessionBooked(selectedSession.id) ? (
+                    <button
+                      onClick={() => handleCancelBooking(selectedSession.id)}
+                      disabled={bookingLoading}
+                      className="w-full bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {bookingLoading ? 'Cancelling...' : 'Cancel Booking'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleBookSession(selectedSession.id)}
+                      disabled={bookingLoading || isSessionFull(selectedSession) || hasOverlappingBooking(selectedSession).hasOverlap || !canBookSession(selectedSession).canBook}
+                      className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {bookingLoading ? 'Booking...' : 
+                       isSessionFull(selectedSession) ? 'Session Full' : 
+                       hasOverlappingBooking(selectedSession).hasOverlap ? 'Time Conflict' : 
+                       !canBookSession(selectedSession).canBook ? 'Not Eligible' :
+                       'Book Now'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Company Details Modal */}
+      {/* Company Details Modal */}
+{showCompanyModal && selectedCompany && createPortal(
+  <div 
+    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
+    onClick={() => {
+      setShowCompanyModal(false);
+      setSelectedCompany(null);
+    }}
+  >
+    <div 
+      className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="p-6 stagger-children">
+        <div className="flex items-center justify-between mb-6 fade-in-blur">
+          <h2 className="text-xl font-bold text-gray-900">Company Details</h2>
+          <button
+            onClick={() => {
+              setShowCompanyModal(false);
+              setSelectedCompany(null);
+            }}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        <div className="space-y-6">
+          {/* Company Logo and Name */}
+          <div className="text-center fade-in-blur">
+            <img 
+              src={selectedCompany.logo_url} 
+              alt={`${selectedCompany.name} logo`} 
+              className="h-24 w-auto mx-auto mb-4 object-contain" 
+            />
+            <h3 className="text-2xl font-bold text-gray-900">{selectedCompany.name}</h3>
+            
+            {/* Partner Type Badge */}
+            {selectedCompany.partner_type && (
+              <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 mt-2">
+                {selectedCompany.partner_type}
+              </div>
+            )}
+            
+            {selectedCompany.booth_number && (
+              <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800 mt-2 ml-2">
+                <MapPin className="h-4 w-4 mr-1" />
+                Booth {selectedCompany.booth_number}
+              </div>
+            )}
+          </div>
+
+          {/* Company Description */}
+          <div className="fade-in-blur">
+            <label className="block text-sm font-medium text-gray-700 mb-2">About Company</label>
+            <p className="text-gray-700 leading-relaxed">{selectedCompany.description}</p>
+          </div>
+
+          {/* Website */}
+          <div className="fade-in-blur">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Website</label>
+            <a 
+              href={selectedCompany.website} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-orange-600 hover:text-orange-700 break-all"
+            >
+              {selectedCompany.website}
+            </a>
+          </div>
+
+          {/* Academic Faculties */}
+{selectedCompany.academic_faculties_seeking_for && selectedCompany.academic_faculties_seeking_for.length > 0 && (
+  <div className="fade-in-blur">
+    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+      <BookOpen className="h-4 w-4 mr-2" />
+      Academic Faculties Seeking For
+    </label>
+    <div className="flex flex-wrap gap-2">
+      {selectedCompany.academic_faculties_seeking_for.map((faculty, index) => (
+        <span key={index} className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+          {faculty}
+        </span>
+      ))}
+    </div>
+  </div>
+)}
+
+{/* Vacancies Type */}
+{selectedCompany.vacancies_type && selectedCompany.vacancies_type.length > 0 && (
+  <div className="fade-in-blur">
+    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+      <Briefcase className="h-4 w-4 mr-2" />
+      Vacancies Type
+    </label>
+    <div className="flex flex-wrap gap-2">
+      {selectedCompany.vacancies_type.map((type, index) => (
+        <span key={index} className="inline-flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+          {type}
+        </span>
+      ))}
+    </div>
+  </div>
+)}
+
+          {/* Action Buttons */}
+          <div className="pt-4 space-y-3 fade-in-blur">
+            <button
+              onClick={() => handleEmployerWebsiteClick(selectedCompany.website)}
+              className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+            >
+              Visit Career Page
+            </button>
+            
+            <button
+              onClick={() => {
+                setShowCompanyModal(false);
+                setSelectedCompany(null);
+              }}
+              className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
       </div>
     </DashboardLayout>
   );
