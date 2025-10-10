@@ -3387,7 +3387,1713 @@ export function AdminPanel() {
         </div>
 
 
+{/* Company Detail Modal */}
+{companyDetailModal && selectedCompanyDetail && createPortal(
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
+      <div className="p-4 sm:p-6 stagger-children">
+        <div className="flex items-center justify-between mb-4 sm:mb-6 fade-in-blur">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900">Company Details</h2>
+          <button
+            onClick={() => {
+              setCompanyDetailModal(false);
+              setSelectedCompanyDetail(null);
+            }}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="h-5 w-5 sm:h-6 sm:w-6" />
+          </button>
+        </div>
 
+        <div className="space-y-4 sm:space-y-6 fade-in-blur">
+          {/* Company Logo and Name */}
+          <div className="text-center">
+            <img 
+              src={selectedCompanyDetail.logo_url} 
+              alt={`${selectedCompanyDetail.name} logo`} 
+              className="h-16 sm:h-24 w-auto mx-auto mb-3 sm:mb-4 object-contain"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/96x96/orange/white?text=Logo";
+              }}
+            />
+            <h3 className="text-xl sm:text-2xl font-bold text-gray-900">{selectedCompanyDetail.name}</h3>
+            
+            {/* Partner Type Badge */}
+            {selectedCompanyDetail.partner_type && (
+              <div className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-purple-100 text-purple-800 mt-2">
+                {selectedCompanyDetail.partner_type}
+              </div>
+            )}
+            
+            {selectedCompanyDetail.booth_number && (
+              <div className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-orange-100 text-orange-800 mt-2 ml-1 sm:ml-2">
+                <MapPin className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                Booth {selectedCompanyDetail.booth_number}
+              </div>
+            )}
+          </div>
+
+          {/* Academic Faculties */}
+          {selectedCompanyDetail.academic_faculties_seeking_for && selectedCompanyDetail.academic_faculties_seeking_for.length > 0 && (
+            <div className="fade-in-blur">
+              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                <BookOpen className="h-4 w-4 mr-2" />
+                Academic Faculties Seeking For
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {selectedCompanyDetail.academic_faculties_seeking_for.map((faculty, index) => (
+                  <span key={index} className="inline-flex items-center px-2 sm:px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs sm:text-sm">
+                    {faculty}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Vacancies Type */}
+          {selectedCompanyDetail.vacancies_type && selectedCompanyDetail.vacancies_type.length > 0 && (
+            <div className="fade-in-blur">
+              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                <Briefcase className="h-4 w-4 mr-2" />
+                Vacancies Type
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {selectedCompanyDetail.vacancies_type.map((type, index) => (
+                  <span key={index} className="inline-flex items-center px-2 sm:px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs sm:text-sm">
+                    {type}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Company Description */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">About Company</label>
+            <p className="text-gray-700 leading-relaxed text-sm sm:text-base">
+              {selectedCompanyDetail.description || "No description available."}
+            </p>
+          </div>
+
+          {/* Website */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Website</label>
+            {selectedCompanyDetail.website ? (
+              <a 
+                href={selectedCompanyDetail.website} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-orange-600 hover:text-orange-700 break-all text-sm sm:text-base"
+              >
+                {selectedCompanyDetail.website}
+              </a>
+            ) : (
+              <p className="text-gray-500 text-sm sm:text-base">No website provided</p>
+            )}
+          </div>
+
+          {/* Additional Information */}
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            {/* Created Date */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Added On</label>
+              <p className="text-gray-900 text-xs sm:text-sm">
+                {selectedCompanyDetail.created_at 
+                  ? new Date(selectedCompanyDetail.created_at).toLocaleDateString()
+                  : 'Unknown'
+                }
+              </p>
+            </div>
+
+            {/* Company ID */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Company ID</label>
+              <p className="text-gray-900 text-xs sm:text-sm font-mono truncate">
+                {selectedCompanyDetail.id}
+              </p>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="pt-4 space-y-3 fade-in-blur">
+            {selectedCompanyDetail.website && (
+              <button
+                onClick={() => window.open(selectedCompanyDetail.website, "_blank")}
+                className="w-full bg-orange-500 text-white py-2 sm:py-3 px-4 rounded-lg hover:bg-orange-600 transition-all duration-300 smooth-hover font-medium flex items-center justify-center text-sm sm:text-base"
+              >
+                <Link className="h-4 w-4 mr-2" />
+                Visit Career Page
+              </button>
+            )}
+            
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => {
+                  handleEditCompany(selectedCompanyDetail);
+                  setCompanyDetailModal(false);
+                }}
+                className="bg-blue-500 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-blue-600 transition-all duration-300 smooth-hover font-medium text-xs sm:text-sm"
+              >
+                Edit Company
+              </button>
+              
+              <button
+                onClick={() => {
+                  setCompanyDetailModal(false);
+                  openDeleteCompanyModal(selectedCompanyDetail);
+                }}
+                className="bg-red-500 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-red-600 transition-all duration-300 smooth-hover font-medium text-xs sm:text-sm"
+              >
+                Delete Company
+              </button>
+            </div>
+            
+            <button
+              onClick={() => {
+                setCompanyDetailModal(false);
+                setSelectedCompanyDetail(null);
+              }}
+              className="w-full bg-gray-100 text-gray-700 py-2 sm:py-3 px-4 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover font-medium text-sm sm:text-base"
+            >
+              Close Details
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
+
+{/* Booking Detail Modal */}
+{showBookingModal && selectedBooking && createPortal(
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
+      <div className="p-4 sm:p-6 stagger-children">
+        <div className="flex items-center justify-between mb-4 sm:mb-6 fade-in-blur">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900">Booking Details</h2>
+          <button
+            onClick={() => {
+              setShowBookingModal(false);
+              setSelectedBooking(null);
+            }}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="h-5 w-5 sm:h-6 sm:w-6" />
+          </button>
+        </div>
+
+        <div className="space-y-4 sm:space-y-6 fade-in-blur">
+          {/* User Information */}
+          <div className="text-center">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+              <User className="h-6 w-6 sm:h-10 sm:w-10 text-orange-600" />
+            </div>
+            <h3 className="text-xl sm:text-2xl font-bold text-gray-900">
+              {selectedBooking.user?.first_name} {selectedBooking.user?.last_name}
+            </h3>
+            <p className="text-gray-600 mt-2 text-sm sm:text-base">{selectedBooking.user?.email}</p>
+            <div className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-blue-100 text-blue-800 mt-2">
+              Personal ID: {selectedBooking.user?.personal_id}
+            </div>
+          </div>
+
+          {/* Session Information */}
+          {selectedBooking.session && (
+            <div className="fade-in-blur">
+              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+                <BookOpen className="h-4 w-4 mr-2" />
+                Session Details
+              </label>
+              <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
+                <h4 className="font-semibold text-gray-900 text-sm sm:text-base">{selectedBooking.session.title}</h4>
+                {selectedBooking.session.description && (
+                  <p className="text-gray-600 mt-1 text-xs sm:text-sm">{selectedBooking.session.description}</p>
+                )}
+                {selectedBooking.session.speaker && (
+                  <p className="text-gray-700 mt-2 text-xs sm:text-sm">
+                    <strong>Speaker:</strong> {selectedBooking.session.speaker}
+                  </p>
+                )}
+                <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-3 text-xs sm:text-sm">
+                  <div>
+                    <strong>Date:</strong><br />
+                    {new Date(selectedBooking.session.start_time).toLocaleDateString()}
+                  </div>
+                  <div>
+                    <strong>Time:</strong><br />
+                    {new Date(selectedBooking.session.start_time).toLocaleTimeString()} - {new Date(selectedBooking.session.end_time).toLocaleTimeString()}
+                  </div>
+                  <div>
+                    <strong>Location:</strong><br />
+                    {selectedBooking.session.location}
+                  </div>
+                  <div>
+                    <strong>Type:</strong><br />
+                    {selectedBooking.session.session_type}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Booking Information */}
+          <div className="fade-in-blur">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Booking Information</label>
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
+              <div>
+                <strong>Booked On:</strong><br />
+                {new Date(selectedBooking.scanned_at).toLocaleDateString()}
+              </div>
+              <div>
+                <strong>Booked At:</strong><br />
+                {new Date(selectedBooking.scanned_at).toLocaleTimeString()}
+              </div>
+              <div>
+                <strong>Booking ID:</strong><br />
+                <code className="text-xs">{selectedBooking.id}</code>
+              </div>
+              <div>
+                <strong>Scan Type:</strong><br />
+                {selectedBooking.scan_type}
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="pt-4 space-y-3 fade-in-blur">
+            <button
+              onClick={() => openDeleteBookingModal(selectedBooking)}
+              className="w-full bg-red-500 text-white py-2 sm:py-3 px-4 rounded-lg hover:bg-red-600 transition-all duration-300 smooth-hover font-medium text-sm sm:text-base"
+            >
+              <Trash2 className="h-4 w-4 mr-2 inline" />
+              Delete Booking
+            </button>
+            
+            <button
+              onClick={() => {
+                setShowBookingModal(false);
+                setSelectedBooking(null);
+              }}
+              className="w-full bg-gray-100 text-gray-700 py-2 sm:py-3 px-4 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover font-medium text-sm sm:text-base"
+            >
+              Close Details
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
+
+{/* Delete Booking Confirmation Modal */}
+{deleteBookingModal && selectedBooking && createPortal(
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md modal-content-blur fade-in-up-blur">
+      <div className="p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-4 fade-in-blur">
+          <h3 className="text-lg font-bold text-gray-900">Confirm Deletion</h3>
+          <button
+            onClick={() => {
+              setDeleteBookingModal(false);
+              setSelectedBooking(null);
+            }}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="h-5 w-5 sm:h-6 sm:w-6" />
+          </button>
+        </div>
+
+        <div className="fade-in-blur">
+          <p className="text-gray-600 mb-4 sm:mb-6 text-sm sm:text-base">
+            Are you sure you want to delete the booking for{" "}
+            <strong>{selectedBooking.user?.first_name} {selectedBooking.user?.last_name}</strong>?
+            This action cannot be undone.
+          </p>
+
+          <div className="flex space-x-3">
+            <button
+              onClick={() => {
+                setDeleteBookingModal(false);
+                setSelectedBooking(null);
+              }}
+              className="flex-1 bg-gray-200 text-gray-700 py-2 px-3 sm:px-4 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDeleteBooking}
+              disabled={loading}
+              className="flex-1 bg-red-500 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
+            >
+              {loading ? 'Deleting...' : 'Delete Booking'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
+
+{/* Add Company Modal */}
+{companyModal && createPortal(
+  <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+    <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
+      <div className="flex items-center justify-between mb-4 sm:mb-6 fade-in-blur">
+        <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Add New Company</h3>
+        <button
+          onClick={() => setCompanyModal(false)}
+          className="text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <X className="h-5 w-5 sm:h-6 sm:w-6" />
+        </button>
+      </div>
+      
+      <div className="space-y-4 stagger-children">
+        {/* Company Name */}
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Company Name *
+          </label>
+          <input
+            type="text"
+            value={newCompany.name}
+            onChange={(e) => setNewCompany({ ...newCompany, name: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="Enter company name"
+          />
+        </div>
+
+        {/* Partner Type */}
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Partner Type *
+          </label>
+          <select
+            value={newCompany.partnerType}
+            onChange={(e) => setNewCompany({ ...newCompany, partnerType: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+          >
+            <option value="">Select Partner Type</option>
+            {PARTNER_TYPES.map(type => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Logo Section */}
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Company Logo *
+          </label>
+          <div className="flex space-x-2 sm:space-x-4 mb-3">
+            <button
+              type="button"
+              onClick={() => setNewCompany({ ...newCompany, logoType: "link" })}
+              className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-300 smooth-hover ${
+                newCompany.logoType === "link" 
+                  ? "bg-blue-500 text-white" 
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              <Link className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+              URL
+            </button>
+            <button
+              type="button"
+              onClick={() => setNewCompany({ ...newCompany, logoType: "upload" })}
+              className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-300 smooth-hover ${
+                newCompany.logoType === "upload" 
+                  ? "bg-blue-500 text-white" 
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              <Upload className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+              Upload
+            </button>
+          </div>
+          
+          {newCompany.logoType === "link" ? (
+            <input
+              type="url"
+              value={newCompany.logoUrl}
+              onChange={(e) => setNewCompany({ ...newCompany, logoUrl: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+              placeholder="https://example.com/logo.png"
+            />
+          ) : (
+            <div>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setNewCompany({ ...newCompany, logo: e.target.files?.[0] || null })}
+                className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Supported formats: PNG, JPG, SVG. Max size: 5MB
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Academic Faculties */}
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+            <BookOpen className="h-4 w-4 mr-2" />
+            Academic Faculties Seeking For
+          </label>
+          <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-lg p-3">
+            <div className="grid grid-cols-1 gap-2">
+              {ACADEMIC_FACULTIES.map((faculty) => (
+                <label key={faculty} className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedAcademicFaculties.includes(faculty)}
+                    onChange={() => handleAcademicFacultyChange(faculty)}
+                    className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                  />
+                  <span className="text-sm text-gray-700">{faculty}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Select one or more faculties
+          </p>
+        </div>
+
+        {/* Vacancies Type */}
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+            <Briefcase className="h-4 w-4 mr-2" />
+            Vacancies Type
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {VACANCIES_TYPES.map((type) => (
+              <label key={type} className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedVacanciesTypes.includes(type)}
+                  onChange={() => handleVacanciesTypeChange(type)}
+                  className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                />
+                <span className="text-sm text-gray-700">{type}</span>
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Select one or more vacancy types
+          </p>
+        </div>
+
+        {/* Description */}
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Description
+          </label>
+          <textarea
+            value={newCompany.description}
+            onChange={(e) => setNewCompany({ ...newCompany, description: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="Brief description about the company..."
+            rows={3}
+          />
+        </div>
+
+        {/* Website */}
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Website *
+          </label>
+          <input
+            type="url"
+            value={newCompany.website}
+            onChange={(e) => setNewCompany({ ...newCompany, website: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="https://company-website.com"
+          />
+        </div>
+
+        {/* Booth Number */}
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Booth Number *
+          </label>
+          <input
+            type="text"
+            value={newCompany.boothNumber}
+            onChange={(e) => setNewCompany({ ...newCompany, boothNumber: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="e.g., A-12, B-05"
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end space-x-3 mt-6 fade-in-blur">
+        <button
+          onClick={() => setCompanyModal(false)}
+          className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-300 smooth-hover font-medium text-sm"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleCompanySubmit}
+          disabled={loading}
+          className="px-4 sm:px-6 py-2 sm:py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 transition-all duration-300 smooth-hover font-medium text-sm"
+        >
+          {loading ? (
+            <div className="flex items-center">
+              <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white mr-2"></div>
+              Adding...
+            </div>
+          ) : (
+            'Add Company'
+          )}
+        </button>
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
+
+{/* Edit Company Modal */}
+{editCompanyModal && createPortal(
+  <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+    <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
+      <div className="flex items-center justify-between mb-4 sm:mb-6 fade-in-blur">
+        <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Edit Company</h3>
+        <button
+          onClick={() => setEditCompanyModal(false)}
+          className="text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <X className="h-5 w-5 sm:h-6 sm:w-6" />
+        </button>
+      </div>
+      
+      <div className="space-y-4 stagger-children">
+        {/* Company Name */}
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Company Name *
+          </label>
+          <input
+            type="text"
+            value={editCompany.name}
+            onChange={(e) => setEditCompany({ ...editCompany, name: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="Enter company name"
+          />
+        </div>
+
+        {/* Partner Type */}
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Partner Type *
+          </label>
+          <select
+            value={editCompany.partnerType}
+            onChange={(e) => setEditCompany({ ...editCompany, partnerType: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+          >
+            <option value="">Select Partner Type</option>
+            {PARTNER_TYPES.map(type => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Logo Section */}
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Company Logo
+          </label>
+          <div className="flex space-x-2 sm:space-x-4 mb-3">
+            <button
+              type="button"
+              onClick={() => setEditCompany({ ...editCompany, logoType: "link" })}
+              className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-300 smooth-hover ${
+                editCompany.logoType === "link" 
+                  ? "bg-blue-500 text-white" 
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              <Link className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+              URL
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditCompany({ ...editCompany, logoType: "upload" })}
+              className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-300 smooth-hover ${
+                editCompany.logoType === "upload" 
+                  ? "bg-blue-500 text-white" 
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              <Upload className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+              Upload New
+            </button>
+          </div>
+          
+          {editCompany.logoType === "link" ? (
+            <input
+              type="url"
+              value={editCompany.logoUrl}
+              onChange={(e) => setEditCompany({ ...editCompany, logoUrl: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+              placeholder="https://example.com/logo.png"
+            />
+          ) : (
+            <div>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setEditCompany({ ...editCompany, logo: e.target.files?.[0] || null })}
+                className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Leave empty to keep current logo
+              </p>
+            </div>
+          )}
+          
+          {editCompany.logoUrl && (
+            <div className="mt-3 p-3 bg-gray-50 rounded-lg fade-in-blur">
+              <p className="text-sm text-gray-600 mb-2">Current Logo:</p>
+              <img 
+                src={editCompany.logoUrl} 
+                alt="Current logo" 
+                className="h-12 sm:h-16 w-auto object-contain"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/64x64/orange/white?text=Logo";
+                }}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Academic Faculties */}
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+            <BookOpen className="h-4 w-4 mr-2" />
+            Academic Faculties Seeking For
+          </label>
+          <div className="max-h-40 overflow-y-auto border border-gray-300 rounded-lg p-3">
+            <div className="grid grid-cols-1 gap-2">
+              {ACADEMIC_FACULTIES.map((faculty) => (
+                <label key={faculty} className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editSelectedAcademicFaculties.includes(faculty)}
+                    onChange={() => handleEditAcademicFacultyChange(faculty)}
+                    className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                  />
+                  <span className="text-sm text-gray-700">{faculty}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Select one or more faculties
+          </p>
+        </div>
+
+        {/* Vacancies Type */}
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+            <Briefcase className="h-4 w-4 mr-2" />
+            Vacancies Type
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {VACANCIES_TYPES.map((type) => (
+              <label key={type} className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={editSelectedVacanciesTypes.includes(type)}
+                  onChange={() => handleEditVacanciesTypeChange(type)}
+                  className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                />
+                <span className="text-sm text-gray-700">{type}</span>
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Select one or more vacancy types
+          </p>
+        </div>
+
+        {/* Description */}
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Description
+          </label>
+          <textarea
+            value={editCompany.description}
+            onChange={(e) => setEditCompany({ ...editCompany, description: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="Brief description about the company..."
+            rows={3}
+          />
+        </div>
+
+        {/* Website */}
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Website *
+          </label>
+          <input
+            type="url"
+            value={editCompany.website}
+            onChange={(e) => setEditCompany({ ...editCompany, website: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="https://company-website.com"
+          />
+        </div>
+
+        {/* Booth Number */}
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Booth Number *
+          </label>
+          <input
+            type="text"
+            value={editCompany.boothNumber}
+            onChange={(e) => setEditCompany({ ...editCompany, boothNumber: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="e.g., A-12, B-05"
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end space-x-3 mt-6 fade-in-blur">
+        <button
+          onClick={() => setEditCompanyModal(false)}
+          className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-300 smooth-hover font-medium text-sm"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleCompanyUpdate}
+          disabled={loading}
+          className="px-4 sm:px-6 py-2 sm:py-3 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 transition-all duration-300 smooth-hover font-medium text-sm"
+        >
+          {loading ? (
+            <div className="flex items-center">
+              <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white mr-2"></div>
+              Updating...
+            </div>
+          ) : (
+            'Update Company'
+          )}
+        </button>
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
+
+{/* Session Detail Modal */}
+{sessionDetailModal && selectedSessionDetail && createPortal(
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
+      <div className="p-4 sm:p-6 stagger-children">
+        <div className="flex items-center justify-between mb-4 sm:mb-6 fade-in-blur">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900">Session Details</h2>
+          <button
+            onClick={() => {
+              setSessionDetailModal(false);
+              setSelectedSessionDetail(null);
+            }}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="h-5 w-5 sm:h-6 sm:w-6" />
+          </button>
+        </div>
+
+        <div className="space-y-4 sm:space-y-6 fade-in-blur">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">{selectedSessionDetail.title}</h3>
+            <p className="text-gray-600 mt-2 text-sm sm:text-base">{selectedSessionDetail.description}</p>
+          </div>
+
+          {selectedSessionDetail.speaker && (
+            <div className="fade-in-blur">
+              <label className="block text-sm font-medium text-gray-700">Speaker</label>
+              <p className="text-gray-900 text-sm sm:text-base">{selectedSessionDetail.speaker}</p>
+            </div>
+          )}
+
+          <div className="fade-in-blur">
+            <label className="block text-sm font-medium text-gray-700">Date & Time</label>
+            <p className="text-gray-900 text-sm sm:text-base">
+              {new Date(selectedSessionDetail.start_time).toLocaleDateString()} at{' '}
+              {new Date(selectedSessionDetail.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </p>
+          </div>
+
+          <div className="fade-in-blur">
+            <label className="block text-sm font-medium text-gray-700">Location</label>
+            <p className="text-gray-900 text-sm sm:text-base">{selectedSessionDetail.location}</p>
+          </div>
+
+          <div className="fade-in-blur">
+            <label className="block text-sm font-medium text-gray-700">Capacity</label>
+            <p className="text-gray-900 text-sm sm:text-base">
+              {selectedSessionDetail.current_bookings || 0} / {selectedSessionDetail.max_attendees || 'Unlimited'} booked
+            </p>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="pt-4 space-y-3 fade-in-blur">
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => {
+                  handleEditSession(selectedSessionDetail);
+                  setSessionDetailModal(false);
+                }}
+                className="bg-blue-500 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-blue-600 transition-all duration-300 smooth-hover font-medium text-xs sm:text-sm"
+              >
+                Edit Session
+              </button>
+              
+              <button
+                onClick={() => {
+                  setSessionDetailModal(false);
+                  handleDeleteSession(selectedSessionDetail);
+                }}
+                className="bg-red-500 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-red-600 transition-all duration-300 smooth-hover font-medium text-xs sm:text-sm"
+              >
+                Delete Session
+              </button>
+            </div>
+            
+            <button
+              onClick={() => {
+                setSessionDetailModal(false);
+                setSelectedSessionDetail(null);
+              }}
+              className="w-full bg-gray-100 text-gray-700 py-2 sm:py-3 px-4 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover font-medium text-sm sm:text-base"
+            >
+              Close Details
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
+
+{/* Event Detail Modal */}
+{eventDetailModal && selectedEventDetail && createPortal(
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
+      <div className="p-4 sm:p-6 stagger-children">
+        <div className="flex items-center justify-between mb-4 sm:mb-6 fade-in-blur">
+          <h2 className="text-lg sm:text-xl font-bold text-gray-900">Event Details</h2>
+          <button
+            onClick={() => {
+              setEventDetailModal(false);
+              setSelectedEventDetail(null);
+            }}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="h-5 w-5 sm:h-6 sm:w-6" />
+          </button>
+        </div>
+
+        <div className="space-y-4 sm:space-y-6 fade-in-blur">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">{selectedEventDetail.title}</h3>
+            <p className="text-gray-700 leading-relaxed text-sm sm:text-base">{selectedEventDetail.description}</p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:gap-4 fade-in-blur">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time</label>
+              <p className="text-gray-900 text-sm sm:text-base">
+                {new Date(selectedEventDetail.start_time).toLocaleDateString('en-US', { 
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </p>
+              <p className="text-gray-600 text-xs sm:text-sm">
+                {new Date(selectedEventDetail.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - 
+                {new Date(selectedEventDetail.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </p>
+            </div>
+
+            <div className="fade-in-blur">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+              <p className="text-gray-900 text-sm sm:text-base flex items-center">
+                <MapPin className="h-4 w-4 mr-2" />
+                {selectedEventDetail.location}
+              </p>
+            </div>
+
+            {selectedEventDetail.item_type && (
+              <div className="fade-in-blur">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Event Type</label>
+                <span className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-blue-100 text-blue-800">
+                  {selectedEventDetail.item_type}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="pt-4 space-y-3 fade-in-blur">
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => {
+                  handleEditEvent(selectedEventDetail);
+                  setEventDetailModal(false);
+                }}
+                className="bg-green-500 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-green-600 transition-all duration-300 smooth-hover font-medium text-xs sm:text-sm"
+              >
+                Edit Event
+              </button>
+              
+              <button
+                onClick={() => {
+                  setEventDetailModal(false);
+                  handleDeleteEvent(selectedEventDetail);
+                }}
+                className="bg-red-500 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-red-600 transition-all duration-300 smooth-hover font-medium text-xs sm:text-sm"
+              >
+                Delete Event
+              </button>
+            </div>
+            
+            <button
+              onClick={() => {
+                setEventDetailModal(false);
+                setSelectedEventDetail(null);
+              }}
+              className="w-full bg-gray-100 text-gray-700 py-2 sm:py-3 px-4 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover font-medium text-sm sm:text-base"
+            >
+              Close Details
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
+
+{/* Delete Confirmation Modals */}
+{deleteSessionModal && selectedSessionDelete && createPortal(
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md modal-content-blur fade-in-up-blur">
+      <div className="p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-4 fade-in-blur">
+          <h3 className="text-lg font-bold text-gray-900">Confirm Deletion</h3>
+          <button
+            onClick={() => {
+              setDeleteSessionModal(false);
+              setSelectedSessionDelete(null);
+            }}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="h-5 w-5 sm:h-6 sm:w-6" />
+          </button>
+        </div>
+
+        <div className="fade-in-blur">
+          <p className="text-gray-600 mb-4 sm:mb-6 text-sm sm:text-base">
+            Are you sure you want to delete the session{" "}
+            <strong>"{selectedSessionDelete.title}"</strong>?
+            This action cannot be undone.
+          </p>
+
+          <div className="flex space-x-3">
+            <button
+              onClick={() => {
+                setDeleteSessionModal(false);
+                setSelectedSessionDelete(null);
+              }}
+              className="flex-1 bg-gray-200 text-gray-700 py-2 px-3 sm:px-4 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmDeleteSession}
+              disabled={loading}
+              className="flex-1 bg-red-500 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
+            >
+              {loading ? 'Deleting...' : 'Delete Session'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
+
+{deleteEventModal && selectedEventDelete && createPortal(
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md modal-content-blur fade-in-up-blur">
+      <div className="p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-4 fade-in-blur">
+          <h3 className="text-lg font-bold text-gray-900">Confirm Deletion</h3>
+          <button
+            onClick={() => {
+              setDeleteEventModal(false);
+              setSelectedEventDelete(null);
+            }}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="h-5 w-5 sm:h-6 sm:w-6" />
+          </button>
+        </div>
+
+        <div className="fade-in-blur">
+          <p className="text-gray-600 mb-4 sm:mb-6 text-sm sm:text-base">
+            Are you sure you want to delete the event{" "}
+            <strong>"{selectedEventDelete.title}"</strong>?
+            This action cannot be undone.
+          </p>
+
+          <div className="flex space-x-3">
+            <button
+              onClick={() => {
+                setDeleteEventModal(false);
+                setSelectedEventDelete(null);
+              }}
+              className="flex-1 bg-gray-200 text-gray-700 py-2 px-3 sm:px-4 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmDeleteEvent}
+              disabled={loading}
+              className="flex-1 bg-red-500 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
+            >
+              {loading ? 'Deleting...' : 'Delete Event'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
+
+{deleteCompanyModal && selectedCompanyDelete && createPortal(
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md modal-content-blur fade-in-up-blur">
+      <div className="p-4 sm:p-6">
+        <div className="flex items-center justify-between mb-4 fade-in-blur">
+          <h3 className="text-lg font-bold text-gray-900">Confirm Deletion</h3>
+          <button
+            onClick={() => {
+              setDeleteCompanyModal(false);
+              setSelectedCompanyDelete(null);
+            }}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="h-5 w-5 sm:h-6 sm:w-6" />
+          </button>
+        </div>
+
+        <div className="fade-in-blur">
+          <p className="text-gray-600 mb-4 sm:mb-6 text-sm sm:text-base">
+            Are you sure you want to delete the company{" "}
+            <strong>"{selectedCompanyDelete.name}"</strong>?
+            This action cannot be undone.
+          </p>
+
+          <div className="flex space-x-3">
+            <button
+              onClick={() => {
+                setDeleteCompanyModal(false);
+                setSelectedCompanyDelete(null);
+              }}
+              className="flex-1 bg-gray-200 text-gray-700 py-2 px-3 sm:px-4 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleDeleteCompany}
+              disabled={loading}
+              className="flex-1 bg-red-500 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium text-sm"
+            >
+              {loading ? 'Deleting...' : 'Delete Company'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
+
+{/* Add Session Modal */}
+{sessionModal && createPortal(
+  <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+    <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
+      <div className="flex items-center justify-between mb-4 sm:mb-6 fade-in-blur">
+        <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Add New Session</h3>
+        <button
+          onClick={() => setSessionModal(false)}
+          className="text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <X className="h-5 w-5 sm:h-6 sm:w-6" />
+        </button>
+      </div>
+      
+      <div className="space-y-4 stagger-children">
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Session Title *
+          </label>
+          <input
+            type="text"
+            value={newSession.title}
+            onChange={(e) => setNewSession({ ...newSession, title: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="Enter session title"
+          />
+        </div>
+
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Description
+          </label>
+          <textarea
+            value={newSession.description}
+            onChange={(e) => setNewSession({ ...newSession, description: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="Enter session description"
+            rows={3}
+          />
+        </div>
+
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Speaker *
+          </label>
+          <input
+            type="text"
+            value={newSession.speaker}
+            onChange={(e) => setNewSession({ ...newSession, speaker: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="Enter speaker name"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 fade-in-blur">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Date *
+            </label>
+            <input
+              type="date"
+              value={newSession.date}
+              onChange={(e) => setNewSession({ ...newSession, date: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Time *
+            </label>
+            <input
+              type="time"
+              value={newSession.hour}
+              onChange={(e) => setNewSession({ ...newSession, hour: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            />
+          </div>
+        </div>
+
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Location
+          </label>
+          <input
+            type="text"
+            value={newSession.location}
+            onChange={(e) => setNewSession({ ...newSession, location: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="Enter location"
+          />
+        </div>
+
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Capacity
+          </label>
+          <input
+            type="number"
+            value={newSession.capacity}
+            onChange={(e) => setNewSession({ ...newSession, capacity: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="Enter capacity (leave empty for unlimited)"
+          />
+        </div>
+
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Session Type
+          </label>
+          <select
+            value={newSession.type}
+            onChange={(e) => setNewSession({ ...newSession, type: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+          >
+            <option value="session">Session</option>
+            <option value="workshop">Workshop</option>
+            <option value="keynote">Keynote</option>
+            <option value="panel">Panel Discussion</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="flex justify-end space-x-3 mt-6 fade-in-blur">
+        <button
+          onClick={() => setSessionModal(false)}
+          className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-300 smooth-hover font-medium text-sm"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSessionSubmit}
+          disabled={loading}
+          className="px-4 sm:px-6 py-2 sm:py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-all duration-300 smooth-hover font-medium text-sm"
+        >
+          {loading ? (
+            <div className="flex items-center">
+              <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white mr-2"></div>
+              Adding...
+            </div>
+          ) : (
+            'Add Session'
+          )}
+        </button>
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
+
+{/* Add Event Modal */}
+{eventModal && createPortal(
+  <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+    <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
+      <div className="flex items-center justify-between mb-4 sm:mb-6 fade-in-blur">
+        <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Add New Event</h3>
+        <button
+          onClick={() => setEventModal(false)}
+          className="text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <X className="h-5 w-5 sm:h-6 sm:w-6" />
+        </button>
+      </div>
+      
+      <div className="space-y-4 stagger-children">
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Event Title *
+          </label>
+          <input
+            type="text"
+            value={newEvent.title}
+            onChange={(e) => setNewEvent({ ...newEvent, title: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="Enter event title"
+          />
+        </div>
+
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Description
+          </label>
+          <textarea
+            value={newEvent.description}
+            onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="Enter event description"
+            rows={3}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 fade-in-blur">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Start Date *
+            </label>
+            <input
+              type="date"
+              value={newEvent.startDate}
+              onChange={(e) => setNewEvent({ ...newEvent, startDate: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Start Time *
+            </label>
+            <input
+              type="time"
+              value={newEvent.startTime}
+              onChange={(e) => setNewEvent({ ...newEvent, startTime: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 fade-in-blur">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              End Date
+            </label>
+            <input
+              type="date"
+              value={newEvent.endDate}
+              onChange={(e) => setNewEvent({ ...newEvent, endDate: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              End Time
+            </label>
+            <input
+              type="time"
+              value={newEvent.endTime}
+              onChange={(e) => setNewEvent({ ...newEvent, endTime: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            />
+          </div>
+        </div>
+
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Location
+          </label>
+          <input
+            type="text"
+            value={newEvent.location}
+            onChange={(e) => setNewEvent({ ...newEvent, location: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="Enter location"
+          />
+        </div>
+
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Event Type
+          </label>
+          <select
+            value={newEvent.type}
+            onChange={(e) => setNewEvent({ ...newEvent, type: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+          >
+            <option value="general">General</option>
+            <option value="keynote">Keynote</option>
+            <option value="workshop">Workshop</option>
+            <option value="networking">Networking</option>
+            <option value="ceremony">Ceremony</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="flex justify-end space-x-3 mt-6 fade-in-blur">
+        <button
+          onClick={() => setEventModal(false)}
+          className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-300 smooth-hover font-medium text-sm"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleEventSubmit}
+          disabled={loading}
+          className="px-4 sm:px-6 py-2 sm:py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-300 smooth-hover font-medium text-sm"
+        >
+          {loading ? (
+            <div className="flex items-center">
+              <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white mr-2"></div>
+              Adding...
+            </div>
+          ) : (
+            'Add Event'
+          )}
+        </button>
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
+
+{/* Announcement Modal */}
+{announcementModal && createPortal(
+  <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+    <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
+      <div className="flex items-center justify-between mb-4 sm:mb-6 fade-in-blur">
+        <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Send Announcement</h3>
+        <button
+          onClick={() => setAnnouncementModal(false)}
+          className="text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <X className="h-5 w-5 sm:h-6 sm:w-6" />
+        </button>
+      </div>
+      
+      <div className="space-y-4 stagger-children">
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Announcement Title *
+          </label>
+          <input
+            type="text"
+            value={announcementTitle}
+            onChange={(e) => setAnnouncementTitle(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="Enter announcement title"
+          />
+        </div>
+
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Announcement Description *
+          </label>
+          <textarea
+            value={announcementDescription}
+            onChange={(e) => setAnnouncementDescription(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="Enter announcement description"
+            rows={4}
+          />
+        </div>
+
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Target Audience *
+          </label>
+          <select
+            value={announcementRole}
+            onChange={(e) => setAnnouncementRole(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+          >
+            {announcementRoleOptions.map(option => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {announcementRole === "team_leader" && (
+          <div className="fade-in-blur">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Team Leader Of
+            </label>
+            <select
+              value={teamLeaderOfRole}
+              onChange={(e) => setTeamLeaderOfRole(e.target.value)}
+              className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            >
+              <option value="all">All Team Leaders</option>
+              <option value="registration">Registration Team Leaders</option>
+              <option value="building">Building Team Leaders</option>
+              <option value="info_desk">Info Desk Team Leaders</option>
+              <option value="ushers">Ushers Team Leaders</option>
+              <option value="marketing">Marketing Team Leaders</option>
+              <option value="media">Media Team Leaders</option>
+              <option value="ER">ER Team Leaders</option>
+              <option value="BD">Business Development Team Leaders</option>
+              <option value="catering">Catering Team Leaders</option>
+              <option value="feedback">Feedback Team Leaders</option>
+              <option value="stage">Stage Team Leaders</option>
+            </select>
+          </div>
+        )}
+
+        {announcementRole === "custom" && (
+          <div className="fade-in-blur">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Select Users
+            </label>
+            <div className="space-y-3">
+              <input
+                type="text"
+                value={userSearch}
+                onChange={(e) => {
+                  setUserSearch(e.target.value);
+                  searchUsersByPersonalId(e.target.value);
+                }}
+                className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+                placeholder="Search by Personal ID or Volunteer ID"
+              />
+              
+              {searchLoading && (
+                <div className="text-center py-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-500 mx-auto"></div>
+                </div>
+              )}
+
+              {searchResults.length > 0 && (
+                <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-lg">
+                  {searchResults.map(user => (
+                    <div
+                      key={user.id}
+                      onClick={() => addUserToSelection(user)}
+                      className="p-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                    >
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm font-medium">{user.first_name} {user.last_name}</p>
+                          <p className="text-xs text-gray-500">{user.personal_id} • {user.role}</p>
+                        </div>
+                        <Plus className="h-4 w-4 text-green-500" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {selectedUsers.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">Selected Users ({selectedUsers.length})</span>
+                    <button
+                      onClick={clearUserSelection}
+                      className="text-xs text-red-500 hover:text-red-700"
+                    >
+                      Clear All
+                    </button>
+                  </div>
+                  <div className="max-h-24 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                    {selectedUsers.map(userId => {
+                      const user = searchResults.find(u => u.id === userId) || 
+                                  { first_name: 'Loading...', last_name: '', personal_id: '' };
+                      return (
+                        <div key={userId} className="flex justify-between items-center p-1">
+                          <span className="text-xs">
+                            {user.first_name} {user.last_name} ({user.personal_id})
+                          </span>
+                          <button
+                            onClick={() => removeUserFromSelection(userId)}
+                            className="text-red-400 hover:text-red-600"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="flex justify-end space-x-3 mt-6 fade-in-blur">
+        <button
+          onClick={() => setAnnouncementModal(false)}
+          className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-300 smooth-hover font-medium text-sm"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleAnnouncementSubmit}
+          disabled={loading}
+          className="px-4 sm:px-6 py-2 sm:py-3 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 transition-all duration-300 smooth-hover font-medium text-sm"
+        >
+          {loading ? (
+            <div className="flex items-center">
+              <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white mr-2"></div>
+              Sending...
+            </div>
+          ) : (
+            'Send Announcement'
+          )}
+        </button>
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
+
+{/* Map Upload Modal */}
+{mapModal && createPortal(
+  <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+    <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 w-full max-w-md modal-content-blur fade-in-up-blur">
+      <div className="flex items-center justify-between mb-4 sm:mb-6 fade-in-blur">
+        <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Upload Map</h3>
+        <button
+          onClick={() => setMapModal(false)}
+          className="text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <X className="h-5 w-5 sm:h-6 sm:w-6" />
+        </button>
+      </div>
+      
+      <div className="space-y-4 stagger-children">
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Select Day
+          </label>
+          <select
+            value={mapForm.day}
+            onChange={(e) => setMapForm({ ...mapForm, day: parseInt(e.target.value) })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+          >
+            {[1, 2, 3, 4, 5].map(day => (
+              <option key={day} value={day}>Day {day}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Map Image *
+          </label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => setMapForm({ ...mapForm, image: e.target.files?.[0] || null })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+          />
+          <p className="text-xs text-gray-500 mt-1">
+            Supported formats: PNG, JPG. Recommended size: 800x600px
+          </p>
+        </div>
+      </div>
+
+      <div className="flex justify-end space-x-3 mt-6 fade-in-blur">
+        <button
+          onClick={() => setMapModal(false)}
+          className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-300 smooth-hover font-medium text-sm"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleMapUpload}
+          disabled={loading || !mapForm.image}
+          className="px-4 sm:px-6 py-2 sm:py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 transition-all duration-300 smooth-hover font-medium text-sm"
+        >
+          {loading ? (
+            <div className="flex items-center">
+              <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white mr-2"></div>
+              Uploading...
+            </div>
+          ) : (
+            'Upload Map'
+          )}
+        </button>
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
         
       </div>
     </DashboardLayout>
