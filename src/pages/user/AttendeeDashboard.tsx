@@ -1237,6 +1237,7 @@ const tabItems = [
         )}
 
       {/* Companies - Responsive */}
+// Update the companies tab in the AttendeeDashboard component
 {activeTab === "companies" && (
   <div className="tab-content-animate">
     <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center">
@@ -1244,44 +1245,180 @@ const tabItems = [
       <span className="text-sm sm:text-lg">Participating Companies</span>
     </h2>
     
+    {/* Filters Section */}
+    <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 mb-6 fade-in-blur card-hover dashboard-card">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+        <Sparkles className="h-5 w-5 mr-2 text-orange-500" />
+        Filter Companies
+      </h3>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+        {/* Partner Type Filter */}
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Partner Type
+          </label>
+          <select 
+            className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            onChange={(e) => setActivePartnerType(e.target.value)}
+          >
+            <option value="all">All Partner Types</option>
+            {PARTNER_TYPES.map(type => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Faculty Filter */}
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Looking for Faculties
+          </label>
+          <select 
+            className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            onChange={(e) => setActiveFaculty(e.target.value)}
+          >
+            <option value="all">All Faculties</option>
+            {ACADEMIC_FACULTIES.map(faculty => (
+              <option key={faculty} value={faculty}>{faculty}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Vacancies Type Filter */}
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Vacancies Type
+          </label>
+          <select 
+            className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            onChange={(e) => setActiveVacancyType(e.target.value)}
+          >
+            <option value="all">All Vacancy Types</option>
+            {VACANCIES_TYPES.map(type => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    {/* Companies by Partner Type */}
     <div className="space-y-8">
       {PARTNER_TYPES.map((partnerType) => {
-        const partnerCompanies = companies.filter(company => 
-          company.partner_type === partnerType
-        );
+        const partnerCompanies = companies.filter(company => {
+          const matchesPartner = activePartnerType === 'all' || company.partner_type === activePartnerType;
+          const matchesFaculty = activeFaculty === 'all' || 
+            (company.academic_faculties_seeking_for && 
+             company.academic_faculties_seeking_for.includes(activeFaculty));
+          const matchesVacancy = activeVacancyType === 'all' ||
+            (company.vacancies_type &&
+             company.vacancies_type.includes(activeVacancyType));
+          
+          return company.partner_type === partnerType && matchesPartner && matchesFaculty && matchesVacancy;
+        });
         
         if (partnerCompanies.length === 0) return null;
         
         return (
           <div key={partnerType} className="fade-in-up-blur">
-            <h3 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">
-              {partnerType}
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur">
+            <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-200">
+              <h3 className="text-xl font-bold text-gray-800">{partnerType}</h3>
+              <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                {partnerCompanies.length} {partnerCompanies.length === 1 ? 'company' : 'companies'}
+              </span>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur stagger-children">
               {partnerCompanies.map((company, index) => (
                 <div
                   key={company.id}
                   onClick={() => handleCompanyClick(company)}
-                  className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 cursor-pointer card-hover-enhanced dashboard-card transform transition-all duration-300 hover:scale-105"
+                  className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 cursor-pointer card-hover-enhanced dashboard-card transform transition-all duration-300 hover:scale-105 hover:shadow-lg"
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
                   <div className="text-center">
-                    <img 
-                      src={company.logo_url} 
-                      alt={`${company.name} logo`} 
-                      className="h-12 sm:h-16 w-auto mx-auto mb-3 sm:mb-4 object-contain" 
-                    />
-                    <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 line-clamp-2">{company.name}</h3>
-                    <p className="text-xs sm:text-sm text-gray-600 mb-3 line-clamp-2 sm:line-clamp-3">{company.description}</p>
+                    {/* Company Logo */}
+                    <div className="flex justify-center mb-4">
+                      <img 
+                        src={company.logo_url} 
+                        alt={`${company.name} logo`} 
+                        className="h-16 w-auto max-w-full object-contain rounded-lg bg-gray-50 p-2"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/64x64/orange/white?text=Logo";
+                        }}
+                      />
+                    </div>
                     
+                    {/* Company Name */}
+                    <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">{company.name}</h3>
+                    
+                    {/* Partner Type Badge */}
+                    <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 mb-3">
+                      {company.partner_type}
+                    </div>
+                    
+                    {/* Booth Number */}
                     {company.booth_number && (
-                      <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 mb-2">
+                      <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 mb-3 ml-2">
+                        <MapPin className="h-3 w-3 mr-1" />
                         Booth {company.booth_number}
                       </div>
                     )}
                     
-                    <div className="flex justify-center mt-3 sm:mt-4">
-                      <Building className="h-4 w-4 sm:h-5 sm:w-5 text-orange-500" />
+                    {/* Academic Faculties */}
+                    {company.academic_faculties_seeking_for && company.academic_faculties_seeking_for.length > 0 && (
+                      <div className="mb-3">
+                        <div className="flex items-center text-xs text-gray-600 mb-2 justify-center">
+                          <BookOpen className="h-3 w-3 mr-1" />
+                          <span className="font-medium">Looking for:</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1 justify-center">
+                          {company.academic_faculties_seeking_for.slice(0, 2).map((faculty, idx) => (
+                            <span key={idx} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                              {faculty.split(' ').pop()}
+                            </span>
+                          ))}
+                          {company.academic_faculties_seeking_for.length > 2 && (
+                            <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                              +{company.academic_faculties_seeking_for.length - 2}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Vacancies Type */}
+                    {company.vacancies_type && company.vacancies_type.length > 0 && (
+                      <div className="mb-4">
+                        <div className="flex items-center text-xs text-gray-600 mb-2 justify-center">
+                          <Briefcase className="h-3 w-3 mr-1" />
+                          <span className="font-medium">Vacancies:</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1 justify-center">
+                          {company.vacancies_type.slice(0, 3).map((type, idx) => (
+                            <span key={idx} className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                              {type}
+                            </span>
+                          ))}
+                          {company.vacancies_type.length > 3 && (
+                            <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                              +{company.vacancies_type.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Description Preview */}
+                    <p className="text-sm text-gray-600 mb-4 line-clamp-3">
+                      {company.description || "No description available."}
+                    </p>
+                    
+                    {/* Action Indicator */}
+                    <div className="flex justify-center items-center text-orange-600 text-sm font-medium">
+                      <Eye className="h-4 w-4 mr-1" />
+                      View Details
                     </div>
                   </div>
                 </div>
@@ -1291,11 +1428,34 @@ const tabItems = [
         );
       })}
       
-      {/* Fallback if no companies found */}
-      {companies.length === 0 && (
-        <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200">
-          <Building className="h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mx-auto mb-3 sm:mb-4" />
-          <p className="text-gray-500 text-sm sm:text-base">No companies available</p>
+      {/* No Companies Found State */}
+      {companies.filter(company => {
+        const matchesPartner = activePartnerType === 'all' || company.partner_type === activePartnerType;
+        const matchesFaculty = activeFaculty === 'all' || 
+          (company.academic_faculties_seeking_for && 
+           company.academic_faculties_seeking_for.includes(activeFaculty));
+        const matchesVacancy = activeVacancyType === 'all' ||
+          (company.vacancies_type &&
+           company.vacancies_type.includes(activeVacancyType));
+        
+        return matchesPartner && matchesFaculty && matchesVacancy;
+      }).length === 0 && (
+        <div className="text-center py-12 bg-white rounded-xl border border-gray-200 fade-in-blur">
+          <Building className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Companies Found</h3>
+          <p className="text-gray-500 max-w-md mx-auto">
+            No companies match your current filters. Try adjusting the partner type, faculty, or vacancy type filters.
+          </p>
+          <button
+            onClick={() => {
+              setActivePartnerType('all');
+              setActiveFaculty('all');
+              setActiveVacancyType('all');
+            }}
+            className="mt-4 bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-all duration-300"
+          >
+            Clear All Filters
+          </button>
         </div>
       )}
     </div>
