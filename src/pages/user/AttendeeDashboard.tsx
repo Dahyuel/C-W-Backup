@@ -66,8 +66,10 @@ interface Company {
   description: string;
   website: string;
   booth_number: string;
-  partner_type: string; // Add this field
+  partner_type: string;
   created_at: string;
+  academic_faculties_seeking_for?: string[]; // Add this
+  vacancies_type?: string[]; // Add this
 }
 
 // Add partner type order
