@@ -24,8 +24,8 @@ import {
   Upload,
   FileText,
   Download,
-  CreditCard, // Replaced IdCard with CreditCard
-  FileUp // Added for upload icon alternative
+  CreditCard, // Using CreditCard instead of IdCard
+  FileUp
 } from 'lucide-react';
 import { supabase, uploadFile, updateUserFiles } from '../../lib/supabase';
 import QRCode from 'qrcode';
@@ -384,7 +384,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
       <div className="border border-gray-200 rounded-lg p-4 fade-in-blur">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-2">
-            {type === 'universityId' ? <IdCard className="h-5 w-5 text-blue-600" /> : <FileText className="h-5 w-5 text-green-600" />}
+            {type === 'universityId' ? <CreditCard className="h-5 w-5 text-blue-600" /> : <FileText className="h-5 w-5 text-green-600" />}
             <span className="font-medium text-gray-900">{label}</span>
           </div>
           <div className="flex items-center space-x-2">
