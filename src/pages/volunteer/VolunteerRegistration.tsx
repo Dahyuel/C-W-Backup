@@ -12,6 +12,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { AuthTransition } from '../../components/AuthTransition';
+import { saveFormCache, loadFormCache, clearFormCache } from '../../utils/formCache';
 
 // Add ErrorPopup component (same as in RegistrationForm)
 const ErrorPopup: React.FC<{
@@ -125,6 +126,7 @@ export const VolunteerRegistration: React.FC = () => {
 
   // Refs for better state management
   const sectionChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasLoadedCache = useRef(false);
 
   const sections = [
     { id: 1, title: 'Personal Information', icon: User },
@@ -190,20 +192,31 @@ export const VolunteerRegistration: React.FC = () => {
     checkProfileAndRedirect();
   }, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect]);
 
-  // Update form with profile data
+  // Load cached form data and update with profile data
   useEffect(() => {
-    if (user && profile) {
-      setFormData(prev => ({
-        ...prev,
-        firstName: profile.first_name || prev.firstName,
-        lastName: profile.last_name || prev.lastName,
-        ...(profile.personal_id && { personalId: profile.personal_id }),
-        ...(profile.phone && { phone: profile.phone }),
-        ...(profile.faculty && { faculty: profile.faculty }),
-        ...(profile.gender && { gender: profile.gender }),
-        ...(profile.role && { role: profile.role }),
-        ...(profile.tl_team && { tlTeam: profile.tl_team })
-      }));
+    if (user && !hasLoadedCache.current) {
+      hasLoadedCache.current = true;
+
+      // Load cached data first
+      const cachedData = loadFormCache<VolunteerFormData>(`volunteer_${user.id}`);
+      if (cachedData) {
+        setFormData(cachedData);
+      }
+
+      // Then apply profile data if available
+      if (profile) {
+        setFormData(prev => ({
+          ...prev,
+          firstName: profile.first_name || prev.firstName,
+          lastName: profile.last_name || prev.lastName,
+          ...(profile.personal_id && !prev.personalId && { personalId: profile.personal_id }),
+          ...(profile.phone && !prev.phone && { phone: profile.phone }),
+          ...(profile.faculty && !prev.faculty && { faculty: profile.faculty }),
+          ...(profile.gender && !prev.gender && { gender: profile.gender }),
+          ...(profile.role && !prev.role && { role: profile.role }),
+          ...(profile.tl_team && !prev.tlTeam && { tlTeam: profile.tl_team })
+        }));
+      }
     }
   }, [user, profile]);
 
@@ -219,7 +232,14 @@ export const VolunteerRegistration: React.FC = () => {
   }, [authLoading, isAuthenticated, user]);
 
   const updateField = (field: keyof VolunteerFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      // Auto-save to cache
+      if (user?.id) {
+        saveFormCache(`volunteer_${user.id}`, newData);
+      }
+      return newData;
+    });
     setErrors(prev => prev.filter(error => error.field !== field));
   };
 
@@ -400,13 +420,18 @@ export const VolunteerRegistration: React.FC = () => {
       }
   
       console.log("✅ Profile updated successfully with role:", formData.role);
-  
+
+      // Clear form cache after successful submission
+      if (user?.id) {
+        clearFormCache(`volunteer_${user.id}`);
+      }
+
       await refreshProfile();
-  
+
       console.log("🎉 Volunteer registration completed successfully!");
       setShowAuthTransition(false);
       setShowSuccess(true);
-  
+
       setTimeout(() => {
         navigate(getRoleBasedRedirect(), { replace: true });
       }, 3000);

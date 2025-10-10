@@ -69,7 +69,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
         // Use the team leaderboard function
         const result = await supabase.rpc('get_team_leaderboard', {
           p_team_name: selectedTeam,
-          p_limit_param: 50
+          p_limit_param: 10
         });
         
         if (result.error) {
@@ -113,7 +113,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
           if (userTeam) {
             const result = await supabase.rpc('get_team_leaderboard', {
               p_team_name: userTeam,
-              p_limit_param: 50
+              p_limit_param: 10
             });
             
             if (result.error) throw result.error;
@@ -146,10 +146,28 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
       }
 
       // Add ranking if not already provided by RPC
-      const rankedData: LeaderboardEntry[] = (data || []).map((user, index) => ({
+      let rankedData: LeaderboardEntry[] = (data || []).map((user, index) => ({
         ...user,
         rank: user.rank || index + 1
       }));
+
+      // Optimize: Show only top 10 and current user's position
+      if (currentUserId && rankedData.length > 10) {
+        const currentUserIndex = rankedData.findIndex(user => user.id === currentUserId);
+
+        if (currentUserIndex > 9) {
+          // User is not in top 10, so include them separately
+          const top10 = rankedData.slice(0, 10);
+          const currentUser = rankedData[currentUserIndex];
+          rankedData = [...top10];
+        } else {
+          // User is in top 10, just show top 10
+          rankedData = rankedData.slice(0, 10);
+        }
+      } else if (!currentUserId && rankedData.length > 10) {
+        // No current user, just show top 10
+        rankedData = rankedData.slice(0, 10);
+      }
 
       setLeaderboardData(rankedData);
     } catch (err) {
@@ -447,7 +465,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
             <Trophy className="h-5 w-5 mr-2 text-orange-600" />
             {getTabTitle()}
           </h3>
-          <p className="text-sm text-gray-500">{leaderboardData.length} participants</p>
+          <p className="text-sm text-gray-500">Top {Math.min(leaderboardData.length, 10)}</p>
         </div>
 
         {leaderboardData.length === 0 ? (

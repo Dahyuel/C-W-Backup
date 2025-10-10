@@ -8,6 +8,7 @@ import { validatePhone, validatePersonalId, validateVolunteerId } from '../utils
 import { uploadFile, cleanupUploadedFiles, supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { AuthTransition } from '../components/AuthTransition';
+import { saveFormCache, loadFormCache, clearFormCache } from '../utils/formCache';
 
 const ErrorPopup: React.FC<{
   message: string;
@@ -183,10 +184,13 @@ export const RegistrationForm: React.FC = () => {
   const hasRedirected = useRef(false);
   const sectionChangeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Update ref when form data changes
+  // Auto-save form data to cache
   useEffect(() => {
     formDataRef.current = formData;
-  }, [formData]);
+    if (user?.id) {
+      saveFormCache(`registration_${user.id}`, formData);
+    }
+  }, [formData, user?.id]);
 
   const sections = [
     { id: 1, title: 'Personal Information', icon: User },
@@ -222,7 +226,7 @@ export const RegistrationForm: React.FC = () => {
           navigate('/login', { replace: true });
           return;
         }
-        
+
         // If profile is already complete, redirect directly to dashboard
         if (profile?.profile_complete && !hasRedirected.current) {
           hasRedirected.current = true;
@@ -231,27 +235,38 @@ export const RegistrationForm: React.FC = () => {
           navigate(redirectPath, { replace: true });
           return;
         }
-        
-        // Pre-fill form with existing data if available
+
+        // Load cached form data first
+        if (user?.id) {
+          const cachedData = loadFormCache<RegistrationData>(`registration_${user.id}`);
+          if (cachedData) {
+            setFormData(prev => ({
+              ...prev,
+              ...cachedData
+            }));
+          }
+        }
+
+        // Pre-fill form with existing data if available (but don't override cache)
         if (profile) {
           setFormData(prev => ({
             ...prev,
             firstName: profile.first_name || prev.firstName,
             lastName: profile.last_name || prev.lastName,
             email: profile.email || prev.email,
-            ...(profile.personal_id && { personalId: profile.personal_id }),
-            ...(profile.phone && { phone: profile.phone }),
-            ...(profile.university && { university: profile.university }),
-            ...(profile.faculty && { faculty: profile.faculty }),
-            ...(profile.gender && { gender: profile.gender }),
-            ...(profile.nationality && { nationality: profile.nationality })
+            ...(profile.personal_id && !prev.personalId && { personalId: profile.personal_id }),
+            ...(profile.phone && !prev.phone && { phone: profile.phone }),
+            ...(profile.university && !prev.university && { university: profile.university }),
+            ...(profile.faculty && !prev.faculty && { faculty: profile.faculty }),
+            ...(profile.gender && !prev.gender && { gender: profile.gender }),
+            ...(profile.nationality && !prev.nationality && { nationality: profile.nationality })
           }));
         }
       }
     };
 
     checkAuth();
-  }, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect]);
+  }, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect, user?.id]);
 
   const updateField = useCallback((field: keyof RegistrationData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -474,14 +489,19 @@ export const RegistrationForm: React.FC = () => {
         return;
       }
 
+      // Clear the form cache after successful submission
+      if (user?.id) {
+        clearFormCache(`registration_${user.id}`);
+      }
+
       // CRITICAL: Refresh profile and wait for it to complete
       await refreshProfile();
-      
+
       // Add a small delay to ensure state is updated
       await new Promise(resolve => setTimeout(resolve, 300));
-      
+
       setShowAuthTransition(false);
-      
+
       // DIRECT REDIRECTION: Navigate immediately without showing success screen
       console.log('✅ Registration complete, redirecting directly to dashboard');
       navigate('/attendee', { replace: true });
