@@ -1890,6 +1890,40 @@ const tabItems = [
             </a>
           </div>
 
+          {/* Academic Faculties */}
+{selectedCompany.academic_faculties_seeking_for && selectedCompany.academic_faculties_seeking_for.length > 0 && (
+  <div className="fade-in-blur">
+    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+      <BookOpen className="h-4 w-4 mr-2" />
+      Academic Faculties Seeking For
+    </label>
+    <div className="flex flex-wrap gap-2">
+      {selectedCompany.academic_faculties_seeking_for.map((faculty, index) => (
+        <span key={index} className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+          {faculty}
+        </span>
+      ))}
+    </div>
+  </div>
+)}
+
+{/* Vacancies Type */}
+{selectedCompany.vacancies_type && selectedCompany.vacancies_type.length > 0 && (
+  <div className="fade-in-blur">
+    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+      <Briefcase className="h-4 w-4 mr-2" />
+      Vacancies Type
+    </label>
+    <div className="flex flex-wrap gap-2">
+      {selectedCompany.vacancies_type.map((type, index) => (
+        <span key={index} className="inline-flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+          {type}
+        </span>
+      ))}
+    </div>
+  </div>
+)}
+
           {/* Action Buttons */}
           <div className="pt-4 space-y-3 fade-in-blur">
             <button
