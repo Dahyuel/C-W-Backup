@@ -24,7 +24,7 @@ import {
   Upload,
   FileText,
   Download,
-  CreditCard, // Using CreditCard instead of IdCard
+  CreditCard,
   FileUp
 } from 'lucide-react';
 import { supabase, uploadFile, updateUserFiles } from '../../lib/supabase';
@@ -374,6 +374,11 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
   };
 
   const renderFileUploadSection = (type: 'universityId' | 'cv') => {
+    // Only show file upload sections for attendees
+    if (profile?.role !== 'attendee') {
+      return null;
+    }
+
     const filePath = type === 'universityId' ? profile?.university_id_path : profile?.cv_path;
     const isUploaded = !!filePath;
     const StatusIcon = getStatusIcon(filePath);
@@ -800,19 +805,23 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                 </button>
               </div>
 
-              {/* Upload Status Messages */}
-              {uploadError && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center animate-fade-in">
-                  <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
-                  <p className="text-red-700 text-sm">{uploadError}</p>
-                </div>
-              )}
+              {/* Upload Status Messages - Only show for attendees */}
+              {profile?.role === 'attendee' && (
+                <>
+                  {uploadError && (
+                    <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center animate-fade-in">
+                      <AlertCircle className="h-5 w-5 text-red-600 mr-2" />
+                      <p className="text-red-700 text-sm">{uploadError}</p>
+                    </div>
+                  )}
 
-              {uploadSuccess && (
-                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center animate-fade-in">
-                  <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
-                  <p className="text-green-700 text-sm">{uploadSuccess}</p>
-                </div>
+                  {uploadSuccess && (
+                    <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center animate-fade-in">
+                      <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                      <p className="text-green-700 text-sm">{uploadSuccess}</p>
+                    </div>
+                  )}
+                </>
               )}
 
               {/* QR Code Section */}
@@ -853,14 +862,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title, subt
                 <div className="text-3xl font-bold text-orange-600">{userScore}</div>
               </div>
 
-              {/* Document Upload Section */}
-              <div className="mb-6 fade-in-blur">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Document Status</h3>
-                <div className="space-y-4">
-                  {renderFileUploadSection('universityId')}
-                  {renderFileUploadSection('cv')}
+              {/* Document Upload Section - Only show for attendees */}
+              {profile?.role === 'attendee' && (
+                <div className="mb-6 fade-in-blur">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Document Status</h3>
+                  <div className="space-y-4">
+                    {renderFileUploadSection('universityId')}
+                    {renderFileUploadSection('cv')}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Profile Information */}
               <div className="space-y-4 fade-in-blur">
