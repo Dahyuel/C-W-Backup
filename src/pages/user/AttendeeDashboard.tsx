@@ -137,6 +137,49 @@ const AttendeeDashboard: React.FC = () => {
   const canBookDay5 = profile?.faculty && DAY5_FACULTIES.includes(profile.faculty);
   const [isTabChanging, setIsTabChanging] = useState(false);
   const [previousTab, setPreviousTab] = useState("overview");
+
+  // Add these state variables
+const [activePartnerType, setActivePartnerType] = useState('all');
+const [activeFaculty, setActiveFaculty] = useState('all');
+const [activeVacancyType, setActiveVacancyType] = useState('all');
+
+// Add these imports if not already present
+import { BookOpen, Briefcase, Sparkles } from "lucide-react";
+
+// Add these constants (same as in admin panel)
+const ACADEMIC_FACULTIES = [
+  'Faculty of Engineering',
+  'Faculty of Medicine',
+  'Faculty of Law',
+  'Faculty of Arts',
+  'Faculty of Science',
+  'Faculty of Pharmacy',
+  'Faculty of Dentistry',
+  'Faculty of Veterinary Medicine',
+  'Faculty of Agriculture',
+  'Faculty of Education',
+  'Faculty of Nursing',
+  'Faculty of Computer and Information Sciences',
+  'Faculty of Economics and Political Science',
+  'Faculty of Mass Communication',
+  'Faculty of Physical Education',
+  'Faculty of Fine Arts',
+  'Faculty of Music Education',
+  'Faculty of Archaeology',
+  'Faculty of Social Work',
+  'Faculty of Tourism and Hotels',
+  'Faculty of Alsun',
+  'Faculty of Business Administration',
+  'Faculty of Applied Arts',
+];
+
+const VACANCIES_TYPES = [
+  'Full Time',
+  'Part Time',
+  'Internship',
+  'Freelance',
+  'Project Based'
+];
   // Load dashboard data
   useEffect(() => {
     fetchDashboardData();
