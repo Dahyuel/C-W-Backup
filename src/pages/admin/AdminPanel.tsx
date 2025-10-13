@@ -3555,152 +3555,105 @@ const fetchOpenRecruitmentBookingsDirect = async (day: number): Promise<Attendan
               </div>
             </div>
           )}
-{editSessionModal && selectedSessionEdit && createPortal(
-  <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
-    <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
-      <div className="flex items-center justify-between mb-4 sm:mb-6 fade-in-blur">
-        <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Edit Session</h3>
-        <button
-          onClick={() => setEditSessionModal(false)}
-          className="text-gray-400 hover:text-gray-600 transition-colors"
-        >
-          <X className="h-5 w-5 sm:h-6 sm:w-6" />
-        </button>
-      </div>
-      
-      <div className="space-y-4 stagger-children">
-        <div className="fade-in-blur">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Session Title *
-          </label>
-          <input
-            type="text"
-            value={editSession.title}
-            onChange={(e) => setEditSession({ ...editSession, title: e.target.value })}
-            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
-            placeholder="Enter session title"
-          />
-        </div>
 
-        <div className="fade-in-blur">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Description
-          </label>
-          <textarea
-            value={editSession.description}
-            onChange={(e) => setEditSession({ ...editSession, description: e.target.value })}
-            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
-            placeholder="Enter session description"
-            rows={3}
-          />
-        </div>
-
-        <div className="fade-in-blur">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Speaker *
-          </label>
-          <input
-            type="text"
-            value={editSession.speaker}
-            onChange={(e) => setEditSession({ ...editSession, speaker: e.target.value })}
-            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
-            placeholder="Enter speaker name"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 fade-in-blur">
+          {/* Company Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Date *
-            </label>
-            <input
-              type="date"
-              value={editSession.date}
-              onChange={(e) => setEditSession({ ...editSession, date: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-2">About Company</label>
+            <p className="text-gray-700 leading-relaxed text-sm sm:text-base">
+              {selectedCompanyDetail.description || "No description available."}
+            </p>
           </div>
+
+          {/* Website */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Time *
-            </label>
-            <input
-              type="time"
-              value={editSession.hour}
-              onChange={(e) => setEditSession({ ...editSession, hour: e.target.value })}
-              className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-2">Website</label>
+            {selectedCompanyDetail.website ? (
+              <a 
+                href={selectedCompanyDetail.website} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-orange-600 hover:text-orange-700 break-all text-sm sm:text-base"
+              >
+                {selectedCompanyDetail.website}
+              </a>
+            ) : (
+              <p className="text-gray-500 text-sm sm:text-base">No website provided</p>
+            )}
           </div>
-        </div>
 
-        <div className="fade-in-blur">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Location
-          </label>
-          <input
-            type="text"
-            value={editSession.location}
-            onChange={(e) => setEditSession({ ...editSession, location: e.target.value })}
-            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
-            placeholder="Enter location"
-          />
-        </div>
-
-        <div className="fade-in-blur">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Capacity
-          </label>
-          <input
-            type="number"
-            value={editSession.capacity}
-            onChange={(e) => setEditSession({ ...editSession, capacity: e.target.value })}
-            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
-            placeholder="Enter capacity (leave empty for unlimited)"
-          />
-        </div>
-
-        <div className="fade-in-blur">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Session Type *
-          </label>
-          <select
-            value={editSession.type}
-            onChange={(e) => setEditSession({ ...editSession, type: e.target.value })}
-            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
-          >
-            <option value="session">Session</option>
-            <option value="mentorship">Mentorship</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="flex justify-end space-x-3 mt-6 fade-in-blur">
-        <button
-          onClick={() => setEditSessionModal(false)}
-          className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-300 smooth-hover font-medium text-sm"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleSessionUpdate}
-          disabled={loading}
-          className="px-4 sm:px-6 py-2 sm:py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-all duration-300 smooth-hover font-medium text-sm"
-        >
-          {loading ? (
-            <div className="flex items-center">
-              <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white mr-2"></div>
-              Updating...
+          {/* Additional Information */}
+          <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            {/* Created Date */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Added On</label>
+              <p className="text-gray-900 text-xs sm:text-sm">
+                {selectedCompanyDetail.created_at 
+                  ? new Date(selectedCompanyDetail.created_at).toLocaleDateString()
+                  : 'Unknown'
+                }
+              </p>
             </div>
-          ) : (
-            'Update Session'
-          )}
-        </button>
+
+            {/* Company ID */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Company ID</label>
+              <p className="text-gray-900 text-xs sm:text-sm font-mono truncate">
+                {selectedCompanyDetail.id}
+              </p>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="pt-4 space-y-3 fade-in-blur">
+            {selectedCompanyDetail.website && (
+              <button
+                onClick={() => window.open(selectedCompanyDetail.website, "_blank")}
+                className="w-full bg-orange-500 text-white py-2 sm:py-3 px-4 rounded-lg hover:bg-orange-600 transition-all duration-300 smooth-hover font-medium flex items-center justify-center text-sm sm:text-base"
+              >
+                <Link className="h-4 w-4 mr-2" />
+                Visit Career Page
+              </button>
+            )}
+            
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => {
+                  handleEditCompany(selectedCompanyDetail);
+                  setCompanyDetailModal(false);
+                }}
+                className="bg-blue-500 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-blue-600 transition-all duration-300 smooth-hover font-medium text-xs sm:text-sm"
+              >
+                Edit Company
+              </button>
+              
+              <button
+                onClick={() => {
+                  setCompanyDetailModal(false);
+                  openDeleteCompanyModal(selectedCompanyDetail);
+                }}
+                className="bg-red-500 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-red-600 transition-all duration-300 smooth-hover font-medium text-xs sm:text-sm"
+              >
+                Delete Company
+              </button>
+            </div>
+            
+            <button
+              onClick={() => {
+                setCompanyDetailModal(false);
+                setSelectedCompanyDetail(null);
+              }}
+              className="w-full bg-gray-100 text-gray-700 py-2 sm:py-3 px-4 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover font-medium text-sm sm:text-base"
+            >
+              Close Details
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>,
   document.body
 )}
-
+{/* Edit Event Modal */}
           {editEventModal && selectedEventEdit && createPortal(
   <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
     <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
@@ -3848,103 +3801,154 @@ const fetchOpenRecruitmentBookingsDirect = async (day: number): Promise<Attendan
   </div>,
   document.body
 )}
-          {/* Company Description */}
+
+{/* Edit Session Modal */}
+{editSessionModal && selectedSessionEdit && createPortal(
+  <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+    <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
+      <div className="flex items-center justify-between mb-4 sm:mb-6 fade-in-blur">
+        <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Edit Session</h3>
+        <button
+          onClick={() => setEditSessionModal(false)}
+          className="text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <X className="h-5 w-5 sm:h-6 sm:w-6" />
+        </button>
+      </div>
+      
+      <div className="space-y-4 stagger-children">
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Session Title *
+          </label>
+          <input
+            type="text"
+            value={editSession.title}
+            onChange={(e) => setEditSession({ ...editSession, title: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="Enter session title"
+          />
+        </div>
+
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Description
+          </label>
+          <textarea
+            value={editSession.description}
+            onChange={(e) => setEditSession({ ...editSession, description: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="Enter session description"
+            rows={3}
+          />
+        </div>
+
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Speaker *
+          </label>
+          <input
+            type="text"
+            value={editSession.speaker}
+            onChange={(e) => setEditSession({ ...editSession, speaker: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="Enter speaker name"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 fade-in-blur">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">About Company</label>
-            <p className="text-gray-700 leading-relaxed text-sm sm:text-base">
-              {selectedCompanyDetail.description || "No description available."}
-            </p>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Date *
+            </label>
+            <input
+              type="date"
+              value={editSession.date}
+              onChange={(e) => setEditSession({ ...editSession, date: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            />
           </div>
-
-          {/* Website */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Website</label>
-            {selectedCompanyDetail.website ? (
-              <a 
-                href={selectedCompanyDetail.website} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-orange-600 hover:text-orange-700 break-all text-sm sm:text-base"
-              >
-                {selectedCompanyDetail.website}
-              </a>
-            ) : (
-              <p className="text-gray-500 text-sm sm:text-base">No website provided</p>
-            )}
-          </div>
-
-          {/* Additional Information */}
-          <div className="grid grid-cols-2 gap-3 sm:gap-4">
-            {/* Created Date */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Added On</label>
-              <p className="text-gray-900 text-xs sm:text-sm">
-                {selectedCompanyDetail.created_at 
-                  ? new Date(selectedCompanyDetail.created_at).toLocaleDateString()
-                  : 'Unknown'
-                }
-              </p>
-            </div>
-
-            {/* Company ID */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Company ID</label>
-              <p className="text-gray-900 text-xs sm:text-sm font-mono truncate">
-                {selectedCompanyDetail.id}
-              </p>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="pt-4 space-y-3 fade-in-blur">
-            {selectedCompanyDetail.website && (
-              <button
-                onClick={() => window.open(selectedCompanyDetail.website, "_blank")}
-                className="w-full bg-orange-500 text-white py-2 sm:py-3 px-4 rounded-lg hover:bg-orange-600 transition-all duration-300 smooth-hover font-medium flex items-center justify-center text-sm sm:text-base"
-              >
-                <Link className="h-4 w-4 mr-2" />
-                Visit Career Page
-              </button>
-            )}
-            
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => {
-                  handleEditCompany(selectedCompanyDetail);
-                  setCompanyDetailModal(false);
-                }}
-                className="bg-blue-500 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-blue-600 transition-all duration-300 smooth-hover font-medium text-xs sm:text-sm"
-              >
-                Edit Company
-              </button>
-              
-              <button
-                onClick={() => {
-                  setCompanyDetailModal(false);
-                  openDeleteCompanyModal(selectedCompanyDetail);
-                }}
-                className="bg-red-500 text-white py-2 px-3 sm:px-4 rounded-lg hover:bg-red-600 transition-all duration-300 smooth-hover font-medium text-xs sm:text-sm"
-              >
-                Delete Company
-              </button>
-            </div>
-            
-            <button
-              onClick={() => {
-                setCompanyDetailModal(false);
-                setSelectedCompanyDetail(null);
-              }}
-              className="w-full bg-gray-100 text-gray-700 py-2 sm:py-3 px-4 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover font-medium text-sm sm:text-base"
-            >
-              Close Details
-            </button>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Time *
+            </label>
+            <input
+              type="time"
+              value={editSession.hour}
+              onChange={(e) => setEditSession({ ...editSession, hour: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            />
           </div>
         </div>
+
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Location
+          </label>
+          <input
+            type="text"
+            value={editSession.location}
+            onChange={(e) => setEditSession({ ...editSession, location: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="Enter location"
+          />
+        </div>
+
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Capacity
+          </label>
+          <input
+            type="number"
+            value={editSession.capacity}
+            onChange={(e) => setEditSession({ ...editSession, capacity: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="Enter capacity (leave empty for unlimited)"
+          />
+        </div>
+
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Session Type *
+          </label>
+          <select
+            value={editSession.type}
+            onChange={(e) => setEditSession({ ...editSession, type: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+          >
+            <option value="session">Session</option>
+            <option value="mentorship">Mentorship</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="flex justify-end space-x-3 mt-6 fade-in-blur">
+        <button
+          onClick={() => setEditSessionModal(false)}
+          className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-300 smooth-hover font-medium text-sm"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSessionUpdate}
+          disabled={loading}
+          className="px-4 sm:px-6 py-2 sm:py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-all duration-300 smooth-hover font-medium text-sm"
+        >
+          {loading ? (
+            <div className="flex items-center">
+              <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white mr-2"></div>
+              Updating...
+            </div>
+          ) : (
+            'Update Session'
+          )}
+        </button>
       </div>
     </div>
   </div>,
   document.body
 )}
+
 
 {/* Booking Detail Modal */}
 {showBookingModal && selectedBooking && createPortal(
