@@ -1356,13 +1356,13 @@ const tabItems = [
                   <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 mr-2 sm:mr-3 mt-0.5 flex-shrink-0" />
                   <div>
                     <h3 className="text-blue-800 font-medium text-sm sm:text-base mb-1">Faculty-Based Eligibility</h3>
-                    <p className="text-blue-700 text-xs sm:text-sm">
-                      {activeRecruitmentDay === 4 ? (
-                        <>Day 4 sessions are only available for <strong>Faculty of Engineering</strong> and <strong>Faculty of Computer and Information Sciences</strong> students.</>
-                      ) : (
-                        <>Day 5 sessions are only available for <strong>Commerce, Business, Arts, Law, Applied Arts, Fine Arts, Languages, Physical Education, and Education</strong> students.</>
-                      )}
-                    </p>
+<p className="text-blue-700 text-xs sm:text-sm">
+  {activeRecruitmentDay === 4 ? (
+    <>Day 4 sessions are only available for <strong>Faculty of Engineering</strong> and <strong>Faculty of Computer and Information Sciences</strong> students.</>
+  ) : (
+    <>Day 5 sessions are only available for <strong>Commerce, Business, Arts, Law, Applied Arts, Fine Arts, Languages, Physical Education, Education, Alsun, and Girls</strong> students.</>
+  )}
+</p>
                     {profile?.faculty && (
                       <p className="text-blue-600 text-xs sm:text-sm mt-1">
                         Your faculty: <strong>{profile.faculty}</strong> - {
