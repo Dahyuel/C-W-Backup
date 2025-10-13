@@ -3903,7 +3903,7 @@ const fetchOpenRecruitmentBookingsFallback = async (day: number) => {
 {/* Booking Detail Modal */}
 {showBookingModal && selectedBooking && createPortal(
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
-    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
       <div className="p-4 sm:p-6 stagger-children">
         <div className="flex items-center justify-between mb-4 sm:mb-6 fade-in-blur">
           <h2 className="text-lg sm:text-xl font-bold text-gray-900">Booking Details</h2>
@@ -3918,54 +3918,81 @@ const fetchOpenRecruitmentBookingsFallback = async (day: number) => {
           </button>
         </div>
 
-        <div className="space-y-4 sm:space-y-6 fade-in-blur">
+        <div className="space-y-6 fade-in-blur">
           {/* User Information */}
-          <div className="text-center">
-            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
-              <User className="h-6 w-6 sm:h-10 sm:w-10 text-orange-600" />
-            </div>
-            <h3 className="text-xl sm:text-2xl font-bold text-gray-900">
-              {selectedBooking.user?.first_name} {selectedBooking.user?.last_name}
+          <div className="bg-gray-50 rounded-lg p-4 sm:p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <User className="h-5 w-5 mr-2" />
+              User Information
             </h3>
-            <p className="text-gray-600 mt-2 text-sm sm:text-base">{selectedBooking.user?.email}</p>
-            <div className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-blue-100 text-blue-800 mt-2">
-              Personal ID: {selectedBooking.user?.personal_id}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              <div>
+                <label className="font-medium text-gray-700">Full Name:</label>
+                <p className="text-gray-900">{selectedBooking.user?.first_name} {selectedBooking.user?.last_name}</p>
+              </div>
+              <div>
+                <label className="font-medium text-gray-700">Personal ID:</label>
+                <p className="text-gray-900">{selectedBooking.user?.personal_id}</p>
+              </div>
+              <div>
+                <label className="font-medium text-gray-700">Email:</label>
+                <p className="text-gray-900">{selectedBooking.user?.email}</p>
+              </div>
+              <div>
+                <label className="font-medium text-gray-700">Gender:</label>
+                <p className="text-gray-900 capitalize">{selectedBooking.user?.gender || 'Not specified'}</p>
+              </div>
+              <div>
+                <label className="font-medium text-gray-700">University:</label>
+                <p className="text-gray-900">{selectedBooking.user?.university || 'Not specified'}</p>
+              </div>
+              <div>
+                <label className="font-medium text-gray-700">Faculty:</label>
+                <p className="text-gray-900">{selectedBooking.user?.faculty || 'Not specified'}</p>
+              </div>
             </div>
           </div>
 
           {/* Session Information */}
           {selectedBooking.session && (
-            <div className="fade-in-blur">
-              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
-                <BookOpen className="h-4 w-4 mr-2" />
-                Session Details
-              </label>
-              <div className="bg-gray-50 rounded-lg p-3 sm:p-4">
-                <h4 className="font-semibold text-gray-900 text-sm sm:text-base">{selectedBooking.session.title}</h4>
+            <div className="bg-gray-50 rounded-lg p-4 sm:p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <BookOpen className="h-5 w-5 mr-2" />
+                Session Information
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="font-medium text-gray-700">Session Title:</label>
+                  <p className="text-gray-900 text-lg font-semibold">{selectedBooking.session.title}</p>
+                </div>
                 {selectedBooking.session.description && (
-                  <p className="text-gray-600 mt-1 text-xs sm:text-sm">{selectedBooking.session.description}</p>
+                  <div>
+                    <label className="font-medium text-gray-700">Description:</label>
+                    <p className="text-gray-900">{selectedBooking.session.description}</p>
+                  </div>
                 )}
-                {selectedBooking.session.speaker && (
-                  <p className="text-gray-700 mt-2 text-xs sm:text-sm">
-                    <strong>Speaker:</strong> {selectedBooking.session.speaker}
-                  </p>
-                )}
-                <div className="grid grid-cols-2 gap-3 sm:gap-4 mt-3 text-xs sm:text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <strong>Date:</strong><br />
-                    {new Date(selectedBooking.session.start_time).toLocaleDateString()}
+                    <label className="font-medium text-gray-700">Date:</label>
+                    <p className="text-gray-900">
+                      {new Date(selectedBooking.session.start_time).toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
                   </div>
                   <div>
-                    <strong>Time:</strong><br />
-                    {new Date(selectedBooking.session.start_time).toLocaleTimeString()} - {new Date(selectedBooking.session.end_time).toLocaleTimeString()}
+                    <label className="font-medium text-gray-700">Time:</label>
+                    <p className="text-gray-900">
+                      {new Date(selectedBooking.session.start_time).toLocaleTimeString()} - {' '}
+                      {new Date(selectedBooking.session.end_time).toLocaleTimeString()}
+                    </p>
                   </div>
                   <div>
-                    <strong>Location:</strong><br />
-                    {selectedBooking.session.location}
-                  </div>
-                  <div>
-                    <strong>Type:</strong><br />
-                    {selectedBooking.session.session_type}
+                    <label className="font-medium text-gray-700">Location:</label>
+                    <p className="text-gray-900">{selectedBooking.session.location}</p>
                   </div>
                 </div>
               </div>
@@ -3973,55 +4000,58 @@ const fetchOpenRecruitmentBookingsFallback = async (day: number) => {
           )}
 
           {/* Booking Information */}
-          <div className="fade-in-blur">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Booking Information</label>
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm">
+          <div className="bg-gray-50 rounded-lg p-4 sm:p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Booking Information</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
               <div>
-                <strong>Booked On:</strong><br />
-                {new Date(selectedBooking.scanned_at).toLocaleDateString()}
+                <label className="font-medium text-gray-700">Booked On:</label>
+                <p className="text-gray-900">
+                  {new Date(selectedBooking.scanned_at).toLocaleDateString()}
+                </p>
               </div>
               <div>
-                <strong>Booked At:</strong><br />
-                {new Date(selectedBooking.scanned_at).toLocaleTimeString()}
+                <label className="font-medium text-gray-700">Booked At:</label>
+                <p className="text-gray-900">
+                  {new Date(selectedBooking.scanned_at).toLocaleTimeString()}
+                </p>
               </div>
               <div>
-                <strong>Booking ID:</strong><br />
-                <code className="text-xs">{selectedBooking.id}</code>
+                <label className="font-medium text-gray-700">Booking ID:</label>
+                <p className="text-gray-900 font-mono text-xs">{selectedBooking.id}</p>
               </div>
               <div>
-                <strong>Scan Type:</strong><br />
-                {selectedBooking.scan_type}
+                <label className="font-medium text-gray-700">Scan Type:</label>
+                <p className="text-gray-900 capitalize">{selectedBooking.scan_type}</p>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Action Buttons */}
-          <div className="pt-4 space-y-3 fade-in-blur">
-            <button
-              onClick={() => openDeleteBookingModal(selectedBooking)}
-              className="w-full bg-red-500 text-white py-2 sm:py-3 px-4 rounded-lg hover:bg-red-600 transition-all duration-300 smooth-hover font-medium text-sm sm:text-base"
-            >
-              <Trash2 className="h-4 w-4 mr-2 inline" />
-              Delete Booking
-            </button>
-            
-            <button
-              onClick={() => {
-                setShowBookingModal(false);
-                setSelectedBooking(null);
-              }}
-              className="w-full bg-gray-100 text-gray-700 py-2 sm:py-3 px-4 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover font-medium text-sm sm:text-base"
-            >
-              Close Details
-            </button>
-          </div>
+        {/* Action Buttons */}
+        <div className="pt-6 space-y-3 fade-in-blur">
+          <button
+            onClick={() => openDeleteBookingModal(selectedBooking)}
+            className="w-full bg-red-500 text-white py-3 px-4 rounded-lg hover:bg-red-600 transition-all duration-300 smooth-hover font-medium"
+          >
+            <Trash2 className="h-4 w-4 mr-2 inline" />
+            Delete Booking
+          </button>
+          
+          <button
+            onClick={() => {
+              setShowBookingModal(false);
+              setSelectedBooking(null);
+            }}
+            className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover font-medium"
+          >
+            Close Details
+          </button>
         </div>
       </div>
     </div>
   </div>,
   document.body
 )}
-
 {/* Delete Booking Confirmation Modal */}
 {deleteBookingModal && selectedBooking && createPortal(
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
