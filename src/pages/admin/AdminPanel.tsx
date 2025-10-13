@@ -492,72 +492,67 @@ export function AdminPanel() {
     return Math.max(1, Math.min(5, diffDays + 1));
   };
 
-  // Fetch Open Recruitment Day bookings
-
-// Fetch Open Recruitment Day bookings - Using your specific sessions
+// Fetch Open Recruitment Day bookings using RPC
 const fetchOpenRecruitmentBookings = async (day: number): Promise<AttendanceItem[]> => {
   try {
-    console.log(`Fetching bookings for Day ${day}...`);
-    
-    // Use your specific session IDs
-    const day4SessionId = '30de32fb-1051-493a-a983-9f22394025f0'; // First Day - Oct 22
-    const day5SessionId = '320259ad-117a-4e21-b74b-bfe493e3eea3'; // Second Day - Oct 23
-    
-    const targetSessionId = day === 4 ? day4SessionId : day5SessionId;
-    
-    console.log(`Looking for bookings for session: ${targetSessionId}`);
+    console.log(`Fetching bookings for Day ${day} using RPC...`);
 
-    // Get bookings for the specific session
     const { data: bookings, error } = await supabase
-      .from('attendances')
-      .select(`
-        *,
-        user:users_profiles(
-          id,
-          first_name,
-          last_name,
-          personal_id,
-          email,
-          faculty,
-          university,
-          gender,
-          role,
-          volunteer_id,
-          phone,
-          degree_level,
-          program,
-          class,
-          nationality
-        ),
-        session:sessions(
-          id,
-          title,
-          description,
-          speaker,
-          start_time,
-          end_time,
-          location,
-          session_type,
-          capacity,
-          current_bookings
-        )
-      `)
-      .eq('scan_type', 'booking')
-      .eq('session_id', targetSessionId)
-      .order('scanned_at', { ascending: false });
+      .rpc('get_open_recruitment_bookings', { day_number: day });
 
     if (error) {
-      console.error(`Error fetching bookings for Day ${day}:`, error);
+      console.error(`RPC error for Day ${day}:`, error);
       return [];
     }
 
-    console.log(`Successfully fetched ${bookings?.length || 0} bookings for Day ${day}`);
-    return bookings || [];
+    console.log(`RPC returned ${bookings?.length || 0} bookings for Day ${day}`);
+
+    // Transform the data to match the expected format
+    const transformedBookings: AttendanceItem[] = (bookings || []).map(booking => ({
+      id: booking.attendance_id,
+      user_id: booking.user_id,
+      session_id: booking.session_id,
+      scan_type: booking.scan_type,
+      scanned_at: booking.scanned_at,
+      scanned_by: '', // Not available from RPC
+      location: null, // Not available from RPC
+      user: {
+        id: booking.user_id,
+        first_name: booking.first_name,
+        last_name: booking.last_name,
+        personal_id: booking.personal_id,
+        email: booking.email,
+        faculty: booking.faculty,
+        university: booking.university,
+        gender: booking.gender,
+        phone: booking.phone,
+        degree_level: booking.degree_level,
+        program: booking.program,
+        class: booking.class,
+        nationality: booking.nationality,
+        role: 'attendee' // Default role
+      },
+      session: {
+        id: booking.session_id,
+        title: booking.session_title,
+        description: booking.session_description,
+        speaker: booking.session_speaker,
+        start_time: booking.session_start_time,
+        end_time: booking.session_end_time,
+        location: booking.session_location,
+        capacity: booking.session_capacity,
+        current_bookings: booking.session_current_bookings,
+        session_type: 'session' // Default type
+      }
+    }));
+
+    return transformedBookings;
   } catch (error) {
     console.error(`Unexpected error fetching Day ${day} bookings:`, error);
     return [];
   }
 };
+  
 // Direct query fallback
 const fetchOpenRecruitmentBookingsDirect = async (day: number): Promise<AttendanceItem[]> => {
   try {
