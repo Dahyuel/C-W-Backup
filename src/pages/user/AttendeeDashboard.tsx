@@ -55,7 +55,6 @@ interface SessionBooking {
   booked_at: string;
   session?: Session; // Add session details to booking
 }
-
 interface Company {
   id: string;
   name: string;
@@ -63,7 +62,9 @@ interface Company {
   description: string;
   website: string;
   booth_number: string;
-  partner_type: string; // Add this field
+  partner_type: string;
+  academic_faculties_seeking_for: string[]; // Add this
+  vacancies_type: string[]; // Add this
   created_at: string;
 }
 
