@@ -1,9 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { 
-  Trophy, Star, QrCode, Calendar, MapPin, Clock, Building, Users, X, 
-  CheckCircle, XCircle, Activity, BookOpen, Menu, Sparkles, Briefcase, Eye,
-  Upload, FileText, CreditCard, AlertCircle
-} from "lucide-react";
+import { Trophy, Star, QrCode, Calendar, MapPin, Clock, Building, Users, X, CheckCircle, XCircle, Activity, BookOpen, Menu } from "lucide-react";
 import DashboardLayout from "../../components/shared/DashboardLayout";
 import { supabase, getUserRankingAndScore, getRecentActivities } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
@@ -51,13 +47,13 @@ interface Session {
   current_bookings: number;
   session_type: string;
   created_at: string;
-  day?: number;
+  day?: number; // Add day field
 }
 
 interface SessionBooking {
   session_id: string;
   booked_at: string;
-  session?: Session;
+  session?: Session; // Add session details to booking
 }
 
 interface Company {
@@ -67,10 +63,8 @@ interface Company {
   description: string;
   website: string;
   booth_number: string;
-  partner_type: string;
+  partner_type: string; // Add this field
   created_at: string;
-  academic_faculties_seeking_for?: string[];
-  vacancies_type?: string[];
 }
 
 // Add partner type order
@@ -83,7 +77,26 @@ const PARTNER_TYPES = [
   "Community Partners"
 ];
 
-// Faculty constants
+// Faculty constants for Building Sessions
+const DAY1_FACULTIES = [
+  "Faculty of Engineering",
+  "Faculty of Computer and Information Sciences",
+  "Faculty of Archaeology"
+];
+
+const DAY2_FACULTIES = [
+  "Faculty of Business Administration"
+];
+
+const DAY3_FACULTIES = [
+  "Faculty of Alsun",
+  "Faculty of Archaeology", 
+  "Faculty of Law",
+  "Faculty of Education",
+  "Faculty of Arts"
+];
+
+// Open Recruitment Days faculties (keep existing)
 const DAY4_FACULTIES = [
   "Faculty of Engineering",
   "Faculty of Computer and Information Sciences"
@@ -101,41 +114,6 @@ const DAY5_FACULTIES = [
   "Faculty of Education"
 ];
 
-// Add these constants
-const ACADEMIC_FACULTIES = [
-  'Faculty of Engineering',
-  'Faculty of Medicine',
-  'Faculty of Law',
-  'Faculty of Arts',
-  'Faculty of Science',
-  'Faculty of Pharmacy',
-  'Faculty of Dentistry',
-  'Faculty of Veterinary Medicine',
-  'Faculty of Agriculture',
-  'Faculty of Education',
-  'Faculty of Nursing',
-  'Faculty of Computer and Information Sciences',
-  'Faculty of Economics and Political Science',
-  'Faculty of Mass Communication',
-  'Faculty of Physical Education',
-  'Faculty of Fine Arts',
-  'Faculty of Music Education',
-  'Faculty of Archaeology',
-  'Faculty of Social Work',
-  'Faculty of Tourism and Hotels',
-  'Faculty of Alsun',
-  'Faculty of Business Administration',
-  'Faculty of Applied Arts',
-];
-
-const VACANCIES_TYPES = [
-  'Full Time',
-  'Part Time',
-  'Internship',
-  'Freelance',
-  'Project Based'
-];
-
 const AttendeeDashboard: React.FC = () => {
   const { profile } = useAuth();
   const navigate = useNavigate();
@@ -144,20 +122,22 @@ const AttendeeDashboard: React.FC = () => {
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
+  const [day1Sessions, setDay1Sessions] = useState<Session[]>([]);
+  const [day2Sessions, setDay2Sessions] = useState<Session[]>([]);
+  const [day3Sessions, setDay3Sessions] = useState<Session[]>([]);
   const [day4Sessions, setDay4Sessions] = useState<Session[]>([]);
   const [day5Sessions, setDay5Sessions] = useState<Session[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [userBookings, setUserBookings] = useState<SessionBooking[]>([]);
   const [activeTab, setActiveTab] = useState("overview");
   const [activeDay, setActiveDay] = useState<number>(1);
+  const [activeBuildingDay, setActiveBuildingDay] = useState<number>(1);
   const [activeRecruitmentDay, setActiveRecruitmentDay] = useState<number>(4);
   const [loading, setLoading] = useState(true);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [showQR, setShowQR] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [qrCodeLoading, setQrCodeLoading] = useState(false);
-  const [companiesLoading, setCompaniesLoading] = useState(false);
-const [userBookingsLoading, setUserBookingsLoading] = useState(false);
   
   // Session modal states
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
@@ -175,34 +155,24 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
   const [showEventModal, setShowEventModal] = useState(false);
   const [eventsLoading, setEventsLoading] = useState(false);
 
-  // Document requirement states
-  const [showDocumentRequirementModal, setShowDocumentRequirementModal] = useState(false);
-  const [requiredDocumentType, setRequiredDocumentType] = useState<'universityId' | 'cv' | 'both' | null>(null);
-  const [documentRequirementMessage, setDocumentRequirementMessage] = useState('');
-
-  // Animation states
+  // Check if user can book based on faculty for Building Sessions
+  const canBookDay1 = profile?.faculty && DAY1_FACULTIES.includes(profile.faculty);
+  const canBookDay2 = profile?.faculty && DAY2_FACULTIES.includes(profile.faculty);
+  const canBookDay3 = profile?.faculty && DAY3_FACULTIES.includes(profile.faculty);
+  
+  // Check if user can book based on faculty for Open Recruitment
+  const canBookDay4 = profile?.faculty && DAY4_FACULTIES.includes(profile.faculty);
+  const canBookDay5 = profile?.faculty && DAY5_FACULTIES.includes(profile.faculty);
+  
   const [isTabChanging, setIsTabChanging] = useState(false);
   const [previousTab, setPreviousTab] = useState("overview");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-
-  // Check if user can book based on faculty
-  const canBookDay4 = profile?.faculty && DAY4_FACULTIES.includes(profile.faculty);
-  const canBookDay5 = profile?.faculty && DAY5_FACULTIES.includes(profile.faculty);
-
-  // Filter states
-  const [activePartnerType, setActivePartnerType] = useState('all');
-  const [activeFaculty, setActiveFaculty] = useState('all');
-  const [activeVacancyType, setActiveVacancyType] = useState('all');
-
-  // Check if user has uploaded required documents
-  const hasUploadedUniversityId = !!profile?.university_id_path;
-  const hasUploadedCV = !!profile?.cv_path;
 
   // Load dashboard data
   useEffect(() => {
     fetchDashboardData();
     
-    // Set up realtime subscriptions
+    // Set up realtime subscriptions for sessions
     const sessionsChannel = supabase
       .channel('sessions_changes')
       .on(
@@ -214,11 +184,12 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
         },
         (payload) => {
           console.log('Session change detected:', payload);
-          fetchSessions();
+          fetchSessions(); // Refresh sessions data
         }
       )
       .subscribe();
 
+    // Set up realtime subscription for attendances (for booking changes)
     const attendancesChannel = supabase
       .channel('attendances_changes')
       .on(
@@ -231,14 +202,15 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
         },
         (payload) => {
           console.log('Booking change detected:', payload);
-          fetchSessions();
+          fetchSessions(); // Refresh sessions to update booking counts
           if (profile?.id) {
-            fetchUserBookings();
+            fetchUserBookings(); // Refresh user's bookings
           }
         }
       )
       .subscribe();
 
+    // Set up realtime subscription for user_scores (for recent activities)
     const scoresChannel = supabase
       .channel('user_scores_changes')
       .on(
@@ -251,12 +223,13 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
         },
         (payload) => {
           console.log('User score change detected:', payload);
-          fetchUserScore();
-          fetchRecentActivities();
+          fetchUserScore(); // Refresh user score and ranking
+          fetchRecentActivities(); // Refresh recent activities
         }
       )
       .subscribe();
 
+    // Cleanup subscriptions on unmount
     return () => {
       supabase.removeChannel(sessionsChannel);
       supabase.removeChannel(attendancesChannel);
@@ -268,8 +241,8 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [activeTab]);
-
-  // Add periodic refresh as backup for realtime
+  
+  // Add periodic refresh as backup for realtime (every 30 seconds)
   useEffect(() => {
     if (activeTab === 'building-sessions' || activeTab === 'open-recruitment') {
       const interval = setInterval(() => {
@@ -277,7 +250,7 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
         if (profile?.id) {
           fetchUserBookings();
         }
-      }, 30000);
+      }, 30000); // Refresh every 30 seconds when on sessions tab
 
       return () => clearInterval(interval);
     }
@@ -297,6 +270,7 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
     setIsTabChanging(true);
     setPreviousTab(activeTab);
     
+    // Small delay to allow fade-out animation
     setTimeout(() => {
       setActiveTab(tabKey);
       setIsTabChanging(false);
@@ -332,12 +306,22 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
   const fetchDashboardData = async () => {
     if (!profile?.id) return;
     try {
+      // Score and ranking
       await fetchUserScore();
+
+      // Recent activities
       await fetchRecentActivities();
+
+      // Initial events for day 1
       await fetchEventsByDay(1);
+
+      // Sessions
       await fetchSessions();
       await fetchUserBookings();
+      
+      // Companies
       await fetchCompanies();
+
     } catch (err) {
       console.error(err);
     } finally {
@@ -349,12 +333,14 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
     if (!profile?.id) return;
   
     try {
+      // Use RPC function for attendee score and rank
       const { data, error } = await supabase.rpc('get_attendee_score_and_rank', {
         user_uuid: profile.id
       });
   
       if (error) {
         console.error('RPC function error:', error);
+        // Fallback to direct query
         const { data: fallbackData, error: fallbackError } = await supabase
           .from('users_profiles')
           .select('score')
@@ -376,6 +362,7 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
           });
         }
       } else if (data && data.length > 0) {
+        // RPC function returns a table, so we get the first row
         const result = data[0];
         console.log('✅ RPC result:', result);
         setUserScore({
@@ -427,6 +414,7 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
       if (error) {
         console.error("Error fetching events:", error);
       } else if (data) {
+        // Filter by day - assuming events are spread across 5 days
         const filteredData = data.filter((item) => {
           const itemDay = getDayFromDate(item.start_time);
           return itemDay === day;
@@ -440,12 +428,13 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
     }
   };
 
+  // Helper function to get day number from date (1-5)
   const getDayFromDate = (dateString: string): number => {
     const date = new Date(dateString);
-    const eventStartDate = new Date('2025-10-19');
+    const eventStartDate = new Date('2025-10-19'); // Day 1 starts on Oct 19
     const diffTime = date.getTime() - eventStartDate.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    return Math.max(1, Math.min(5, diffDays + 1));
+    return Math.max(1, Math.min(5, diffDays + 1)); // Ensure day is between 1-5
   };
 
   const fetchSessions = async () => {
@@ -459,6 +448,7 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
       if (error) {
         console.error("Error fetching sessions:", error);
       } else if (data) {
+        // Add day information to sessions
         const sessionsWithDays = data.map(session => ({
           ...session,
           day: getDayFromDate(session.start_time)
@@ -466,11 +456,16 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
 
         setSessions(sessionsWithDays);
         
-        const buildingSessions = sessionsWithDays.filter(session => session.day && session.day <= 3);
+        // Separate days 1-3 and days 4-5
+        const day1 = sessionsWithDays.filter(session => session.day === 1);
+        const day2 = sessionsWithDays.filter(session => session.day === 2);
+        const day3 = sessionsWithDays.filter(session => session.day === 3);
         const day4 = sessionsWithDays.filter(session => session.day === 4);
         const day5 = sessionsWithDays.filter(session => session.day === 5);
         
-        setSessions(buildingSessions);
+        setDay1Sessions(day1);
+        setDay2Sessions(day2);
+        setDay3Sessions(day3);
         setDay4Sessions(day4);
         setDay5Sessions(day5);
       }
@@ -485,6 +480,7 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
     if (!profile?.id) return;
     
     try {
+      // First get the booking records
       const { data: bookingsData, error: bookingsError } = await supabase
         .from("attendances")
         .select("session_id, scanned_at")
@@ -497,6 +493,7 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
       }
 
       if (bookingsData) {
+        // Then get the session details for each booking
         const bookingsWithSessions: SessionBooking[] = [];
         
         for (const booking of bookingsData) {
@@ -523,7 +520,6 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
   };
 
   const fetchCompanies = async () => {
-    setCompaniesLoading(true);
     try {
       const { data, error } = await supabase
         .from("companies")
@@ -569,33 +565,7 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
     generateQRCode();
   };
 
-  // Document requirement functions
-  const checkDocumentRequirements = (tab: 'building-sessions' | 'open-recruitment'): boolean => {
-    if (tab === 'building-sessions') {
-      return hasUploadedUniversityId;
-    } else if (tab === 'open-recruitment') {
-      return hasUploadedUniversityId && hasUploadedCV;
-    }
-    return true;
-  };
-
-  const showDocumentRequirement = (tab: 'building-sessions' | 'open-recruitment') => {
-    if (tab === 'building-sessions') {
-      setRequiredDocumentType('universityId');
-      setDocumentRequirementMessage('You need to upload your University ID before you can view and book building sessions.');
-    } else if (tab === 'open-recruitment') {
-      setRequiredDocumentType('both');
-      setDocumentRequirementMessage('You need to upload both your University ID and CV before you can view and book open recruitment sessions.');
-    }
-    setShowDocumentRequirementModal(true);
-  };
-
-  const handleSessionClick = (session: Session, tab: 'building-sessions' | 'open-recruitment') => {
-    if (!checkDocumentRequirements(tab)) {
-      showDocumentRequirement(tab);
-      return;
-    }
-    
+  const handleSessionClick = (session: Session) => {
     setSelectedSession(session);
     setShowSessionModal(true);
     setBookingError(null);
@@ -620,20 +590,17 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
     return !!session.max_attendees && session.current_bookings >= session.max_attendees;
   };
 
+  // UPDATED: Check if user has overlapping booking based on start time only
   const hasOverlappingBooking = (session: Session): { hasOverlap: boolean; conflictingSession?: Session } => {
     const sessionStart = new Date(session.start_time);
-    const sessionEnd = new Date(session.end_time);
-
+    
+    // Check all user's booked sessions for same start time
     for (const booking of userBookings) {
       if (booking.session) {
         const bookedSessionStart = new Date(booking.session.start_time);
-        const bookedSessionEnd = new Date(booking.session.end_time);
 
-        if (
-          (sessionStart >= bookedSessionStart && sessionStart < bookedSessionEnd) ||
-          (sessionEnd > bookedSessionStart && sessionEnd <= bookedSessionEnd) ||
-          (sessionStart <= bookedSessionStart && sessionEnd >= bookedSessionEnd)
-        ) {
+        // Check if sessions have the same start time
+        if (sessionStart.getTime() === bookedSessionStart.getTime()) {
           return { hasOverlap: true, conflictingSession: booking.session };
         }
       }
@@ -642,7 +609,36 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
     return { hasOverlap: false };
   };
 
-  const canBookSession = (session: Session): { canBook: boolean; reason?: string } => {
+  // Check if user can book session based on faculty restrictions for Building Sessions
+  const canBookBuildingSession = (session: Session): { canBook: boolean; reason?: string } => {
+    const sessionDay = session.day || getDayFromDate(session.start_time);
+    
+    if (sessionDay === 1 && !canBookDay1) {
+      return { 
+        canBook: false, 
+        reason: "This session is only available for Faculty of Engineering, Faculty of Computer and Information Sciences, and Faculty of Archaeology students" 
+      };
+    }
+    
+    if (sessionDay === 2 && !canBookDay2) {
+      return { 
+        canBook: false, 
+        reason: "This session is only available for Faculty of Business Administration students" 
+      };
+    }
+    
+    if (sessionDay === 3 && !canBookDay3) {
+      return { 
+        canBook: false, 
+        reason: "This session is only available for Faculty of Alsun, Faculty of Archaeology, Faculty of Law, Faculty of Education, and Faculty of Arts students" 
+      };
+    }
+    
+    return { canBook: true };
+  };
+
+  // Check if user can book session based on faculty restrictions for Open Recruitment
+  const canBookRecruitmentSession = (session: Session): { canBook: boolean; reason?: string } => {
     const sessionDay = session.day || getDayFromDate(session.start_time);
     
     if (sessionDay === 4 && !canBookDay4) {
@@ -670,18 +666,29 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
     setBookingSuccess(null);
 
     try {
-      const sessionToBook = sessions.find(s => s.id === sessionId) || 
+      // Find the session
+      const sessionToBook = day1Sessions.find(s => s.id === sessionId) || 
+                           day2Sessions.find(s => s.id === sessionId) || 
+                           day3Sessions.find(s => s.id === sessionId) ||
                            day4Sessions.find(s => s.id === sessionId) || 
                            day5Sessions.find(s => s.id === sessionId);
       
       if (sessionToBook) {
-        const { canBook, reason } = canBookSession(sessionToBook);
-        if (!canBook) {
-          setBookingError(reason || "You are not eligible to book this session");
+        // Check faculty restrictions based on session type
+        let canBookResult;
+        if (sessionToBook.day && sessionToBook.day <= 3) {
+          canBookResult = canBookBuildingSession(sessionToBook);
+        } else {
+          canBookResult = canBookRecruitmentSession(sessionToBook);
+        }
+        
+        if (!canBookResult.canBook) {
+          setBookingError(canBookResult.reason || "You are not eligible to book this session");
           setBookingLoading(false);
           return;
         }
 
+        // Check for overlapping sessions before booking
         const { hasOverlap, conflictingSession } = hasOverlappingBooking(sessionToBook);
         
         if (hasOverlap && conflictingSession) {
@@ -701,9 +708,11 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
         setBookingError(error.message || 'Failed to book session');
       } else if (data?.success) {
         setBookingSuccess('Session booked successfully!');
+        // Refresh data
         await fetchSessions();
         await fetchUserBookings();
         
+        // Close modal after 2 seconds
         setTimeout(() => {
           setShowSessionModal(false);
           setSelectedSession(null);
@@ -735,9 +744,11 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
         setBookingError(error.message || 'Failed to cancel booking');
       } else if (data?.success) {
         setBookingSuccess('Booking cancelled successfully!');
+        // Refresh data
         await fetchSessions();
         await fetchUserBookings();
         
+        // Close modal after 2 seconds
         setTimeout(() => {
           setShowSessionModal(false);
           setSelectedSession(null);
@@ -767,50 +778,67 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
     }
   };
 
+  if (loading) {
+    return (
+      <DashboardLayout title="Dashboard" subtitle="Welcome back to Career Week">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Day maps path
+  const mapImages = [
+    "/src/Assets/day1.png",
+    "/src/Assets/day2.png",
+    "/src/Assets/day3.png",
+    "/src/Assets/day4.png",
+    "/src/Assets/day5.png",
+  ];
+
   const handleEmployerWebsiteClick = (url: string) => {
     window.open(url, "_blank");
   };
 
-  // Render session cards with document requirements
-  const renderSessionCards = (sessionsToRender: Session[], tab: 'building-sessions' | 'open-recruitment') => {
-    const hasRequiredDocuments = checkDocumentRequirements(tab);
-    
+  // Update tabItems to use "Companies" instead of "Employers"
+  const tabItems = [
+    { key: "overview", label: "Overview" },
+    { key: "stage-activities", label: "Stage Activities" },
+    { key: "building-sessions", label: "Building Sessions" },
+    { key: "open-recruitment", label: "Open Recruitment Days" },
+    { key: "maps", label: "Maps" },
+    { key: "companies", label: "Companies" }
+  ];
+
+  // Render session cards with faculty restrictions
+  const renderSessionCards = (sessionsToRender: Session[], sessionType: 'building' | 'recruitment' = 'building') => {
     return sessionsToRender.map((session, index) => {
       const booked = isSessionBooked(session.id);
       const full = isSessionFull(session);
       const { hasOverlap } = hasOverlappingBooking(session);
-      const { canBook, reason } = canBookSession(session);
+      
+      // Use appropriate validation function based on session type
+      let canBookResult;
+      if (sessionType === 'building') {
+        canBookResult = canBookBuildingSession(session);
+      } else {
+        canBookResult = canBookRecruitmentSession(session);
+      }
       
       return (
         <div
           key={session.id}
-          onClick={() => handleSessionClick(session, tab)}
-          className={`bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 cursor-pointer relative card-hover-enhanced dashboard-card transform transition-all duration-300 hover:scale-105 hover:shadow-lg ${
-            !hasRequiredDocuments ? 'opacity-70 cursor-not-allowed' : ''
-          }`}
+          onClick={() => handleSessionClick(session)}
+          className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 cursor-pointer relative card-hover-enhanced dashboard-card transform transition-all duration-300 hover:scale-105 hover:shadow-lg"
           style={{
             animationDelay: `${index * 100}ms`,
             animation: 'fadeInUp 0.6s ease-out forwards'
           }}
         >
-          {/* Document Requirement Overlay */}
-          {!hasRequiredDocuments && (
-            <div className="absolute inset-0 bg-white bg-opacity-80 rounded-xl flex items-center justify-center z-10">
-              <div className="text-center p-4">
-                <Upload className="h-8 w-8 text-orange-500 mx-auto mb-2" />
-                <p className="text-sm font-medium text-gray-700 mb-1">
-                  {tab === 'building-sessions' ? 'Upload University ID' : 'Upload Documents'}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Required to view details
-                </p>
-              </div>
-            </div>
-          )}
-
           {/* Real-time update indicator */}
           {sessionsLoading && (
-            <div className="absolute top-2 right-2 z-20">
+            <div className="absolute top-2 right-2">
               <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
             </div>
           )}
@@ -848,12 +876,7 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
           </div>
           
           <div className="mt-3 sm:mt-4 pt-3 border-t border-gray-100 transform transition-all duration-300">
-            {!hasRequiredDocuments ? (
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 transform transition-all duration-300 hover:scale-105">
-                <Upload className="h-3 w-3 mr-1" />
-                Upload Required
-              </span>
-            ) : !canBook ? (
+            {!canBookResult.canBook ? (
               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 transform transition-all duration-300 hover:scale-105">
                 <XCircle className="h-3 w-3 mr-1" />
                 Not Eligible
@@ -884,34 +907,6 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
     });
   };
 
-  if (loading) {
-    return (
-      <DashboardLayout title="Dashboard" subtitle="Welcome back to Career Week">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
-        </div>
-      </DashboardLayout>
-    );
-  }
-
-  // Day maps path
-  const mapImages = [
-    "/src/Assets/day1.png",
-    "/src/Assets/day2.png",
-    "/src/Assets/day3.png",
-    "/src/Assets/day4.png",
-    "/src/Assets/day5.png",
-  ];
-
-  const tabItems = [
-    { key: "overview", label: "Overview" },
-    { key: "stage-activities", label: "Stage Activities" },
-    { key: "building-sessions", label: "Building Sessions" },
-    { key: "open-recruitment", label: "Open Recruitment Days" },
-    { key: "maps", label: "Maps" },
-    { key: "companies", label: "Companies" }
-  ];
-
   return (
     <DashboardLayout title="Attendee Dashboard" subtitle={`Welcome back, ${profile?.first_name}!`}>
       <style>{`
@@ -934,6 +929,24 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
           to {
             opacity: 1;
             transform: translateY(0);
+          }
+        }
+        
+        @keyframes bounceIn {
+          0% {
+            opacity: 0;
+            transform: scale(0.3);
+          }
+          50% {
+            opacity: 1;
+            transform: scale(1.05);
+          }
+          70% {
+            transform: scale(0.9);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1);
           }
         }
         
@@ -1177,15 +1190,6 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
                   <Building className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600" /> 
                   <span className="text-sm sm:text-lg">Building Sessions (Days 1-3)</span>
                 </h2>
-                
-                {/* Document Requirement Notice */}
-                {!hasUploadedUniversityId && (
-                  <div className="flex items-center text-sm text-orange-600 bg-orange-50 px-3 py-2 rounded-lg mb-2 sm:mb-0">
-                    <AlertCircle className="h-4 w-4 mr-2" />
-                    Upload University ID to book sessions
-                  </div>
-                )}
-                
                 {sessionsLoading && (
                   <div className="flex items-center text-xs sm:text-sm text-gray-500">
                     <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-orange-500 mr-2"></div>
@@ -1194,14 +1198,73 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
                 )}
               </div>
               
-              {sessions.length === 0 && !loading ? (
-                <div className="text-center py-8 sm:py-12">
-                  <Building className="h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mx-auto mb-3 sm:mb-4" />
-                  <p className="text-gray-500 text-sm sm:text-base">No building sessions available</p>
+              {/* Day Selector for Building Sessions */}
+              <div className="flex space-x-1 sm:space-x-2 mb-6 overflow-x-auto pb-2">
+                {[1, 2, 3].map((day) => (
+                  <button
+                    key={day}
+                    onClick={() => setActiveBuildingDay(day)}
+                    className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex-shrink-0 ${
+                      activeBuildingDay === day 
+                        ? "bg-orange-500 text-white" 
+                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    Day {day}
+                  </button>
+                ))}
+              </div>
+
+              {/* Faculty Eligibility Notice - Responsive */}
+              <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start">
+                  <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 mr-2 sm:mr-3 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h3 className="text-blue-800 font-medium text-sm sm:text-base mb-1">Faculty-Based Eligibility</h3>
+                    <p className="text-blue-700 text-xs sm:text-sm">
+                      {activeBuildingDay === 1 ? (
+                        <>Day 1 sessions are only available for <strong>Faculty of Engineering, Faculty of Computer and Information Sciences, and Faculty of Archaeology</strong> students.</>
+                      ) : activeBuildingDay === 2 ? (
+                        <>Day 2 sessions are only available for <strong>Faculty of Business Administration</strong> students.</>
+                      ) : (
+                        <>Day 3 sessions are only available for <strong>Faculty of Alsun, Faculty of Archaeology, Faculty of Law, Faculty of Education, and Faculty of Arts</strong> students.</>
+                      )}
+                    </p>
+                    {profile?.faculty && (
+                      <p className="text-blue-600 text-xs sm:text-sm mt-1">
+                        Your faculty: <strong>{profile.faculty}</strong> - {
+                          (activeBuildingDay === 1 && canBookDay1) || 
+                          (activeBuildingDay === 2 && canBookDay2) || 
+                          (activeBuildingDay === 3 && canBookDay3) 
+                            ? "You are eligible to book sessions" 
+                            : "You are not eligible to book sessions for this day"
+                        }
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {sessionsLoading ? (
+                <div className="flex items-center justify-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                </div>
+              ) : activeBuildingDay === 1 && day1Sessions.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur">
+                  {renderSessionCards(day1Sessions, 'building')}
+                </div>
+              ) : activeBuildingDay === 2 && day2Sessions.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur">
+                  {renderSessionCards(day2Sessions, 'building')}
+                </div>
+              ) : activeBuildingDay === 3 && day3Sessions.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur">
+                  {renderSessionCards(day3Sessions, 'building')}
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur">
-                  {renderSessionCards(sessions, 'building-sessions')}
+                <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200">
+                  <Building className="h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mx-auto mb-3 sm:mb-4" />
+                  <p className="text-gray-500 text-sm sm:text-base">No sessions available for Day {activeBuildingDay}</p>
                 </div>
               )}
             </div>
@@ -1215,19 +1278,6 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
                   <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600" /> 
                   <span className="text-sm sm:text-lg">Open Recruitment Days</span>
                 </h2>
-                
-                {/* Document Requirement Notice */}
-                {(!hasUploadedUniversityId || !hasUploadedCV) && (
-                  <div className="flex items-center text-sm text-orange-600 bg-orange-50 px-3 py-2 rounded-lg">
-                    <AlertCircle className="h-4 w-4 mr-2" />
-                    {!hasUploadedUniversityId && !hasUploadedCV 
-                      ? 'Upload University ID & CV to book sessions' 
-                      : !hasUploadedUniversityId 
-                        ? 'Upload University ID to book sessions'
-                        : 'Upload CV to book sessions'
-                    }
-                  </div>
-                )}
                 
                 {/* Day Selector - Responsive */}
                 <div className="flex space-x-1 sm:space-x-2 overflow-x-auto pb-2 sm:pb-0">
@@ -1279,11 +1329,11 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
                 </div>
               ) : activeRecruitmentDay === 4 && day4Sessions.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur">
-                  {renderSessionCards(day4Sessions, 'open-recruitment')}
+                  {renderSessionCards(day4Sessions, 'recruitment')}
                 </div>
               ) : activeRecruitmentDay === 5 && day5Sessions.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur">
-                  {renderSessionCards(day5Sessions, 'open-recruitment')}
+                  {renderSessionCards(day5Sessions, 'recruitment')}
                 </div>
               ) : (
                 <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200">
@@ -1329,180 +1379,44 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
                 <span className="text-sm sm:text-lg">Participating Companies</span>
               </h2>
               
-              {/* Filters Section */}
-              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 mb-6 fade-in-blur card-hover dashboard-card">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <Sparkles className="h-5 w-5 mr-2 text-orange-500" />
-                  Filter Companies
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-                  {/* Partner Type Filter */}
-                  <div className="fade-in-blur">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Partner Type
-                    </label>
-                    <select 
-                      className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
-                      onChange={(e) => setActivePartnerType(e.target.value)}
-                    >
-                      <option value="all">All Partner Types</option>
-                      {PARTNER_TYPES.map(type => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Faculty Filter */}
-                  <div className="fade-in-blur">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Looking for Faculties
-                    </label>
-                    <select 
-                      className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
-                      onChange={(e) => setActiveFaculty(e.target.value)}
-                    >
-                      <option value="all">All Faculties</option>
-                      {ACADEMIC_FACULTIES.map(faculty => (
-                        <option key={faculty} value={faculty}>{faculty}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Vacancies Type Filter */}
-                  <div className="fade-in-blur">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Vacancies Type
-                    </label>
-                    <select 
-                      className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
-                      onChange={(e) => setActiveVacancyType(e.target.value)}
-                    >
-                      <option value="all">All Vacancy Types</option>
-                      {VACANCIES_TYPES.map(type => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Companies by Partner Type */}
               <div className="space-y-8">
                 {PARTNER_TYPES.map((partnerType) => {
-                  const partnerCompanies = companies.filter(company => {
-                    const matchesPartner = activePartnerType === 'all' || company.partner_type === activePartnerType;
-                    const matchesFaculty = activeFaculty === 'all' || 
-                      (company.academic_faculties_seeking_for && 
-                       company.academic_faculties_seeking_for.includes(activeFaculty));
-                    const matchesVacancy = activeVacancyType === 'all' ||
-                      (company.vacancies_type &&
-                       company.vacancies_type.includes(activeVacancyType));
-                    
-                    return company.partner_type === partnerType && matchesPartner && matchesFaculty && matchesVacancy;
-                  });
+                  const partnerCompanies = companies.filter(company => 
+                    company.partner_type === partnerType
+                  );
                   
                   if (partnerCompanies.length === 0) return null;
                   
                   return (
                     <div key={partnerType} className="fade-in-up-blur">
-                      <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-200">
-                        <h3 className="text-xl font-bold text-gray-800">{partnerType}</h3>
-                        <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                          {partnerCompanies.length} {partnerCompanies.length === 1 ? 'company' : 'companies'}
-                        </span>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur stagger-children">
+                      <h3 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">
+                        {partnerType}
+                      </h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur">
                         {partnerCompanies.map((company, index) => (
                           <div
                             key={company.id}
                             onClick={() => handleCompanyClick(company)}
-                            className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 cursor-pointer card-hover-enhanced dashboard-card transform transition-all duration-300 hover:scale-105 hover:shadow-lg"
+                            className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 cursor-pointer card-hover-enhanced dashboard-card transform transition-all duration-300 hover:scale-105"
                             style={{ animationDelay: `${index * 100}ms` }}
                           >
                             <div className="text-center">
-                              {/* Company Logo */}
-                              <div className="flex justify-center mb-4">
-                                <img 
-                                  src={company.logo_url} 
-                                  alt={`${company.name} logo`} 
-                                  className="h-16 w-auto max-w-full object-contain rounded-lg bg-gray-50 p-2"
-                                  onError={(e) => {
-                                    (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/64x64/orange/white?text=Logo";
-                                  }}
-                                />
-                              </div>
+                              <img 
+                                src={company.logo_url} 
+                                alt={`${company.name} logo`} 
+                                className="h-12 sm:h-16 w-auto mx-auto mb-3 sm:mb-4 object-contain" 
+                              />
+                              <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 line-clamp-2">{company.name}</h3>
+                              <p className="text-xs sm:text-sm text-gray-600 mb-3 line-clamp-2 sm:line-clamp-3">{company.description}</p>
                               
-                              {/* Company Name */}
-                              <h3 className="text-lg font-bold text-gray-900 mb-2 line-clamp-2">{company.name}</h3>
-                              
-                              {/* Partner Type Badge */}
-                              <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 mb-3">
-                                {company.partner_type}
-                              </div>
-                              
-                              {/* Booth Number */}
                               {company.booth_number && (
-                                <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 mb-3 ml-2">
-                                  <MapPin className="h-3 w-3 mr-1" />
+                                <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 mb-2">
                                   Booth {company.booth_number}
                                 </div>
                               )}
                               
-                              {/* Academic Faculties */}
-                              {company.academic_faculties_seeking_for && company.academic_faculties_seeking_for.length > 0 && (
-                                <div className="mb-3">
-                                  <div className="flex items-center text-xs text-gray-600 mb-2 justify-center">
-                                    <BookOpen className="h-3 w-3 mr-1" />
-                                    <span className="font-medium">Looking for:</span>
-                                  </div>
-                                  <div className="flex flex-wrap gap-1 justify-center">
-                                    {company.academic_faculties_seeking_for.slice(0, 2).map((faculty, idx) => (
-                                      <span key={idx} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                                        {faculty.split(' ').pop()}
-                                      </span>
-                                    ))}
-                                    {company.academic_faculties_seeking_for.length > 2 && (
-                                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                                        +{company.academic_faculties_seeking_for.length - 2}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Vacancies Type */}
-                              {company.vacancies_type && company.vacancies_type.length > 0 && (
-                                <div className="mb-4">
-                                  <div className="flex items-center text-xs text-gray-600 mb-2 justify-center">
-                                    <Briefcase className="h-3 w-3 mr-1" />
-                                    <span className="font-medium">Vacancies:</span>
-                                  </div>
-                                  <div className="flex flex-wrap gap-1 justify-center">
-                                    {company.vacancies_type.slice(0, 3).map((type, idx) => (
-                                      <span key={idx} className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                                        {type}
-                                      </span>
-                                    ))}
-                                    {company.vacancies_type.length > 3 && (
-                                      <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                                        +{company.vacancies_type.length - 3}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {/* Description Preview */}
-                              <p className="text-sm text-gray-600 mb-4 line-clamp-3">
-                                {company.description || "No description available."}
-                              </p>
-                              
-                              {/* Action Indicator */}
-                              <div className="flex justify-center items-center text-orange-600 text-sm font-medium">
-                                <Eye className="h-4 w-4 mr-1" />
-                                View Details
+                              <div className="flex justify-center mt-3 sm:mt-4">
+                                <Building className="h-4 w-4 sm:h-5 sm:w-5 text-orange-500" />
                               </div>
                             </div>
                           </div>
@@ -1512,34 +1426,11 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
                   );
                 })}
                 
-                {/* No Companies Found State */}
-                {companies.filter(company => {
-                  const matchesPartner = activePartnerType === 'all' || company.partner_type === activePartnerType;
-                  const matchesFaculty = activeFaculty === 'all' || 
-                    (company.academic_faculties_seeking_for && 
-                     company.academic_faculties_seeking_for.includes(activeFaculty));
-                  const matchesVacancy = activeVacancyType === 'all' ||
-                    (company.vacancies_type &&
-                     company.vacancies_type.includes(activeVacancyType));
-                  
-                  return matchesPartner && matchesFaculty && matchesVacancy;
-                }).length === 0 && (
-                  <div className="text-center py-12 bg-white rounded-xl border border-gray-200 fade-in-blur">
-                    <Building className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No Companies Found</h3>
-                    <p className="text-gray-500 max-w-md mx-auto">
-                      No companies match your current filters. Try adjusting the partner type, faculty, or vacancy type filters.
-                    </p>
-                    <button
-                      onClick={() => {
-                        setActivePartnerType('all');
-                        setActiveFaculty('all');
-                        setActiveVacancyType('all');
-                      }}
-                      className="mt-4 bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-all duration-300"
-                    >
-                      Clear All Filters
-                    </button>
+                {/* Fallback if no companies found */}
+                {companies.length === 0 && (
+                  <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200">
+                    <Building className="h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mx-auto mb-3 sm:mb-4" />
+                    <p className="text-gray-500 text-sm sm:text-base">No companies available</p>
                   </div>
                 )}
               </div>
@@ -1547,96 +1438,433 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
           )}
         </div>
 
-        {/* Document Requirement Modal */}
-        {showDocumentRequirementModal && createPortal(
+        {/* All Modals using React Portal with Animations */}
+
+        {/* QR Code Modal */}
+        {showQR && createPortal(
           <div 
             className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
-            onClick={() => setShowDocumentRequirementModal(false)}
+            onClick={() => {
+              setShowQR(false);
+              setQrCodeUrl('');
+            }}
           >
             <div 
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md modal-content-blur fade-in-up-blur"
+              className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center modal-content-blur fade-in-up-blur"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4 fade-in-blur">
-                  <h3 className="text-xl font-bold text-gray-900 flex items-center">
-                    <Upload className="h-6 w-6 mr-2 text-orange-600" />
-                    Documents Required
-                  </h3>
+              <div className="flex items-center justify-between mb-4 fade-in-blur">
+                <h3 className="text-xl font-bold text-gray-900">Your QR Code</h3>
+                <button
+                  onClick={() => {
+                    setShowQR(false);
+                    setQrCodeUrl('');
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              
+              <div className="w-48 h-48 bg-gray-100 rounded-lg mx-auto mb-4 flex items-center justify-center fade-in-blur">
+                {qrCodeLoading ? (
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
+                    <p className="text-xs text-gray-500">Generating...</p>
+                  </div>
+                ) : qrCodeUrl ? (
+                  <img 
+                    src={qrCodeUrl} 
+                    alt="QR Code" 
+                    className="w-full h-full object-contain rounded-lg"
+                  />
+                ) : (
+                  <div className="text-center">
+                    <QrCode className="h-16 w-16 text-gray-400 mx-auto mb-2" />
+                    <p className="text-xs text-gray-500">QR Code</p>
+                  </div>
+                )}
+              </div>
+              
+              <p className="text-sm text-gray-600 mb-4 fade-in-blur">Show this QR code for check-ins</p>
+              {profile?.id && (
+                <p className="text-xs text-gray-400 mt-1 font-mono break-all fade-in-blur">
+                  {profile.id}
+                </p>
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
+
+        {/* Event Details Modal */}
+        {showEventModal && selectedEvent && createPortal(
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
+            onClick={() => {
+              setShowEventModal(false);
+              setSelectedEvent(null);
+            }}
+          >
+            <div 
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 stagger-children">
+                <div className="flex items-center justify-between mb-6 fade-in-blur">
+                  <h2 className="text-xl font-bold text-gray-900">Event Details</h2>
                   <button
-                    onClick={() => setShowDocumentRequirementModal(false)}
+                    onClick={() => {
+                      setShowEventModal(false);
+                      setSelectedEvent(null);
+                    }}
                     className="text-gray-400 hover:text-gray-600 transition-colors"
                   >
                     <X className="h-6 w-6" />
                   </button>
                 </div>
 
-                <div className="space-y-4 fade-in-blur">
-                  <div className="flex items-start space-x-3">
-                    <AlertCircle className="h-5 w-5 text-orange-500 mt-0.5 flex-shrink-0" />
-                    <p className="text-gray-700">{documentRequirementMessage}</p>
+                <div className="space-y-6">
+                  <div className="fade-in-blur">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">{selectedEvent.title}</h3>
+                    <p className="text-gray-700 leading-relaxed">{selectedEvent.description}</p>
                   </div>
 
-                  <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                    {/* University ID Requirement */}
-                    <div className={`flex items-center justify-between p-3 rounded ${
-                      requiredDocumentType === 'universityId' || requiredDocumentType === 'both' 
-                        ? 'bg-orange-50 border border-orange-200' 
-                        : 'bg-gray-100'
-                    }`}>
-                      <div className="flex items-center">
-                        <CreditCard className="h-5 w-5 text-orange-600 mr-3" />
-                        <div>
-                          <p className="font-medium text-gray-900">University ID</p>
-                          <p className="text-sm text-gray-600">Required for all sessions</p>
-                        </div>
-                      </div>
-                      <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        hasUploadedUniversityId 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {hasUploadedUniversityId ? 'Uploaded' : 'Not Uploaded'}
-                      </div>
+                  <div className="grid grid-cols-1 gap-4 fade-in-blur">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time</label>
+                      <p className="text-gray-900">
+                        {new Date(selectedEvent.start_time).toLocaleDateString('en-US', { 
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </p>
+                      <p className="text-gray-600 text-sm">
+                        {new Date(selectedEvent.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - 
+                        {new Date(selectedEvent.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </p>
                     </div>
 
-                    {/* CV Requirement - Only show for open recruitment */}
-                    {(requiredDocumentType === 'both') && (
-                      <div className={`flex items-center justify-between p-3 rounded ${
-                        !hasUploadedCV ? 'bg-orange-50 border border-orange-200' : 'bg-gray-100'
-                      }`}>
-                        <div className="flex items-center">
-                          <FileText className="h-5 w-5 text-orange-600 mr-3" />
-                          <div>
-                            <p className="font-medium text-gray-900">CV/Resume</p>
-                            <p className="text-sm text-gray-600">Required for recruitment sessions</p>
-                          </div>
-                        </div>
-                        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          hasUploadedCV 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {hasUploadedCV ? 'Uploaded' : 'Not Uploaded'}
-                        </div>
+                    <div className="fade-in-blur">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                      <p className="text-gray-900 flex items-center">
+                        <MapPin className="h-4 w-4 mr-2" />
+                        {selectedEvent.location}
+                      </p>
+                    </div>
+
+                    {selectedEvent.item_type && (
+                      <div className="fade-in-blur">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Event Type</label>
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                          {selectedEvent.item_type}
+                        </span>
                       </div>
                     )}
                   </div>
 
-                  <div className="pt-4 space-y-3 fade-in-blur">
+                  <div className="pt-4 border-t border-gray-200 fade-in-blur">
                     <button
-                      onClick={() => {
-                        setShowDocumentRequirementModal(false);
-                        // This would typically navigate to profile or trigger profile modal
-                        // You can implement this based on your app structure
-                      }}
+                      onClick={() => setShowEventModal(false)}
                       className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
                     >
-                      Upload Documents Now
+                      Close Details
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+        {/* Session Details Modal */}
+        {showSessionModal && selectedSession && createPortal(
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
+            onClick={() => {
+              setShowSessionModal(false);
+              setSelectedSession(null);
+              setBookingError(null);
+              setBookingSuccess(null);
+            }}
+          >
+            <div 
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 stagger-children">
+                <div className="flex items-center justify-between mb-6 fade-in-blur">
+                  <h2 className="text-xl font-bold text-gray-900">Session Details</h2>
+                  <button
+                    onClick={() => {
+                      setShowSessionModal(false);
+                      setSelectedSession(null);
+                      setBookingError(null);
+                      setBookingSuccess(null);
+                    }}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="fade-in-blur">
+                    <h3 className="text-lg font-semibold text-gray-900">{selectedSession.title}</h3>
+                    <p className="text-gray-600 mt-2">{selectedSession.description}</p>
+                  </div>
+
+                  {selectedSession.speaker && (
+                    <div className="fade-in-blur">
+                      <label className="block text-sm font-medium text-gray-700">Speaker</label>
+                      <p className="text-gray-900">{selectedSession.speaker}</p>
+                    </div>
+                  )}
+
+                  <div className="fade-in-blur">
+                    <label className="block text-sm font-medium text-gray-700">Date & Time</label>
+                    <p className="text-gray-900">
+                      {new Date(selectedSession.start_time).toLocaleDateString()} at{' '}
+                      {new Date(selectedSession.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
+
+                  <div className="fade-in-blur">
+                    <label className="block text-sm font-medium text-gray-700">Location</label>
+                    <p className="text-gray-900">{selectedSession.location}</p>
+                  </div>
+
+                  <div className="fade-in-blur">
+                    <label className="block text-sm font-medium text-gray-700">Capacity</label>
+                    <p className="text-gray-900">
+                      {selectedSession.current_bookings || 0} / {selectedSession.max_attendees || 'Unlimited'} booked
+                    </p>
+                  </div>
+
+                  {/* Faculty Eligibility Warning */}
+                  {(() => {
+                    let canBookResult;
+                    if (selectedSession.day && selectedSession.day <= 3) {
+                      canBookResult = canBookBuildingSession(selectedSession);
+                    } else {
+                      canBookResult = canBookRecruitmentSession(selectedSession);
+                    }
+                    
+                    if (!canBookResult.canBook) {
+                      return (
+                        <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg fade-in-blur">
+                          <div className="flex items-start">
+                            <BookOpen className="h-5 w-5 text-gray-500 mr-2 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-gray-800 font-medium text-sm">Not Eligible</p>
+                              <p className="text-gray-700 text-xs mt-1">{canBookResult.reason}</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+
+                  {/* Time Conflict Warning */}
+                  {!isSessionBooked(selectedSession.id) && hasOverlappingBooking(selectedSession).hasOverlap && (
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg fade-in-blur">
+                      <div className="flex items-start">
+                        <Clock className="h-5 w-5 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-yellow-800 font-medium text-sm">Time Conflict</p>
+                          <p className="text-yellow-700 text-xs mt-1">
+                            You already have a booking at this time. Please cancel your existing booking first.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Booking Status */}
+                  <div className="pt-4 border-t border-gray-200 fade-in-blur">
+                    {isSessionBooked(selectedSession.id) ? (
+                      <div className="flex items-center p-3 bg-green-50 rounded-lg">
+                        <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                        <span className="text-green-800 font-medium">You have booked this session</span>
+                      </div>
+                    ) : isSessionFull(selectedSession) ? (
+                      <div className="flex items-center p-3 bg-red-50 rounded-lg">
+                        <XCircle className="h-5 w-5 text-red-500 mr-2" />
+                        <span className="text-red-800 font-medium">This session is fully booked</span>
+                      </div>
+                    ) : hasOverlappingBooking(selectedSession).hasOverlap ? (
+                      <div className="flex items-center p-3 bg-yellow-50 rounded-lg">
+                        <Clock className="h-5 w-5 text-yellow-500 mr-2" />
+                        <span className="text-yellow-800 font-medium">You have a conflicting booking</span>
+                      </div>
+                    ) : (() => {
+                      let canBookResult;
+                      if (selectedSession.day && selectedSession.day <= 3) {
+                        canBookResult = canBookBuildingSession(selectedSession);
+                      } else {
+                        canBookResult = canBookRecruitmentSession(selectedSession);
+                      }
+                      return !canBookResult.canBook ? (
+                        <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                          <BookOpen className="h-5 w-5 text-gray-500 mr-2" />
+                          <span className="text-gray-800 font-medium">Not eligible for this session</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center p-3 bg-blue-50 rounded-lg">
+                          <Users className="h-5 w-5 text-blue-500 mr-2" />
+                          <span className="text-blue-800 font-medium">Available for booking</span>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Error/Success Messages */}
+                  {bookingError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg fade-in-blur">
+                      <p className="text-red-700 text-sm">{bookingError}</p>
+                    </div>
+                  )}
+                  {bookingSuccess && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg fade-in-blur">
+                      <p className="text-green-700 text-sm">{bookingSuccess}</p>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="pt-4 space-y-3 fade-in-blur">
+                    {isSessionBooked(selectedSession.id) ? (
+                      <button
+                        onClick={() => handleCancelBooking(selectedSession.id)}
+                        disabled={bookingLoading}
+                        className="w-full bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {bookingLoading ? 'Cancelling...' : 'Cancel Booking'}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleBookSession(selectedSession.id)}
+                        disabled={bookingLoading || isSessionFull(selectedSession) || hasOverlappingBooking(selectedSession).hasOverlap || (() => {
+                          let canBookResult;
+                          if (selectedSession.day && selectedSession.day <= 3) {
+                            canBookResult = canBookBuildingSession(selectedSession);
+                          } else {
+                            canBookResult = canBookRecruitmentSession(selectedSession);
+                          }
+                          return !canBookResult.canBook;
+                        })()}
+                        className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {bookingLoading ? 'Booking...' : 
+                         isSessionFull(selectedSession) ? 'Session Full' : 
+                         hasOverlappingBooking(selectedSession).hasOverlap ? 'Time Conflict' : 
+                         (() => {
+                           let canBookResult;
+                           if (selectedSession.day && selectedSession.day <= 3) {
+                             canBookResult = canBookBuildingSession(selectedSession);
+                           } else {
+                             canBookResult = canBookRecruitmentSession(selectedSession);
+                           }
+                           return !canBookResult.canBook ? 'Not Eligible' : 'Book Now';
+                         })()}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+        {/* Company Details Modal */}
+        {showCompanyModal && selectedCompany && createPortal(
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
+            onClick={() => {
+              setShowCompanyModal(false);
+              setSelectedCompany(null);
+            }}
+          >
+            <div 
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 stagger-children">
+                <div className="flex items-center justify-between mb-6 fade-in-blur">
+                  <h2 className="text-xl font-bold text-gray-900">Company Details</h2>
+                  <button
+                    onClick={() => {
+                      setShowCompanyModal(false);
+                      setSelectedCompany(null);
+                    }}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+
+                <div className="space-y-6">
+                  {/* Company Logo and Name */}
+                  <div className="text-center fade-in-blur">
+                    <img 
+                      src={selectedCompany.logo_url} 
+                      alt={`${selectedCompany.name} logo`} 
+                      className="h-24 w-auto mx-auto mb-4 object-contain" 
+                    />
+                    <h3 className="text-2xl font-bold text-gray-900">{selectedCompany.name}</h3>
+                    
+                    {/* Partner Type Badge */}
+                    {selectedCompany.partner_type && (
+                      <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 mt-2">
+                        {selectedCompany.partner_type}
+                      </div>
+                    )}
+                    
+                    {selectedCompany.booth_number && (
+                      <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800 mt-2 ml-2">
+                        <MapPin className="h-4 w-4 mr-1" />
+                        Booth {selectedCompany.booth_number}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Company Description */}
+                  <div className="fade-in-blur">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">About Company</label>
+                    <p className="text-gray-700 leading-relaxed">{selectedCompany.description}</p>
+                  </div>
+
+                  {/* Website */}
+                  <div className="fade-in-blur">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Website</label>
+                    <a 
+                      href={selectedCompany.website} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-orange-600 hover:text-orange-700 break-all"
+                    >
+                      {selectedCompany.website}
+                    </a>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="pt-4 space-y-3 fade-in-blur">
+                    <button
+                      onClick={() => handleEmployerWebsiteClick(selectedCompany.website)}
+                      className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+                    >
+                      Visit Career Page
                     </button>
                     
                     <button
-                      onClick={() => setShowDocumentRequirementModal(false)}
+                      onClick={() => {
+                        setShowCompanyModal(false);
+                        setSelectedCompany(null);
+                      }}
                       className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium"
                     >
                       Close
@@ -1648,450 +1876,6 @@ const [userBookingsLoading, setUserBookingsLoading] = useState(false);
           </div>,
           document.body
         )}
-      {/* All Modals using React Portal with Animations */}
-
-      {/* QR Code Modal */}
-      {showQR && createPortal(
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
-          onClick={() => {
-            setShowQR(false);
-            setQrCodeUrl('');
-          }}
-        >
-          <div 
-            className="bg-white rounded-2xl shadow-2xl p-8 max-w-sm w-full text-center modal-content-blur fade-in-up-blur"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4 fade-in-blur">
-              <h3 className="text-xl font-bold text-gray-900">Your QR Code</h3>
-              <button
-                onClick={() => {
-                  setShowQR(false);
-                  setQrCodeUrl('');
-                }}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-            
-            <div className="w-48 h-48 bg-gray-100 rounded-lg mx-auto mb-4 flex items-center justify-center fade-in-blur">
-              {qrCodeLoading ? (
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-2"></div>
-                  <p className="text-xs text-gray-500">Generating...</p>
-                </div>
-              ) : qrCodeUrl ? (
-                <img 
-                  src={qrCodeUrl} 
-                  alt="QR Code" 
-                  className="w-full h-full object-contain rounded-lg"
-                />
-              ) : (
-                <div className="text-center">
-                  <QrCode className="h-16 w-16 text-gray-400 mx-auto mb-2" />
-                  <p className="text-xs text-gray-500">QR Code</p>
-                </div>
-              )}
-            </div>
-            
-            <p className="text-sm text-gray-600 mb-4 fade-in-blur">Show this QR code for check-ins</p>
-            {profile?.id && (
-              <p className="text-xs text-gray-400 mt-1 font-mono break-all fade-in-blur">
-                {profile.id}
-              </p>
-            )}
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Event Details Modal */}
-      {showEventModal && selectedEvent && createPortal(
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
-          onClick={() => {
-            setShowEventModal(false);
-            setSelectedEvent(null);
-          }}
-        >
-          <div 
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-6 stagger-children">
-              <div className="flex items-center justify-between mb-6 fade-in-blur">
-                <h2 className="text-xl font-bold text-gray-900">Event Details</h2>
-                <button
-                  onClick={() => {
-                    setShowEventModal(false);
-                    setSelectedEvent(null);
-                  }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
-
-              <div className="space-y-6">
-                <div className="fade-in-blur">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">{selectedEvent.title}</h3>
-                  <p className="text-gray-700 leading-relaxed">{selectedEvent.description}</p>
-                </div>
-
-                <div className="grid grid-cols-1 gap-4 fade-in-blur">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time</label>
-                    <p className="text-gray-900">
-                      {new Date(selectedEvent.start_time).toLocaleDateString('en-US', { 
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
-                    </p>
-                    <p className="text-gray-600 text-sm">
-                      {new Date(selectedEvent.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - 
-                      {new Date(selectedEvent.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </p>
-                  </div>
-
-                  <div className="fade-in-blur">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                    <p className="text-gray-900 flex items-center">
-                      <MapPin className="h-4 w-4 mr-2" />
-                      {selectedEvent.location}
-                    </p>
-                  </div>
-
-                  {selectedEvent.item_type && (
-                    <div className="fade-in-blur">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Event Type</label>
-                      <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                        {selectedEvent.item_type}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="pt-4 border-t border-gray-200 fade-in-blur">
-                  <button
-                    onClick={() => setShowEventModal(false)}
-                    className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
-                  >
-                    Close Details
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Session Details Modal */}
-      {showSessionModal && selectedSession && createPortal(
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
-          onClick={() => {
-            setShowSessionModal(false);
-            setSelectedSession(null);
-            setBookingError(null);
-            setBookingSuccess(null);
-          }}
-        >
-          <div 
-            className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-6 stagger-children">
-              <div className="flex items-center justify-between mb-6 fade-in-blur">
-                <h2 className="text-xl font-bold text-gray-900">Session Details</h2>
-                <button
-                  onClick={() => {
-                    setShowSessionModal(false);
-                    setSelectedSession(null);
-                    setBookingError(null);
-                    setBookingSuccess(null);
-                  }}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div className="fade-in-blur">
-                  <h3 className="text-lg font-semibold text-gray-900">{selectedSession.title}</h3>
-                  <p className="text-gray-600 mt-2">{selectedSession.description}</p>
-                </div>
-
-                {selectedSession.speaker && (
-                  <div className="fade-in-blur">
-                    <label className="block text-sm font-medium text-gray-700">Speaker</label>
-                    <p className="text-gray-900">{selectedSession.speaker}</p>
-                  </div>
-                )}
-
-                <div className="fade-in-blur">
-                  <label className="block text-sm font-medium text-gray-700">Date & Time</label>
-                  <p className="text-gray-900">
-                    {new Date(selectedSession.start_time).toLocaleDateString()} at{' '}
-                    {new Date(selectedSession.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </p>
-                </div>
-
-                <div className="fade-in-blur">
-                  <label className="block text-sm font-medium text-gray-700">Location</label>
-                  <p className="text-gray-900">{selectedSession.location}</p>
-                </div>
-
-                <div className="fade-in-blur">
-                  <label className="block text-sm font-medium text-gray-700">Capacity</label>
-                  <p className="text-gray-900">
-                    {selectedSession.current_bookings || 0} / {selectedSession.max_attendees || 'Unlimited'} booked
-                  </p>
-                </div>
-
-                {/* Faculty Eligibility Warning */}
-                {(() => {
-                  const { canBook, reason } = canBookSession(selectedSession);
-                  if (!canBook) {
-                    return (
-                      <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg fade-in-blur">
-                        <div className="flex items-start">
-                          <BookOpen className="h-5 w-5 text-gray-500 mr-2 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <p className="text-gray-800 font-medium text-sm">Not Eligible</p>
-                            <p className="text-gray-700 text-xs mt-1">{reason}</p>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  }
-                  return null;
-                })()}
-
-                {/* Time Conflict Warning */}
-                {!isSessionBooked(selectedSession.id) && hasOverlappingBooking(selectedSession).hasOverlap && (
-                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg fade-in-blur">
-                    <div className="flex items-start">
-                      <Clock className="h-5 w-5 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-yellow-800 font-medium text-sm">Time Conflict</p>
-                        <p className="text-yellow-700 text-xs mt-1">
-                          You already have a booking at this time. Please cancel your existing booking first.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Booking Status */}
-                <div className="pt-4 border-t border-gray-200 fade-in-blur">
-                  {isSessionBooked(selectedSession.id) ? (
-                    <div className="flex items-center p-3 bg-green-50 rounded-lg">
-                      <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                      <span className="text-green-800 font-medium">You have booked this session</span>
-                    </div>
-                  ) : isSessionFull(selectedSession) ? (
-                    <div className="flex items-center p-3 bg-red-50 rounded-lg">
-                      <XCircle className="h-5 w-5 text-red-500 mr-2" />
-                      <span className="text-red-800 font-medium">This session is fully booked</span>
-                    </div>
-                  ) : hasOverlappingBooking(selectedSession).hasOverlap ? (
-                    <div className="flex items-center p-3 bg-yellow-50 rounded-lg">
-                      <Clock className="h-5 w-5 text-yellow-500 mr-2" />
-                      <span className="text-yellow-800 font-medium">You have a conflicting booking</span>
-                    </div>
-                  ) : !canBookSession(selectedSession).canBook ? (
-                    <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                      <BookOpen className="h-5 w-5 text-gray-500 mr-2" />
-                      <span className="text-gray-800 font-medium">Not eligible for this session</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center p-3 bg-blue-50 rounded-lg">
-                      <Users className="h-5 w-5 text-blue-500 mr-2" />
-                      <span className="text-blue-800 font-medium">Available for booking</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Error/Success Messages */}
-                {bookingError && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-lg fade-in-blur">
-                    <p className="text-red-700 text-sm">{bookingError}</p>
-                  </div>
-                )}
-                {bookingSuccess && (
-                  <div className="p-3 bg-green-50 border border-green-200 rounded-lg fade-in-blur">
-                    <p className="text-green-700 text-sm">{bookingSuccess}</p>
-                  </div>
-                )}
-
-                {/* Action Buttons */}
-                <div className="pt-4 space-y-3 fade-in-blur">
-                  {isSessionBooked(selectedSession.id) ? (
-                    <button
-                      onClick={() => handleCancelBooking(selectedSession.id)}
-                      disabled={bookingLoading}
-                      className="w-full bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {bookingLoading ? 'Cancelling...' : 'Cancel Booking'}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleBookSession(selectedSession.id)}
-                      disabled={bookingLoading || isSessionFull(selectedSession) || hasOverlappingBooking(selectedSession).hasOverlap || !canBookSession(selectedSession).canBook}
-                      className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {bookingLoading ? 'Booking...' : 
-                       isSessionFull(selectedSession) ? 'Session Full' : 
-                       hasOverlappingBooking(selectedSession).hasOverlap ? 'Time Conflict' : 
-                       !canBookSession(selectedSession).canBook ? 'Not Eligible' :
-                       'Book Now'}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Company Details Modal */}
-      {/* Company Details Modal */}
-{showCompanyModal && selectedCompany && createPortal(
-  <div 
-    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
-    onClick={() => {
-      setShowCompanyModal(false);
-      setSelectedCompany(null);
-    }}
-  >
-    <div 
-      className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div className="p-6 stagger-children">
-        <div className="flex items-center justify-between mb-6 fade-in-blur">
-          <h2 className="text-xl font-bold text-gray-900">Company Details</h2>
-          <button
-            onClick={() => {
-              setShowCompanyModal(false);
-              setSelectedCompany(null);
-            }}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-
-        <div className="space-y-6">
-          {/* Company Logo and Name */}
-          <div className="text-center fade-in-blur">
-            <img 
-              src={selectedCompany.logo_url} 
-              alt={`${selectedCompany.name} logo`} 
-              className="h-24 w-auto mx-auto mb-4 object-contain" 
-            />
-            <h3 className="text-2xl font-bold text-gray-900">{selectedCompany.name}</h3>
-            
-            {/* Partner Type Badge */}
-            {selectedCompany.partner_type && (
-              <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 mt-2">
-                {selectedCompany.partner_type}
-              </div>
-            )}
-            
-            {selectedCompany.booth_number && (
-              <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800 mt-2 ml-2">
-                <MapPin className="h-4 w-4 mr-1" />
-                Booth {selectedCompany.booth_number}
-              </div>
-            )}
-          </div>
-
-          {/* Company Description */}
-          <div className="fade-in-blur">
-            <label className="block text-sm font-medium text-gray-700 mb-2">About Company</label>
-            <p className="text-gray-700 leading-relaxed">{selectedCompany.description}</p>
-          </div>
-
-          {/* Website */}
-          <div className="fade-in-blur">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Website</label>
-            <a 
-              href={selectedCompany.website} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-orange-600 hover:text-orange-700 break-all"
-            >
-              {selectedCompany.website}
-            </a>
-          </div>
-
-          {/* Academic Faculties */}
-{selectedCompany.academic_faculties_seeking_for && selectedCompany.academic_faculties_seeking_for.length > 0 && (
-  <div className="fade-in-blur">
-    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
-      <BookOpen className="h-4 w-4 mr-2" />
-      Academic Faculties Seeking For
-    </label>
-    <div className="flex flex-wrap gap-2">
-      {selectedCompany.academic_faculties_seeking_for.map((faculty, index) => (
-        <span key={index} className="inline-flex items-center px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-          {faculty}
-        </span>
-      ))}
-    </div>
-  </div>
-)}
-
-{/* Vacancies Type */}
-{selectedCompany.vacancies_type && selectedCompany.vacancies_type.length > 0 && (
-  <div className="fade-in-blur">
-    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
-      <Briefcase className="h-4 w-4 mr-2" />
-      Vacancies Type
-    </label>
-    <div className="flex flex-wrap gap-2">
-      {selectedCompany.vacancies_type.map((type, index) => (
-        <span key={index} className="inline-flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-          {type}
-        </span>
-      ))}
-    </div>
-  </div>
-)}
-
-          {/* Action Buttons */}
-          <div className="pt-4 space-y-3 fade-in-blur">
-            <button
-              onClick={() => handleEmployerWebsiteClick(selectedCompany.website)}
-              className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
-            >
-              Visit Career Page
-            </button>
-            
-            <button
-              onClick={() => {
-                setShowCompanyModal(false);
-                setSelectedCompany(null);
-              }}
-              className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium"
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>,
-  document.body
-)}
       </div>
     </DashboardLayout>
   );
