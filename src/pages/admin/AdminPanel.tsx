@@ -493,25 +493,49 @@ export function AdminPanel() {
   };
 
   // Fetch Open Recruitment Day bookings
-const fetchOpenRecruitmentBookings = async (day: number) => {
+
+// Fetch Open Recruitment Day bookings
+const fetchOpenRecruitmentBookings = async (day: number): Promise<AttendanceItem[]> => {
   try {
+    console.log(`Fetching bookings for Day ${day}...`);
+    
+    // First, let's check if we have any sessions on the target date
+    const targetDate = day === 4 ? '2025-10-22' : '2025-10-23';
+    
+    const { data: sessions, error: sessionsError } = await supabase
+      .from('sessions')
+      .select('id, title, start_time')
+      .eq('start_time::date', targetDate);
+
+    if (sessionsError) {
+      console.error(`Error fetching sessions for Day ${day}:`, sessionsError);
+    } else {
+      console.log(`Found ${sessions?.length || 0} sessions for ${targetDate}:`, sessions);
+    }
+
+    // Try RPC function first
     const { data: bookings, error } = await supabase
       .rpc('get_open_recruitment_bookings', { day_number: day });
 
     if (error) {
-      console.error(`Error fetching day ${day} bookings:`, error);
+      console.error(`RPC error for Day ${day}:`, error);
+      console.log('Falling back to direct query...');
       
-      // Fallback to direct query if RPC fails
-      return await fetchOpenRecruitmentBookingsFallback(day);
+      // Fallback to direct query
+      return await fetchOpenRecruitmentBookingsDirect(day);
     }
 
+    console.log(`RPC returned ${bookings?.length || 0} bookings for Day ${day}`);
+
     // Transform the data to match the expected format
-    const transformedBookings = (bookings || []).map(booking => ({
+    const transformedBookings: AttendanceItem[] = (bookings || []).map(booking => ({
       id: booking.attendance_id,
       user_id: booking.user_id,
       session_id: booking.session_id,
       scan_type: booking.scan_type,
       scanned_at: booking.scanned_at,
+      scanned_by: '', // This might not be available from RPC
+      location: null,
       user: {
         id: booking.user_id,
         first_name: booking.first_name,
@@ -520,24 +544,76 @@ const fetchOpenRecruitmentBookings = async (day: number) => {
         email: booking.email,
         faculty: booking.faculty,
         university: booking.university,
-        gender: booking.gender
+        gender: booking.gender,
+        role: 'attendee' // Default role
       },
       session: {
         id: booking.session_id,
         title: booking.session_title,
         description: booking.session_description,
         start_time: booking.session_start_time,
-        location: booking.session_location
+        location: booking.session_location,
+        speaker: booking.session_speaker
       }
     }));
 
     return transformedBookings;
   } catch (error) {
     console.error(`Error fetching day ${day} bookings:`, error);
-    return await fetchOpenRecruitmentBookingsFallback(day);
+    return await fetchOpenRecruitmentBookingsDirect(day);
   }
 };
 
+// Direct query fallback
+const fetchOpenRecruitmentBookingsDirect = async (day: number): Promise<AttendanceItem[]> => {
+  try {
+    const targetDate = day === 4 ? '2025-10-22' : '2025-10-23';
+    
+    console.log(`Using direct query for ${targetDate}...`);
+
+    // First, get all sessions for the target date
+    const { data: sessions, error: sessionsError } = await supabase
+      .from('sessions')
+      .select('id')
+      .eq('start_time::date', targetDate);
+
+    if (sessionsError) {
+      console.error('Error fetching sessions:', sessionsError);
+      return [];
+    }
+
+    const sessionIds = sessions?.map(s => s.id) || [];
+    console.log(`Found ${sessionIds.length} sessions for ${targetDate}:`, sessionIds);
+
+    if (sessionIds.length === 0) {
+      console.log(`No sessions found for ${targetDate}`);
+      return [];
+    }
+
+    // Then get bookings for these sessions
+    const { data: bookings, error: bookingsError } = await supabase
+      .from('attendances')
+      .select(`
+        *,
+        user:users_profiles(*),
+        session:sessions(*)
+      `)
+      .eq('scan_type', 'booking')
+      .in('session_id', sessionIds)
+      .order('scanned_at', { ascending: false });
+
+    if (bookingsError) {
+      console.error('Error fetching bookings:', bookingsError);
+      return [];
+    }
+
+    console.log(`Direct query returned ${bookings?.length || 0} bookings`);
+    return bookings || [];
+  } catch (error) {
+    console.error('Direct query error:', error);
+    return [];
+  }
+};
   // Load bookings when Open Recruitment tab is active
   useEffect(() => {
     if (activeTab === "open-recruitment") {
@@ -592,43 +668,7 @@ const fetchOpenRecruitmentBookings = async (day: number) => {
       setLoading(false);
     }
   };
-const fetchOpenRecruitmentBookingsFallback = async (day: number) => {
-  try {
-    // Calculate the date for the specific day
-    const targetDate = day === 4 ? '2025-10-22' : '2025-10-23';
-    
-    // First, get session IDs for the specific day
-    const { data: sessions, error: sessionsError } = await supabase
-      .from('sessions')
-      .select('id')
-      .eq('start_time::date', targetDate);
 
-    if (sessionsError) throw sessionsError;
-
-    const sessionIds = sessions?.map(s => s.id) || [];
-
-    if (sessionIds.length === 0) return [];
-
-    // Then get bookings for these sessions
-    const { data: bookings, error: bookingsError } = await supabase
-      .from('attendances')
-      .select(`
-        *,
-        user:users_profiles(*),
-        session:sessions(*)
-      `)
-      .eq('scan_type', 'booking')
-      .in('session_id', sessionIds)
-      .order('scanned_at', { ascending: false });
-
-    if (bookingsError) throw bookingsError;
-
-    return bookings || [];
-  } catch (error) {
-    console.error(`Fallback error fetching day ${day} bookings:`, error);
-    return [];
-  }
-};
   // Open delete booking modal
   const openDeleteBookingModal = (booking: AttendanceItem) => {
     setSelectedBooking(booking);
