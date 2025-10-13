@@ -592,7 +592,43 @@ const fetchOpenRecruitmentBookings = async (day: number) => {
       setLoading(false);
     }
   };
+const fetchOpenRecruitmentBookingsFallback = async (day: number) => {
+  try {
+    // Calculate the date for the specific day
+    const targetDate = day === 4 ? '2025-10-22' : '2025-10-23';
+    
+    // First, get session IDs for the specific day
+    const { data: sessions, error: sessionsError } = await supabase
+      .from('sessions')
+      .select('id')
+      .eq('start_time::date', targetDate);
 
+    if (sessionsError) throw sessionsError;
+
+    const sessionIds = sessions?.map(s => s.id) || [];
+
+    if (sessionIds.length === 0) return [];
+
+    // Then get bookings for these sessions
+    const { data: bookings, error: bookingsError } = await supabase
+      .from('attendances')
+      .select(`
+        *,
+        user:users_profiles(*),
+        session:sessions(*)
+      `)
+      .eq('scan_type', 'booking')
+      .in('session_id', sessionIds)
+      .order('scanned_at', { ascending: false });
+
+    if (bookingsError) throw bookingsError;
+
+    return bookings || [];
+  } catch (error) {
+    console.error(`Fallback error fetching day ${day} bookings:`, error);
+    return [];
+  }
+};
   // Open delete booking modal
   const openDeleteBookingModal = (booking: AttendanceItem) => {
     setSelectedBooking(booking);
