@@ -553,34 +553,15 @@ const fetchOpenRecruitmentBookings = async (day: number): Promise<AttendanceItem
   }
 };
   
-// Direct query fallback
+// Fallback function using direct queries
 const fetchOpenRecruitmentBookingsDirect = async (day: number): Promise<AttendanceItem[]> => {
   try {
-    const targetDate = day === 4 ? '2025-10-22' : '2025-10-23';
+    const day4SessionId = '30de32fb-1051-493a-a983-9f22394025f0';
+    const day5SessionId = '320259ad-117a-4e21-b74b-bfe493e3eea3';
     
-    console.log(`Using direct query for ${targetDate}...`);
+    const targetSessionId = day === 4 ? day4SessionId : day5SessionId;
 
-    // First, get all sessions for the target date
-    const { data: sessions, error: sessionsError } = await supabase
-      .from('sessions')
-      .select('id')
-      .eq('start_time::date', targetDate);
-
-    if (sessionsError) {
-      console.error('Error fetching sessions:', sessionsError);
-      return [];
-    }
-
-    const sessionIds = sessions?.map(s => s.id) || [];
-    console.log(`Found ${sessionIds.length} sessions for ${targetDate}:`, sessionIds);
-
-    if (sessionIds.length === 0) {
-      console.log(`No sessions found for ${targetDate}`);
-      return [];
-    }
-
-    // Then get bookings for these sessions
-    const { data: bookings, error: bookingsError } = await supabase
+    const { data: bookings, error } = await supabase
       .from('attendances')
       .select(`
         *,
@@ -588,18 +569,17 @@ const fetchOpenRecruitmentBookingsDirect = async (day: number): Promise<Attendan
         session:sessions(*)
       `)
       .eq('scan_type', 'booking')
-      .in('session_id', sessionIds)
+      .eq('session_id', targetSessionId)
       .order('scanned_at', { ascending: false });
 
-    if (bookingsError) {
-      console.error('Error fetching bookings:', bookingsError);
+    if (error) {
+      console.error(`Direct query error for Day ${day}:`, error);
       return [];
     }
 
-    console.log(`Direct query returned ${bookings?.length || 0} bookings`);
     return bookings || [];
   } catch (error) {
-    console.error('Direct query error:', error);
+    console.error(`Fallback error for Day ${day}:`, error);
     return [];
   }
 };
