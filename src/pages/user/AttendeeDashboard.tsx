@@ -631,12 +631,12 @@ if (sessionDay === 1 && !canBookDay1) {
       };
     }
     
-    if (sessionDay === 3 && !canBookDay3) {
-      return { 
-        canBook: false, 
-        reason: "This session is only available for Faculty of Alsun, Faculty of Archaeology, Faculty of Law, Faculty of Education, and Faculty of Arts students" 
-      };
-    }
+if (sessionDay === 3 && !canBookDay3) {
+  return { 
+    canBook: false, 
+    reason: "This session is only available for Faculty of Alsun, Faculty of Archaeology, Faculty of Law, Faculty of Education, Faculty of Arts, and Faculty of Girls students" 
+  };
+}
     
     return { canBook: true };
   };
