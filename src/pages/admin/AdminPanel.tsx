@@ -807,25 +807,25 @@ const handleEditSession = (session: SessionItem) => {
   setSessionDetailModal(false); // Close detail modal when editing
 };
 
-  const handleEditEvent = (event: EventItem) => {
-    setSelectedEventEdit(event);
-    const startTime = new Date(event.start_time);
-    const endTime = event.end_time ? new Date(event.end_time) : null;
-    
-    setEditEvent({
-      id: event.id,
-      title: event.title || "",
-      description: event.description || "",
-      startDate: startTime.toISOString().split('T')[0],
-      startTime: startTime.toTimeString().slice(0, 5),
-      endDate: endTime ? endTime.toISOString().split('T')[0] : "",
-      endTime: endTime ? endTime.toTimeString().slice(0, 5) : "",
-      location: event.location || "",
-      type: event.item_type || "general",
-    });
-    setEditEventModal(true);
-  };
-
+const handleEditEvent = (event: EventItem) => {
+  setSelectedEventEdit(event);
+  const startTime = new Date(event.start_time);
+  const endTime = event.end_time ? new Date(event.end_time) : null;
+  
+  setEditEvent({
+    id: event.id,
+    title: event.title || "",
+    description: event.description || "",
+    startDate: startTime.toISOString().split('T')[0],
+    startTime: startTime.toTimeString().slice(0, 5),
+    endDate: endTime ? endTime.toISOString().split('T')[0] : "",
+    endTime: endTime ? endTime.toTimeString().slice(0, 5) : "",
+    location: event.location || "",
+    type: event.item_type || "general",
+  });
+  setEditEventModal(true);
+  setEventDetailModal(false); // Close detail modal when editing
+};
   const handleEventClick = (event: EventItem) => {
     setSelectedEventDetail(event);
     setEventDetailModal(true);
