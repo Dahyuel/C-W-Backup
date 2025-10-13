@@ -494,39 +494,21 @@ export function AdminPanel() {
 
   // Fetch Open Recruitment Day bookings
 
-
-  // Fetch Open Recruitment Day bookings - Direct query only
+// Fetch Open Recruitment Day bookings - Using your specific sessions
 const fetchOpenRecruitmentBookings = async (day: number): Promise<AttendanceItem[]> => {
   try {
     console.log(`Fetching bookings for Day ${day}...`);
     
-    // Define target dates for each day
-    const targetDate = day === 4 ? '2025-10-22' : '2025-10-23';
+    // Use your specific session IDs
+    const day4SessionId = '30de32fb-1051-493a-a983-9f22394025f0'; // First Day - Oct 22
+    const day5SessionId = '320259ad-117a-4e21-b74b-bfe493e3eea3'; // Second Day - Oct 23
     
-    console.log(`Looking for sessions on: ${targetDate}`);
-
-    // First, get all sessions for the target date
-    const { data: sessions, error: sessionsError } = await supabase
-      .from('sessions')
-      .select('id, title, start_time')
-      .eq('start_time::date', targetDate);
-
-    if (sessionsError) {
-      console.error(`Error fetching sessions for ${targetDate}:`, sessionsError);
-      return [];
-    }
-
-    console.log(`Found ${sessions?.length || 0} sessions for ${targetDate}`);
-
-    if (!sessions || sessions.length === 0) {
-      console.log(`No sessions found for ${targetDate}`);
-      return [];
-    }
-
-    const sessionIds = sessions.map(s => s.id);
+    const targetSessionId = day === 4 ? day4SessionId : day5SessionId;
     
-    // Then get bookings for these sessions
-    const { data: bookings, error: bookingsError } = await supabase
+    console.log(`Looking for bookings for session: ${targetSessionId}`);
+
+    // Get bookings for the specific session
+    const { data: bookings, error } = await supabase
       .from('attendances')
       .select(`
         *,
@@ -544,7 +526,8 @@ const fetchOpenRecruitmentBookings = async (day: number): Promise<AttendanceItem
           phone,
           degree_level,
           program,
-          class
+          class,
+          nationality
         ),
         session:sessions(
           id,
@@ -560,11 +543,11 @@ const fetchOpenRecruitmentBookings = async (day: number): Promise<AttendanceItem
         )
       `)
       .eq('scan_type', 'booking')
-      .in('session_id', sessionIds)
+      .eq('session_id', targetSessionId)
       .order('scanned_at', { ascending: false });
 
-    if (bookingsError) {
-      console.error(`Error fetching bookings for Day ${day}:`, bookingsError);
+    if (error) {
+      console.error(`Error fetching bookings for Day ${day}:`, error);
       return [];
     }
 
