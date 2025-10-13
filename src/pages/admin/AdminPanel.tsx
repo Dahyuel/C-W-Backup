@@ -494,76 +494,87 @@ export function AdminPanel() {
 
   // Fetch Open Recruitment Day bookings
 
-// Fetch Open Recruitment Day bookings
+
+  // Fetch Open Recruitment Day bookings - Direct query only
 const fetchOpenRecruitmentBookings = async (day: number): Promise<AttendanceItem[]> => {
   try {
     console.log(`Fetching bookings for Day ${day}...`);
     
-    // First, let's check if we have any sessions on the target date
+    // Define target dates for each day
     const targetDate = day === 4 ? '2025-10-22' : '2025-10-23';
     
+    console.log(`Looking for sessions on: ${targetDate}`);
+
+    // First, get all sessions for the target date
     const { data: sessions, error: sessionsError } = await supabase
       .from('sessions')
       .select('id, title, start_time')
       .eq('start_time::date', targetDate);
 
     if (sessionsError) {
-      console.error(`Error fetching sessions for Day ${day}:`, sessionsError);
-    } else {
-      console.log(`Found ${sessions?.length || 0} sessions for ${targetDate}:`, sessions);
+      console.error(`Error fetching sessions for ${targetDate}:`, sessionsError);
+      return [];
     }
 
-    // Try RPC function first
-    const { data: bookings, error } = await supabase
-      .rpc('get_open_recruitment_bookings', { day_number: day });
+    console.log(`Found ${sessions?.length || 0} sessions for ${targetDate}`);
 
-    if (error) {
-      console.error(`RPC error for Day ${day}:`, error);
-      console.log('Falling back to direct query...');
-      
-      // Fallback to direct query
-      return await fetchOpenRecruitmentBookingsDirect(day);
+    if (!sessions || sessions.length === 0) {
+      console.log(`No sessions found for ${targetDate}`);
+      return [];
     }
 
-    console.log(`RPC returned ${bookings?.length || 0} bookings for Day ${day}`);
+    const sessionIds = sessions.map(s => s.id);
+    
+    // Then get bookings for these sessions
+    const { data: bookings, error: bookingsError } = await supabase
+      .from('attendances')
+      .select(`
+        *,
+        user:users_profiles(
+          id,
+          first_name,
+          last_name,
+          personal_id,
+          email,
+          faculty,
+          university,
+          gender,
+          role,
+          volunteer_id,
+          phone,
+          degree_level,
+          program,
+          class
+        ),
+        session:sessions(
+          id,
+          title,
+          description,
+          speaker,
+          start_time,
+          end_time,
+          location,
+          session_type,
+          capacity,
+          current_bookings
+        )
+      `)
+      .eq('scan_type', 'booking')
+      .in('session_id', sessionIds)
+      .order('scanned_at', { ascending: false });
 
-    // Transform the data to match the expected format
-    const transformedBookings: AttendanceItem[] = (bookings || []).map(booking => ({
-      id: booking.attendance_id,
-      user_id: booking.user_id,
-      session_id: booking.session_id,
-      scan_type: booking.scan_type,
-      scanned_at: booking.scanned_at,
-      scanned_by: '', // This might not be available from RPC
-      location: null,
-      user: {
-        id: booking.user_id,
-        first_name: booking.first_name,
-        last_name: booking.last_name,
-        personal_id: booking.personal_id,
-        email: booking.email,
-        faculty: booking.faculty,
-        university: booking.university,
-        gender: booking.gender,
-        role: 'attendee' // Default role
-      },
-      session: {
-        id: booking.session_id,
-        title: booking.session_title,
-        description: booking.session_description,
-        start_time: booking.session_start_time,
-        location: booking.session_location,
-        speaker: booking.session_speaker
-      }
-    }));
+    if (bookingsError) {
+      console.error(`Error fetching bookings for Day ${day}:`, bookingsError);
+      return [];
+    }
 
-    return transformedBookings;
+    console.log(`Successfully fetched ${bookings?.length || 0} bookings for Day ${day}`);
+    return bookings || [];
   } catch (error) {
-    console.error(`Error fetching day ${day} bookings:`, error);
-    return await fetchOpenRecruitmentBookingsDirect(day);
+    console.error(`Unexpected error fetching Day ${day} bookings:`, error);
+    return [];
   }
 };
-
 // Direct query fallback
 const fetchOpenRecruitmentBookingsDirect = async (day: number): Promise<AttendanceItem[]> => {
   try {
