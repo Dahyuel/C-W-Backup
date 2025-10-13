@@ -94,7 +94,8 @@ const DAY3_FACULTIES = [
   "Faculty of Archaeology", 
   "Faculty of Law",
   "Faculty of Education",
-  "Faculty of Arts"
+  "Faculty of Arts",
+  "Faculty of Girls"
 ];
 
 // Open Recruitment Days faculties (keep existing)
