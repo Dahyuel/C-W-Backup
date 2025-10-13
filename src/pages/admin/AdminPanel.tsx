@@ -789,22 +789,23 @@ const fetchOpenRecruitmentBookingsDirect = async (day: number): Promise<Attendan
     }
   };
 
-  const handleEditSession = (session: SessionItem) => {
-    setSelectedSessionEdit(session);
-    const startTime = new Date(session.start_time);
-    setEditSession({
-      id: session.id,
-      title: session.title || "",
-      description: session.description || "",
-      speaker: session.speaker || "",
-      capacity: (session.current_bookings ?? "") as any,
-      type: session.session_type || "session",
-      date: startTime.toISOString().split('T')[0],
-      hour: startTime.toTimeString().slice(0, 5),
-      location: session.location || "",
-    });
-    setEditSessionModal(true);
-  };
+const handleEditSession = (session: SessionItem) => {
+  setSelectedSessionEdit(session);
+  const startTime = new Date(session.start_time);
+  setEditSession({
+    id: session.id,
+    title: session.title || "",
+    description: session.description || "",
+    speaker: session.speaker || "",
+    capacity: (session.current_bookings ?? "") as any,
+    type: session.session_type || "session",
+    date: startTime.toISOString().split('T')[0],
+    hour: startTime.toTimeString().slice(0, 5),
+    location: session.location || "",
+  });
+  setEditSessionModal(true);
+  setSessionDetailModal(false); // Close detail modal when editing
+};
 
   const handleEditEvent = (event: EventItem) => {
     setSelectedEventEdit(event);
