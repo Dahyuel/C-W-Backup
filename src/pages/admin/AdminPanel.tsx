@@ -4929,6 +4929,7 @@ export function AdminPanel() {
             placeholder="Enter capacity (leave empty for unlimited)"
           />
         </div>
+
 <div className="fade-in-blur">
   <label className="block text-sm font-medium text-gray-700 mb-2">
     Session Type
@@ -4942,6 +4943,7 @@ export function AdminPanel() {
     <option value="mentorship">Mentorship</option>
   </select>
 </div>
+      </div>
 
       <div className="flex justify-end space-x-3 mt-6 fade-in-blur">
         <button
