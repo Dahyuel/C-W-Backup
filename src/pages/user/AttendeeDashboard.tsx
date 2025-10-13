@@ -1946,6 +1946,7 @@ const AttendeeDashboard: React.FC = () => {
   document.body
 )}
       </div>
+              </div>
     </DashboardLayout>
   );
 };
