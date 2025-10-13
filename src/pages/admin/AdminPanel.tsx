@@ -493,29 +493,32 @@ export function AdminPanel() {
   };
 
 // Fetch Open Recruitment Day bookings using RPC
+// Enhanced fetch function with RPC and fallback
 const fetchOpenRecruitmentBookings = async (day: number): Promise<AttendanceItem[]> => {
   try {
-    console.log(`Fetching bookings for Day ${day} using RPC...`);
+    console.log(`Fetching bookings for Day ${day}...`);
 
+    // Try RPC first
     const { data: bookings, error } = await supabase
       .rpc('get_open_recruitment_bookings', { day_number: day });
 
     if (error) {
-      console.error(`RPC error for Day ${day}:`, error);
-      return [];
+      console.error(`RPC failed for Day ${day}:`, error);
+      console.log('Falling back to direct query...');
+      return await fetchOpenRecruitmentBookingsDirect(day);
     }
 
     console.log(`RPC returned ${bookings?.length || 0} bookings for Day ${day}`);
 
-    // Transform the data to match the expected format
+    // Transform RPC data
     const transformedBookings: AttendanceItem[] = (bookings || []).map(booking => ({
       id: booking.attendance_id,
       user_id: booking.user_id,
       session_id: booking.session_id,
       scan_type: booking.scan_type,
       scanned_at: booking.scanned_at,
-      scanned_by: '', // Not available from RPC
-      location: null, // Not available from RPC
+      scanned_by: '',
+      location: null,
       user: {
         id: booking.user_id,
         first_name: booking.first_name,
@@ -530,7 +533,7 @@ const fetchOpenRecruitmentBookings = async (day: number): Promise<AttendanceItem
         program: booking.program,
         class: booking.class,
         nationality: booking.nationality,
-        role: 'attendee' // Default role
+        role: 'attendee'
       },
       session: {
         id: booking.session_id,
@@ -542,14 +545,14 @@ const fetchOpenRecruitmentBookings = async (day: number): Promise<AttendanceItem
         location: booking.session_location,
         capacity: booking.session_capacity,
         current_bookings: booking.session_current_bookings,
-        session_type: 'session' // Default type
+        session_type: 'session'
       }
     }));
 
     return transformedBookings;
   } catch (error) {
-    console.error(`Unexpected error fetching Day ${day} bookings:`, error);
-    return [];
+    console.error(`Unexpected error for Day ${day}:`, error);
+    return await fetchOpenRecruitmentBookingsDirect(day);
   }
 };
   
