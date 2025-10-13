@@ -11,6 +11,7 @@ import { RegistrationForm } from './components/RegistrationForm';
 import { ForgotPasswordForm } from './components/ForgotPasswordForm';
 import { AuthRegistration } from './components/AuthRegistration';
 import { VolunteerAuthRegistration } from './components/VolunteerAuthRegistration';
+import { RoleChanger } from './components/RoleChanger';
 
 // Lazy load dashboards
 const AttendeeDashboard = React.lazy(() => import('./pages/user/AttendeeDashboard'));
@@ -247,7 +248,14 @@ const AppRouter: React.FC = () => {
             </Suspense>
           </ProtectedRoute>
         } />
-        
+
+        {/* Role Changer - Only accessible by marketing role */}
+        <Route path="/rolechangingform" element={
+          <ProtectedRoute requiredRole="marketing" requireCompleteProfile={true}>
+            <RoleChanger />
+          </ProtectedRoute>
+        } />
+
         {/* Dashboards */}
         <Route path="/attendee" element={<LazyRoute component={AttendeeDashboard} requiredRole="attendee" />} />
         <Route path="/regteam" element={<LazyRoute component={RegTeamDashboard} requiredRole="registration" />} />
