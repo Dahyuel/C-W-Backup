@@ -444,322 +444,327 @@ const fetchLeaderboard = async () => {
       </div>
     );
   }
-
-  return (
-    <div className="w-full fade-in-up-blur">
-      {/* Admin Search Bar */}
-      {userRole === 'admin' && (
-        <div className="mb-6 fade-in-down">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <input
-              type="text"
-              placeholder="Search by Personal ID or Volunteer ID..."
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-
-          {/* Search Results */}
-          {searchResults.length > 0 && (
-            <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-              {searchResults.map((user) => (
-                <button
-                  key={user.id}
-                  onClick={() => handleUserSelect(user)}
-                  className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {user.first_name} {user.last_name}
-                      </p>
-                      <div className="flex items-center space-x-2 mt-1">
-                        {user.personal_id && (
-                          <span className="text-sm text-gray-600">
-                            Personal ID: {user.personal_id}
-                          </span>
-                        )}
-                        {user.volunteer_id && (
-                          <span className="text-sm text-gray-600">
-                            Volunteer ID: {user.volunteer_id}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold text-orange-600">{user.score}</p>
-                      <p className="text-xs text-gray-500">points</p>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Header with description */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-2xl font-bold text-gray-900 flex items-center">
-            <Trophy className="h-6 w-6 mr-2 text-orange-600" />
-            {getTabTitle()}
-          </h2>
-          <p className="text-sm text-gray-500">Top {Math.min(leaderboardData.length, userRole === 'admin' ? 100 : 15)}</p>
-        </div>
-        <p className="text-gray-600 text-sm">{getLeaderboardDescription()}</p>
-      </div>
-
-      {/* Tab Controls - Only show for admin and team_leader */}
-      {isAdminOrTeamLeader && (
-        <div className="flex flex-col space-y-4 mb-6 border-b pb-4 fade-in-left">
-          <div className="flex space-x-4">
-            {userRole === 'admin' && (
-              <>
-                <button
-                  onClick={() => setActiveTab('attendees')}
-                  className={`py-2 px-4 font-semibold text-sm transition-all duration-300 ${
-                    activeTab === 'attendees'
-                      ? "border-b-2 border-orange-500 text-orange-600"
-                      : "text-gray-500 hover:text-orange-600"
-                  }`}
-                >
-                  Attendees
-                </button>
-                <button
-                  onClick={() => setActiveTab('volunteers')}
-                  className={`py-2 px-4 font-semibold text-sm transition-all duration-300 ${
-                    activeTab === 'volunteers'
-                      ? "border-b-2 border-orange-500 text-orange-600"
-                      : "text-gray-500 hover:text-orange-600"
-                  }`}
-                >
-                  Volunteers
-                </button>
-              </>
-            )}
+return (
+  <div className="w-full fade-in-up-blur">
+    {/* Admin Search Bar */}
+    {userRole === 'admin' && (
+      <div className="mb-6 fade-in-down">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+          <input
+            type="text"
+            placeholder="Search by Personal ID or Volunteer ID..."
+            value={searchQuery}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all"
+          />
+          {searchQuery && (
             <button
-              onClick={() => setActiveTab('team')}
-              className={`py-2 px-4 font-semibold text-sm transition-all duration-300 ${
-                activeTab === 'team'
-                  ? "border-b-2 border-orange-500 text-orange-600"
-                  : "text-gray-500 hover:text-orange-600"
-              }`}
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
             >
-              Teams
+              <X className="h-4 w-4" />
             </button>
-          </div>
-
-          {/* Team Selector for Admin only */}
-          {activeTab === 'team' && availableTeams.length > 0 && userRole === 'admin' && (
-            <div className="flex items-center space-x-4">
-              <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
-                Select Team:
-              </label>
-              <TeamSelector />
-            </div>
           )}
         </div>
-      )}
 
-      {/* Current User Highlight - Show for all users */}
-      {currentUserData && (
-        <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg fade-in-blur card-hover">
-          <h3 className="text-sm font-medium text-orange-800 mb-2 flex items-center">
-            <Star className="h-4 w-4 mr-2" />
-            Your Position
-          </h3>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              {getRankIcon(currentUserData.rank)}
-              <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center">
-                <span className="text-white font-medium text-sm">
-                  {currentUserData.first_name?.charAt(0)}{currentUserData.last_name?.charAt(0)}
-                </span>
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">
-                  {currentUserData.first_name} {currentUserData.last_name}
-                </p>
-                <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(currentUserData.role)}`}>
-                  {getRoleIcon(currentUserData.role)}
-                  <span className="ml-1 capitalize">{currentUserData.role.replace('_', ' ')}</span>
-                </span>
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold text-orange-600">{currentUserData.score}</p>
-              <p className="text-xs text-gray-500">points</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Leaderboard List */}
-      <div className="space-y-2">
-        {leaderboardData.length === 0 ? (
-          <div className="text-center py-8 fade-in-scale">
-            <Trophy className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">No data available</p>
-            <p className="text-gray-400 text-sm mt-2">
-              {userRole ? `No ${userRole.replace('_', ' ')}s found` : 'No users found'}
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3 stagger-children">
-            {leaderboardData.map((user) => {
-              const isCurrentUser = user.id === currentUserId;
-              return (
-                <div
-                  key={user.id}
-                  className={`flex items-center justify-between p-4 rounded-lg border transition-all duration-300 smooth-hover ${getRankBackgroundColor(user.rank, isCurrentUser)} ${
-                    isCurrentUser ? 'ring-2 ring-orange-300' : ''
-                  }`}
-                >
-                  <div className="flex items-center space-x-4 flex-1">
-                    {getRankIcon(user.rank)}
-                    <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center">
-                      <span className="text-white font-medium text-sm">
-                        {user.first_name?.charAt(0)}{user.last_name?.charAt(0)}
-                      </span>
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-2">
-                        <p className={`font-medium ${isCurrentUser ? 'text-orange-900' : 'text-gray-900'}`}>
-                          {user.first_name} {user.last_name}
-                          {isCurrentUser && <span className="text-orange-600 text-sm ml-2">(You)</span>}
-                        </p>
-                      </div>
-                      <div className="flex items-center space-x-2 mt-1">
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
-                          {getRoleIcon(user.role)}
-                          <span className="ml-1 capitalize">{user.role.replace('_', ' ')}</span>
+        {/* Search Results */}
+        {searchResults.length > 0 && (
+          <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+            {searchResults.map((user) => (
+              <button
+                key={user.id}
+                onClick={() => handleUserSelect(user)}
+                className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-gray-900">
+                      {user.first_name} {user.last_name}
+                    </p>
+                    <div className="flex items-center space-x-2 mt-1">
+                      {user.personal_id && (
+                        <span className="text-sm text-gray-600">
+                          Personal ID: {user.personal_id}
                         </span>
-                        {user.tl_team && activeTab === 'team' && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                            Team: {user.tl_team}
-                          </span>
-                        )}
-                      </div>
+                      )}
+                      {user.volunteer_id && (
+                        <span className="text-sm text-gray-600">
+                          Volunteer ID: {user.volunteer_id}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className={`text-xl font-bold ${isCurrentUser ? 'text-orange-600' : user.rank <= 3 ? 'text-orange-600' : 'text-gray-900'}`}>
-                      {user.score}
-                    </p>
+                    <p className="font-semibold text-orange-600">{user.score}</p>
                     <p className="text-xs text-gray-500">points</p>
                   </div>
                 </div>
-              );
-            })}
+              </button>
+            ))}
           </div>
         )}
       </div>
+    )}
 
-      {/* User Details Modal */}
-      {selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 fade-in-blur">
-          <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">User Details</h3>
+    {/* Header with description */}
+    <div className="mb-6">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+          <Trophy className="h-6 w-6 mr-2 text-orange-600" />
+          {getTabTitle()}
+        </h2>
+        <p className="text-sm text-gray-500">Top {Math.min(leaderboardData.length, userRole === 'admin' ? 100 : 15)}</p>
+      </div>
+      <p className="text-gray-600 text-sm">{getLeaderboardDescription()}</p>
+    </div>
+
+    {/* My Rank & Score - Show for all users except admin when viewing another user's details */}
+    {currentUserData && !(userRole === 'admin' && selectedUser) && (
+      <div className="mb-6 p-6 bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-xl fade-in-blur card-hover">
+        <h3 className="text-lg font-semibold text-orange-800 mb-4 flex items-center">
+          <User className="h-5 w-5 mr-2" />
+          My Ranking
+        </h3>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center justify-center w-16 h-16 bg-white border-2 border-orange-300 rounded-full">
+              {getRankIcon(currentUserData.rank)}
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-gray-900">
+                {currentUserData.first_name} {currentUserData.last_name}
+              </p>
+              <div className="flex items-center space-x-2 mt-2">
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getRoleColor(currentUserData.role)}`}>
+                  {getRoleIcon(currentUserData.role)}
+                  <span className="ml-1 capitalize">{currentUserData.role.replace('_', ' ')}</span>
+                </span>
+                {currentUserData.tl_team && (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                    Team: {currentUserData.tl_team}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="text-center">
+            <p className="text-4xl font-bold text-orange-600">{currentUserData.score}</p>
+            <p className="text-sm text-orange-700 font-medium">points</p>
+            <p className="text-lg font-semibold text-gray-700 mt-1">Rank #{currentUserData.rank}</p>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Tab Controls - Only show for admin and team_leader */}
+    {isAdminOrTeamLeader && (
+      <div className="flex flex-col space-y-4 mb-6 border-b pb-4 fade-in-left">
+        <div className="flex space-x-4">
+          {userRole === 'admin' && (
+            <>
               <button
-                onClick={closeUserModal}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                onClick={() => setActiveTab('attendees')}
+                className={`py-2 px-4 font-semibold text-sm transition-all duration-300 ${
+                  activeTab === 'attendees'
+                    ? "border-b-2 border-orange-500 text-orange-600"
+                    : "text-gray-500 hover:text-orange-600"
+                }`}
               >
-                <X className="h-5 w-5" />
+                Attendees
               </button>
+              <button
+                onClick={() => setActiveTab('volunteers')}
+                className={`py-2 px-4 font-semibold text-sm transition-all duration-300 ${
+                  activeTab === 'volunteers'
+                    ? "border-b-2 border-orange-500 text-orange-600"
+                    : "text-gray-500 hover:text-orange-600"
+                }`}
+              >
+                Volunteers
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => setActiveTab('team')}
+            className={`py-2 px-4 font-semibold text-sm transition-all duration-300 ${
+              activeTab === 'team'
+                ? "border-b-2 border-orange-500 text-orange-600"
+                : "text-gray-500 hover:text-orange-600"
+            }`}
+          >
+            Teams
+          </button>
+        </div>
+
+        {/* Team Selector for Admin only */}
+        {activeTab === 'team' && availableTeams.length > 0 && userRole === 'admin' && (
+          <div className="flex items-center space-x-4">
+            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+              Select Team:
+            </label>
+            <TeamSelector />
+          </div>
+        )}
+      </div>
+    )}
+
+    {/* Leaderboard List */}
+    <div className="space-y-2">
+      {leaderboardData.length === 0 ? (
+        <div className="text-center py-8 fade-in-scale">
+          <Trophy className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-500">No data available</p>
+          <p className="text-gray-400 text-sm mt-2">
+            {userRole ? `No ${userRole.replace('_', ' ')}s found` : 'No users found'}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3 stagger-children">
+          {leaderboardData.map((user) => {
+            const isCurrentUser = user.id === currentUserId;
+            return (
+              <div
+                key={user.id}
+                className={`flex items-center justify-between p-4 rounded-lg border transition-all duration-300 smooth-hover ${getRankBackgroundColor(user.rank, isCurrentUser)} ${
+                  isCurrentUser ? 'ring-2 ring-orange-300' : ''
+                }`}
+              >
+                <div className="flex items-center space-x-4 flex-1">
+                  {getRankIcon(user.rank)}
+                  <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center">
+                    <span className="text-white font-medium text-sm">
+                      {user.first_name?.charAt(0)}{user.last_name?.charAt(0)}
+                    </span>
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2">
+                      <p className={`font-medium ${isCurrentUser ? 'text-orange-900' : 'text-gray-900'}`}>
+                        {user.first_name} {user.last_name}
+                        {isCurrentUser && <span className="text-orange-600 text-sm ml-2">(You)</span>}
+                      </p>
+                    </div>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(user.role)}`}>
+                        {getRoleIcon(user.role)}
+                        <span className="ml-1 capitalize">{user.role.replace('_', ' ')}</span>
+                      </span>
+                      {user.tl_team && activeTab === 'team' && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                          Team: {user.tl_team}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className={`text-xl font-bold ${isCurrentUser ? 'text-orange-600' : user.rank <= 3 ? 'text-orange-600' : 'text-gray-900'}`}>
+                    {user.score}
+                  </p>
+                  <p className="text-xs text-gray-500">points</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+
+    {/* User Details Modal */}
+    {selectedUser && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 fade-in-blur">
+        <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">User Details</h3>
+            <button
+              onClick={closeUserModal}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {/* Avatar and Basic Info */}
+            <div className="flex items-center space-x-4">
+              <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center">
+                <span className="text-white font-bold text-xl">
+                  {selectedUser.first_name?.charAt(0)}{selectedUser.last_name?.charAt(0)}
+                </span>
+              </div>
+              <div>
+                <p className="text-xl font-bold text-gray-900">
+                  {selectedUser.first_name} {selectedUser.last_name}
+                </p>
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-1 ${getRoleColor(selectedUser.role)}`}>
+                  {getRoleIcon(selectedUser.role)}
+                  <span className="ml-1 capitalize">{selectedUser.role.replace('_', ' ')}</span>
+                </span>
+              </div>
             </div>
 
-            <div className="space-y-4">
-              {/* Avatar and Basic Info */}
-              <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold text-xl">
-                    {selectedUser.first_name?.charAt(0)}{selectedUser.last_name?.charAt(0)}
-                  </span>
+            {/* IDs */}
+            <div className="grid grid-cols-1 gap-3">
+              {selectedUser.personal_id && (
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-sm font-medium text-gray-700">Personal ID</p>
+                  <p className="text-lg font-mono text-gray-900">{selectedUser.personal_id}</p>
                 </div>
-                <div>
-                  <p className="text-xl font-bold text-gray-900">
-                    {selectedUser.first_name} {selectedUser.last_name}
-                  </p>
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-1 ${getRoleColor(selectedUser.role)}`}>
-                    {getRoleIcon(selectedUser.role)}
-                    <span className="ml-1 capitalize">{selectedUser.role.replace('_', ' ')}</span>
-                  </span>
-                </div>
-              </div>
-
-              {/* IDs */}
-              <div className="grid grid-cols-1 gap-3">
-                {selectedUser.personal_id && (
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-sm font-medium text-gray-700">Personal ID</p>
-                    <p className="text-lg font-mono text-gray-900">{selectedUser.personal_id}</p>
-                  </div>
-                )}
-                {selectedUser.volunteer_id && (
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-sm font-medium text-gray-700">Volunteer ID</p>
-                    <p className="text-lg font-mono text-gray-900">{selectedUser.volunteer_id}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Score */}
-              <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
-                <p className="text-sm font-medium text-orange-800 mb-1">Total Score</p>
-                <p className="text-3xl font-bold text-orange-600">{selectedUser.score}</p>
-                <p className="text-xs text-orange-600">points</p>
-              </div>
-
-              {/* Additional Details from userDetails */}
-              {userDetails && (
-                <div className="space-y-3">
-                  {userDetails.email && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Email</p>
-                      <p className="text-gray-900">{userDetails.email}</p>
-                    </div>
-                  )}
-                  {userDetails.phone && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Phone</p>
-                      <p className="text-gray-900">{userDetails.phone}</p>
-                    </div>
-                  )}
-                  {userDetails.tl_team && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Team</p>
-                      <p className="text-gray-900 capitalize">{userDetails.tl_team.replace('_', ' ')}</p>
-                    </div>
-                  )}
+              )}
+              {selectedUser.volunteer_id && (
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-sm font-medium text-gray-700">Volunteer ID</p>
+                  <p className="text-lg font-mono text-gray-900">{selectedUser.volunteer_id}</p>
                 </div>
               )}
             </div>
 
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={closeUserModal}
-                className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
-              >
-                Close
-              </button>
+            {/* Score */}
+            <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+              <p className="text-sm font-medium text-orange-800 mb-1">Total Score</p>
+              <p className="text-3xl font-bold text-orange-600">{selectedUser.score}</p>
+              <p className="text-xs text-orange-600">points</p>
+              <p className="text-sm text-orange-700 mt-1">Rank #{selectedUser.rank}</p>
             </div>
+
+            {/* Additional Details from userDetails */}
+            {userDetails && (
+              <div className="space-y-3">
+                {userDetails.email && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">Email</p>
+                    <p className="text-gray-900">{userDetails.email}</p>
+                  </div>
+                )}
+                {userDetails.phone && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">Phone</p>
+                    <p className="text-gray-900">{userDetails.phone}</p>
+                  </div>
+                )}
+                {userDetails.tl_team && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">Team</p>
+                    <p className="text-gray-900 capitalize">{userDetails.tl_team.replace('_', ' ')}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-6 flex justify-end">
+            <button
+              onClick={closeUserModal}
+              className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
+            >
+              Close
+            </button>
           </div>
         </div>
-      )}
-    </div>
-  );
+      </div>
+    )}
+  </div>
+);
 };
 
 export default Leaderboard;
