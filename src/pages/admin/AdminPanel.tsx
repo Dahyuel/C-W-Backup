@@ -3141,28 +3141,34 @@ const handleEditEvent = (event: EventItem) => {
                       </span>
                     </div>
                     
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEventClick(event)}
-                        className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
-                      >
-                        <Eye className="h-3 w-3 mr-1 inline" />
-                        View
-                      </button>
-                      <button
-                        onClick={() => handleEditEvent(event)}
-                        className="flex-1 bg-green-500 text-white py-2 px-3 rounded-lg hover:bg-green-600 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteEvent(event)}
-                        className="flex-1 bg-red-500 text-white py-2 px-3 rounded-lg hover:bg-red-600 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
-                      >
-                        <Trash2 className="h-3 w-3 mr-1 inline" />
-                        Delete
-                      </button>
-                    </div>
+                   <div className="flex gap-2">
+  <button
+    onClick={() => handleEventClick(event)}
+    className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
+  >
+    <Eye className="h-3 w-3 mr-1 inline" />
+    View
+  </button>
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      handleEditEvent(event);
+    }}
+    className="flex-1 bg-green-500 text-white py-2 px-3 rounded-lg hover:bg-green-600 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
+  >
+    Edit
+  </button>
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      handleDeleteEvent(event);
+    }}
+    className="flex-1 bg-red-500 text-white py-2 px-3 rounded-lg hover:bg-red-600 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
+  >
+    <Trash2 className="h-3 w-3 mr-1 inline" />
+    Delete
+  </button>
+</div>
                   </div>
                 ))}
               </div>
