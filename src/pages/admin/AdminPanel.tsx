@@ -3052,28 +3052,34 @@ const handleEditEvent = (event: EventItem) => {
                       </span>
                     </div>
                     
-                    <div className="flex gap-2 mt-4">
-                      <button
-                        onClick={() => handleSessionClick(session)}
-                        className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
-                      >
-                        <Eye className="h-3 w-3 mr-1 inline" />
-                        View
-                      </button>
-                      <button
-                        onClick={() => handleEditSession(session)}
-                        className="flex-1 bg-blue-500 text-white py-2 px-3 rounded-lg hover:bg-blue-600 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteSession(session)}
-                        className="flex-1 bg-red-500 text-white py-2 px-3 rounded-lg hover:bg-red-600 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
-                      >
-                        <Trash2 className="h-3 w-3 mr-1 inline" />
-                        Delete
-                      </button>
-                    </div>
+                   <div className="flex gap-2 mt-4">
+  <button
+    onClick={() => handleSessionClick(session)}
+    className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
+  >
+    <Eye className="h-3 w-3 mr-1 inline" />
+    View
+  </button>
+  <button
+    onClick={(e) => {
+      e.stopPropagation(); // Add this line
+      handleEditSession(session);
+    }}
+    className="flex-1 bg-blue-500 text-white py-2 px-3 rounded-lg hover:bg-blue-600 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
+  >
+    Edit
+  </button>
+  <button
+    onClick={(e) => {
+      e.stopPropagation(); // Add this line
+      handleDeleteSession(session);
+    }}
+    className="flex-1 bg-red-500 text-white py-2 px-3 rounded-lg hover:bg-red-600 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
+  >
+    <Trash2 className="h-3 w-3 mr-1 inline" />
+    Delete
+  </button>
+</div>
                   </div>
                 ))}
               </div>
