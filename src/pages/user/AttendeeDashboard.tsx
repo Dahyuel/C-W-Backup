@@ -1371,74 +1371,109 @@ const AttendeeDashboard: React.FC = () => {
               </div>
             </div>
           )}
-
-          {/* Companies - Responsive */}
-          {activeTab === "companies" && (
-            <div className="tab-content-animate">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center">
-                <Building className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600" /> 
-                <span className="text-sm sm:text-lg">Participating Companies</span>
-              </h2>
-              
-              <div className="space-y-8">
-                {PARTNER_TYPES.map((partnerType) => {
-                  const partnerCompanies = companies.filter(company => 
-                    company.partner_type === partnerType
-                  );
-                  
-                  if (partnerCompanies.length === 0) return null;
-                  
-                  return (
-                    <div key={partnerType} className="fade-in-up-blur">
-                      <h3 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">
-                        {partnerType}
-                      </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur">
-                        {partnerCompanies.map((company, index) => (
-                          <div
-                            key={company.id}
-                            onClick={() => handleCompanyClick(company)}
-                            className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 cursor-pointer card-hover-enhanced dashboard-card transform transition-all duration-300 hover:scale-105"
-                            style={{ animationDelay: `${index * 100}ms` }}
-                          >
-                            <div className="text-center">
-                              <img 
-                                src={company.logo_url} 
-                                alt={`${company.name} logo`} 
-                                className="h-12 sm:h-16 w-auto mx-auto mb-3 sm:mb-4 object-contain" 
-                              />
-                              <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 line-clamp-2">{company.name}</h3>
-                              <p className="text-xs sm:text-sm text-gray-600 mb-3 line-clamp-2 sm:line-clamp-3">{company.description}</p>
-                              
-                              {company.booth_number && (
-                                <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 mb-2">
-                                  Booth {company.booth_number}
-                                </div>
-                              )}
-                              
-                              <div className="flex justify-center mt-3 sm:mt-4">
-                                <Building className="h-4 w-4 sm:h-5 sm:w-5 text-orange-500" />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+{/* Companies - Responsive */}
+{activeTab === "companies" && (
+  <div className="tab-content-animate">
+    <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center">
+      <Building className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600" /> 
+      <span className="text-sm sm:text-lg">Participating Companies</span>
+    </h2>
+    
+    <div className="space-y-8">
+      {PARTNER_TYPES.map((partnerType) => {
+        const partnerCompanies = companies.filter(company => 
+          company.partner_type === partnerType
+        );
+        
+        if (partnerCompanies.length === 0) return null;
+        
+        return (
+          <div key={partnerType} className="fade-in-up-blur">
+            <h3 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">
+              {partnerType}
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur">
+              {partnerCompanies.map((company, index) => (
+                <div
+                  key={company.id}
+                  onClick={() => handleCompanyClick(company)}
+                  className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 cursor-pointer card-hover-enhanced dashboard-card transform transition-all duration-300 hover:scale-105"
+                  style={{ animationDelay: `${index * 100}ms` }}
+                >
+                  <div className="text-center">
+                    <img 
+                      src={company.logo_url} 
+                      alt={`${company.name} logo`} 
+                      className="h-12 sm:h-16 w-auto mx-auto mb-3 sm:mb-4 object-contain" 
+                    />
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 line-clamp-2">{company.name}</h3>
+                    
+                    {/* Faculty Information */}
+                    {company.academic_faculties_seeking_for && company.academic_faculties_seeking_for.length > 0 && (
+                      <div className="mb-2">
+                        <p className="text-xs font-medium text-gray-700 mb-1">Seeking:</p>
+                        <div className="flex flex-wrap justify-center gap-1">
+                          {company.academic_faculties_seeking_for.slice(0, 2).map((faculty, idx) => (
+                            <span 
+                              key={idx}
+                              className="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full truncate max-w-[120px]"
+                              title={faculty}
+                            >
+                              {faculty.replace('Faculty of ', '')}
+                            </span>
+                          ))}
+                          {company.academic_faculties_seeking_for.length > 2 && (
+                            <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                              +{company.academic_faculties_seeking_for.length - 2} more
+                            </span>
+                          )}
+                        </div>
                       </div>
+                    )}
+                    
+                    {/* Vacancies Type */}
+                    {company.vacancies_type && company.vacancies_type.length > 0 && (
+                      <div className="mb-3">
+                        <div className="flex flex-wrap justify-center gap-1">
+                          {company.vacancies_type.map((vacancy, idx) => (
+                            <span 
+                              key={idx}
+                              className="inline-block px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
+                            >
+                              {vacancy}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {company.booth_number && (
+                      <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 mb-2">
+                        Booth {company.booth_number}
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-center mt-3 sm:mt-4">
+                      <Building className="h-4 w-4 sm:h-5 sm:w-5 text-orange-500" />
                     </div>
-                  );
-                })}
-                
-                {/* Fallback if no companies found */}
-                {companies.length === 0 && (
-                  <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200">
-                    <Building className="h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mx-auto mb-3 sm:mb-4" />
-                    <p className="text-gray-500 text-sm sm:text-base">No companies available</p>
                   </div>
-                )}
-              </div>
+                </div>
+              ))}
             </div>
-          )}
+          </div>
+        );
+      })}
+      
+      {/* Fallback if no companies found */}
+      {companies.length === 0 && (
+        <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200">
+          <Building className="h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mx-auto mb-3 sm:mb-4" />
+          <p className="text-gray-500 text-sm sm:text-base">No companies available</p>
         </div>
-
+      )}
+    </div>
+  </div>
+)}
         {/* All Modals using React Portal with Animations */}
 
         {/* QR Code Modal */}
