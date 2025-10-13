@@ -1408,25 +1408,21 @@ const AttendeeDashboard: React.FC = () => {
                     />
                     <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 line-clamp-2">{company.name}</h3>
                     
-                    {/* Faculty Information */}
+                    {/* Faculty Information - Show ALL faculties */}
                     {company.academic_faculties_seeking_for && company.academic_faculties_seeking_for.length > 0 && (
-                      <div className="mb-2">
-                        <p className="text-xs font-medium text-gray-700 mb-1">Seeking:</p>
-                        <div className="flex flex-wrap justify-center gap-1">
-                          {company.academic_faculties_seeking_for.slice(0, 2).map((faculty, idx) => (
-                            <span 
+                      <div className="mb-3">
+                        <p className="text-xs font-medium text-gray-700 mb-2">Seeking Faculties:</p>
+                        <div className="flex flex-col gap-1.5">
+                          {company.academic_faculties_seeking_for.map((faculty, idx) => (
+                            <div 
                               key={idx}
-                              className="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full truncate max-w-[120px]"
-                              title={faculty}
+                              className="w-full bg-blue-50 border border-blue-200 rounded-lg px-2 py-1.5"
                             >
-                              {faculty.replace('Faculty of ', '')}
-                            </span>
+                              <span className="text-xs text-blue-800 font-medium line-clamp-1">
+                                {faculty.replace('Faculty of ', '')}
+                              </span>
+                            </div>
                           ))}
-                          {company.academic_faculties_seeking_for.length > 2 && (
-                            <span className="inline-block px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                              +{company.academic_faculties_seeking_for.length - 2} more
-                            </span>
-                          )}
                         </div>
                       </div>
                     )}
@@ -1434,11 +1430,12 @@ const AttendeeDashboard: React.FC = () => {
                     {/* Vacancies Type */}
                     {company.vacancies_type && company.vacancies_type.length > 0 && (
                       <div className="mb-3">
+                        <p className="text-xs font-medium text-gray-700 mb-2">Vacancies:</p>
                         <div className="flex flex-wrap justify-center gap-1">
                           {company.vacancies_type.map((vacancy, idx) => (
                             <span 
                               key={idx}
-                              className="inline-block px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full"
+                              className="inline-block px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full border border-green-200"
                             >
                               {vacancy}
                             </span>
@@ -1448,14 +1445,11 @@ const AttendeeDashboard: React.FC = () => {
                     )}
                     
                     {company.booth_number && (
-                      <div className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 mb-2">
+                      <div className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
+                        <MapPin className="h-3 w-3 mr-1" />
                         Booth {company.booth_number}
                       </div>
                     )}
-                    
-                    <div className="flex justify-center mt-3 sm:mt-4">
-                      <Building className="h-4 w-4 sm:h-5 sm:w-5 text-orange-500" />
-                    </div>
                   </div>
                 </div>
               ))}
