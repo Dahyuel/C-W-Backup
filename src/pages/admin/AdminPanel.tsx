@@ -3392,67 +3392,74 @@ const fetchOpenRecruitmentBookingsDirect = async (day: number): Promise<Attendan
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 stagger-children">
-                  {(openRecruitmentDay === 4 ? day4Bookings : day5Bookings).map((booking) => (
-                    <div 
-                      key={booking.id} 
-                      onClick={() => handleBookingClick(booking)}
-                      className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 hover:shadow-md transition-all duration-300 smooth-hover card-hover fade-in-blur cursor-pointer"
-                    >
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                            <User className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-gray-900 text-sm sm:text-base">
-                              {booking.user?.first_name} {booking.user?.last_name}
-                            </h3>
-                            <p className="text-xs sm:text-sm text-gray-500">{booking.user?.personal_id}</p>
-                          </div>
-                        </div>
-                      </div>
+                {(openRecruitmentDay === 4 ? day4Bookings : day5Bookings).map((booking) => (
+  <div 
+    key={booking.id} 
+    onClick={() => handleBookingClick(booking)}
+    className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 hover:shadow-md transition-all duration-300 smooth-hover card-hover fade-in-blur cursor-pointer"
+  >
+    <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center space-x-3">
+        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-orange-100 rounded-full flex items-center justify-center">
+          <User className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
+        </div>
+        <div>
+          <h3 className="font-semibold text-gray-900 text-sm sm:text-base">
+            {booking.user?.first_name} {booking.user?.last_name}
+          </h3>
+          <p className="text-xs sm:text-sm text-gray-500">
+            {booking.user?.personal_id} • {booking.user?.faculty}
+          </p>
+        </div>
+      </div>
+    </div>
 
-                      <div className="space-y-2 text-xs sm:text-sm text-gray-600">
-                        <div className="flex items-center">
-                          <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-                          <span>Booked: {new Date(booking.scanned_at).toLocaleDateString()}</span>
-                        </div>
-                        <div className="flex items-center">
-                          <Clock className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-                          <span>{new Date(booking.scanned_at).toLocaleTimeString()}</span>
-                        </div>
-                        {booking.session && (
-                          <div className="flex items-center">
-                            <BookOpen className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-                            <span className="font-medium text-xs sm:text-sm">{booking.session.title}</span>
-                          </div>
-                        )}
-                      </div>
+    <div className="space-y-2 text-xs sm:text-sm text-gray-600">
+      <div className="flex items-center">
+        <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+        <span>
+          Session: {booking.session?.title}
+        </span>
+      </div>
+      <div className="flex items-center">
+        <Clock className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+        <span>
+          {new Date(booking.session?.start_time || booking.scanned_at).toLocaleDateString()} at {' '}
+          {new Date(booking.session?.start_time || booking.scanned_at).toLocaleTimeString()}
+        </span>
+      </div>
+      {booking.session?.speaker && (
+        <div className="flex items-center">
+          <User className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+          <span>Speaker: {booking.session.speaker}</span>
+        </div>
+      )}
+    </div>
 
-                      <div className="flex gap-2 mt-4">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleBookingClick(booking);
-                          }}
-                          className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
-                        >
-                          <Eye className="h-3 w-3 mr-1 inline" />
-                          View
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openDeleteBookingModal(booking);
-                          }}
-                          className="flex-1 bg-red-500 text-white py-2 px-3 rounded-lg hover:bg-red-600 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
-                        >
-                          <Trash2 className="h-3 w-3 mr-1 inline" />
-                          Delete
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+    <div className="flex gap-2 mt-4">
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          handleBookingClick(booking);
+        }}
+        className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
+      >
+        <Eye className="h-3 w-3 mr-1 inline" />
+        View
+      </button>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          openDeleteBookingModal(booking);
+        }}
+        className="flex-1 bg-red-500 text-white py-2 px-3 rounded-lg hover:bg-red-600 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
+      >
+        <Trash2 className="h-3 w-3 mr-1 inline" />
+        Delete
+      </button>
+    </div>
+  </div>
+))}
                 </div>
               )}
 
