@@ -105,7 +105,6 @@ const DAY4_FACULTIES = [
 ];
 
 const DAY5_FACULTIES = [
-  "Faculty of Commerce",
   "Faculty of Business Administration",
   "Faculty of Arts",
   "Faculty of Law",
