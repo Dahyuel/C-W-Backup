@@ -1815,8 +1815,7 @@ const AttendeeDashboard: React.FC = () => {
           </div>,
           document.body
         )}
-
-      {/* Company Details Modal */}
+{/* Company Details Modal */}
 {showCompanyModal && selectedCompany && createPortal(
   <div 
     className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
@@ -1946,7 +1945,7 @@ const AttendeeDashboard: React.FC = () => {
   </div>,
   document.body
 )}
-       </div>     
+      </div>
     </DashboardLayout>
   );
 };
