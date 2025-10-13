@@ -1355,7 +1355,7 @@ const tabItems = [
   {activeRecruitmentDay === 4 ? (
     <>Day 4 sessions are only available for <strong>Faculty of Engineering</strong> and <strong>Faculty of Computer and Information Sciences</strong> students.</>
   ) : (
-    <>Day 5 sessions are only available for <strong>Commerce, Business, Arts, Law, Applied Arts, Fine Arts, Languages, Physical Education, Education, Alsun, and Girls</strong> students.</>
+    <>Day 5 sessions are only available for <strong>Business Administration, Arts, Law, Languages, Education, and Alsun</strong> students.</>
   )}
 </p>
                     {profile?.faculty && (
