@@ -908,29 +908,29 @@ const handleEditEvent = (event: EventItem) => {
       }).eq('id', editEvent.id);
 
       if (error) {
-        showFeedback("Failed to update event", "error");
-      } else {
-        setEditEventModal(false);
-        setEditEvent({
-          id: "",
-          title: "",
-          description: "",
-          startDate: "",
-          endDate: "",
-          startTime: "",
-          endTime: "",
-          location: "",
-          type: "general",
-        });
-        showFeedback("Event updated successfully!", "success");
-        await fetchEventsByDay(activeDay);
-      }
-    } catch (err) {
       showFeedback("Failed to update event", "error");
-    } finally {
-      setLoading(false);
+    } else {
+      setEditEventModal(false); // Close edit modal
+      setEditEvent({
+        id: "",
+        title: "",
+        description: "",
+        startDate: "",
+        endDate: "",
+        startTime: "",
+        endTime: "",
+        location: "",
+        type: "general",
+      });
+      showFeedback("Event updated successfully!", "success");
+      await fetchEventsByDay(activeDay);
     }
-  };
+  } catch (err) {
+    showFeedback("Failed to update event", "error");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleEditCompany = (company: CompanyItem) => {
     setSelectedCompanyEdit(company);
