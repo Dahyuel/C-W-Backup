@@ -3611,6 +3611,154 @@ export function AdminPanel() {
   </div>,
   document.body
 )}
+
+          {editEventModal && selectedEventEdit && createPortal(
+  <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
+    <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
+      <div className="flex items-center justify-between mb-4 sm:mb-6 fade-in-blur">
+        <h3 className="text-xl sm:text-2xl font-bold text-gray-900">Edit Event</h3>
+        <button
+          onClick={() => setEditEventModal(false)}
+          className="text-gray-400 hover:text-gray-600 transition-colors"
+        >
+          <X className="h-5 w-5 sm:h-6 sm:w-6" />
+        </button>
+      </div>
+      
+      <div className="space-y-4 stagger-children">
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Event Title *
+          </label>
+          <input
+            type="text"
+            value={editEvent.title}
+            onChange={(e) => setEditEvent({ ...editEvent, title: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="Enter event title"
+          />
+        </div>
+
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Description
+          </label>
+          <textarea
+            value={editEvent.description}
+            onChange={(e) => setEditEvent({ ...editEvent, description: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="Enter event description"
+            rows={3}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 fade-in-blur">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Start Date *
+            </label>
+            <input
+              type="date"
+              value={editEvent.startDate}
+              onChange={(e) => setEditEvent({ ...editEvent, startDate: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Start Time *
+            </label>
+            <input
+              type="time"
+              value={editEvent.startTime}
+              onChange={(e) => setEditEvent({ ...editEvent, startTime: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 fade-in-blur">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              End Date
+            </label>
+            <input
+              type="date"
+              value={editEvent.endDate}
+              onChange={(e) => setEditEvent({ ...editEvent, endDate: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              End Time
+            </label>
+            <input
+              type="time"
+              value={editEvent.endTime}
+              onChange={(e) => setEditEvent({ ...editEvent, endTime: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            />
+          </div>
+        </div>
+
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Location
+          </label>
+          <input
+            type="text"
+            value={editEvent.location}
+            onChange={(e) => setEditEvent({ ...editEvent, location: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="Enter location"
+          />
+        </div>
+
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Event Type
+          </label>
+          <select
+            value={editEvent.type}
+            onChange={(e) => setEditEvent({ ...editEvent, type: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+          >
+            <option value="general">General</option>
+            <option value="keynote">Keynote</option>
+            <option value="workshop">Workshop</option>
+            <option value="networking">Networking</option>
+            <option value="ceremony">Ceremony</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="flex justify-end space-x-3 mt-6 fade-in-blur">
+        <button
+          onClick={() => setEditEventModal(false)}
+          className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all duration-300 smooth-hover font-medium text-sm"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleEventUpdate}
+          disabled={loading}
+          className="px-4 sm:px-6 py-2 sm:py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 transition-all duration-300 smooth-hover font-medium text-sm"
+        >
+          {loading ? (
+            <div className="flex items-center">
+              <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white mr-2"></div>
+              Updating...
+            </div>
+          ) : (
+            'Update Event'
+          )}
+        </button>
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
           {/* Company Description */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">About Company</label>
