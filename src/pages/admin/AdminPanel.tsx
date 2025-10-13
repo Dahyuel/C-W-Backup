@@ -861,31 +861,30 @@ const handleEditEvent = (event: EventItem) => {
         session_type: editSession.type,
       }).eq('id', editSession.id);
 
-      if (error) {
-        showFeedback("Failed to update session", "error");
-      } else {
-        setEditSessionModal(false);
-        setEditSession({
-          id: "",
-          title: "",
-          date: "",
-          speaker: "",
-          capacity: "",
-          type: "session",
-          hour: "",
-          location: "",
-          description: "",
-        });
-        showFeedback("Session updated successfully!", "success");
-        await fetchSessions();
-      }
-    } catch (err) {
+       if (error) {
       showFeedback("Failed to update session", "error");
-    } finally {
-      setLoading(false);
+    } else {
+      setEditSessionModal(false); // Close edit modal
+      setEditSession({
+        id: "",
+        title: "",
+        date: "",
+        speaker: "",
+        capacity: "",
+        type: "session",
+        hour: "",
+        location: "",
+        description: "",
+      });
+      showFeedback("Session updated successfully!", "success");
+      await fetchSessions();
     }
-  };
-
+  } catch (err) {
+    showFeedback("Failed to update session", "error");
+  } finally {
+    setLoading(false);
+  }
+};
   const handleEventUpdate = async () => {
     if (!editEvent.title || !editEvent.startDate || !editEvent.startTime) {
       showFeedback("Please fill all required fields!", "error");
