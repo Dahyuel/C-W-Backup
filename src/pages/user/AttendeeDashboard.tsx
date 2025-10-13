@@ -1183,6 +1183,55 @@ const tabItems = [
             </div>
           )}
 
+          {/* Career Portal - Responsive */}
+{activeTab === "career-portal" && (
+  <div className="tab-content-animate">
+    <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-6 sm:p-8 text-center max-w-2xl mx-auto fade-in-up-blur">
+      {/* Icon */}
+      <div className="w-16 h-16 sm:w-20 sm:h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+        <Building className="h-8 w-8 sm:h-10 sm:w-10 text-orange-600" />
+      </div>
+      
+      {/* Title */}
+      <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3 sm:mb-4">
+        Career Portal
+      </h2>
+      
+      {/* Description */}
+      <p className="text-gray-600 text-base sm:text-lg mb-6 sm:mb-8 leading-relaxed">
+        Looking for job opportunities and career growth? Explore our exclusive career portal 
+        to discover vacancies, internships, and job offers from top companies. 
+        Click below to access the portal and take the next step in your career journey.
+      </p>
+      
+      {/* Action Button */}
+      <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <button
+          onClick={() => window.open("https://asustudent.qualiphi.ai/", "_blank")}
+          className="bg-orange-500 text-white px-8 py-3 sm:px-10 sm:py-4 rounded-lg text-base sm:text-lg font-semibold hover:bg-orange-600 transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-xl"
+        >
+          Go To Portal
+        </button>
+        
+        <button
+          onClick={() => setActiveTab("companies")}
+          className="border border-orange-500 text-orange-500 px-8 py-3 sm:px-10 sm:py-4 rounded-lg text-base sm:text-lg font-semibold hover:bg-orange-50 transition-all duration-300 transform hover:scale-105"
+        >
+          View Companies First
+        </button>
+      </div>
+      
+      {/* Additional Info */}
+      <div className="mt-6 sm:mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <p className="text-blue-700 text-sm sm:text-base">
+          💡 <strong>Tip:</strong> Check out the Companies tab first to learn about participating employers, 
+          then visit the portal to apply for positions that match your skills and interests.
+        </p>
+      </div>
+    </div>
+  </div>
+)}
+
           {/* Building Sessions - Responsive */}
           {activeTab === "building-sessions" && (
             <div className="tab-content-animate">
