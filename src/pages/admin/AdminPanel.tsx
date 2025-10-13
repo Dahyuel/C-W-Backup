@@ -493,43 +493,50 @@ export function AdminPanel() {
   };
 
   // Fetch Open Recruitment Day bookings
-  const fetchOpenRecruitmentBookings = async (day: number) => {
-    try {
-      // Calculate the date for the specific day
-      const eventStartDate = new Date('2025-10-19');
-      const targetDate = new Date(eventStartDate);
-      targetDate.setDate(eventStartDate.getDate() + (day - 1));
-      
-      const startOfDay = new Date(targetDate);
-      startOfDay.setHours(0, 0, 0, 0);
-      
-      const endOfDay = new Date(targetDate);
-      endOfDay.setHours(23, 59, 59, 999);
+const fetchOpenRecruitmentBookings = async (day: number) => {
+  try {
+    const { data: bookings, error } = await supabase
+      .rpc('get_open_recruitment_bookings', { day_number: day });
 
-      // Fetch bookings for the specific day
-      const { data: bookings, error } = await supabase
-        .from('attendances')
-        .select(`
-          *,
-          user:users_profiles(*),
-          session:sessions(*)
-        `)
-        .eq('scan_type', 'booking')
-        .gte('scanned_at', startOfDay.toISOString())
-        .lte('scanned_at', endOfDay.toISOString())
-        .order('scanned_at', { ascending: false });
-
-      if (error) {
-        console.error(`Error fetching day ${day} bookings:`, error);
-        return [];
-      }
-
-      return bookings || [];
-    } catch (error) {
+    if (error) {
       console.error(`Error fetching day ${day} bookings:`, error);
-      return [];
+      
+      // Fallback to direct query if RPC fails
+      return await fetchOpenRecruitmentBookingsFallback(day);
     }
-  };
+
+    // Transform the data to match the expected format
+    const transformedBookings = (bookings || []).map(booking => ({
+      id: booking.attendance_id,
+      user_id: booking.user_id,
+      session_id: booking.session_id,
+      scan_type: booking.scan_type,
+      scanned_at: booking.scanned_at,
+      user: {
+        id: booking.user_id,
+        first_name: booking.first_name,
+        last_name: booking.last_name,
+        personal_id: booking.personal_id,
+        email: booking.email,
+        faculty: booking.faculty,
+        university: booking.university,
+        gender: booking.gender
+      },
+      session: {
+        id: booking.session_id,
+        title: booking.session_title,
+        description: booking.session_description,
+        start_time: booking.session_start_time,
+        location: booking.session_location
+      }
+    }));
+
+    return transformedBookings;
+  } catch (error) {
+    console.error(`Error fetching day ${day} bookings:`, error);
+    return await fetchOpenRecruitmentBookingsFallback(day);
+  }
+};
 
   // Load bookings when Open Recruitment tab is active
   useEffect(() => {
