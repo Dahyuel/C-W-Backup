@@ -647,12 +647,12 @@ if (sessionDay === 3 && !canBookDay3) {
       };
     }
     
-    if (sessionDay === 5 && !canBookDay5) {
-      return { 
-        canBook: false, 
-        reason: "This session is only available for Commerce, Business, Arts, Law, Applied Arts, Fine Arts, Languages, Physical Education, and Education students" 
-      };
-    }
+if (sessionDay === 5 && !canBookDay5) {
+  return { 
+    canBook: false, 
+    reason: "This session is only available for Business Administration, Arts, Law, Languages, Education, and Alsun students" 
+  };
+}
     
     return { canBook: true };
   };
