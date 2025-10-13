@@ -494,31 +494,30 @@ export function AdminPanel() {
 
 // Fetch Open Recruitment Day bookings using RPC
 // Enhanced fetch function with RPC and fallback
+// Fetch Open Recruitment Day bookings using RPC
 const fetchOpenRecruitmentBookings = async (day: number): Promise<AttendanceItem[]> => {
   try {
-    console.log(`Fetching bookings for Day ${day}...`);
+    console.log(`Fetching bookings for Day ${day} using RPC...`);
 
-    // Try RPC first
     const { data: bookings, error } = await supabase
       .rpc('get_open_recruitment_bookings', { day_number: day });
 
     if (error) {
-      console.error(`RPC failed for Day ${day}:`, error);
-      console.log('Falling back to direct query...');
+      console.error(`RPC error for Day ${day}:`, error);
       return await fetchOpenRecruitmentBookingsDirect(day);
     }
 
     console.log(`RPC returned ${bookings?.length || 0} bookings for Day ${day}`);
 
-    // Transform RPC data
+    // Transform the data to match the expected format
     const transformedBookings: AttendanceItem[] = (bookings || []).map(booking => ({
       id: booking.attendance_id,
       user_id: booking.user_id,
       session_id: booking.session_id,
       scan_type: booking.scan_type,
       scanned_at: booking.scanned_at,
-      scanned_by: '',
-      location: null,
+      scanned_by: '', // Not available from RPC
+      location: null, // Not available from RPC
       user: {
         id: booking.user_id,
         first_name: booking.first_name,
@@ -533,7 +532,7 @@ const fetchOpenRecruitmentBookings = async (day: number): Promise<AttendanceItem
         program: booking.program,
         class: booking.class,
         nationality: booking.nationality,
-        role: 'attendee'
+        role: 'attendee' // Default role
       },
       session: {
         id: booking.session_id,
@@ -545,18 +544,18 @@ const fetchOpenRecruitmentBookings = async (day: number): Promise<AttendanceItem
         location: booking.session_location,
         capacity: booking.session_capacity,
         current_bookings: booking.session_current_bookings,
-        session_type: 'session'
+        session_type: booking.session_type
       }
     }));
 
     return transformedBookings;
   } catch (error) {
-    console.error(`Unexpected error for Day ${day}:`, error);
+    console.error(`Unexpected error fetching Day ${day} bookings:`, error);
     return await fetchOpenRecruitmentBookingsDirect(day);
   }
 };
-  
-// Fallback function using direct queries
+
+// Fixed direct query with explicit relationship specification
 const fetchOpenRecruitmentBookingsDirect = async (day: number): Promise<AttendanceItem[]> => {
   try {
     const day4SessionId = '30de32fb-1051-493a-a983-9f22394025f0';
@@ -564,12 +563,39 @@ const fetchOpenRecruitmentBookingsDirect = async (day: number): Promise<Attendan
     
     const targetSessionId = day === 4 ? day4SessionId : day5SessionId;
 
+    // Use explicit relationship naming to avoid ambiguity
     const { data: bookings, error } = await supabase
       .from('attendances')
       .select(`
         *,
-        user:users_profiles(*),
-        session:sessions(*)
+        user:users_profiles!attendances_user_id_fkey(
+          id,
+          first_name,
+          last_name,
+          personal_id,
+          email,
+          faculty,
+          university,
+          gender,
+          phone,
+          degree_level,
+          program,
+          class,
+          nationality,
+          role
+        ),
+        session:sessions(
+          id,
+          title,
+          description,
+          speaker,
+          start_time,
+          end_time,
+          location,
+          session_type,
+          capacity,
+          current_bookings
+        )
       `)
       .eq('scan_type', 'booking')
       .eq('session_id', targetSessionId)
@@ -580,6 +606,7 @@ const fetchOpenRecruitmentBookingsDirect = async (day: number): Promise<Attendan
       return [];
     }
 
+    console.log(`Direct query returned ${bookings?.length || 0} bookings for Day ${day}`);
     return bookings || [];
   } catch (error) {
     console.error(`Fallback error for Day ${day}:`, error);
