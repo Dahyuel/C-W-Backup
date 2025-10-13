@@ -109,7 +109,6 @@ const DAY5_FACULTIES = [
   "Faculty of Arts",
   "Faculty of Law",
   "Faculty of Languages",
-  "Faculty of Physical Education",
   "Faculty of Education",
   "Faculty of Alsun",
 ];
