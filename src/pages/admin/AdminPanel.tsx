@@ -4929,7 +4929,6 @@ export function AdminPanel() {
             placeholder="Enter capacity (leave empty for unlimited)"
           />
         </div>
-
 <div className="fade-in-blur">
   <label className="block text-sm font-medium text-gray-700 mb-2">
     Session Type
