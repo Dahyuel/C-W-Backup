@@ -620,7 +620,7 @@ const AttendeeDashboard: React.FC = () => {
 if (sessionDay === 1 && !canBookDay1) {
   return { 
     canBook: false, 
-    reason: "This session is only available for Faculty of Engineering, Faculty of Computer and Information Sciences, Faculty of Archaeology, and Faculty of Girls students" 
+    reason: "This session is only available for Faculty of Engineering, Faculty of Computer and Information Sciences, Faculty of Archaeology" 
   };
 }
     
