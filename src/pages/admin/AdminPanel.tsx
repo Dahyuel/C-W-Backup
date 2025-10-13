@@ -1182,35 +1182,34 @@ const handleEditEvent = (event: EventItem) => {
 
       const { error } = await supabase.from("companies").update(updateData).eq('id', editCompany.id);
 
-      if (error) {
-        showFeedback("Failed to update company", "error");
-      } else {
-        setEditCompanyModal(false);
-        setEditCompany({
-          id: "",
-          name: "",
-          logo: null,
-          logoUrl: "",
-          logoType: "link",
-          description: "",
-          website: "",
-          boothNumber: "",
-          partnerType: "",
-          academicFaculties: [],
-          vacanciesType: [],
-        });
-        setEditSelectedAcademicFaculties([]);
-        setEditSelectedVacanciesTypes([]);
-        showFeedback("Company updated successfully!", "success");
-        await fetchCompanies();
-      }
-    } catch (err) {
+       if (error) {
       showFeedback("Failed to update company", "error");
-    } finally {
-      setLoading(false);
+    } else {
+      setEditCompanyModal(false); // Close edit modal
+      setEditCompany({
+        id: "",
+        name: "",
+        logo: null,
+        logoUrl: "",
+        logoType: "link",
+        description: "",
+        website: "",
+        boothNumber: "",
+        partnerType: "",
+        academicFaculties: [],
+        vacanciesType: [],
+      });
+      setEditSelectedAcademicFaculties([]);
+      setEditSelectedVacanciesTypes([]);
+      showFeedback("Company updated successfully!", "success");
+      await fetchCompanies();
     }
-  };
-
+  } catch (err) {
+    showFeedback("Failed to update company", "error");
+  } finally {
+    setLoading(false);
+  }
+};
   const fetchBuildingStats = async () => {
     try {
       const { data: dynamicStats, error } = await getDynamicBuildingStats();
