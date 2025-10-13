@@ -70,115 +70,131 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
     }
   };
 
-  const fetchLeaderboard = async () => {
-    setLoading(true);
-    setError(null);
+const fetchLeaderboard = async () => {
+  setLoading(true);
+  setError(null);
 
-    try {
-      let data;
-      let error;
+  try {
+    let data;
+    let error;
 
-      if (activeTab === 'team' && selectedTeam) {
-        const result = await supabase.rpc('get_team_leaderboard', {
-          p_team_name: selectedTeam,
-          p_limit_param: 100
-        });
-        
-        if (result.error) {
-          console.error('RPC Error:', result.error);
-          throw result.error;
-        }
-        
-        data = result.data;
-        
-        if (data) {
-          data = data.map((item: any) => ({
-            id: item.user_id,
-            first_name: item.first_name,
-            last_name: item.last_name,
-            role: item.user_role,
-            score: item.score,
-            tl_team: item.team_name,
-            rank: item.user_rank
-          }));
-        }
-      } else {
-        let query = supabase
-          .from('users_profiles')
-          .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
-          .order('score', { ascending: false });
-
-        // For admin - show all roles with tabs
-        if (userRole === 'admin') {
-          if (activeTab === 'attendees') {
-            query = query.eq('role', 'attendee');
-          } else if (activeTab === 'volunteers') {
-            query = query.in('role', [
-              'volunteer', 'registration', 'building', 'info_desk',
-              'ushers', 'marketing', 'media', 'ER', 'BD', 'catering', 'feedback', 'stage'
-            ]);
-          }
-        } 
-        // For team_leader - show their team only
-        else if (userRole === 'team_leader') {
-          if (userTeam) {
-            query = query.eq('tl_team', userTeam);
-          }
-        }
-        // For all other roles - show only their specific role
-        else if (userRole) {
-          query = query.eq('role', userRole);
-        }
-
-        if (!data) {
-          const result = await query;
-          data = result.data;
-          error = result.error;
-        }
-      }
-
-      if (error) {
-        console.error('Error fetching leaderboard:', error);
-        setError('Failed to load leaderboard');
-        return;
-      }
-
-      let rankedData: LeaderboardEntry[] = (data || []).map((user, index) => ({
-        ...user,
-        rank: user.rank || index + 1
-      }));
-
-      // Show top 15 for all users (except admin who sees more)
-      const limitCount = userRole === 'admin' ? 100 : 15;
+    if (activeTab === 'team' && selectedTeam) {
+      const result = await supabase.rpc('get_team_leaderboard', {
+        p_team_name: selectedTeam,
+        p_limit_param: 100
+      });
       
-      if (currentUserId && rankedData.length > limitCount) {
-        const currentUserIndex = rankedData.findIndex(user => user.id === currentUserId);
+      if (result.error) {
+        console.error('RPC Error:', result.error);
+        throw result.error;
+      }
+      
+      data = result.data;
+      
+      if (data) {
+        data = data.map((item: any) => ({
+          id: item.user_id,
+          first_name: item.first_name,
+          last_name: item.last_name,
+          role: item.user_role,
+          score: item.score,
+          tl_team: item.team_name,
+          rank: item.user_rank
+        }));
+      }
+    } else {
+      let query = supabase
+        .from('users_profiles')
+        .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
+        .order('score', { ascending: false });
 
-        if (currentUserIndex > limitCount - 1) {
-          const topEntries = rankedData.slice(0, limitCount);
-          rankedData = [...topEntries];
+      // For admin - show all roles with tabs
+      if (userRole === 'admin') {
+        if (activeTab === 'attendees') {
+          query = query.eq('role', 'attendee');
+        } else if (activeTab === 'volunteers') {
+          query = query.in('role', [
+            'volunteer', 'registration', 'building', 'info_desk',
+            'ushers', 'marketing', 'media', 'ER', 'BD', 'catering', 'feedback', 'stage'
+          ]);
+        }
+      } 
+      // For team_leader - show their team only
+      else if (userRole === 'team_leader') {
+        if (userTeam) {
+          query = query.eq('tl_team', userTeam);
+        }
+      }
+      // For all other roles - show only their specific role
+      else if (userRole) {
+        query = query.eq('role', userRole);
+      }
+
+      if (!data) {
+        const result = await query;
+        data = result.data;
+        error = result.error;
+      }
+    }
+
+    if (error) {
+      console.error('Error fetching leaderboard:', error);
+      setError('Failed to load leaderboard');
+      return;
+    }
+
+    let rankedData: LeaderboardEntry[] = (data || []).map((user, index) => ({
+      ...user,
+      rank: user.rank || index + 1
+    }));
+
+    // Show top 15 for all users (except admin who sees more)
+    const limitCount = userRole === 'admin' ? 100 : 15;
+    
+    // MODIFIED SECTION: Ensure current user is always included for regular users
+    if (currentUserId && rankedData.length > limitCount) {
+      const currentUserIndex = rankedData.findIndex(user => user.id === currentUserId);
+      const currentUser = rankedData[currentUserIndex];
+
+      if (currentUserIndex > limitCount - 1) {
+        // For regular users (not admin/team_leader), always include current user in the list
+        if (!['admin', 'team_leader'].includes(userRole || '')) {
+          const topEntries = rankedData.slice(0, limitCount - 1);
+          rankedData = [...topEntries, currentUser];
         } else {
+          // For admin/team_leader, show only top entries
           rankedData = rankedData.slice(0, limitCount);
         }
-      } else if (!currentUserId && rankedData.length > limitCount) {
+      } else {
         rankedData = rankedData.slice(0, limitCount);
       }
-
-      setLeaderboardData(rankedData);
-      
-      // Set current user data for all users
-      const userData = rankedData.find(user => user.id === currentUserId);
-      if (userData) {
-        setCurrentUserData(userData);
-      }
-    } catch (err) {
-      console.error('Error fetching leaderboard:', err);
-      setError('An error occurred while loading the leaderboard');
-    } finally {
-      setLoading(false);
+    } else if (!currentUserId && rankedData.length > limitCount) {
+      rankedData = rankedData.slice(0, limitCount);
     }
-  };
 
+    setLeaderboardData(rankedData);
+    
+    // Set current user data for all users - MODIFIED to always get accurate rank
+    let userData;
+    if (currentUserId) {
+      // Find user in the original ranked data (before slicing) to get accurate global rank
+      const originalRankedData = (data || []).map((user: any, index: number) => ({
+        ...user,
+        rank: index + 1
+      }));
+      userData = originalRankedData.find((user: LeaderboardEntry) => user.id === currentUserId);
+    }
+    
+    if (userData) {
+      setCurrentUserData(userData);
+    }
+  } catch (err) {
+    console.error('Error fetching leaderboard:', err);
+    setError('An error occurred while loading the leaderboard');
+  } finally {
+    setLoading(false);
+  }
+};
   // Admin search functionality
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
