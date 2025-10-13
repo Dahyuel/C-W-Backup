@@ -108,8 +108,6 @@ const DAY5_FACULTIES = [
   "Faculty of Business Administration",
   "Faculty of Arts",
   "Faculty of Law",
-  "Faculty of Applied Arts",
-  "Faculty of Fine Arts",
   "Faculty of Languages",
   "Faculty of Physical Education",
   "Faculty of Education",
