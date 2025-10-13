@@ -802,16 +802,16 @@ const AttendeeDashboard: React.FC = () => {
     window.open(url, "_blank");
   };
 
-  // Update tabItems to use "Companies" instead of "Employers"
-  const tabItems = [
-    { key: "overview", label: "Overview" },
-    { key: "stage-activities", label: "Stage Activities" },
-    { key: "building-sessions", label: "Building Sessions" },
-    { key: "open-recruitment", label: "Open Recruitment Days" },
-    { key: "maps", label: "Maps" },
-    { key: "companies", label: "Companies" }
-  ];
-
+// Update tabItems to include "Career Portal"
+const tabItems = [
+  { key: "overview", label: "Overview" },
+  { key: "stage-activities", label: "Stage Activities" },
+  { key: "building-sessions", label: "Building Sessions" },
+  { key: "open-recruitment", label: "Open Recruitment Days" },
+  { key: "maps", label: "Maps" },
+  { key: "companies", label: "Companies" },
+  { key: "career-portal", label: "Career Portal" } // Add this line
+];
   // Render session cards with faculty restrictions
   const renderSessionCards = (sessionsToRender: Session[], sessionType: 'building' | 'recruitment' = 'building') => {
     return sessionsToRender.map((session, index) => {
