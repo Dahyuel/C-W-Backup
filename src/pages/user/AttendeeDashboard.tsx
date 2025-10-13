@@ -1274,13 +1274,13 @@ const tabItems = [
                   <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 mr-2 sm:mr-3 mt-0.5 flex-shrink-0" />
                   <div>
                     <h3 className="text-blue-800 font-medium text-sm sm:text-base mb-1">Faculty-Based Eligibility</h3>
-                   <p className="text-blue-700 text-xs sm:text-sm">
+               <p className="text-blue-700 text-xs sm:text-sm">
   {activeBuildingDay === 1 ? (
-    <>Day 1 sessions are only available for <strong>Faculty of Engineering, Faculty of Computer and Information Sciences, and Faculty of Archaeology</strong> students.</>
+    <>Day 1 sessions are only available for <strong>Faculty of Engineering, Faculty of Computer and Information Sciences, Faculty of Archaeology, and Faculty of Girls</strong> students.</>
   ) : activeBuildingDay === 2 ? (
     <>Day 2 sessions are only available for <strong>Faculty of Business Administration</strong> students.</>
   ) : (
-    <>Day 3 sessions are only available for <strong>Faculty of Alsun, Faculty of Archaeology, Faculty of Law, Faculty of Education, and Faculty of Arts</strong> students.</>
+    <>Day 3 sessions are only available for <strong>Faculty of Alsun, Faculty of Archaeology, Faculty of Law, Faculty of Education, Faculty of Arts, and Faculty of Girls</strong> students.</>
   )}
 </p>
                     {profile?.faculty && (
