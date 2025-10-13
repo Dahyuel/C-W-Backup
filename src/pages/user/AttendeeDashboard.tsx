@@ -1816,103 +1816,137 @@ const AttendeeDashboard: React.FC = () => {
           document.body
         )}
 
-        {/* Company Details Modal */}
-        {showCompanyModal && selectedCompany && createPortal(
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
+      {/* Company Details Modal */}
+{showCompanyModal && selectedCompany && createPortal(
+  <div 
+    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
+    onClick={() => {
+      setShowCompanyModal(false);
+      setSelectedCompany(null);
+    }}
+  >
+    <div 
+      className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="p-6 stagger-children">
+        <div className="flex items-center justify-between mb-6 fade-in-blur">
+          <h2 className="text-xl font-bold text-gray-900">Company Details</h2>
+          <button
             onClick={() => {
               setShowCompanyModal(false);
               setSelectedCompany(null);
             }}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <div 
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-6 stagger-children">
-                <div className="flex items-center justify-between mb-6 fade-in-blur">
-                  <h2 className="text-xl font-bold text-gray-900">Company Details</h2>
-                  <button
-                    onClick={() => {
-                      setShowCompanyModal(false);
-                      setSelectedCompany(null);
-                    }}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        <div className="space-y-6">
+          {/* Company Logo and Name */}
+          <div className="text-center fade-in-blur">
+            <img 
+              src={selectedCompany.logo_url} 
+              alt={`${selectedCompany.name} logo`} 
+              className="h-24 w-auto mx-auto mb-4 object-contain" 
+            />
+            <h3 className="text-2xl font-bold text-gray-900">{selectedCompany.name}</h3>
+            
+            {/* Partner Type Badge */}
+            {selectedCompany.partner_type && (
+              <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 mt-2">
+                {selectedCompany.partner_type}
+              </div>
+            )}
+            
+            {selectedCompany.booth_number && (
+              <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800 mt-2 ml-2">
+                <MapPin className="h-4 w-4 mr-1" />
+                Booth {selectedCompany.booth_number}
+              </div>
+            )}
+          </div>
+
+          {/* Faculty Information */}
+          {selectedCompany.academic_faculties_seeking_for && selectedCompany.academic_faculties_seeking_for.length > 0 && (
+            <div className="fade-in-blur">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Faculties Seeking</label>
+              <div className="flex flex-wrap gap-2">
+                {selectedCompany.academic_faculties_seeking_for.map((faculty, idx) => (
+                  <span 
+                    key={idx}
+                    className="inline-block px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full"
                   >
-                    <X className="h-6 w-6" />
-                  </button>
-                </div>
-
-                <div className="space-y-6">
-                  {/* Company Logo and Name */}
-                  <div className="text-center fade-in-blur">
-                    <img 
-                      src={selectedCompany.logo_url} 
-                      alt={`${selectedCompany.name} logo`} 
-                      className="h-24 w-auto mx-auto mb-4 object-contain" 
-                    />
-                    <h3 className="text-2xl font-bold text-gray-900">{selectedCompany.name}</h3>
-                    
-                    {/* Partner Type Badge */}
-                    {selectedCompany.partner_type && (
-                      <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 mt-2">
-                        {selectedCompany.partner_type}
-                      </div>
-                    )}
-                    
-                    {selectedCompany.booth_number && (
-                      <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800 mt-2 ml-2">
-                        <MapPin className="h-4 w-4 mr-1" />
-                        Booth {selectedCompany.booth_number}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Company Description */}
-                  <div className="fade-in-blur">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">About Company</label>
-                    <p className="text-gray-700 leading-relaxed">{selectedCompany.description}</p>
-                  </div>
-
-                  {/* Website */}
-                  <div className="fade-in-blur">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Website</label>
-                    <a 
-                      href={selectedCompany.website} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-orange-600 hover:text-orange-700 break-all"
-                    >
-                      {selectedCompany.website}
-                    </a>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="pt-4 space-y-3 fade-in-blur">
-                    <button
-                      onClick={() => handleEmployerWebsiteClick(selectedCompany.website)}
-                      className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
-                    >
-                      Visit Career Page
-                    </button>
-                    
-                    <button
-                      onClick={() => {
-                        setShowCompanyModal(false);
-                        setSelectedCompany(null);
-                      }}
-                      className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium"
-                    >
-                      Close
-                    </button>
-                  </div>
-                </div>
+                    {faculty}
+                  </span>
+                ))}
               </div>
             </div>
-          </div>,
-          document.body
-        )}
+          )}
+
+          {/* Vacancies Type */}
+          {selectedCompany.vacancies_type && selectedCompany.vacancies_type.length > 0 && (
+            <div className="fade-in-blur">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Vacancies Type</label>
+              <div className="flex flex-wrap gap-2">
+                {selectedCompany.vacancies_type.map((vacancy, idx) => (
+                  <span 
+                    key={idx}
+                    className="inline-block px-3 py-1 bg-green-100 text-green-800 text-sm rounded-full"
+                  >
+                    {vacancy}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Company Description */}
+          <div className="fade-in-blur">
+            <label className="block text-sm font-medium text-gray-700 mb-2">About Company</label>
+            <p className="text-gray-700 leading-relaxed">{selectedCompany.description}</p>
+          </div>
+
+          {/* Website */}
+          <div className="fade-in-blur">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Website</label>
+            <a 
+              href={selectedCompany.website} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-orange-600 hover:text-orange-700 break-all"
+            >
+              {selectedCompany.website}
+            </a>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="pt-4 space-y-3 fade-in-blur">
+            <button
+              onClick={() => handleEmployerWebsiteClick(selectedCompany.website)}
+              className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+            >
+              Visit Career Page
+            </button>
+            
+            <button
+              onClick={() => {
+                setShowCompanyModal(false);
+                setSelectedCompany(null);
+              }}
+              className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+            >
+              Close
+            </button>
+          </div>
+        </div>
       </div>
+    </div>
+  </div>,
+  document.body
+)}
+       </div>     
     </DashboardLayout>
   );
 };
