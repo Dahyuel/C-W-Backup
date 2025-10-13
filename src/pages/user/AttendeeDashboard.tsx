@@ -617,11 +617,11 @@ const AttendeeDashboard: React.FC = () => {
   const canBookBuildingSession = (session: Session): { canBook: boolean; reason?: string } => {
     const sessionDay = session.day || getDayFromDate(session.start_time);
     
-    if (sessionDay === 1 && !canBookDay1) {
-      return { 
-        canBook: false, 
-        reason: "This session is only available for Faculty of Engineering, Faculty of Computer and Information Sciences, and Faculty of Archaeology students" 
-      };
+if (sessionDay === 1 && !canBookDay1) {
+  return { 
+    canBook: false, 
+    reason: "This session is only available for Faculty of Engineering, Faculty of Computer and Information Sciences, and Faculty of Archaeology students" 
+  };
     }
     
     if (sessionDay === 2 && !canBookDay2) {
