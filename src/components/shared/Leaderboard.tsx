@@ -108,6 +108,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
           .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
           .order('score', { ascending: false });
 
+        // For admin - show all roles with tabs
         if (userRole === 'admin') {
           if (activeTab === 'attendees') {
             query = query.eq('role', 'attendee');
@@ -117,6 +118,16 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
               'ushers', 'marketing', 'media', 'ER', 'BD', 'catering', 'feedback', 'stage'
             ]);
           }
+        } 
+        // For team_leader - show their team only
+        else if (userRole === 'team_leader') {
+          if (userTeam) {
+            query = query.eq('tl_team', userTeam);
+          }
+        }
+        // For all other roles - show only their specific role
+        else if (userRole) {
+          query = query.eq('role', userRole);
         }
 
         if (!data) {
@@ -331,12 +342,22 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
       if (activeTab === 'attendees') return 'Top Attendees';
       if (activeTab === 'volunteers') return 'Top Volunteers';
       if (activeTab === 'team') return `Team: ${selectedTeam}`;
-    } else if (userRole === 'attendee') {
-      return 'Top Attendees';
     } else if (userRole === 'team_leader') {
       return `My Team: ${userTeam}`;
-    } else {
-      return `Top ${userRole?.replace('_', ' ')}s`;
+    } else if (userRole) {
+      // For all other roles, show their specific role leaderboard
+      return `Top ${userRole.replace('_', ' ')}s`;
+    }
+    return 'Leaderboard';
+  };
+
+  const getLeaderboardDescription = () => {
+    if (userRole === 'admin') {
+      return 'View rankings across all roles and teams';
+    } else if (userRole === 'team_leader') {
+      return `Leaderboard for ${userTeam} team`;
+    } else if (userRole) {
+      return `Leaderboard for ${userRole.replace('_', ' ')}s only`;
     }
     return 'Leaderboard';
   };
@@ -471,6 +492,18 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
         </div>
       )}
 
+      {/* Header with description */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+            <Trophy className="h-6 w-6 mr-2 text-orange-600" />
+            {getTabTitle()}
+          </h2>
+          <p className="text-sm text-gray-500">Top {Math.min(leaderboardData.length, userRole === 'admin' ? 100 : 15)}</p>
+        </div>
+        <p className="text-gray-600 text-sm">{getLeaderboardDescription()}</p>
+      </div>
+
       {/* Tab Controls - Only show for admin and team_leader */}
       {isAdminOrTeamLeader && (
         <div className="flex flex-col space-y-4 mb-6 border-b pb-4 fade-in-left">
@@ -558,18 +591,13 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
 
       {/* Leaderboard List */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-            <Trophy className="h-5 w-5 mr-2 text-orange-600" />
-            {getTabTitle()}
-          </h3>
-          <p className="text-sm text-gray-500">Top {Math.min(leaderboardData.length, userRole === 'admin' ? 100 : 15)}</p>
-        </div>
-
         {leaderboardData.length === 0 ? (
           <div className="text-center py-8 fade-in-scale">
             <Trophy className="h-12 w-12 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">No data available</p>
+            <p className="text-gray-400 text-sm mt-2">
+              {userRole ? `No ${userRole.replace('_', ' ')}s found` : 'No users found'}
+            </p>
           </div>
         ) : (
           <div className="space-y-3 stagger-children">
