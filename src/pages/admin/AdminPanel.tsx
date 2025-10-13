@@ -4930,22 +4930,19 @@ export function AdminPanel() {
           />
         </div>
 
-        <div className="fade-in-blur">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Session Type
-          </label>
-          <select
-            value={newSession.type}
-            onChange={(e) => setNewSession({ ...newSession, type: e.target.value })}
-            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
-          >
-            <option value="session">Session</option>
-            <option value="workshop">Workshop</option>
-            <option value="keynote">Keynote</option>
-            <option value="panel">Panel Discussion</option>
-          </select>
-        </div>
-      </div>
+<div className="fade-in-blur">
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Session Type
+  </label>
+  <select
+    value={newSession.type}
+    onChange={(e) => setNewSession({ ...newSession, type: e.target.value })}
+    className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+  >
+    <option value="session">Session</option>
+    <option value="mentorship">Mentorship</option>
+  </select>
+</div>
 
       <div className="flex justify-end space-x-3 mt-6 fade-in-blur">
         <button
