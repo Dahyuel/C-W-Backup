@@ -113,7 +113,9 @@ const DAY5_FACULTIES = [
   "Faculty of Fine Arts",
   "Faculty of Languages",
   "Faculty of Physical Education",
-  "Faculty of Education"
+  "Faculty of Education",
+  "Faculty of Alsun",
+  "Faculty of Girls"
 ];
 
 const AttendeeDashboard: React.FC = () => {
