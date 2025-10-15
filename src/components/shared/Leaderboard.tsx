@@ -530,7 +530,7 @@ const getLeaderboardDescription = () => {
           </h2>
 <p className="text-sm text-gray-500">
   {userRole === 'team_leader' 
-    ? `${leaderboardData.length} team members` 
+    ? `Top ${Math.min(leaderboardData.length, 15)}` // Team leaders see top 15 like other roles
     : `Top ${Math.min(leaderboardData.length, userRole === 'admin' ? 100 : 15)}`
   }
 </p>
