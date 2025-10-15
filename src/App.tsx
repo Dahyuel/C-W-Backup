@@ -250,11 +250,11 @@ const AppRouter: React.FC = () => {
         } />
 
         {/* Role Changer - Only accessible by marketing role */}
-        <Route path="/rolechangingform" element={
-          <ProtectedRoute requiredRole="marketing" requireCompleteProfile={true}>
-            <RoleChanger />
-          </ProtectedRoute>
-        } />
+<Route path="/rolechangingform" element={
+  <ProtectedRoute requiredRole={["marketing", "team_leader"]} requireCompleteProfile={true}>
+    <RoleChanger />
+  </ProtectedRoute>
+} />
 
         {/* Dashboards */}
         <Route path="/attendee" element={<LazyRoute component={AttendeeDashboard} requiredRole="attendee" />} />

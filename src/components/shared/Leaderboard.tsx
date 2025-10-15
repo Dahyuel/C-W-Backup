@@ -70,6 +70,7 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
     }
   };
 
+
 const fetchLeaderboard = async () => {
   setLoading(true);
   setError(null);
@@ -85,7 +86,7 @@ const fetchLeaderboard = async () => {
       const result = await supabase
         .from('users_profiles')
         .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
-        .eq('role', userTeam)  // Changed back to role - show users with same role as team leader
+        .eq('role', userTeam)  // Show users with same role as team leader
         .order('score', { ascending: false });
 
       data = result.data;
@@ -162,27 +163,10 @@ const fetchLeaderboard = async () => {
       rank: index + 1
     }));
 
-    // Show top 15 for all users (except admin who sees more)
-    const limitCount = userRole === 'admin' ? 100 : 15;
+    // MODIFIED: Team leaders see ALL team members, no limit
+    const limitCount = userRole === 'admin' ? 100 : (userRole === 'team_leader' ? 1000 : 15);
     
-    // Ensure current user is always included for regular users
-    if (currentUserId && rankedData.length > limitCount) {
-      const currentUserIndex = rankedData.findIndex(user => user.id === currentUserId);
-      const currentUser = rankedData[currentUserIndex];
-
-      if (currentUserIndex > limitCount - 1) {
-        // For regular users (not admin/team_leader), always include current user in the list
-        if (!['admin', 'team_leader'].includes(userRole || '')) {
-          const topEntries = rankedData.slice(0, limitCount - 1);
-          rankedData = [...topEntries, currentUser];
-        } else {
-          // For admin/team_leader, show only top entries
-          rankedData = rankedData.slice(0, limitCount);
-        }
-      } else {
-        rankedData = rankedData.slice(0, limitCount);
-      }
-    } else if (!currentUserId && rankedData.length > limitCount) {
+    if (rankedData.length > limitCount) {
       rankedData = rankedData.slice(0, limitCount);
     }
 
@@ -209,6 +193,7 @@ const fetchLeaderboard = async () => {
     setLoading(false);
   }
 };
+  
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
     
@@ -384,13 +369,12 @@ const getLeaderboardDescription = () => {
   if (userRole === 'admin') {
     return 'View rankings across all roles and teams';
   } else if (userRole === 'team_leader') {
-    return `Leaderboard for ${userTeam?.replace('_', ' ')}s only`; // Shows "Leaderboard for marketings only"
+    return `All ${userTeam?.replace('_', ' ')} team members ranked by score`; // Updated description
   } else if (userRole) {
     return `Leaderboard for ${userRole.replace('_', ' ')}s only`;
   }
   return 'Leaderboard';
-};
-  
+}; 
   const TeamSelector = () => (
     <div className="relative">
       <button
@@ -530,7 +514,7 @@ const getLeaderboardDescription = () => {
           </h2>
 <p className="text-sm text-gray-500">
   {userRole === 'team_leader' 
-    ? `Top ${Math.min(leaderboardData.length, 15)}` // Team leaders see top 15 like other roles
+    ? `${leaderboardData.length} team members` // Shows total count for team leaders
     : `Top ${Math.min(leaderboardData.length, userRole === 'admin' ? 100 : 15)}`
   }
 </p>
@@ -632,7 +616,7 @@ const getLeaderboardDescription = () => {
             <p className="text-gray-500">No data available</p>
 <p className="text-gray-400 text-sm mt-2">
   {userRole === 'team_leader' 
-    ? `No team members found in ${userTeam} team` 
+    ? `No ${userTeam?.replace('_', ' ')}s found` 
     : userRole 
       ? `No ${userRole.replace('_', ' ')}s found` 
       : 'No users found'
