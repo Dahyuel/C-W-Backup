@@ -79,20 +79,29 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
       let error;
 
       // For team_leader - show all users in their team (based on tl_team column)
-      if (userRole === 'team_leader' && userTeam) {
-        console.log('Fetching team leaderboard for team:', userTeam);
-        
-        const result = await supabase
-          .from('users_profiles')
-          .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
-          .eq('tl_team', userTeam)  // Get all users with the same tl_team
-          .order('score', { ascending: false });
+// For team_leader - show all users in their team (based on tl_team column)
+if (userRole === 'team_leader' && userTeam) {
+  console.log('Fetching team leaderboard for team:', userTeam);
+  
+  const result = await supabase
+    .from('users_profiles')
+    .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
+    .eq('tl_team', userTeam)  // Get all users with the same tl_team
+    .order('score', { ascending: false });
 
-        data = result.data;
-        error = result.error;
-        
-        console.log('Team leaderboard data:', data);
-      }
+  data = result.data;
+  error = result.error;
+  
+  console.log('Team leaderboard data:', data);
+  
+  // Debug: Check if we're getting the right data
+  if (data) {
+    console.log('Team members found:', data.length);
+    data.forEach(member => {
+      console.log(`Member: ${member.first_name} ${member.last_name}, Role: ${member.role}, Team: ${member.tl_team}`);
+    });
+  }
+}
       // For admin team view
       else if (activeTab === 'team' && selectedTeam) {
         const result = await supabase.rpc('get_team_leaderboard', {
