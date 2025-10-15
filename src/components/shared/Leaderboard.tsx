@@ -78,28 +78,20 @@ const fetchLeaderboard = async () => {
     let data;
     let error;
 
-    // For team_leader - show all users in their team (based on tl_team column)
+    // For team_leader - show all users with the same role
     if (userRole === 'team_leader' && userTeam) {
-      console.log('Fetching team leaderboard for team:', userTeam);
+      console.log('Fetching role leaderboard for team leader:', userRole);
       
       const result = await supabase
         .from('users_profiles')
         .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
-        .eq('tl_team', userTeam)  // Get all users with the same tl_team
+        .eq('role', userTeam)  // Changed back to role - show users with same role as team leader
         .order('score', { ascending: false });
 
       data = result.data;
       error = result.error;
       
-      console.log('Team leaderboard data:', data);
-      
-      // Debug: Check if we're getting the right data
-      if (data) {
-        console.log('Team members found:', data.length);
-        data.forEach(member => {
-          console.log(`Member: ${member.first_name} ${member.last_name}, Role: ${member.role}, Team: ${member.tl_team}`);
-        });
-      }
+      console.log('Role leaderboard data:', data);
     }
     // For admin team view
     else if (activeTab === 'team' && selectedTeam) {
@@ -167,24 +159,48 @@ const fetchLeaderboard = async () => {
 
     let rankedData: LeaderboardEntry[] = (data || []).map((user, index) => ({
       ...user,
-      rank: index + 1  // Always calculate rank based on the current data
+      rank: index + 1
     }));
 
-    // For team leaders, show all team members (no limit)
-    const limitCount = userRole === 'admin' ? 100 : (userRole === 'team_leader' ? 1000 : 15);
+    // Show top 15 for all users (except admin who sees more)
+    const limitCount = userRole === 'admin' ? 100 : 15;
     
-    if (rankedData.length > limitCount) {
+    // Ensure current user is always included for regular users
+    if (currentUserId && rankedData.length > limitCount) {
+      const currentUserIndex = rankedData.findIndex(user => user.id === currentUserId);
+      const currentUser = rankedData[currentUserIndex];
+
+      if (currentUserIndex > limitCount - 1) {
+        // For regular users (not admin/team_leader), always include current user in the list
+        if (!['admin', 'team_leader'].includes(userRole || '')) {
+          const topEntries = rankedData.slice(0, limitCount - 1);
+          rankedData = [...topEntries, currentUser];
+        } else {
+          // For admin/team_leader, show only top entries
+          rankedData = rankedData.slice(0, limitCount);
+        }
+      } else {
+        rankedData = rankedData.slice(0, limitCount);
+      }
+    } else if (!currentUserId && rankedData.length > limitCount) {
       rankedData = rankedData.slice(0, limitCount);
     }
 
     setLeaderboardData(rankedData);
     
-    // Set current user data - always use the rank from the rankedData
+    // Set current user data for all users
+    let userData;
     if (currentUserId) {
-      const userData = rankedData.find(user => user.id === currentUserId);
-      if (userData) {
-        setCurrentUserData(userData);
-      }
+      // Find user in the original ranked data (before slicing) to get accurate global rank
+      const originalRankedData = (data || []).map((user: any, index: number) => ({
+        ...user,
+        rank: index + 1
+      }));
+      userData = originalRankedData.find((user: LeaderboardEntry) => user.id === currentUserId);
+    }
+    
+    if (userData) {
+      setCurrentUserData(userData);
     }
   } catch (err) {
     console.error('Error fetching leaderboard:', err);
@@ -193,7 +209,6 @@ const fetchLeaderboard = async () => {
     setLoading(false);
   }
 };
-  // Admin search functionality
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
     
