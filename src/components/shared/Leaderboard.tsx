@@ -70,152 +70,122 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
     }
   };
 
-const fetchLeaderboard = async () => {
-  setLoading(true);
-  setError(null);
+  const fetchLeaderboard = async () => {
+    setLoading(true);
+    setError(null);
 
-  try {
-    let data;
-    let error;
+    try {
+      let data;
+      let error;
 
-    // For team_leader - show all users in their team (based on tl_team column)
-    if (userRole === 'team_leader' && userTeam) {
-      console.log('Fetching team leaderboard for team:', userTeam);
-      
-      const result = await supabase
-        .from('users_profiles')
-        .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
-        .eq('tl_team', userTeam)  // Get all users with the same tl_team
-        .order('score', { ascending: false });
-
-      data = result.data;
-      error = result.error;
-      
-      console.log('Team leaderboard data:', data);
-    }
-    // For admin team view
-    else if (activeTab === 'team' && selectedTeam) {
-      const result = await supabase.rpc('get_team_leaderboard', {
-        p_team_name: selectedTeam,
-        p_limit_param: 100
-      });
-      
-      if (result.error) {
-        console.error('RPC Error:', result.error);
-        throw result.error;
-      }
-      
-      data = result.data;
-      
-      if (data) {
-        data = data.map((item: any) => ({
-          id: item.user_id,
-          first_name: item.first_name,
-          last_name: item.last_name,
-          role: item.user_role,
-          score: item.score,
-          tl_team: item.team_name,
-          rank: item.user_rank
-        }));
-      }
-    }
-    // For admin attendees/volunteers view
-    else if (userRole === 'admin') {
-      let query = supabase
-        .from('users_profiles')
-        .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
-        .order('score', { ascending: false });
-
-      if (activeTab === 'attendees') {
-        query = query.eq('role', 'attendee');
-      } else if (activeTab === 'volunteers') {
-        query = query.in('role', [
-          'volunteer', 'registration', 'building', 'info_desk',
-          'ushers', 'marketing', 'media', 'ER', 'BD', 'catering', 'feedback', 'stage'
-        ]);
-      }
-
-      const result = await query;
-      data = result.data;
-      error = result.error;
-    }
-    // For all other roles - show only their specific role
-    else if (userRole) {
-      const result = await supabase
-        .from('users_profiles')
-        .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
-        .eq('role', userRole)
-        .order('score', { ascending: false });
-
-      data = result.data;
-      error = result.error;
-    }
-
-    if (error) {
-      console.error('Error fetching leaderboard:', error);
-      setError('Failed to load leaderboard');
-      return;
-    }
-
-    let rankedData: LeaderboardEntry[] = (data || []).map((user, index) => ({
-      ...user,
-      rank: index + 1  // Always calculate rank based on the current data
-    }));
-
-    // For team leaders, show all team members (no limit)
-    const limitCount = userRole === 'admin' ? 100 : (userRole === 'team_leader' ? 1000 : 15);
-    
-    if (rankedData.length > limitCount) {
-      rankedData = rankedData.slice(0, limitCount);
-    }
-
-    setLeaderboardData(rankedData);
-    
-    // Set current user data
-    if (currentUserId) {
-      const userData = rankedData.find(user => user.id === currentUserId);
-      if (userData) {
-        setCurrentUserData(userData);
-      } else {
-        // If current user is not in the filtered list, fetch their data separately
-        const { data: userProfile } = await supabase
+      // For team_leader - show all users in their team (based on tl_team column)
+      if (userRole === 'team_leader' && userTeam) {
+        console.log('Fetching team leaderboard for team:', userTeam);
+        
+        const result = await supabase
           .from('users_profiles')
           .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
-          .eq('id', currentUserId)
-          .single();
+          .eq('tl_team', userTeam)  // Get all users with the same tl_team
+          .order('score', { ascending: false });
+
+        data = result.data;
+        error = result.error;
         
-        if (userProfile) {
-          // For team leaders, we need to calculate the user's rank within their team
-          if (userRole === 'team_leader' && userTeam) {
-            const teamRankResult = await supabase
-              .from('users_profiles')
-              .select('id, score')
-              .eq('tl_team', userTeam)
-              .order('score', { ascending: false });
-            
-            if (teamRankResult.data) {
-              const userRank = teamRankResult.data.findIndex(user => user.id === currentUserId) + 1;
-              setCurrentUserData({
-                ...userProfile,
-                rank: userRank
-              });
-            }
-          } else {
-            setCurrentUserData({
-              ...userProfile,
-              rank: 0 // Unknown rank
-            });
-          }
+        console.log('Team leaderboard data:', data);
+      }
+      // For admin team view
+      else if (activeTab === 'team' && selectedTeam) {
+        const result = await supabase.rpc('get_team_leaderboard', {
+          p_team_name: selectedTeam,
+          p_limit_param: 100
+        });
+        
+        if (result.error) {
+          console.error('RPC Error:', result.error);
+          throw result.error;
+        }
+        
+        data = result.data;
+        
+        if (data) {
+          data = data.map((item: any) => ({
+            id: item.user_id,
+            first_name: item.first_name,
+            last_name: item.last_name,
+            role: item.user_role,
+            score: item.score,
+            tl_team: item.team_name,
+            rank: item.user_rank
+          }));
         }
       }
+      // For admin attendees/volunteers view
+      else if (userRole === 'admin') {
+        let query = supabase
+          .from('users_profiles')
+          .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
+          .order('score', { ascending: false });
+
+        if (activeTab === 'attendees') {
+          query = query.eq('role', 'attendee');
+        } else if (activeTab === 'volunteers') {
+          query = query.in('role', [
+            'volunteer', 'registration', 'building', 'info_desk',
+            'ushers', 'marketing', 'media', 'ER', 'BD', 'catering', 'feedback', 'stage'
+          ]);
+        }
+
+        const result = await query;
+        data = result.data;
+        error = result.error;
+      }
+      // For all other roles - show only their specific role
+      else if (userRole) {
+        const result = await supabase
+          .from('users_profiles')
+          .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
+          .eq('role', userRole)
+          .order('score', { ascending: false });
+
+        data = result.data;
+        error = result.error;
+      }
+
+      if (error) {
+        console.error('Error fetching leaderboard:', error);
+        setError('Failed to load leaderboard');
+        return;
+      }
+
+      let rankedData: LeaderboardEntry[] = (data || []).map((user, index) => ({
+        ...user,
+        rank: index + 1  // Always calculate rank based on the current data
+      }));
+
+      // For team leaders, show all team members (no limit)
+      const limitCount = userRole === 'admin' ? 100 : (userRole === 'team_leader' ? 1000 : 15);
+      
+      if (rankedData.length > limitCount) {
+        rankedData = rankedData.slice(0, limitCount);
+      }
+
+      setLeaderboardData(rankedData);
+      
+      // Set current user data - always use the rank from the rankedData
+      if (currentUserId) {
+        const userData = rankedData.find(user => user.id === currentUserId);
+        if (userData) {
+          setCurrentUserData(userData);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching leaderboard:', err);
+      setError('An error occurred while loading the leaderboard');
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.error('Error fetching leaderboard:', err);
-    setError('An error occurred while loading the leaderboard');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
+
   // Admin search functionality
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
@@ -536,7 +506,12 @@ const fetchLeaderboard = async () => {
             <Trophy className="h-6 w-6 mr-2 text-orange-600" />
             {getTabTitle()}
           </h2>
-          <p className="text-sm text-gray-500">Top {Math.min(leaderboardData.length, userRole === 'admin' ? 100 : 15)}</p>
+          <p className="text-sm text-gray-500">
+            {userRole === 'team_leader' 
+              ? `${leaderboardData.length} team members` 
+              : `Top ${Math.min(leaderboardData.length, userRole === 'admin' ? 100 : 15)}`
+            }
+          </p>
         </div>
         <p className="text-gray-600 text-sm">{getLeaderboardDescription()}</p>
       </div>
@@ -579,34 +554,30 @@ const fetchLeaderboard = async () => {
         </div>
       )}
 
-      {/* Tab Controls - Only show for admin and team_leader */}
-      {isAdminOrTeamLeader && (
+      {/* Tab Controls - Only show for admin (not team_leader) */}
+      {userRole === 'admin' && (
         <div className="flex flex-col space-y-4 mb-6 border-b pb-4 fade-in-left">
           <div className="flex space-x-4">
-            {userRole === 'admin' && (
-              <>
-                <button
-                  onClick={() => setActiveTab('attendees')}
-                  className={`py-2 px-4 font-semibold text-sm transition-all duration-300 ${
-                    activeTab === 'attendees'
-                      ? "border-b-2 border-orange-500 text-orange-600"
-                      : "text-gray-500 hover:text-orange-600"
-                  }`}
-                >
-                  Attendees
-                </button>
-                <button
-                  onClick={() => setActiveTab('volunteers')}
-                  className={`py-2 px-4 font-semibold text-sm transition-all duration-300 ${
-                    activeTab === 'volunteers'
-                      ? "border-b-2 border-orange-500 text-orange-600"
-                      : "text-gray-500 hover:text-orange-600"
-                  }`}
-                >
-                  Volunteers
-                </button>
-              </>
-            )}
+            <button
+              onClick={() => setActiveTab('attendees')}
+              className={`py-2 px-4 font-semibold text-sm transition-all duration-300 ${
+                activeTab === 'attendees'
+                  ? "border-b-2 border-orange-500 text-orange-600"
+                  : "text-gray-500 hover:text-orange-600"
+              }`}
+            >
+              Attendees
+            </button>
+            <button
+              onClick={() => setActiveTab('volunteers')}
+              className={`py-2 px-4 font-semibold text-sm transition-all duration-300 ${
+                activeTab === 'volunteers'
+                  ? "border-b-2 border-orange-500 text-orange-600"
+                  : "text-gray-500 hover:text-orange-600"
+              }`}
+            >
+              Volunteers
+            </button>
             <button
               onClick={() => setActiveTab('team')}
               className={`py-2 px-4 font-semibold text-sm transition-all duration-300 ${
@@ -620,7 +591,7 @@ const fetchLeaderboard = async () => {
           </div>
 
           {/* Team Selector for Admin only */}
-          {activeTab === 'team' && availableTeams.length > 0 && userRole === 'admin' && (
+          {activeTab === 'team' && availableTeams.length > 0 && (
             <div className="flex items-center space-x-4">
               <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
                 Select Team:
@@ -637,12 +608,14 @@ const fetchLeaderboard = async () => {
           <div className="text-center py-8 fade-in-scale">
             <Trophy className="h-12 w-12 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">No data available</p>
-<p className="text-sm text-gray-500">
-  {userRole === 'team_leader' 
-    ? `${leaderboardData.length} team members` 
-    : `Top ${Math.min(leaderboardData.length, userRole === 'admin' ? 100 : 15)}`
-  }
-</p>
+            <p className="text-gray-400 text-sm mt-2">
+              {userRole === 'team_leader' 
+                ? `No team members found in ${userTeam} team` 
+                : userRole 
+                  ? `No ${userRole.replace('_', ' ')}s found` 
+                  : 'No users found'
+              }
+            </p>
           </div>
         ) : (
           <div className="space-y-3 stagger-children">
@@ -675,7 +648,7 @@ const fetchLeaderboard = async () => {
                           <span className="ml-1 capitalize">{user.role.replace('_', ' ')}</span>
                         </span>
                         {user.tl_team && (activeTab === 'team' || userRole === 'team_leader') && (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                             Team: {user.tl_team}
                           </span>
                         )}
