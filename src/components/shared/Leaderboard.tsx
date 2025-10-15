@@ -365,19 +365,21 @@ const fetchLeaderboard = async () => {
         return 'bg-white border-gray-200';
     }
   };
+
 const getTabTitle = () => {
   if (userRole === 'admin') {
     if (activeTab === 'attendees') return 'Top Attendees';
     if (activeTab === 'volunteers') return 'Top Volunteers';
     if (activeTab === 'team') return `Team: ${selectedTeam}`;
   } else if (userRole === 'team_leader') {
-    return `My Team: ${userTeam}`;
+    return `Top ${userTeam?.replace('_', ' ')}s`; // Shows "Top Marketings" etc.
   } else if (userRole) {
     // For all other roles, show their specific role leaderboard
     return `Top ${userRole.replace('_', ' ')}s`;
   }
   return 'Leaderboard';
 };
+  
 const getLeaderboardDescription = () => {
   if (userRole === 'admin') {
     return 'View rankings across all roles and teams';
