@@ -512,12 +512,12 @@ const getLeaderboardDescription = () => {
             <Trophy className="h-6 w-6 mr-2 text-orange-600" />
             {getTabTitle()}
           </h2>
-          <p className="text-sm text-gray-500">
-            {userRole === 'team_leader' 
-              ? `${leaderboardData.length} team members` 
-              : `Top ${Math.min(leaderboardData.length, userRole === 'admin' ? 100 : 15)}`
-            }
-          </p>
+<p className="text-sm text-gray-500">
+  {userRole === 'team_leader' 
+    ? `${leaderboardData.length} team members` 
+    : `Top ${Math.min(leaderboardData.length, userRole === 'admin' ? 100 : 15)}`
+  }
+</p>
         </div>
         <p className="text-gray-600 text-sm">{getLeaderboardDescription()}</p>
       </div>
