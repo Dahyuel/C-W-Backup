@@ -379,17 +379,18 @@ const getTabTitle = () => {
   }
   return 'Leaderboard';
 };
-  
+
 const getLeaderboardDescription = () => {
   if (userRole === 'admin') {
     return 'View rankings across all roles and teams';
   } else if (userRole === 'team_leader') {
-    return `Leaderboard for ${userTeam} team members`;
+    return `Leaderboard for ${userTeam?.replace('_', ' ')}s only`; // Shows "Leaderboard for marketings only"
   } else if (userRole) {
     return `Leaderboard for ${userRole.replace('_', ' ')}s only`;
   }
   return 'Leaderboard';
 };
+  
   const TeamSelector = () => (
     <div className="relative">
       <button
