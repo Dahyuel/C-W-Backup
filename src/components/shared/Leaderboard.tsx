@@ -614,14 +614,14 @@ const getLeaderboardDescription = () => {
           <div className="text-center py-8 fade-in-scale">
             <Trophy className="h-12 w-12 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">No data available</p>
-            <p className="text-gray-400 text-sm mt-2">
-              {userRole === 'team_leader' 
-                ? `No team members found in ${userTeam} team` 
-                : userRole 
-                  ? `No ${userRole.replace('_', ' ')}s found` 
-                  : 'No users found'
-              }
-            </p>
+<p className="text-gray-400 text-sm mt-2">
+  {userRole === 'team_leader' 
+    ? `No team members found in ${userTeam} team` 
+    : userRole 
+      ? `No ${userRole.replace('_', ' ')}s found` 
+      : 'No users found'
+  }
+</p>
           </div>
         ) : (
           <div className="space-y-3 stagger-children">
