@@ -70,131 +70,129 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
     }
   };
 
-  const fetchLeaderboard = async () => {
-    setLoading(true);
-    setError(null);
+const fetchLeaderboard = async () => {
+  setLoading(true);
+  setError(null);
 
-    try {
-      let data;
-      let error;
+  try {
+    let data;
+    let error;
 
-      // For team_leader - show all users in their team (based on tl_team column)
-// For team_leader - show all users in their team (based on tl_team column)
-if (userRole === 'team_leader' && userTeam) {
-  console.log('Fetching team leaderboard for team:', userTeam);
-  
-  const result = await supabase
-    .from('users_profiles')
-    .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
-    .eq('tl_team', userTeam)  // Get all users with the same tl_team
-    .order('score', { ascending: false });
+    // For team_leader - show all users in their team (based on tl_team column)
+    if (userRole === 'team_leader' && userTeam) {
+      console.log('Fetching team leaderboard for team:', userTeam);
+      
+      const result = await supabase
+        .from('users_profiles')
+        .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
+        .eq('tl_team', userTeam)  // Get all users with the same tl_team
+        .order('score', { ascending: false });
 
-  data = result.data;
-  error = result.error;
-  
-  console.log('Team leaderboard data:', data);
-  
-  // Debug: Check if we're getting the right data
-  if (data) {
-    console.log('Team members found:', data.length);
-    data.forEach(member => {
-      console.log(`Member: ${member.first_name} ${member.last_name}, Role: ${member.role}, Team: ${member.tl_team}`);
-    });
-  }
-}
-      // For admin team view
-      else if (activeTab === 'team' && selectedTeam) {
-        const result = await supabase.rpc('get_team_leaderboard', {
-          p_team_name: selectedTeam,
-          p_limit_param: 100
+      data = result.data;
+      error = result.error;
+      
+      console.log('Team leaderboard data:', data);
+      
+      // Debug: Check if we're getting the right data
+      if (data) {
+        console.log('Team members found:', data.length);
+        data.forEach(member => {
+          console.log(`Member: ${member.first_name} ${member.last_name}, Role: ${member.role}, Team: ${member.tl_team}`);
         });
-        
-        if (result.error) {
-          console.error('RPC Error:', result.error);
-          throw result.error;
-        }
-        
-        data = result.data;
-        
-        if (data) {
-          data = data.map((item: any) => ({
-            id: item.user_id,
-            first_name: item.first_name,
-            last_name: item.last_name,
-            role: item.user_role,
-            score: item.score,
-            tl_team: item.team_name,
-            rank: item.user_rank
-          }));
-        }
       }
-      // For admin attendees/volunteers view
-      else if (userRole === 'admin') {
-        let query = supabase
-          .from('users_profiles')
-          .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
-          .order('score', { ascending: false });
-
-        if (activeTab === 'attendees') {
-          query = query.eq('role', 'attendee');
-        } else if (activeTab === 'volunteers') {
-          query = query.in('role', [
-            'volunteer', 'registration', 'building', 'info_desk',
-            'ushers', 'marketing', 'media', 'ER', 'BD', 'catering', 'feedback', 'stage'
-          ]);
-        }
-
-        const result = await query;
-        data = result.data;
-        error = result.error;
-      }
-      // For all other roles - show only their specific role
-      else if (userRole) {
-        const result = await supabase
-          .from('users_profiles')
-          .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
-          .eq('role', userRole)
-          .order('score', { ascending: false });
-
-        data = result.data;
-        error = result.error;
-      }
-
-      if (error) {
-        console.error('Error fetching leaderboard:', error);
-        setError('Failed to load leaderboard');
-        return;
-      }
-
-      let rankedData: LeaderboardEntry[] = (data || []).map((user, index) => ({
-        ...user,
-        rank: index + 1  // Always calculate rank based on the current data
-      }));
-
-      // For team leaders, show all team members (no limit)
-      const limitCount = userRole === 'admin' ? 100 : (userRole === 'team_leader' ? 1000 : 15);
-      
-      if (rankedData.length > limitCount) {
-        rankedData = rankedData.slice(0, limitCount);
-      }
-
-      setLeaderboardData(rankedData);
-      
-      // Set current user data - always use the rank from the rankedData
-      if (currentUserId) {
-        const userData = rankedData.find(user => user.id === currentUserId);
-        if (userData) {
-          setCurrentUserData(userData);
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching leaderboard:', err);
-      setError('An error occurred while loading the leaderboard');
-    } finally {
-      setLoading(false);
     }
-  };
+    // For admin team view
+    else if (activeTab === 'team' && selectedTeam) {
+      const result = await supabase.rpc('get_team_leaderboard', {
+        p_team_name: selectedTeam,
+        p_limit_param: 100
+      });
+      
+      if (result.error) {
+        console.error('RPC Error:', result.error);
+        throw result.error;
+      }
+      
+      data = result.data;
+      
+      if (data) {
+        data = data.map((item: any) => ({
+          id: item.user_id,
+          first_name: item.first_name,
+          last_name: item.last_name,
+          role: item.user_role,
+          score: item.score,
+          tl_team: item.team_name,
+          rank: item.user_rank
+        }));
+      }
+    }
+    // For admin attendees/volunteers view
+    else if (userRole === 'admin') {
+      let query = supabase
+        .from('users_profiles')
+        .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
+        .order('score', { ascending: false });
 
+      if (activeTab === 'attendees') {
+        query = query.eq('role', 'attendee');
+      } else if (activeTab === 'volunteers') {
+        query = query.in('role', [
+          'volunteer', 'registration', 'building', 'info_desk',
+          'ushers', 'marketing', 'media', 'ER', 'BD', 'catering', 'feedback', 'stage'
+        ]);
+      }
+
+      const result = await query;
+      data = result.data;
+      error = result.error;
+    }
+    // For all other roles - show only their specific role
+    else if (userRole) {
+      const result = await supabase
+        .from('users_profiles')
+        .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
+        .eq('role', userRole)
+        .order('score', { ascending: false });
+
+      data = result.data;
+      error = result.error;
+    }
+
+    if (error) {
+      console.error('Error fetching leaderboard:', error);
+      setError('Failed to load leaderboard');
+      return;
+    }
+
+    let rankedData: LeaderboardEntry[] = (data || []).map((user, index) => ({
+      ...user,
+      rank: index + 1  // Always calculate rank based on the current data
+    }));
+
+    // For team leaders, show all team members (no limit)
+    const limitCount = userRole === 'admin' ? 100 : (userRole === 'team_leader' ? 1000 : 15);
+    
+    if (rankedData.length > limitCount) {
+      rankedData = rankedData.slice(0, limitCount);
+    }
+
+    setLeaderboardData(rankedData);
+    
+    // Set current user data - always use the rank from the rankedData
+    if (currentUserId) {
+      const userData = rankedData.find(user => user.id === currentUserId);
+      if (userData) {
+        setCurrentUserData(userData);
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching leaderboard:', err);
+    setError('An error occurred while loading the leaderboard');
+  } finally {
+    setLoading(false);
+  }
+};
   // Admin search functionality
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
