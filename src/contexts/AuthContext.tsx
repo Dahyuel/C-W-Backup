@@ -1,4 +1,4 @@
-// src/contexts/AuthContext.tsx - OPTIMIZED & FIXED
+// src/contexts/AuthContext.tsx - UPDATED WITH AUTHORIZATION CHECK
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { supabase, signUpUser, signUpVolunteer, signInUser, validateRegistrationData } from "../lib/supabase";
 import type { User, Session } from '@supabase/supabase-js';
@@ -23,6 +23,7 @@ type AuthContextType = {
   isProfileComplete: (profile: any, role?: string) => boolean;
   getRegistrationState: () => any;
   setRegistrationState: (state: any) => void;
+  isUserAuthorized: boolean;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -35,6 +36,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [sessionLoaded, setSessionLoaded] = useState(false);
   const [authActionLoading, setAuthActionLoading] = useState(false);
   const [authActionMessage, setAuthActionMessage] = useState('');
+  const [isUserAuthorized, setIsUserAuthorized] = useState(true);
 
   // Refs to prevent re-initialization
   const initializedRef = useRef(false);
@@ -52,6 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             hasAuth: !!profileData,
             role: profileData?.role,
             profileComplete: profileData?.profile_complete || false,
+            authorized: profileData?.authorized,
             timestamp: Date.now()
           }));
         }
@@ -105,6 +108,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }), []);
 
+  // Check user authorization - NEW FUNCTION
+  const checkUserAuthorization = useCallback(async (userId: string): Promise<boolean> => {
+    try {
+      const { data: profileData, error } = await supabase
+        .from('users_profiles')
+        .select('authorized, role')
+        .eq('id', userId)
+        .single();
+
+      if (error) {
+        console.error('Error checking user authorization:', error);
+        return true; // Default to true for backward compatibility
+      }
+
+      // Admins and team leaders are always authorized
+      if (profileData.role === 'admin' || profileData.role === 'team_leader') {
+        return true;
+      }
+
+      // For other roles, check the authorized field
+      // Return true if authorized is true or null (for backward compatibility)
+      const authorized = profileData.authorized === true || profileData.authorized === null;
+      setIsUserAuthorized(authorized);
+      return authorized;
+
+    } catch (error) {
+      console.error('Authorization check error:', error);
+      setIsUserAuthorized(true); // Default to true on error
+      return true;
+    }
+  }, []);
+
   // Profile completeness check
   const isProfileComplete = useCallback((profile: any, role?: string): boolean => {
     if (!profile) return false;
@@ -125,7 +160,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return false;
   }, []);
 
-  // Optimized profile fetching with exponential backoff
+  // Optimized profile fetching with exponential backoff and authorization check
   const fetchProfile = useCallback(async (uid: string): Promise<any> => {
     const maxRetries = 3;
     const baseDelay = 500;
@@ -136,7 +171,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .from("users_profiles")
           .select("*")
           .eq("id", uid)
-          .maybeSingle(); // Use maybeSingle to avoid errors on no rows
+          .maybeSingle();
 
         if (error) {
           if (error.code === 'PGRST116') {
@@ -158,6 +193,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         if (data) {
+          // Check authorization when profile is fetched
+          const isAuthorized = await checkUserAuthorization(uid);
+          setIsUserAuthorized(isAuthorized);
+          
           setProfile(data);
           sessionHelpers.saveProfile(data);
           return data;
@@ -175,9 +214,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     
     return null;
-  }, [sessionHelpers]);
+  }, [sessionHelpers, checkUserAuthorization]);
 
-  // Debounced auth state change handler
+  // Debounced auth state change handler with authorization check
   const handleAuthStateChange = useCallback(async (event: string, session: Session | null) => {
     // Prevent concurrent processing
     if (isProcessingAuthChange.current) return;
@@ -191,6 +230,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Check cached profile first for speed
         const cachedProfile = sessionHelpers.getProfile();
         if (cachedProfile && cachedProfile.id === session.user.id) {
+          // Check authorization for cached profile
+          const isAuthorized = await checkUserAuthorization(session.user.id);
+          setIsUserAuthorized(isAuthorized);
+          
           setProfile(cachedProfile);
           setLoading(false);
           return;
@@ -204,11 +247,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         profileFetchTimeoutRef.current = setTimeout(async () => {
           await fetchProfile(session.user.id);
           setLoading(false);
-        }, 100); // Small delay to debounce
+        }, 100);
 
       } else {
         setUser(null);
         setProfile(null);
+        setIsUserAuthorized(true);
         sessionHelpers.clearProfile();
         setSessionLoaded(true);
         setLoading(false);
@@ -220,84 +264,109 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       isProcessingAuthChange.current = false;
     }
-  }, [fetchProfile, sessionHelpers]);
+  }, [fetchProfile, sessionHelpers, checkUserAuthorization]);
 
-// In AuthContext.tsx - FIXED initialization
-useEffect(() => {
-  let mounted = true;
-  let initializationTimeout: NodeJS.Timeout;
+  // Enhanced initialization with authorization check
+  useEffect(() => {
+    let mounted = true;
+    let initializationTimeout: NodeJS.Timeout;
 
-  const initialize = async () => {
-    // Set timeout to prevent infinite loading
-    initializationTimeout = setTimeout(() => {
-      if (mounted && loading) {
-        console.warn('Auth initialization timeout - forcing completion');
-        setLoading(false);
-        setSessionLoaded(true);
-      }
-    }, 3000);
-
-    try {
-      console.log('🚀 Starting optimized auth initialization...');
-      
-      // Get session first
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!mounted) return;
-
-      if (session?.user) {
-        console.log('✅ Session found for user:', session.user.id);
-        setUser(session.user);
-        
-        // Try to get profile quickly
-        const cachedProfile = sessionHelpers.getProfile();
-        if (cachedProfile && cachedProfile.id === session.user.id) {
-          console.log('✅ Using cached profile');
-          setProfile(cachedProfile);
-          setSessionLoaded(true);
+    const initialize = async () => {
+      // Set timeout to prevent infinite loading
+      initializationTimeout = setTimeout(() => {
+        if (mounted && loading) {
+          console.warn('Auth initialization timeout - forcing completion');
           setLoading(false);
-          clearTimeout(initializationTimeout);
-          return;
+          setSessionLoaded(true);
         }
+      }, 3000);
 
-        // Fetch fresh profile with timeout
-        const profileFetch = fetchProfile(session.user.id);
-        const profileTimeout = new Promise((resolve) => 
-          setTimeout(() => resolve(null), 2000)
-        );
-
-        const profileResult = await Promise.race([profileFetch, profileTimeout]);
+      try {
+        console.log('🚀 Starting optimized auth initialization...');
         
+        // Get session first
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!mounted) return;
+
+        if (session?.user) {
+          console.log('✅ Session found for user:', session.user.id);
+          setUser(session.user);
+          
+          // Try to get profile quickly
+          const cachedProfile = sessionHelpers.getProfile();
+          if (cachedProfile && cachedProfile.id === session.user.id) {
+            console.log('✅ Using cached profile');
+            
+            // Check authorization for cached profile
+            const isAuthorized = await checkUserAuthorization(session.user.id);
+            setIsUserAuthorized(isAuthorized);
+            
+            setProfile(cachedProfile);
+            setSessionLoaded(true);
+            setLoading(false);
+            clearTimeout(initializationTimeout);
+            return;
+          }
+
+          // Fetch fresh profile with timeout and authorization check
+          const profileFetch = fetchProfile(session.user.id);
+          const profileTimeout = new Promise((resolve) => 
+            setTimeout(() => resolve(null), 2000)
+          );
+
+          const profileResult = await Promise.race([profileFetch, profileTimeout]);
+          
+          if (mounted) {
+            setSessionLoaded(true);
+            setLoading(false);
+            clearTimeout(initializationTimeout);
+          }
+        } else {
+          console.log('ℹ️ No session found');
+          if (mounted) {
+            setSessionLoaded(true);
+            setLoading(false);
+            clearTimeout(initializationTimeout);
+          }
+        }
+      } catch (error) {
+        console.error('Initialization error:', error);
         if (mounted) {
           setSessionLoaded(true);
           setLoading(false);
           clearTimeout(initializationTimeout);
         }
-      } else {
-        console.log('ℹ️ No session found');
-        if (mounted) {
-          setSessionLoaded(true);
-          setLoading(false);
-          clearTimeout(initializationTimeout);
-        }
       }
-    } catch (error) {
-      console.error('Initialization error:', error);
-      if (mounted) {
-        setSessionLoaded(true);
-        setLoading(false);
-        clearTimeout(initializationTimeout);
+    };
+
+    initialize();
+
+    return () => {
+      mounted = false;
+      clearTimeout(initializationTimeout);
+    };
+  }, []);
+
+  // Set up auth state listener
+  useEffect(() => {
+    if (initializedRef.current) return;
+    
+    console.log('🔐 Setting up auth state listener...');
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange);
+    authListenerRef.current = subscription;
+    initializedRef.current = true;
+
+    return () => {
+      if (authListenerRef.current) {
+        authListenerRef.current.unsubscribe();
       }
-    }
-  };
-
-  initialize();
-
-  return () => {
-    mounted = false;
-    clearTimeout(initializationTimeout);
-  };
-}, []); // Empty deps - only run once
+      if (profileFetchTimeoutRef.current) {
+        clearTimeout(profileFetchTimeoutRef.current);
+      }
+    };
+  }, [handleAuthStateChange]);
 
   // Role-based redirect logic
   const getRoleBasedRedirect = useCallback((role?: string, profileComplete?: boolean) => {
@@ -320,6 +389,55 @@ useEffect(() => {
 
     return roleMap[r] || '/volunteer';
   }, [profile]);
+
+  // Enhanced sign in handler with authorization check
+  const signIn = async (email: string, password: string) => {
+    try {
+      setAuthActionLoading(true);
+      setAuthActionMessage('Signing you in...');
+      
+      const { data, error } = await signInUser(email, password);
+  
+      if (error) {
+        return { success: false, error };
+      }
+  
+      if (data?.user?.id) {
+        setUser(data.user);
+        
+        // Wait for profile fetch and authorization check
+        const userProfile = await fetchProfile(data.user.id);
+        
+        // Check if user is authorized
+        if (!isUserAuthorized) {
+          await signOut();
+          return { 
+            success: false, 
+            error: { 
+              message: 'Sorry, you didn\'t meet the event requirements. Please contact event organizers.',
+              unauthorized: true 
+            } 
+          };
+        }
+        
+        setAuthActionMessage('Sign in successful!');
+        
+        const redirectPath = getRoleBasedRedirect(
+          userProfile?.role, 
+          userProfile?.profile_complete
+        );
+        
+        return { success: true, redirectPath };
+      }
+      
+      return { success: true, redirectPath: '/V0lunt33ringR3g' };
+      
+    } catch (error: any) {
+      return { success: false, error: { message: error.message || 'Sign in failed' } };
+    } finally {
+      setAuthActionLoading(false);
+    }
+  };
 
   // Sign up handler
   const signUp = async (email: string, password: string, profileData: any) => {
@@ -392,43 +510,6 @@ useEffect(() => {
     }
   };
 
-  // Sign in handler
-  const signIn = async (email: string, password: string) => {
-    try {
-      setAuthActionLoading(true);
-      setAuthActionMessage('Signing you in...');
-      
-      const { data, error } = await signInUser(email, password);
-  
-      if (error) {
-        return { success: false, error };
-      }
-  
-      if (data?.user?.id) {
-        setUser(data.user);
-        
-        // Wait for profile fetch
-        const userProfile = await fetchProfile(data.user.id);
-        
-        setAuthActionMessage('Sign in successful!');
-        
-        const redirectPath = getRoleBasedRedirect(
-          userProfile?.role, 
-          userProfile?.profile_complete
-        );
-        
-        return { success: true, redirectPath };
-      }
-      
-      return { success: true, redirectPath: '/V0lunt33ringR3g' };
-      
-    } catch (error: any) {
-      return { success: false, error: { message: error.message || 'Sign in failed' } };
-    } finally {
-      setAuthActionLoading(false);
-    }
-  };
-
   // Sign out handler
   const signOut = async () => {
     try {
@@ -437,6 +518,7 @@ useEffect(() => {
       sessionHelpers.clearProfile();
       setUser(null);
       setProfile(null);
+      setIsUserAuthorized(true); // Reset authorization state
     } catch (error) {
       console.error('Sign out error:', error);
     } finally {
@@ -493,6 +575,7 @@ useEffect(() => {
     isProfileComplete,
     getRegistrationState: sessionHelpers.getRegistrationState,
     setRegistrationState: sessionHelpers.setRegistrationState,
+    isUserAuthorized, // NEW: Expose authorization status
   }), [
     user,
     profile,
@@ -505,7 +588,8 @@ useEffect(() => {
     refreshProfile,
     clearAuthAction,
     isProfileComplete,
-    sessionHelpers
+    sessionHelpers,
+    isUserAuthorized, // NEW: Include in dependencies
   ]);
 
   return (
