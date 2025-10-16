@@ -78,10 +78,10 @@ export const AuthRegistration: React.FC<AuthRegistrationProps> = ({ onSuccess })
         console.log('Registration successful, showing success message...');
         setShowSuccess(true);
         
-        // Use shorter timeout and navigate directly
+        // Use shorter timeout and navigate
         setTimeout(() => {
-          console.log('Navigating directly to attendee registration...');
-          navigate('/attendee-register', { replace: true });
+          console.log('Navigating to attendee registration...');
+          onSuccess();
         }, 1000);
       } else {
         console.error('Registration failed:', result.error);
