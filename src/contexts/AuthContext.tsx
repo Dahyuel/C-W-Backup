@@ -215,56 +215,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return null;
   }, [sessionHelpers, checkUserAuthorization]);
 
-  // Debounced auth state change handler with authorization check
-  const handleAuthStateChange = useCallback(async (event: string, session: Session | null) => {
-    // Prevent concurrent processing
-    if (isProcessingAuthChange.current) return;
-    isProcessingAuthChange.current = true;
+// In AuthContext.tsx - Fix the handleAuthStateChange function
+const handleAuthStateChange = useCallback(async (event: string, session: Session | null) => {
+  // Prevent concurrent processing
+  if (isProcessingAuthChange.current) return;
+  isProcessingAuthChange.current = true;
 
-    try {
-      if (session?.user) {
-        setUser(session.user);
-        setSessionLoaded(true);
+  try {
+    if (session?.user) {
+      setUser(session.user);
+      setSessionLoaded(true);
 
-        // Check cached profile first for speed
-        const cachedProfile = sessionHelpers.getProfile();
-        if (cachedProfile && cachedProfile.id === session.user.id) {
-          // Check authorization for cached profile
-          const isAuthorized = await checkUserAuthorization(session.user.id);
-          setIsUserAuthorized(isAuthorized);
-          
-          setProfile(cachedProfile);
-          setLoading(false);
-          return;
-        }
-
-        // Fetch profile with timeout
-        if (profileFetchTimeoutRef.current) {
-          clearTimeout(profileFetchTimeoutRef.current);
-        }
-
-        profileFetchTimeoutRef.current = setTimeout(async () => {
-          await fetchProfile(session.user.id);
-          setLoading(false);
-        }, 100);
-
-      } else {
-        setUser(null);
-        setProfile(null);
-        setIsUserAuthorized(true);
-        sessionHelpers.clearProfile();
-        setSessionLoaded(true);
+      // Check cached profile first for speed
+      const cachedProfile = sessionHelpers.getProfile();
+      if (cachedProfile && cachedProfile.id === session.user.id) {
+        // Check authorization for cached profile
+        const isAuthorized = await checkUserAuthorization(session.user.id);
+        setIsUserAuthorized(isAuthorized);
+        
+        setProfile(cachedProfile);
         setLoading(false);
+        return;
       }
-    } catch (error) {
-      console.error('Auth state change error:', error);
+
+      // Fetch profile with timeout
+      if (profileFetchTimeoutRef.current) {
+        clearTimeout(profileFetchTimeoutRef.current);
+      }
+
+      profileFetchTimeoutRef.current = setTimeout(async () => {
+        await fetchProfile(session.user.id);
+        setLoading(false);
+      }, 100);
+
+    } else {
+      setUser(null);
+      setProfile(null);
+      setIsUserAuthorized(true); // Reset authorization state
+      sessionHelpers.clearProfile();
       setSessionLoaded(true);
       setLoading(false);
-    } finally {
-      isProcessingAuthChange.current = false;
     }
-  }, [fetchProfile, sessionHelpers, checkUserAuthorization]);
-
+  } catch (error) {
+    console.error('Auth state change error:', error);
+    setSessionLoaded(true);
+    setLoading(false);
+  } finally {
+    isProcessingAuthChange.current = false;
+  }
+}, [fetchProfile, sessionHelpers, checkUserAuthorization]);
   // Enhanced initialization with authorization check
   useEffect(() => {
     let mounted = true;
