@@ -306,7 +306,8 @@ useEffect(() => {
 
     // Only check authorization for attendees
     if (profile.role === 'attendee') {
-      return profile.authorized === true;
+      // Only false means unauthorized, null/undefined/true means authorized
+      return profile.authorized !== false;
     }
 
     // All other roles are always authorized
@@ -317,7 +318,8 @@ useEffect(() => {
   const getRoleBasedRedirect = useCallback((role?: string, profileComplete?: boolean, authorized?: boolean) => {
     const r = role || profile?.role;
     const isComplete = profileComplete ?? profile?.profile_complete;
-    const isAuthorized = authorized ?? (r === 'attendee' ? profile?.authorized === true : true);
+    // Only false means unauthorized, null/undefined/true means authorized
+    const isAuthorized = authorized ?? (r === 'attendee' ? profile?.authorized !== false : true);
 
     // Check authorization first (only for attendees)
     if (r === 'attendee' && !isAuthorized) {
