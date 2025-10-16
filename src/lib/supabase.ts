@@ -398,201 +398,6 @@ export const addSessionEntryBonusForAttendee = async (attendeeId: string, sessio
   }
 };
 
-// In supabase.ts - Fix the signUpUser function
-export const signUpUser = async (email: string, password: string, userData: any) => {
-  try {
-    console.log('Starting auth user creation (two-step flow)...');
-    
-    // Step 1: Create auth user only using Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: email.trim().toLowerCase(),
-      password: password,
-      options: {
-        data: {
-          first_name: userData.first_name,
-          last_name: userData.last_name,
-          role: userData.role || 'attendee'
-        }
-      }
-    });
-
-    if (authError) {
-      console.error('Auth user creation error:', authError);
-      return {
-        success: false,
-        data: null,
-        error: {
-          message: authError.message,
-          validationErrors: [authError.message]
-        }
-      };
-    }
-
-    if (!authData.user) {
-      console.error('No user returned from auth creation');
-      return {
-        success: false,
-        data: null,
-        error: {
-          message: 'Failed to create user account',
-          validationErrors: ['User creation failed']
-        }
-      };
-    }
-
-    console.log('✅ Auth user created successfully:', authData.user.id);
-
-    // Step 2: Create basic profile with the auth user's ID
-    const profileData = {
-      id: authData.user.id, // CRITICAL: Use the auth user's ID as foreign key
-      email: email.trim().toLowerCase(),
-      first_name: userData.first_name,
-      last_name: userData.last_name,
-      role: userData.role || 'attendee',
-      personal_id: null,
-      phone: null,
-      university: null,
-      faculty: null,
-      gender: null,
-      nationality: null,
-      degree_level: null,
-      program: null,
-      class: null,
-      how_did_hear_about_event: null,
-      volunteer_id: null,
-      university_id_path: null,
-      cv_path: null,
-      score: 0,
-      qr_code: null,
-      building_entry: false,
-      event_entry: false,
-      tl_team: null,
-      profile_complete: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-
-    console.log('Creating profile with ID:', authData.user.id);
-    console.log('Profile data:', profileData);
-    
-    const { data: profileDataResult, error: profileError } = await supabase
-      .from('users_profiles')
-      .insert([profileData])
-      .select()
-      .single();
-
-    if (profileError) {
-      console.error('❌ Profile creation error:', profileError);
-      
-      // Check if it's a foreign key constraint error
-      if (profileError.code === '23503') {
-        console.error('Foreign key constraint violation - auth user might not exist in database yet');
-      }
-      
-      // Even if profile creation fails, return success since auth user was created
-      console.warn('⚠️ Auth user created but profile creation failed. User can complete profile later.');
-      
-      return {
-        success: true,
-        data: {
-          user: authData.user,
-          profile: null,
-          session: authData.session
-        },
-        error: null
-      };
-    }
-
-    console.log('✅ Profile created successfully:', profileDataResult);
-
-    // Step 3: Try to auto-sign in (but don't block on errors)
-    try {
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
-        password: password
-      });
-
-      if (signInError) {
-        console.warn('Auto-signin failed:', signInError);
-      } else {
-        console.log('✅ Auto-signin successful');
-        return {
-          success: true,
-          data: {
-            user: signInData.user,
-            profile: profileDataResult,
-            session: signInData.session
-          },
-          error: null
-        };
-      }
-    } catch (signInError) {
-      console.warn('Auto-signin exception:', signInError);
-    }
-
-    // Return success even if auto-signin fails
-    return {
-      success: true,
-      data: {
-        user: authData.user,
-        profile: profileDataResult,
-        session: authData.session
-      },
-      error: null
-    };
-
-  } catch (error: any) {
-    console.error('💥 Registration error:', error);
-    return {
-      success: false,
-      data: null,
-      error: {
-        message: error.message || 'Registration failed'
-      }
-    };
-  }
-};
-export const checkUserAuthorizationStatus = async (userId: string): Promise<boolean> => {
-  try {
-    const { data, error } = await supabase
-      .from('users_profiles')
-      .select('authorized')
-      .eq('id', userId)
-      .single();
-
-    if (error) {
-      console.error('Error checking user authorization status:', error);
-      return false;
-    }
-
-    return data.authorized === true;
-  } catch (error: any) {
-    console.error('Check user authorization status exception:', error);
-    return false;
-  }
-};
-export const updateUserAuthorization = async (userId: string, authorized: boolean) => {
-  try {
-    const { data, error } = await supabase
-      .from('users_profiles')
-      .update({ 
-        authorized: authorized,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', userId)
-      .select();
-
-    if (error) {
-      console.error('Error updating user authorization:', error);
-      return { data: null, error };
-    }
-
-    return { data: data[0], error: null };
-  } catch (error: any) {
-    console.error('Update user authorization exception:', error);
-    return { data: null, error: { message: error.message } };
-  }
-};
 export const signUpUser = async (email: string, password: string, userData: any) => {
   try {
     console.log('Starting auth user creation (two-step flow)...');
@@ -757,6 +562,48 @@ export const signUpUser = async (email: string, password: string, userData: any)
     };
   }
 };
+export const checkUserAuthorizationStatus = async (userId: string): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from('users_profiles')
+      .select('authorized')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('Error checking user authorization status:', error);
+      return false;
+    }
+
+    return data.authorized === true;
+  } catch (error: any) {
+    console.error('Check user authorization status exception:', error);
+    return false;
+  }
+};
+export const updateUserAuthorization = async (userId: string, authorized: boolean) => {
+  try {
+    const { data, error } = await supabase
+      .from('users_profiles')
+      .update({ 
+        authorized: authorized,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId)
+      .select();
+
+    if (error) {
+      console.error('Error updating user authorization:', error);
+      return { data: null, error };
+    }
+
+    return { data: data[0], error: null };
+  } catch (error: any) {
+    console.error('Update user authorization exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
 export const completeProfile = async (userId: string, profileData: any) => {
   try {
     console.log('Completing profile for user:', userId);
