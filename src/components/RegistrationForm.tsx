@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { RegistrationData, ValidationError, FileUpload as FileUploadType } from '../types';
 import { FACULTIES, CLASS_YEARS, HOW_DID_YOU_HEAR_OPTIONS } from '../utils/constants';
 import { validatePhone, validatePersonalId, validateVolunteerId } from '../utils/validation';
-import { uploadFile, cleanupUploadedFiles, supabase } from '../lib/supabase';
+import { uploadFile, cleanupUploadedFiles, supabase, completeProfile } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { AuthTransition } from '../components/AuthTransition';
 import { saveFormCache, loadFormCache, clearFormCache } from '../utils/formCache';
