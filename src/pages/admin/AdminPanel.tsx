@@ -1190,22 +1190,24 @@ const handleEditEvent = (event: EventItem) => {
       }
 
       const updateData = {
-        name: editCompany.name,
-        logo_url: logoUrl,
-        description: editCompany.description,
-        website: editCompany.website,
-        booth_number: editCompany.boothNumber,
-        partner_type: editCompany.partnerType,
-        academic_faculties_seeking_for: editSelectedAcademicFaculties.length > 0 ? editSelectedAcademicFaculties : null,
-        vacancies_type: editSelectedVacanciesTypes.length > 0 ? editSelectedVacanciesTypes : null,
-      };
+      name: editCompany.name,
+      logo_url: logoUrl,
+      description: editCompany.description,
+      website: editCompany.website,
+      booth_number: editCompany.boothNumber,
+      partner_type: editCompany.partnerType,
+      academic_faculties_seeking_for: editSelectedAcademicFaculties.length > 0 ? editSelectedAcademicFaculties : null,
+      vacancies_type: editSelectedVacanciesTypes.length > 0 ? editSelectedVacanciesTypes : null,
+      days: editSelectedDays.length > 0 ? editSelectedDays : null, // Add this
+      hr_mails: editHrEmails.length > 0 ? editHrEmails : null, // Add this
+    };
 
-      const { error } = await supabase.from("companies").update(updateData).eq('id', editCompany.id);
+    const { error } = await supabase.from("companies").update(updateData).eq('id', editCompany.id);
 
-       if (error) {
+    if (error) {
       showFeedback("Failed to update company", "error");
     } else {
-      setEditCompanyModal(false); // Close edit modal
+      setEditCompanyModal(false);
       setEditCompany({
         id: "",
         name: "",
@@ -1218,9 +1220,13 @@ const handleEditEvent = (event: EventItem) => {
         partnerType: "",
         academicFaculties: [],
         vacanciesType: [],
+        days: [], // Reset
+        hrMails: [], // Reset
       });
       setEditSelectedAcademicFaculties([]);
       setEditSelectedVacanciesTypes([]);
+      setEditSelectedDays([]); // Reset
+      setEditHrEmails([]); // Reset
       showFeedback("Company updated successfully!", "success");
       await fetchCompanies();
     }
