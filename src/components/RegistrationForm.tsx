@@ -358,163 +358,170 @@ export const RegistrationForm: React.FC = () => {
   };
 
   // OPTIMIZED: Direct redirection without success screen
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+// In RegistrationForm.tsx - Update the handleSubmit function
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  // Prevent double submission
+  if (loading) return;
+  
+  const allErrors = await Promise.all([1, 2, 3].map(section => validateSection(section)))
+    .then(errorArrays => errorArrays.flat());
     
-    // Prevent double submission
-    if (loading) return;
-    
-    const allErrors = await Promise.all([1, 2, 3].map(section => validateSection(section)))
-      .then(errorArrays => errorArrays.flat());
-      
+  if (allErrors.length > 0) {
+    setErrors(allErrors);
     if (allErrors.length > 0) {
-      setErrors(allErrors);
-      if (allErrors.length > 0) {
-        showErrorPopup(allErrors[0].message, 'error');
-      }
-      
-      const sectionMap: Record<string, number> = {
-        firstName: 1, lastName: 1, gender: 1, nationality: 1,
-        phone: 1, personalId: 1,
-        university: 2, faculty: 2, degreeLevel: 2,
-        program: 2, classYear: 2,
-        howDidYouHear: 3, volunteerId: 3, universityId: 3
-      };
+      showErrorPopup(allErrors[0].message, 'error');
+    }
+    
+    const sectionMap: Record<string, number> = {
+      firstName: 1, lastName: 1, gender: 1, nationality: 1,
+      phone: 1, personalId: 1,
+      university: 2, faculty: 2, degreeLevel: 2,
+      program: 2, classYear: 2,
+      howDidYouHear: 3, volunteerId: 3, universityId: 3
+    };
 
-      const firstErrorSection = Math.min(
-        ...allErrors.map(error => sectionMap[error.field] ?? 1)
-      );
-      setCurrentSection(firstErrorSection);
-      return;
+    const firstErrorSection = Math.min(
+      ...allErrors.map(error => sectionMap[error.field] ?? 1)
+    );
+    setCurrentSection(firstErrorSection);
+    return;
+  }
+
+  setLoading(true);
+  setErrors([]);
+  setShowAuthTransition(true);
+
+  const uploadedFiles: { bucket: string; path: string }[] = [];
+
+  try {
+    if (!user?.id) {
+      throw new Error('User not authenticated');
     }
 
-    setLoading(true);
-    setErrors([]);
-    setShowAuthTransition(true);
+    // Prepare profile data for completeProfile function
+    const profileData = {
+      first_name: formData.firstName.trim(),
+      last_name: formData.lastName.trim(),
+      gender: formData.gender,
+      nationality: formData.nationality,
+      phone: formData.phone.trim(),
+      personal_id: formData.personalId.trim(),
+      university: formData.university === 'Other' ? formData.customUniversity : formData.university,
+      faculty: formData.faculty,
+      degree_level: formData.degreeLevel,
+      program: formData.program,
+      class: formData.degreeLevel === 'student' ? formData.classYear : null,
+      how_did_hear_about_event: formData.howDidYouHear,
+      reg_id: formData.volunteerId?.trim() || null,
+      university_id_path: null,
+      cv_path: null,
+      profile_complete: true,
+      role: 'attendee',
+      updated_at: new Date().toISOString()
+    };
 
-    const uploadedFiles: { bucket: string; path: string }[] = [];
-
-    try {
-      if (!user?.id) {
-        throw new Error('User not authenticated');
-      }
-
-      const profileData = {
-        id: user.id,
-        first_name: formData.firstName.trim(),
-        last_name: formData.lastName.trim(),
-        gender: formData.gender,
-        nationality: formData.nationality,
-        phone: formData.phone.trim(),
-        personal_id: formData.personalId.trim(),
-        university: formData.university === 'Other' ? formData.customUniversity : formData.university,
-        faculty: formData.faculty,
-        degree_level: formData.degreeLevel,
-        program: formData.program,
-        class: formData.degreeLevel === 'student' ? formData.classYear : null,
-        how_did_hear_about_event: formData.howDidYouHear,
-        reg_id: formData.volunteerId?.trim() || null,
-        university_id_path: null,
-        cv_path: null,
-        profile_complete: true, // CRITICAL: Set profile_complete to true
-        role: 'attendee', // CRITICAL: Ensure role is set to attendee
-        updated_at: new Date().toISOString()
-      };
-
-      const fileUpdates: { university_id_path?: string; cv_path?: string } = {};
-      
-      if (fileUploads.universityId) {
-        const uniResult = await uploadFile('university-ids', user.id, fileUploads.universityId);
-        if (uniResult && 'error' in uniResult && uniResult.error) {
-          showErrorPopup('Failed to upload University ID. Please try again.', 'error');
-          await cleanupUploadedFiles(uploadedFiles);
-          setShowAuthTransition(false);
-          setLoading(false);
-          return;
-        } else if (uniResult && 'data' in uniResult && uniResult.data) {
-          fileUpdates.university_id_path = uniResult.data.path;
-          if (uniResult.data.path) {
-            uploadedFiles.push({ bucket: 'university-ids', path: uniResult.data.path });
-          }
-        }
-      }
-
-      if (fileUploads.resume) {
-        const resumeResult = await uploadFile('cvs', user.id, fileUploads.resume);
-        if (resumeResult && 'data' in resumeResult && resumeResult.data) {
-          fileUpdates.cv_path = resumeResult.data.path;
-          if (resumeResult.data.path) {
-            uploadedFiles.push({ bucket: 'cvs', path: resumeResult.data.path });
-          }
-        }
-      }
-
-      const profileDataWithFiles = {
-        ...profileData,
-        ...fileUpdates,
-        reg_id: formData.volunteerId?.trim() || null
-      };
-
-      const { data: existingProfile, error: checkError } = await supabase
-        .from('users_profiles')
-        .select('id')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      let updateError = null;
-
-      if (existingProfile) {
-        const { error } = await supabase
-          .from('users_profiles')
-          .update(profileDataWithFiles)
-          .eq('id', user.id);
-        updateError = error;
-      } else {
-        const { error } = await supabase
-          .from('users_profiles')
-          .insert([profileDataWithFiles]);
-        updateError = error;
-      }
-
-      if (updateError) {
-        if (updateError.code === '23505' && updateError.message?.includes('personal_id')) {
-          showErrorPopup("This Personal ID is already registered. Please use a different ID.", 'error');
-        } else {
-          showErrorPopup("Failed to save profile. Please try again.", 'error');
-        }
-        
+    // Upload files first
+    const fileUpdates: { university_id_path?: string; cv_path?: string } = {};
+    
+    if (fileUploads.universityId) {
+      const uniResult = await uploadFile('university-ids', user.id, fileUploads.universityId);
+      if (uniResult && 'error' in uniResult && uniResult.error) {
+        showErrorPopup('Failed to upload University ID. Please try again.', 'error');
         await cleanupUploadedFiles(uploadedFiles);
         setShowAuthTransition(false);
         setLoading(false);
         return;
+      } else if (uniResult && 'data' in uniResult && uniResult.data) {
+        fileUpdates.university_id_path = uniResult.data.path;
+        if (uniResult.data.path) {
+          uploadedFiles.push({ bucket: 'university-ids', path: uniResult.data.path });
+        }
       }
+    }
 
-      // Clear the form cache after successful submission
-      if (user?.id) {
-        clearFormCache(`registration_${user.id}`);
+    if (fileUploads.resume) {
+      const resumeResult = await uploadFile('cvs', user.id, fileUploads.resume);
+      if (resumeResult && 'data' in resumeResult && resumeResult.data) {
+        fileUpdates.cv_path = resumeResult.data.path;
+        if (resumeResult.data.path) {
+          uploadedFiles.push({ bucket: 'cvs', path: resumeResult.data.path });
+        }
       }
+    }
 
-      // CRITICAL: Refresh profile and wait for it to complete
-      await refreshProfile();
+    // Add file paths to profile data
+    const profileDataWithFiles = {
+      ...profileData,
+      ...fileUpdates,
+      reg_id: formData.volunteerId?.trim() || null
+    };
 
-      // Add a small delay to ensure state is updated
-      await new Promise(resolve => setTimeout(resolve, 300));
+    // Use the completeProfile function which includes authorization check
+    const completeProfileResult = await completeProfile(user.id, profileDataWithFiles);
 
-      setShowAuthTransition(false);
-
-      // DIRECT REDIRECTION: Navigate immediately without showing success screen
-      console.log('✅ Registration complete, redirecting directly to dashboard');
-      navigate('/attendee', { replace: true });
-
-    } catch (error: unknown) {
-      console.error("Profile completion error:", error);
+    if (completeProfileResult.error) {
+      if (completeProfileResult.error.message?.includes('23505') || completeProfileResult.error.message?.includes('personal_id')) {
+        showErrorPopup("This Personal ID is already registered. Please use a different ID.", 'error');
+      } else {
+        showErrorPopup("Failed to save profile. Please try again.", 'error');
+      }
+      
       await cleanupUploadedFiles(uploadedFiles);
-      showErrorPopup("An unexpected error occurred. Please try again.", 'error');
       setShowAuthTransition(false);
       setLoading(false);
+      return;
     }
-  };
 
+    // Check if user is authorized after profile completion
+    if (completeProfileResult.data && completeProfileResult.data.isAuthorized === false) {
+      // User is not authorized - show error and sign out
+      await cleanupUploadedFiles(uploadedFiles);
+      setShowAuthTransition(false);
+      setLoading(false);
+      
+      // Sign out the user
+      await signOut();
+      
+      // Show authorization error
+      showErrorPopup(
+        'Sorry, you didn\'t meet the event requirements. Only Ain Shams University students/graduates or graduates from specific universities are eligible.',
+        'error'
+      );
+      
+      // Redirect to login after a delay
+      setTimeout(() => {
+        navigate('/login', { replace: true });
+      }, 5000);
+      return;
+    }
+
+    // Clear the form cache after successful submission
+    if (user?.id) {
+      clearFormCache(`registration_${user.id}`);
+    }
+
+    // CRITICAL: Refresh profile and wait for it to complete
+    await refreshProfile();
+
+    // Add a small delay to ensure state is updated
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    setShowAuthTransition(false);
+
+    // User is authorized - proceed to dashboard
+    console.log('✅ Registration complete, user is authorized, redirecting to dashboard');
+    navigate('/attendee', { replace: true });
+
+  } catch (error: unknown) {
+    console.error("Profile completion error:", error);
+    await cleanupUploadedFiles(uploadedFiles);
+    showErrorPopup("An unexpected error occurred. Please try again.", 'error');
+    setShowAuthTransition(false);
+    setLoading(false);
+  }
+};
   const getFieldError = (field: string) => {
     return errors.find(error => error.field === field)?.message;
   };
