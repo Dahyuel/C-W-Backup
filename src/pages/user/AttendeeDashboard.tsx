@@ -1730,205 +1730,206 @@ const renderSessionCards = (sessionsToRender: Session[], sessionType: 'building'
           document.body
         )}
 
-        {/* Session Details Modal */}
-        {showSessionModal && selectedSession && createPortal(
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
+       {/* Session Details Modal */}
+{showSessionModal && selectedSession && createPortal(
+  <div 
+    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
+    onClick={() => {
+      setShowSessionModal(false);
+      setSelectedSession(null);
+      setBookingError(null);
+      setBookingSuccess(null);
+    }}
+  >
+    <div 
+      className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="p-6 stagger-children">
+        <div className="flex items-center justify-between mb-6 fade-in-blur">
+          <h2 className="text-xl font-bold text-gray-900">Session Details</h2>
+          <button
             onClick={() => {
               setShowSessionModal(false);
               setSelectedSession(null);
               setBookingError(null);
               setBookingSuccess(null);
             }}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <div 
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-6 stagger-children">
-                <div className="flex items-center justify-between mb-6 fade-in-blur">
-                  <h2 className="text-xl font-bold text-gray-900">Session Details</h2>
-                  <button
-                    onClick={() => {
-                      setShowSessionModal(false);
-                      setSelectedSession(null);
-                      setBookingError(null);
-                      setBookingSuccess(null);
-                    }}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <X className="h-6 w-6" />
-                  </button>
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="fade-in-blur">
+            <h3 className="text-lg font-semibold text-gray-900">{selectedSession.title}</h3>
+            <p className="text-gray-600 mt-2">{selectedSession.description}</p>
+          </div>
+
+          {/* Only show speaker for Building Sessions, not for Open Recruitment */}
+          {selectedSession.day && selectedSession.day <= 3 && selectedSession.speaker && (
+            <div className="fade-in-blur">
+              <label className="block text-sm font-medium text-gray-700">Speaker</label>
+              <p className="text-gray-900">{selectedSession.speaker}</p>
+            </div>
+          )}
+
+          <div className="fade-in-blur">
+            <label className="block text-sm font-medium text-gray-700">Date & Time</label>
+            <p className="text-gray-900">
+              {new Date(selectedSession.start_time).toLocaleDateString()} at{' '}
+              {new Date(selectedSession.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </p>
+          </div>
+
+          <div className="fade-in-blur">
+            <label className="block text-sm font-medium text-gray-700">Location</label>
+            <p className="text-gray-900">{selectedSession.location}</p>
+          </div>
+
+          <div className="fade-in-blur">
+            <label className="block text-sm font-medium text-gray-700">Capacity</label>
+            <p className="text-gray-900">
+              {selectedSession.current_bookings || 0} / {selectedSession.max_attendees || 'Unlimited'} booked
+            </p>
+          </div>
+
+          {/* Faculty Eligibility Warning */}
+          {(() => {
+            let canBookResult;
+            if (selectedSession.day && selectedSession.day <= 3) {
+              canBookResult = canBookBuildingSession(selectedSession);
+            } else {
+              canBookResult = canBookRecruitmentSession(selectedSession);
+            }
+            
+            if (!canBookResult.canBook) {
+              return (
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg fade-in-blur">
+                  <div className="flex items-start">
+                    <BookOpen className="h-5 w-5 text-gray-500 mr-2 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-gray-800 font-medium text-sm">Not Eligible</p>
+                      <p className="text-gray-700 text-xs mt-1">{canBookResult.reason}</p>
+                    </div>
+                  </div>
                 </div>
+              );
+            }
+            return null;
+          })()}
 
-                <div className="space-y-4">
-                  <div className="fade-in-blur">
-                    <h3 className="text-lg font-semibold text-gray-900">{selectedSession.title}</h3>
-                    <p className="text-gray-600 mt-2">{selectedSession.description}</p>
-                  </div>
-
-                  {selectedSession.speaker && (
-                    <div className="fade-in-blur">
-                      <label className="block text-sm font-medium text-gray-700">Speaker</label>
-                      <p className="text-gray-900">{selectedSession.speaker}</p>
-                    </div>
-                  )}
-
-                  <div className="fade-in-blur">
-                    <label className="block text-sm font-medium text-gray-700">Date & Time</label>
-                    <p className="text-gray-900">
-                      {new Date(selectedSession.start_time).toLocaleDateString()} at{' '}
-                      {new Date(selectedSession.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </p>
-                  </div>
-
-                  <div className="fade-in-blur">
-                    <label className="block text-sm font-medium text-gray-700">Location</label>
-                    <p className="text-gray-900">{selectedSession.location}</p>
-                  </div>
-
-                  <div className="fade-in-blur">
-                    <label className="block text-sm font-medium text-gray-700">Capacity</label>
-                    <p className="text-gray-900">
-                      {selectedSession.current_bookings || 0} / {selectedSession.max_attendees || 'Unlimited'} booked
-                    </p>
-                  </div>
-
-                  {/* Faculty Eligibility Warning */}
-                  {(() => {
-                    let canBookResult;
-                    if (selectedSession.day && selectedSession.day <= 3) {
-                      canBookResult = canBookBuildingSession(selectedSession);
-                    } else {
-                      canBookResult = canBookRecruitmentSession(selectedSession);
-                    }
-                    
-                    if (!canBookResult.canBook) {
-                      return (
-                        <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg fade-in-blur">
-                          <div className="flex items-start">
-                            <BookOpen className="h-5 w-5 text-gray-500 mr-2 flex-shrink-0 mt-0.5" />
-                            <div>
-                              <p className="text-gray-800 font-medium text-sm">Not Eligible</p>
-                              <p className="text-gray-700 text-xs mt-1">{canBookResult.reason}</p>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    }
-                    return null;
-                  })()}
-
-                  {/* Time Conflict Warning */}
-                  {!isSessionBooked(selectedSession.id) && hasOverlappingBooking(selectedSession).hasOverlap && (
-                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg fade-in-blur">
-                      <div className="flex items-start">
-                        <Clock className="h-5 w-5 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-yellow-800 font-medium text-sm">Time Conflict</p>
-                          <p className="text-yellow-700 text-xs mt-1">
-                            You already have a booking at this time. Please cancel your existing booking first.
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Booking Status */}
-                  <div className="pt-4 border-t border-gray-200 fade-in-blur">
-                    {isSessionBooked(selectedSession.id) ? (
-                      <div className="flex items-center p-3 bg-green-50 rounded-lg">
-                        <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                        <span className="text-green-800 font-medium">You have booked this session</span>
-                      </div>
-                    ) : isSessionFull(selectedSession) ? (
-                      <div className="flex items-center p-3 bg-red-50 rounded-lg">
-                        <XCircle className="h-5 w-5 text-red-500 mr-2" />
-                        <span className="text-red-800 font-medium">This session is fully booked</span>
-                      </div>
-                    ) : hasOverlappingBooking(selectedSession).hasOverlap ? (
-                      <div className="flex items-center p-3 bg-yellow-50 rounded-lg">
-                        <Clock className="h-5 w-5 text-yellow-500 mr-2" />
-                        <span className="text-yellow-800 font-medium">You have a conflicting booking</span>
-                      </div>
-                    ) : (() => {
-                      let canBookResult;
-                      if (selectedSession.day && selectedSession.day <= 3) {
-                        canBookResult = canBookBuildingSession(selectedSession);
-                      } else {
-                        canBookResult = canBookRecruitmentSession(selectedSession);
-                      }
-                      return !canBookResult.canBook ? (
-                        <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                          <BookOpen className="h-5 w-5 text-gray-500 mr-2" />
-                          <span className="text-gray-800 font-medium">Not eligible for this session</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center p-3 bg-blue-50 rounded-lg">
-                          <Users className="h-5 w-5 text-blue-500 mr-2" />
-                          <span className="text-blue-800 font-medium">Available for booking</span>
-                        </div>
-                      );
-                    })()}
-                  </div>
-
-                  {/* Error/Success Messages */}
-                  {bookingError && (
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg fade-in-blur">
-                      <p className="text-red-700 text-sm">{bookingError}</p>
-                    </div>
-                  )}
-                  {bookingSuccess && (
-                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg fade-in-blur">
-                      <p className="text-green-700 text-sm">{bookingSuccess}</p>
-                    </div>
-                  )}
-
-                  {/* Action Buttons */}
-                  <div className="pt-4 space-y-3 fade-in-blur">
-                    {isSessionBooked(selectedSession.id) ? (
-                      <button
-                        onClick={() => handleCancelBooking(selectedSession.id)}
-                        disabled={bookingLoading}
-                        className="w-full bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {bookingLoading ? 'Cancelling...' : 'Cancel Booking'}
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => handleBookSession(selectedSession.id)}
-                        disabled={bookingLoading || isSessionFull(selectedSession) || hasOverlappingBooking(selectedSession).hasOverlap || (() => {
-                          let canBookResult;
-                          if (selectedSession.day && selectedSession.day <= 3) {
-                            canBookResult = canBookBuildingSession(selectedSession);
-                          } else {
-                            canBookResult = canBookRecruitmentSession(selectedSession);
-                          }
-                          return !canBookResult.canBook;
-                        })()}
-                        className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {bookingLoading ? 'Booking...' : 
-                         isSessionFull(selectedSession) ? 'Session Full' : 
-                         hasOverlappingBooking(selectedSession).hasOverlap ? 'Time Conflict' : 
-                         (() => {
-                           let canBookResult;
-                           if (selectedSession.day && selectedSession.day <= 3) {
-                             canBookResult = canBookBuildingSession(selectedSession);
-                           } else {
-                             canBookResult = canBookRecruitmentSession(selectedSession);
-                           }
-                           return !canBookResult.canBook ? 'Not Eligible' : 'Book Now';
-                         })()}
-                      </button>
-                    )}
-                  </div>
+          {/* Time Conflict Warning */}
+          {!isSessionBooked(selectedSession.id) && hasOverlappingBooking(selectedSession).hasOverlap && (
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg fade-in-blur">
+              <div className="flex items-start">
+                <Clock className="h-5 w-5 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-yellow-800 font-medium text-sm">Time Conflict</p>
+                  <p className="text-yellow-700 text-xs mt-1">
+                    You already have a booking at this time. Please cancel your existing booking first.
+                  </p>
                 </div>
               </div>
             </div>
-          </div>,
-          document.body
-        )}
+          )}
+
+          {/* Booking Status */}
+          <div className="pt-4 border-t border-gray-200 fade-in-blur">
+            {isSessionBooked(selectedSession.id) ? (
+              <div className="flex items-center p-3 bg-green-50 rounded-lg">
+                <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                <span className="text-green-800 font-medium">You have booked this session</span>
+              </div>
+            ) : isSessionFull(selectedSession) ? (
+              <div className="flex items-center p-3 bg-red-50 rounded-lg">
+                <XCircle className="h-5 w-5 text-red-500 mr-2" />
+                <span className="text-red-800 font-medium">This session is fully booked</span>
+              </div>
+            ) : hasOverlappingBooking(selectedSession).hasOverlap ? (
+              <div className="flex items-center p-3 bg-yellow-50 rounded-lg">
+                <Clock className="h-5 w-5 text-yellow-500 mr-2" />
+                <span className="text-yellow-800 font-medium">You have a conflicting booking</span>
+              </div>
+            ) : (() => {
+              let canBookResult;
+              if (selectedSession.day && selectedSession.day <= 3) {
+                canBookResult = canBookBuildingSession(selectedSession);
+              } else {
+                canBookResult = canBookRecruitmentSession(selectedSession);
+              }
+              return !canBookResult.canBook ? (
+                <div className="flex items-center p-3 bg-gray-50 rounded-lg">
+                  <BookOpen className="h-5 w-5 text-gray-500 mr-2" />
+                  <span className="text-gray-800 font-medium">Not eligible for this session</span>
+                </div>
+              ) : (
+                <div className="flex items-center p-3 bg-blue-50 rounded-lg">
+                  <Users className="h-5 w-5 text-blue-500 mr-2" />
+                  <span className="text-blue-800 font-medium">Available for booking</span>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Error/Success Messages */}
+          {bookingError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg fade-in-blur">
+              <p className="text-red-700 text-sm">{bookingError}</p>
+            </div>
+          )}
+          {bookingSuccess && (
+            <div className="p-3 bg-green-50 border border-green-200 rounded-lg fade-in-blur">
+              <p className="text-green-700 text-sm">{bookingSuccess}</p>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="pt-4 space-y-3 fade-in-blur">
+            {isSessionBooked(selectedSession.id) ? (
+              <button
+                onClick={() => handleCancelBooking(selectedSession.id)}
+                disabled={bookingLoading}
+                className="w-full bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {bookingLoading ? 'Cancelling...' : 'Cancel Booking'}
+              </button>
+            ) : (
+              <button
+                onClick={() => handleBookSession(selectedSession.id)}
+                disabled={bookingLoading || isSessionFull(selectedSession) || hasOverlappingBooking(selectedSession).hasOverlap || (() => {
+                  let canBookResult;
+                  if (selectedSession.day && selectedSession.day <= 3) {
+                    canBookResult = canBookBuildingSession(selectedSession);
+                  } else {
+                    canBookResult = canBookRecruitmentSession(selectedSession);
+                  }
+                  return !canBookResult.canBook;
+                })()}
+                className="w-full bg-orange-500 text-white py-2 px-4 rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {bookingLoading ? 'Booking...' : 
+                 isSessionFull(selectedSession) ? 'Session Full' : 
+                 hasOverlappingBooking(selectedSession).hasOverlap ? 'Time Conflict' : 
+                 (() => {
+                   let canBookResult;
+                   if (selectedSession.day && selectedSession.day <= 3) {
+                     canBookResult = canBookBuildingSession(selectedSession);
+                   } else {
+                     canBookResult = canBookRecruitmentSession(selectedSession);
+                   }
+                   return !canBookResult.canBook ? 'Not Eligible' : 'Book Now';
+                 })()}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
 {/* Company Details Modal */}
 {showCompanyModal && selectedCompany && createPortal(
   <div 
