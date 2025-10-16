@@ -3297,86 +3297,94 @@ const handleRemoveEditHrEmail = (index: number) => {
             </div>
           )}
 
-          {/* Companies Tab - Responsive */}
-          {activeTab === "companies" && (
-            <div className="fade-in-blur">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center mb-4 sm:mb-0 fade-in-blur">
-                  <Building className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600" /> Companies Management
-                </h2>
-                <button
-                  onClick={() => setCompanyModal(true)}
-                  className="flex items-center px-3 sm:px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-all duration-300 smooth-hover fade-in-blur"
+         {/* Companies Tab - Responsive */}
+{activeTab === "companies" && (
+  <div className="fade-in-blur">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6">
+      <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center mb-4 sm:mb-0 fade-in-blur">
+        <Building className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600" /> Companies Management
+      </h2>
+      <button
+        onClick={() => setCompanyModal(true)}
+        className="flex items-center px-3 sm:px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-all duration-300 smooth-hover fade-in-blur"
+      >
+        <Plus className="h-4 w-4 mr-2" />
+        <span className="text-sm sm:text-base">Add Company</span>
+      </button>
+    </div>
+
+    <div className="space-y-6 sm:space-y-8">
+      {PARTNER_TYPES.map((partnerType) => {
+        const partnerCompanies = companies.filter(company => 
+          company.partner_type === partnerType
+        );
+        
+        if (partnerCompanies.length === 0) return null;
+        
+        return (
+          <div key={partnerType} className="fade-in-blur">
+            <h3 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">
+              {partnerType}
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 stagger-children">
+              {partnerCompanies.map((company) => (
+                <div 
+                  key={company.id} 
+                  className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 hover:shadow-md transition-all duration-300 smooth-hover card-hover fade-in-blur"
                 >
-                  <Plus className="h-4 w-4 mr-2" />
-                  <span className="text-sm sm:text-base">Add Company</span>
-                </button>
-              </div>
+                  <div className="text-center">
+                    <img 
+                      src={company.logo_url} 
+                      alt={`${company.name} logo`} 
+                      className="h-12 sm:h-16 w-auto mx-auto mb-3 sm:mb-4 object-contain"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/64x64/orange/white?text=Logo";
+                      }}
+                    />
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2">{company.name}</h3>
+                    
+                    {/* Partner Type Badge */}
+                    {company.partner_type && (
+                      <div className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 mb-2">
+                        {company.partner_type}
+                      </div>
+                    )}
+                    
+                    {/* ADD THE DAYS BADGE RIGHT HERE - after partner type badge */}
+                    {/* Days Badge */}
+                    {company.days && company.days.length > 0 && (
+                      <div className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mb-2 ml-1 sm:ml-2">
+                        Days: {company.days.join(',')}
+                      </div>
+                    )}
+                    
+                    {company.booth_number && (
+                      <div className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 mb-3 sm:mb-4 ml-1 sm:ml-2">
+                          Booth {company.booth_number}
+                      </div>
+                    )}
 
-              <div className="space-y-6 sm:space-y-8">
-                {PARTNER_TYPES.map((partnerType) => {
-                  const partnerCompanies = companies.filter(company => 
-                    company.partner_type === partnerType
-                  );
-                  
-                  if (partnerCompanies.length === 0) return null;
-                  
-                  return (
-                    <div key={partnerType} className="fade-in-blur">
-                      <h3 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">
-                        {partnerType}
-                      </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 stagger-children">
-                        {partnerCompanies.map((company) => (
-                          <div 
-                            key={company.id} 
-                            className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 hover:shadow-md transition-all duration-300 smooth-hover card-hover fade-in-blur"
-                          >
-                            <div className="text-center">
-                              <img 
-                                src={company.logo_url} 
-                                alt={`${company.name} logo`} 
-                                className="h-12 sm:h-16 w-auto mx-auto mb-3 sm:mb-4 object-contain"
-                                onError={(e) => {
-                                  (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/64x64/orange/white?text=Logo";
-                                }}
-                              />
-                              <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2">{company.name}</h3>
-                              
-                              {/* Partner Type Badge */}
-                              {company.partner_type && (
-                                <div className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800 mb-2">
-                                  {company.partner_type}
-                                </div>
-                              )}
-                              
-                              {company.booth_number && (
-                                <div className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 mb-3 sm:mb-4 ml-1 sm:ml-2">
-                                  Booth {company.booth_number}
-                                </div>
-                              )}
-
-                              {/* Academic Faculties */}
-                              {company.academic_faculties_seeking_for && company.academic_faculties_seeking_for.length > 0 && (
-                                <div className="mb-2">
-                                  <div className="flex items-center text-xs text-gray-600 mb-1">
-                                    <BookOpen className="h-3 w-3 mr-1" />
-                                    <span className="font-medium">Faculties:</span>
-                                  </div>
-                                  <div className="flex flex-wrap gap-1">
-                                    {company.academic_faculties_seeking_for.slice(0, 2).map((faculty, index) => (
-                                      <span key={index} className="text-xs bg-blue-100 text-blue-800 px-1 py-0.5 rounded">
-                                        {faculty.split(' ').pop()}
-                                      </span>
-                                    ))}
-                                    {company.academic_faculties_seeking_for.length > 2 && (
-                                      <span className="text-xs bg-blue-100 text-blue-800 px-1 py-0.5 rounded">
-                                        +{company.academic_faculties_seeking_for.length - 2}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
+                    {/* Academic Faculties */}
+                    {company.academic_faculties_seeking_for && company.academic_faculties_seeking_for.length > 0 && (
+                      <div className="mb-2">
+                        <div className="flex items-center text-xs text-gray-600 mb-1">
+                          <BookOpen className="h-3 w-3 mr-1" />
+                          <span className="font-medium">Faculties:</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {company.academic_faculties_seeking_for.slice(0, 2).map((faculty, index) => (
+                            <span key={index} className="text-xs bg-blue-100 text-blue-800 px-1 py-0.5 rounded">
+                              {faculty.split(' ').pop()}
+                            </span>
+                          ))}
+                          {company.academic_faculties_seeking_for.length > 2 && (
+                            <span className="text-xs bg-blue-100 text-blue-800 px-1 py-0.5 rounded">
+                              +{company.academic_faculties_seeking_for.length - 2}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                               {/* Vacancies Type */}
                               {company.vacancies_type && company.vacancies_type.length > 0 && (
