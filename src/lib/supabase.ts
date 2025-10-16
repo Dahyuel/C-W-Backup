@@ -265,7 +265,42 @@ export const validateRegistrationWithEdgeFunction = async (
     };
   }
 };
-
+export const checkUniversityAuthorization = (university: string, degreeLevel?: string): boolean => {
+  if (!university) return false;
+  
+  // Always authorize Ain Shams University students and graduates
+  if (university.toLowerCase().includes('ain shams')) {
+    return true;
+  }
+  
+  // For other universities, only authorize graduates
+  const authorizedUniversities = [
+    'helwan university',
+    'banha university', 
+    'canadian ahram university',
+    'banha university' // Duplicate in your list, keeping it as is
+  ];
+  
+  const isAuthorizedUniversity = authorizedUniversities.some(authUni => 
+    university.toLowerCase().includes(authUni.toLowerCase())
+  );
+  
+  // For authorized universities, check if they are graduates
+  if (isAuthorizedUniversity) {
+    // If degree level is provided, check if it's graduate level
+    if (degreeLevel) {
+      const graduateLevels = ['graduate', 'masters', 'phd', 'doctoral', 'postgraduate'];
+      return graduateLevels.some(level => 
+        degreeLevel.toLowerCase().includes(level.toLowerCase())
+      );
+    }
+    // If no degree level provided, assume not authorized (need to be graduate)
+    return false;
+  }
+  
+  // For all other universities, not authorized
+  return false;
+};
 // Add building entry score for volunteer
 export const addBuildingEntryScoreForVolunteer = async (volunteerId: string, attendeeName: string) => {
   try {
