@@ -283,54 +283,60 @@ const validateAttendee = (attendee: any): { isValid: boolean; error?: string } =
     setShowScanner(false);
   };
 
-  const handleAttendanceAction = async (action: 'enter' | 'exit') => {
-    if (!selectedAttendee) return;
+const handleAttendanceAction = async (action: 'enter' | 'exit') => {
+  if (!selectedAttendee) return;
 
-    try {
-      setActionLoading(true);
-      
-      // Double-check validation before processing
-      const validation = validateAttendee(selectedAttendee);
-      if (!validation.isValid) {
-        showFeedback('error', validation.error || 'Cannot process action: validation failed');
-        return;
-      }
-
-      const { data, error } = await processAttendance(selectedAttendee.personal_id, action);
-
-      if (error) {
-        showFeedback('error', error.message || `Failed to process ${action}`);
-        return;
-      }
-
-      showFeedback('success', data.message || `${action.toUpperCase()} scan successful!`);
-      
-      // Update attendee status
-      const newStatus = action === 'enter' ? 'inside' : 'outside';
-      const newEventEntry = action === 'enter';
-      
-      setSelectedAttendee(prev => prev ? {
-        ...prev,
-        current_status: newStatus,
-        event_entry: newEventEntry,
-        last_scan: new Date().toISOString()
-      } : null);
-
-      // Close attendee card after successful action
-      setTimeout(() => {
-        setShowAttendeeCard(false);
-        setSelectedAttendee(null);
-        setValidationError(null);
-      }, 2000);
-
-    } catch (error) {
-      console.error("Attendance action error:", error);
-      showFeedback('error', `Failed to process ${action}`);
-    } finally {
-      setActionLoading(false);
+  try {
+    setActionLoading(true);
+    
+    // Double-check validation before processing
+    const validation = validateAttendee(selectedAttendee);
+    if (!validation.isValid) {
+      showFeedback('error', validation.error || 'Cannot process action: validation failed');
+      return;
     }
-  };
 
+    // Additional authorization check
+    const isAuthorized = selectedAttendee.authorized === true || selectedAttendee.authorized === 'true';
+    if (!isAuthorized) {
+      showFeedback('error', 'This attendee is not authorized to enter the event');
+      return;
+    }
+
+    const { data, error } = await processAttendance(selectedAttendee.personal_id, action);
+
+    if (error) {
+      showFeedback('error', error.message || `Failed to process ${action}`);
+      return;
+    }
+
+    showFeedback('success', data.message || `${action.toUpperCase()} scan successful!`);
+    
+    // Update attendee status
+    const newStatus = action === 'enter' ? 'inside' : 'outside';
+    const newEventEntry = action === 'enter';
+    
+    setSelectedAttendee(prev => prev ? {
+      ...prev,
+      current_status: newStatus,
+      event_entry: newEventEntry,
+      last_scan: new Date().toISOString()
+    } : null);
+
+    // Close attendee card after successful action
+    setTimeout(() => {
+      setShowAttendeeCard(false);
+      setSelectedAttendee(null);
+      setValidationError(null);
+    }, 2000);
+
+  } catch (error) {
+    console.error("Attendance action error:", error);
+    showFeedback('error', `Failed to process ${action}`);
+  } finally {
+    setActionLoading(false);
+  }
+};
   const clearSearch = () => {
     setSearchTerm("");
     setSearchResults([]);
