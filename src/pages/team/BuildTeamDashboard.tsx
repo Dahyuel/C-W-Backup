@@ -24,7 +24,18 @@ import {
   getAllSessions,
   searchAttendeesByPersonalId
 } from "../../lib/supabase";
-import { supabase } from "../../lib/supabase";
+import { 
+  processBuildingAttendance,
+  getAttendeeByPersonalId,
+  getAttendeeByUUID,
+  getAllSessions,
+  searchAttendeesByPersonalId,
+  // Add these new imports:
+  addBuildingEntryScoreForVolunteer,
+  addSessionEntryScoreForVolunteer,
+  addBuildingEntryBonusForAttendee,
+  addSessionEntryBonusForAttendee
+} from "../../lib/supabase";
 import { createPortal } from 'react-dom';
 
 interface Session {
