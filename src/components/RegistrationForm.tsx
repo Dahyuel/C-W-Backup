@@ -357,7 +357,6 @@ export const RegistrationForm: React.FC = () => {
     }, 100);
   };
 
-  // OPTIMIZED: Direct redirection without success screen
 // In RegistrationForm.tsx - Update the handleSubmit function
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -476,24 +475,22 @@ const handleSubmit = async (e: React.FormEvent) => {
 
     // Check if user is authorized after profile completion
     if (completeProfileResult.data && completeProfileResult.data.isAuthorized === false) {
-      // User is not authorized - show error and sign out
-      await cleanupUploadedFiles(uploadedFiles);
+      // User is not authorized - redirect to unauthorized page
+      console.log('🚫 User not authorized after profile completion, redirecting to unauthorized page');
+      
+      // Clear the form cache after submission
+      if (user?.id) {
+        clearFormCache(`registration_${user.id}`);
+      }
+
+      // Refresh profile to get the latest data
+      await refreshProfile();
+
       setShowAuthTransition(false);
       setLoading(false);
-      
-      // Sign out the user
-      await signOut();
-      
-      // Show authorization error
-      showErrorPopup(
-        'Sorry, you didn\'t meet the event requirements. Only Ain Shams University students/graduates or graduates from specific universities are eligible.',
-        'error'
-      );
-      
-      // Redirect to login after a delay
-      setTimeout(() => {
-        navigate('/login', { replace: true });
-      }, 5000);
+
+      // Redirect to unauthorized page instead of showing error
+      navigate('/unauthorized', { replace: true });
       return;
     }
 
