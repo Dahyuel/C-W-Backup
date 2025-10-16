@@ -966,6 +966,8 @@ export const getAttendeeByPersonalId = async (personalId: string) => {
         faculty,
         building_entry,
         event_entry,
+        profile_complete,
+        authorized, // ADD THIS LINE
         created_at
       `)
       .eq('personal_id', personalId.trim())
@@ -1008,6 +1010,8 @@ export const getAttendeeByUUID = async (uuid: string) => {
         faculty,
         building_entry,
         event_entry,
+        profile_complete,
+        authorized, // ADD THIS LINE
         created_at
       `)
       .eq('id', uuid.trim())
@@ -1054,6 +1058,8 @@ export const searchAttendeesByPersonalId = async (partialPersonalId: string) => 
         faculty,
         building_entry,
         event_entry,
+        profile_complete,
+        authorized, // ADD THIS LINE
         created_at
       `)
       .eq('role', 'attendee') // Only search attendees
@@ -1079,7 +1085,6 @@ export const searchAttendeesByPersonalId = async (partialPersonalId: string) => 
     return { data: [], error: { message: error.message } };
   }
 };
-
 // Get registration statistics using new boolean fields
 export const getRegistrationStats = async () => {
   try {
