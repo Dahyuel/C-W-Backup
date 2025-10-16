@@ -2103,19 +2103,21 @@ const handleEditCompany = (company: CompanyItem) => {
 
 // Days selection handlers
 const handleDayChange = (day: number) => {
-  setSelectedDays(prev =>
-    prev.includes(day)
+  setSelectedDays(prev => {
+    const updated = prev.includes(day)
       ? prev.filter(d => d !== day)
-      : [...prev, day].sort()
-  );
+      : [...prev, day];
+    return updated.sort((a, b) => a - b);
+  });
 };
 
 const handleEditDayChange = (day: number) => {
-  setEditSelectedDays(prev =>
-    prev.includes(day)
+  setEditSelectedDays(prev => {
+    const updated = prev.includes(day)
       ? prev.filter(d => d !== day)
-      : [...prev, day].sort()
-  );
+      : [...prev, day];
+    return updated.sort((a, b) => a - b);
+  });
 };
 
 // HR Emails handlers
