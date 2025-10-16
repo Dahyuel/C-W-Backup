@@ -467,9 +467,9 @@ const getLeaderboardDescription = () => {
           </div>
 
           {/* Search Results */}
-          {searchResults.length > 0 && (
-            <div className="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-              {searchResults.map((user) => (
+{searchResults.length > 0 && (
+  <div className="absolute z-40 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+    {searchResults.map((user) => (
                 <button
                   key={user.id}
                   onClick={() => handleUserSelect(user)}
