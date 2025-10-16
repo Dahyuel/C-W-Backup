@@ -394,7 +394,7 @@ const handleAuthStateChange = useCallback(async (event: string, session: Session
     return roleMap[r] || '/volunteer';
   }, [profile]);
 
-// In AuthContext.tsx - Fix the signIn function
+// In AuthContext.tsx - Update the signIn function
 const signIn = async (email: string, password: string) => {
   try {
     setAuthActionLoading(true);
@@ -412,12 +412,11 @@ const signIn = async (email: string, password: string) => {
       // Wait for profile fetch and authorization check
       const userProfile = await fetchProfile(data.user.id);
       
-      // Check if user is authorized - FIXED LOGIC
-      if (userProfile && userProfile.authorized === false) {
-        console.log('🚫 User not authorized, signing out...');
+      // Check if user is authorized - UPDATED LOGIC
+      if (userProfile && userProfile.role === 'attendee' && userProfile.authorized === false) {
+        console.log('🚫 Attendee not authorized, blocking access');
         
-        // Set unauthorized state but don't sign out immediately
-        // This allows the UI to show the appropriate message
+        // Set unauthorized state
         setIsUserAuthorized(false);
         
         return { 
