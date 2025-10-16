@@ -815,101 +815,102 @@ const tabItems = [
   { key: "career-portal", label: "Career Portal" } // Add this line
 ];
   // Render session cards with faculty restrictions
-  const renderSessionCards = (sessionsToRender: Session[], sessionType: 'building' | 'recruitment' = 'building') => {
-    return sessionsToRender.map((session, index) => {
-      const booked = isSessionBooked(session.id);
-      const full = isSessionFull(session);
-      const { hasOverlap } = hasOverlappingBooking(session);
-      
-      // Use appropriate validation function based on session type
-      let canBookResult;
-      if (sessionType === 'building') {
-        canBookResult = canBookBuildingSession(session);
-      } else {
-        canBookResult = canBookRecruitmentSession(session);
-      }
-      
-      return (
-        <div
-          key={session.id}
-          onClick={() => handleSessionClick(session)}
-          className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 cursor-pointer relative card-hover-enhanced dashboard-card transform transition-all duration-300 hover:scale-105 hover:shadow-lg"
-          style={{
-            animationDelay: `${index * 100}ms`,
-            animation: 'fadeInUp 0.6s ease-out forwards'
-          }}
-        >
-          {/* Real-time update indicator */}
-          {sessionsLoading && (
-            <div className="absolute top-2 right-2">
-              <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
-            </div>
-          )}
-          
-          <div className="flex items-start justify-between mb-3">
-            <h3 className="text-base sm:text-lg font-semibold text-gray-900 line-clamp-2 flex-1 pr-2">{session.title}</h3>
-            {booked && (
-              <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 flex-shrink-0 animate-bounce" />
-            )}
+// Render session cards with faculty restrictions
+const renderSessionCards = (sessionsToRender: Session[], sessionType: 'building' | 'recruitment' = 'building') => {
+  return sessionsToRender.map((session, index) => {
+    const booked = isSessionBooked(session.id);
+    const full = isSessionFull(session);
+    const { hasOverlap } = hasOverlappingBooking(session);
+    
+    // Use appropriate validation function based on session type
+    let canBookResult;
+    if (sessionType === 'building') {
+      canBookResult = canBookBuildingSession(session);
+    } else {
+      canBookResult = canBookRecruitmentSession(session);
+    }
+    
+    return (
+      <div
+        key={session.id}
+        onClick={() => handleSessionClick(session)}
+        className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 cursor-pointer relative card-hover-enhanced dashboard-card transform transition-all duration-300 hover:scale-105 hover:shadow-lg"
+        style={{
+          animationDelay: `${index * 100}ms`,
+          animation: 'fadeInUp 0.6s ease-out forwards'
+        }}
+      >
+        {/* Real-time update indicator */}
+        {sessionsLoading && (
+          <div className="absolute top-2 right-2">
+            <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
           </div>
-          
-          <p className="text-xs sm:text-sm text-gray-600 mb-3 line-clamp-2 transition-colors duration-300">{session.description}</p>
-          
-          {session.speaker && (
-            <p className="text-xs sm:text-sm font-medium text-gray-900 mb-2 line-clamp-1 animate-pulse">Speaker: {session.speaker}</p>
+        )}
+        
+        <div className="flex items-start justify-between mb-3">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 line-clamp-2 flex-1 pr-2">{session.title}</h3>
+          {booked && (
+            <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 flex-shrink-0 animate-bounce" />
           )}
-          
-          <div className="space-y-1.5 sm:space-y-2 text-xs text-gray-500">
-            <div className="flex items-center transform transition-transform duration-300 hover:translate-x-1">
-              <Clock className="h-3 w-3 mr-1 flex-shrink-0" />
-              <span className="truncate text-xs">
-                {new Date(session.start_time).toLocaleDateString()} {new Date(session.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-              </span>
-            </div>
-            <div className="flex items-center transform transition-transform duration-300 hover:translate-x-1">
-              <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
-              <span className="truncate text-xs">{session.location}</span>
-            </div>
-            <div className="flex items-center transform transition-transform duration-300 hover:translate-x-1">
-              <Users className="h-3 w-3 mr-1 flex-shrink-0" />
-              <span className={`transition-colors text-xs ${sessionsLoading ? 'text-orange-500 animate-pulse' : ''}`}>
-                {session.current_bookings || 0}/{session.max_attendees || 'Unlimited'} booked
-              </span>
-            </div>
+        </div>
+        
+        <p className="text-xs sm:text-sm text-gray-600 mb-3 line-clamp-2 transition-colors duration-300">{session.description}</p>
+        
+        {/* Only show speaker for Building Sessions, not for Open Recruitment */}
+        {sessionType === 'building' && session.speaker && (
+          <p className="text-xs sm:text-sm font-medium text-gray-900 mb-2 line-clamp-1 animate-pulse">Speaker: {session.speaker}</p>
+        )}
+        
+        <div className="space-y-1.5 sm:space-y-2 text-xs text-gray-500">
+          <div className="flex items-center transform transition-transform duration-300 hover:translate-x-1">
+            <Clock className="h-3 w-3 mr-1 flex-shrink-0" />
+            <span className="truncate text-xs">
+              {new Date(session.start_time).toLocaleDateString()} {new Date(session.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </span>
           </div>
-          
-          <div className="mt-3 sm:mt-4 pt-3 border-t border-gray-100 transform transition-all duration-300">
-            {!canBookResult.canBook ? (
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 transform transition-all duration-300 hover:scale-105">
-                <XCircle className="h-3 w-3 mr-1" />
-                Not Eligible
-              </span>
-            ) : booked ? (
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 transform transition-all duration-300 hover:scale-105">
-                <CheckCircle className="h-3 w-3 mr-1 animate-pulse" />
-                Booked
-              </span>
-            ) : hasOverlap ? (
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 transform transition-all duration-300 hover:scale-105">
-                <Clock className="h-3 w-3 mr-1" />
-                Time Conflict
-              </span>
-            ) : full ? (
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 transform transition-all duration-300 hover:scale-105">
-                <XCircle className="h-3 w-3 mr-1" />
-                Full
-              </span>
-            ) : (
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 transform transition-all duration-300 hover:scale-105">
-                Available
-              </span>
-            )}
+          <div className="flex items-center transform transition-transform duration-300 hover:translate-x-1">
+            <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
+            <span className="truncate text-xs">{session.location}</span>
+          </div>
+          <div className="flex items-center transform transition-transform duration-300 hover:translate-x-1">
+            <Users className="h-3 w-3 mr-1 flex-shrink-0" />
+            <span className={`transition-colors text-xs ${sessionsLoading ? 'text-orange-500 animate-pulse' : ''}`}>
+              {session.current_bookings || 0}/{session.max_attendees || 'Unlimited'} booked
+            </span>
           </div>
         </div>
-      );
-    });
-  };
-
+        
+        <div className="mt-3 sm:mt-4 pt-3 border-t border-gray-100 transform transition-all duration-300">
+          {!canBookResult.canBook ? (
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 transform transition-all duration-300 hover:scale-105">
+              <XCircle className="h-3 w-3 mr-1" />
+              Not Eligible
+            </span>
+          ) : booked ? (
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 transform transition-all duration-300 hover:scale-105">
+              <CheckCircle className="h-3 w-3 mr-1 animate-pulse" />
+              Booked
+            </span>
+          ) : hasOverlap ? (
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 transform transition-all duration-300 hover:scale-105">
+              <Clock className="h-3 w-3 mr-1" />
+              Time Conflict
+            </span>
+          ) : full ? (
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 transform transition-all duration-300 hover:scale-105">
+              <XCircle className="h-3 w-3 mr-1" />
+              Full
+            </span>
+          ) : (
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 transform transition-all duration-300 hover:scale-105">
+              Available
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  });
+};
   return (
     <DashboardLayout title="Attendee Dashboard" subtitle={`Welcome back, ${profile?.first_name}!`}>
       <style>{`
