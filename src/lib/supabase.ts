@@ -289,7 +289,7 @@ export const checkUniversityAuthorization = (university: string, degreeLevel?: s
   if (isAuthorizedUniversity) {
     // If degree level is provided, check if it's graduate level
     if (degreeLevel) {
-      const graduateLevels = ['graduate', 'masters', 'phd', 'doctoral', 'postgraduate'];
+      const graduateLevels = ['graduate'];
       return graduateLevels.some(level => 
         degreeLevel.toLowerCase().includes(level.toLowerCase())
       );
