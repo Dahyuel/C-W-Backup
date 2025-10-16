@@ -241,6 +241,13 @@ export function AdminPanel() {
   
   // Mobile menu state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const [selectedDays, setSelectedDays] = useState<number[]>([]);
+const [hrEmails, setHrEmails] = useState<string[]>([]);
+const [editSelectedDays, setEditSelectedDays] = useState<number[]>([]);
+const [editHrEmails, setEditHrEmails] = useState<string[]>([]);
+const [newHrEmail, setNewHrEmail] = useState<string>("");
+const [editNewHrEmail, setEditNewHrEmail] = useState<string>("");
   
   const announcementRoleOptions = [
     { value: "", label: "Select Target" },
