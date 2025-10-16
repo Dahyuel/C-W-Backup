@@ -31,7 +31,7 @@ const getRoleDisplayName = (role: string): string => {
     'ushers': 'Ushers',
     'marketing': 'Marketing',
     'media': 'Media',
-    'ER': 'Employers Relation',
+    'ER': 'Employer Relation',
     'BD': 'Business Development',
     'catering': 'Catering',
     'feedback': 'Feedback',
