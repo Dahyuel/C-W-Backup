@@ -1164,17 +1164,7 @@ const renderDashboardTab = () => (
           </div>
         </div>
         
-        {/* Mobile Summary */}
-        <div className="block md:hidden mt-3">
-          <div className="bg-blue-50 rounded-lg p-3 text-center">
-            <p className="text-sm text-blue-800 font-medium">
-              Total Inside: {buildingStats.inside_building + buildingStats.inside_event}
-            </p>
-            <p className="text-xs text-blue-600 mt-1">
-              Building: {buildingStats.inside_building} • Event: {buildingStats.inside_event}
-            </p>
-          </div>
-        </div>
+      
       </div>
     </div>
   </div>
