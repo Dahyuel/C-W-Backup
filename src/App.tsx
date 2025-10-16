@@ -12,6 +12,7 @@ import { ForgotPasswordForm } from './components/ForgotPasswordForm';
 import { AuthRegistration } from './components/AuthRegistration';
 import { VolunteerAuthRegistration } from './components/VolunteerAuthRegistration';
 import { RoleChanger } from './components/RoleChanger';
+import { UnauthorizedPage } from './components/UnauthorizedPage';
 
 // Lazy load dashboards
 const AttendeeDashboard = React.lazy(() => import('./pages/user/AttendeeDashboard'));
@@ -34,21 +35,22 @@ const LoadingScreen: React.FC<{ message?: string }> = ({ message = "Loading..." 
 );
 
 // OPTIMIZED ProtectedRoute with better state management
-const ProtectedRoute: React.FC<{ 
-  children: React.ReactNode; 
+const ProtectedRoute: React.FC<{
+  children: React.ReactNode;
   requiredRole?: string | string[];
   requireCompleteProfile?: boolean;
   allowIncompleteVolunteer?: boolean;
 }> = ({ children, requiredRole, requireCompleteProfile = true, allowIncompleteVolunteer = false }) => {
-  const { 
-    isAuthenticated, 
-    profile, 
-    loading, 
-    sessionLoaded, 
-    hasRole, 
-    getRoleBasedRedirect
+  const {
+    isAuthenticated,
+    profile,
+    loading,
+    sessionLoaded,
+    hasRole,
+    getRoleBasedRedirect,
+    isUserAuthorized
   } = useAuth();
-  
+
   const [routeState, setRouteState] = useState<'checking' | 'redirecting' | 'ready'>('checking');
 
   useEffect(() => {
@@ -70,28 +72,34 @@ const ProtectedRoute: React.FC<{
       return;
     }
 
+    // Check authorization first (only for attendees)
+    if (profile.role === 'attendee' && !isUserAuthorized()) {
+      setRouteState('redirecting');
+      return;
+    }
+
     // Handle incomplete profiles
     if (!profile.profile_complete) {
       if (allowIncompleteVolunteer && profile.role === 'volunteer') {
         setRouteState('ready');
         return;
       }
-      
+
       if (!requireCompleteProfile) {
         setRouteState('ready');
         return;
       }
-      
+
       setRouteState('redirecting');
       return;
     }
 
     // Check role permissions
     if (requiredRole) {
-      const hasRequiredRole = Array.isArray(requiredRole) 
-        ? hasRole(requiredRole) 
+      const hasRequiredRole = Array.isArray(requiredRole)
+        ? hasRole(requiredRole)
         : hasRole(requiredRole);
-        
+
       if (!hasRequiredRole) {
         setRouteState('redirecting');
         return;
@@ -100,7 +108,7 @@ const ProtectedRoute: React.FC<{
 
     // All checks passed - ready to render
     setRouteState('ready');
-  }, [isAuthenticated, profile, loading, sessionLoaded, requiredRole, requireCompleteProfile, allowIncompleteVolunteer, hasRole]);
+  }, [isAuthenticated, profile, loading, sessionLoaded, requiredRole, requireCompleteProfile, allowIncompleteVolunteer, hasRole, isUserAuthorized]);
 
   // Show loading while checking auth state
   if (routeState === 'checking') {
@@ -114,7 +122,7 @@ const ProtectedRoute: React.FC<{
     }
 
     // Calculate the correct redirect path based on profile state
-    const redirectPath = getRoleBasedRedirect(profile?.role, profile?.profile_complete);
+    const redirectPath = getRoleBasedRedirect(profile?.role, profile?.profile_complete, profile?.authorized);
     console.log(`🔄 ProtectedRoute redirecting to: ${redirectPath}`);
     return <Navigate to={redirectPath} replace />;
   }
@@ -233,6 +241,9 @@ const AppRouter: React.FC = () => {
         <Route path="/auth-register" element={<PublicRoute><AuthRegistrationWrapper /></PublicRoute>} />
         <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordForm /></PublicRoute>} />
         <Route path="/reset-password" element={<PublicRoute><ResetPasswordForm /></PublicRoute>} />
+
+        {/* Unauthorized Page */}
+        <Route path="/unauthorized" element={<UnauthorizedPage />} />
         
         {/* Registration Forms */}
         <Route path="/attendee-register" element={
