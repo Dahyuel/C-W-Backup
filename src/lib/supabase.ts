@@ -639,6 +639,7 @@ export const updateUserAuthorization = async (userId: string, authorized: boolea
   }
 };
 
+// In lib/supabase.ts - Make sure completeProfile returns authorization status
 export const completeProfile = async (userId: string, profileData: any) => {
   try {
     console.log('Completing profile for user:', userId);
@@ -668,7 +669,13 @@ export const completeProfile = async (userId: string, profileData: any) => {
     }
 
     console.log('✅ Profile completed successfully with authorization:', isAuthorized);
-    return { data: { ...data, isAuthorized }, error: null };
+    return { 
+      data: { 
+        ...data, 
+        isAuthorized // Make sure this is returned
+      }, 
+      error: null 
+    };
 
   } catch (error: any) {
     console.error('Complete profile exception:', error);
