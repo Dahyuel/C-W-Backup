@@ -552,6 +552,42 @@ export const signUpUser = async (email: string, password: string, userData: any)
     };
   }
 };
+export const completeProfile = async (userId: string, profileData: any) => {
+  try {
+    console.log('Completing profile for user:', userId);
+    
+    // Check university authorization when completing profile
+    const isAuthorized = checkUniversityAuthorization(profileData.university, profileData.degree_level);
+    
+    const updateData = {
+      ...profileData,
+      authorized: isAuthorized,
+      profile_complete: true,
+      updated_at: new Date().toISOString()
+    };
+
+    console.log('Updating profile with authorization:', isAuthorized);
+
+    const { data, error } = await supabase
+      .from('users_profiles')
+      .update(updateData)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Profile completion error:', error);
+      return { data: null, error };
+    }
+
+    console.log('✅ Profile completed successfully with authorization:', isAuthorized);
+    return { data: { ...data, isAuthorized }, error: null };
+
+  } catch (error: any) {
+    console.error('Complete profile exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
 
 
 // In supabase.ts - Update signUpVolunteer to use Edge Function
