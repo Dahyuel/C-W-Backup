@@ -4,7 +4,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'r
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ResetPasswordForm } from './components/ResetPasswordForm';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { UnauthorizedPage } from './components/UnauthorizedPage';
 
 // Auth Components
 import { LoginForm } from './components/LoginForm';
@@ -34,7 +33,7 @@ const LoadingScreen: React.FC<{ message?: string }> = ({ message = "Loading..." 
   </div>
 );
 
-// In src/App.tsx - Update the ProtectedRoute component
+// OPTIMIZED ProtectedRoute with better state management
 const ProtectedRoute: React.FC<{ 
   children: React.ReactNode; 
   requiredRole?: string | string[];
@@ -47,8 +46,7 @@ const ProtectedRoute: React.FC<{
     loading, 
     sessionLoaded, 
     hasRole, 
-    getRoleBasedRedirect,
-    isUserAuthorized // ADD THIS
+    getRoleBasedRedirect
   } = useAuth();
   
   const [routeState, setRouteState] = useState<'checking' | 'redirecting' | 'ready'>('checking');
@@ -68,13 +66,6 @@ const ProtectedRoute: React.FC<{
 
     // If authenticated but no profile yet (shouldn't happen normally)
     if (!profile) {
-      setRouteState('redirecting');
-      return;
-    }
-
-    // NEW: Check if user is authorized - BLOCK UNAUTHORIZED USERS
-    if (isUserAuthorized === false) {
-      console.log('🚫 User not authorized, blocking route access');
       setRouteState('redirecting');
       return;
     }
@@ -109,7 +100,7 @@ const ProtectedRoute: React.FC<{
 
     // All checks passed - ready to render
     setRouteState('ready');
-  }, [isAuthenticated, profile, loading, sessionLoaded, requiredRole, requireCompleteProfile, allowIncompleteVolunteer, hasRole, isUserAuthorized]);
+  }, [isAuthenticated, profile, loading, sessionLoaded, requiredRole, requireCompleteProfile, allowIncompleteVolunteer, hasRole]);
 
   // Show loading while checking auth state
   if (routeState === 'checking') {
@@ -120,11 +111,6 @@ const ProtectedRoute: React.FC<{
   if (routeState === 'redirecting') {
     if (!isAuthenticated) {
       return <Navigate to="/login" replace />;
-    }
-
-    // NEW: Redirect unauthorized users to unauthorized page
-    if (isUserAuthorized === false) {
-      return <Navigate to="/unauthorized" replace />;
     }
 
     // Calculate the correct redirect path based on profile state
@@ -206,16 +192,12 @@ const LazyLoadingFallback: React.FC = () => (
 );
 
 // Lazy Route Helper
-// In src/App.tsx - Update LazyRoute helper
 const LazyRoute: React.FC<{ 
   component: React.LazyExoticComponent<React.ComponentType<any>>;
   requiredRole?: string | string[];
   requireCompleteProfile?: boolean;
 }> = ({ component: Component, requiredRole, requireCompleteProfile = true }) => (
-  <ProtectedRoute 
-    requiredRole={requiredRole} 
-    requireCompleteProfile={requireCompleteProfile}
-  >
+  <ProtectedRoute requiredRole={requiredRole} requireCompleteProfile={requireCompleteProfile}>
     <Suspense fallback={<LazyLoadingFallback />}>
       <Component />
     </Suspense>
@@ -240,7 +222,6 @@ const AuthStateDebugger: React.FC = () => {
 };
 
 // Main App Router
-// In src/App.tsx - Update the AppRouter component
 const AppRouter: React.FC = () => {
   return (
     <>
@@ -252,9 +233,6 @@ const AppRouter: React.FC = () => {
         <Route path="/auth-register" element={<PublicRoute><AuthRegistrationWrapper /></PublicRoute>} />
         <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordForm /></PublicRoute>} />
         <Route path="/reset-password" element={<PublicRoute><ResetPasswordForm /></PublicRoute>} />
-        
-        {/* NEW: Unauthorized Page */}
-        <Route path="/unauthorized" element={<UnauthorizedPage />} />
         
         {/* Registration Forms */}
         <Route path="/attendee-register" element={
@@ -271,12 +249,12 @@ const AppRouter: React.FC = () => {
           </ProtectedRoute>
         } />
 
-        {/* Role Changer */}
-        <Route path="/rolechangingform" element={
-          <ProtectedRoute requiredRole={["marketing", "team_leader"]} requireCompleteProfile={true}>
-            <RoleChanger />
-          </ProtectedRoute>
-        } />
+        {/* Role Changer - Only accessible by marketing role */}
+<Route path="/rolechangingform" element={
+  <ProtectedRoute requiredRole={["marketing", "team_leader"]} requireCompleteProfile={true}>
+    <RoleChanger />
+  </ProtectedRoute>
+} />
 
         {/* Dashboards */}
         <Route path="/attendee" element={<LazyRoute component={AttendeeDashboard} requiredRole="attendee" />} />
