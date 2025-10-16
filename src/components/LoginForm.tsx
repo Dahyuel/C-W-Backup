@@ -1,4 +1,4 @@
-// components/LoginForm.tsx - COMPLETELY FIXED VERSION
+// components/LoginForm.tsx - FIXED VERSION (remove duplicate useEffect)
 import React, { useState, useEffect, useRef } from 'react';
 import { Eye, EyeOff, AlertCircle, UserX, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -28,29 +28,8 @@ export const LoginForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [unauthorizedUser, setUnauthorizedUser] = useState(false);
   const [checkedAuthorization, setCheckedAuthorization] = useState(false);
-// In your LoginForm component - Add this useEffect
-useEffect(() => {
-  if (authLoading || !isAuthenticated || !profile) {
-    return;
-  }
 
-  // NEW: Check if user is unauthorized and redirect to unauthorized page
-  if (isUserAuthorized === false) {
-    console.log('🚫 Unauthorized user detected in LoginForm, redirecting to unauthorized page');
-    navigate('/unauthorized', { replace: true });
-    return;
-  }
-
-  // Only redirect if user is authorized
-  const redirectTimer = setTimeout(() => {
-    const redirectPath = getRoleBasedRedirect(profile.role, profile.profile_complete);
-    console.log('🔄 Login redirecting to:', redirectPath);
-    navigate(redirectPath, { replace: true });
-  }, 100);
-
-  return () => clearTimeout(redirectTimer);
-}, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect, isUserAuthorized]);
-  // NEW: Effect to check authorization status after authentication
+  // SINGLE useEffect for authorization and redirect - REMOVE THE DUPLICATE ONE
   useEffect(() => {
     const checkAuthorizationAndRedirect = async () => {
       if (authLoading || !isAuthenticated || !profile || checkedAuthorization) {
@@ -69,14 +48,7 @@ useEffect(() => {
         console.log('🚫 User is not authorized, blocking access');
         setUnauthorizedUser(true);
         setCheckedAuthorization(true);
-        
-        // Sign out the unauthorized user
-        try {
-          await signOut();
-        } catch (error) {
-          console.error('Error signing out unauthorized user:', error);
-        }
-        return;
+        return; // Don't sign out here - let the unauthorized page handle it
       }
 
       // Only proceed if user is authorized
@@ -91,7 +63,7 @@ useEffect(() => {
     };
 
     checkAuthorizationAndRedirect();
-  }, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect, isUserAuthorized, checkedAuthorization, signOut]);
+  }, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect, isUserAuthorized, checkedAuthorization]);
 
   // Reset checkedAuthorization when user signs out or form changes
   useEffect(() => {
