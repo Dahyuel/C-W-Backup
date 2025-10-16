@@ -552,6 +552,25 @@ export const signUpUser = async (email: string, password: string, userData: any)
     };
   }
 };
+export const checkUserAuthorizationStatus = async (userId: string): Promise<boolean> => {
+  try {
+    const { data, error } = await supabase
+      .from('users_profiles')
+      .select('authorized')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('Error checking user authorization status:', error);
+      return false;
+    }
+
+    return data.authorized === true;
+  } catch (error: any) {
+    console.error('Check user authorization status exception:', error);
+    return false;
+  }
+};
 export const completeProfile = async (userId: string, profileData: any) => {
   try {
     console.log('Completing profile for user:', userId);
