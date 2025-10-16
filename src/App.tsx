@@ -205,12 +205,16 @@ const LazyLoadingFallback: React.FC = () => (
 );
 
 // Lazy Route Helper
+// In src/App.tsx - Update LazyRoute helper
 const LazyRoute: React.FC<{ 
   component: React.LazyExoticComponent<React.ComponentType<any>>;
   requiredRole?: string | string[];
   requireCompleteProfile?: boolean;
 }> = ({ component: Component, requiredRole, requireCompleteProfile = true }) => (
-  <ProtectedRoute requiredRole={requiredRole} requireCompleteProfile={requireCompleteProfile}>
+  <ProtectedRoute 
+    requiredRole={requiredRole} 
+    requireCompleteProfile={requireCompleteProfile}
+  >
     <Suspense fallback={<LazyLoadingFallback />}>
       <Component />
     </Suspense>
