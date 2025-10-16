@@ -4419,7 +4419,81 @@ const handleRemoveEditHrEmail = (index: number) => {
             placeholder="https://company-website.com"
           />
         </div>
+{/* Days Selection */}
+<div className="fade-in-blur">
+  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+    <Calendar className="h-4 w-4 mr-2" />
+    Open Recruitment Days
+  </label>
+  <div className="grid grid-cols-3 gap-2">
+    {[1, 2, 3, 4, 5].map((day) => (
+      <label key={day} className="flex items-center space-x-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={selectedDays.includes(day)}
+          onChange={() => handleDayChange(day)}
+          className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+        />
+        <span className="text-sm text-gray-700">Day {day}</span>
+      </label>
+    ))}
+  </div>
+  <p className="text-xs text-gray-500 mt-1">
+    Select days when company is available for recruitment
+  </p>
+</div>
 
+{/* HR Emails */}
+<div className="fade-in-blur">
+  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+    <User className="h-4 w-4 mr-2" />
+    HR Contact Emails
+  </label>
+  <div className="space-y-2">
+    <div className="flex gap-2">
+      <input
+        type="email"
+        value={newHrEmail}
+        onChange={(e) => setNewHrEmail(e.target.value)}
+        className="flex-1 border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+        placeholder="Enter HR email address"
+        onKeyPress={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            handleAddHrEmail();
+          }
+        }}
+      />
+      <button
+        type="button"
+        onClick={handleAddHrEmail}
+        className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
+      >
+        Add
+      </button>
+    </div>
+    
+    {hrEmails.length > 0 && (
+      <div className="space-y-1">
+        {hrEmails.map((email, index) => (
+          <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+            <span className="text-sm text-gray-700">{email}</span>
+            <button
+              type="button"
+              onClick={() => handleRemoveHrEmail(index)}
+              className="text-red-500 hover:text-red-700"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+  <p className="text-xs text-gray-500 mt-1">
+    Add HR email addresses for recruitment contact
+  </p>
+</div>
         {/* Booth Number */}
         <div className="fade-in-blur">
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -4654,7 +4728,81 @@ const handleRemoveEditHrEmail = (index: number) => {
             placeholder="https://company-website.com"
           />
         </div>
+{/* Days Selection for Edit */}
+<div className="fade-in-blur">
+  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+    <Calendar className="h-4 w-4 mr-2" />
+    Open Recruitment Days
+  </label>
+  <div className="grid grid-cols-3 gap-2">
+    {[1, 2, 3, 4, 5].map((day) => (
+      <label key={day} className="flex items-center space-x-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={editSelectedDays.includes(day)}
+          onChange={() => handleEditDayChange(day)}
+          className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+        />
+        <span className="text-sm text-gray-700">Day {day}</span>
+      </label>
+    ))}
+  </div>
+  <p className="text-xs text-gray-500 mt-1">
+    Select days when company is available for recruitment
+  </p>
+</div>
 
+{/* HR Emails for Edit */}
+<div className="fade-in-blur">
+  <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+    <User className="h-4 w-4 mr-2" />
+    HR Contact Emails
+  </label>
+  <div className="space-y-2">
+    <div className="flex gap-2">
+      <input
+        type="email"
+        value={editNewHrEmail}
+        onChange={(e) => setEditNewHrEmail(e.target.value)}
+        className="flex-1 border border-gray-300 rounded-lg p-2 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+        placeholder="Enter HR email address"
+        onKeyPress={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            handleAddEditHrEmail();
+          }
+        }}
+      />
+      <button
+        type="button"
+        onClick={handleAddEditHrEmail}
+        className="px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors text-sm"
+      >
+        Add
+      </button>
+    </div>
+    
+    {editHrEmails.length > 0 && (
+      <div className="space-y-1">
+        {editHrEmails.map((email, index) => (
+          <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+            <span className="text-sm text-gray-700">{email}</span>
+            <button
+              type="button"
+              onClick={() => handleRemoveEditHrEmail(index)}
+              className="text-red-500 hover:text-red-700"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+  <p className="text-xs text-gray-500 mt-1">
+    Add HR email addresses for recruitment contact
+  </p>
+</div>
         {/* Booth Number */}
         <div className="fade-in-blur">
           <label className="block text-sm font-medium text-gray-700 mb-2">
