@@ -298,23 +298,92 @@ const handleAttendanceAction = async (action: 'enter' | 'exit') => {
       return;
     }
 
-    // Additional authorization check
-    const isAuthorized = selectedAttendee.authorized === true || selectedAttendee.authorized === 'true';
-    if (!isAuthorized) {
-      showFeedback('error', 'This attendee is not authorized to enter the event');
+    // Get current volunteer info
+    const { user } = await supabase.auth.getUser();
+    if (!user) {
+      showFeedback('error', 'Volunteer not authenticated');
       return;
     }
 
-    const { data, error } = await processAttendance(selectedAttendee.personal_id, action);
+    // Step 1: Create attendance record
+    const { error: attendanceError } = await supabase
+      .from('attendances')
+      .insert({
+        user_id: selectedAttendee.id,
+        scan_type: action === 'enter' ? 'entry' : 'exit',
+        scanned_by: user.id,
+        personal_id: selectedAttendee.personal_id
+      });
 
-    if (error) {
-      showFeedback('error', error.message || `Failed to process ${action}`);
+    if (attendanceError) {
+      showFeedback('error', `Failed to record attendance: ${attendanceError.message}`);
       return;
     }
 
-    showFeedback('success', data.message || `${action.toUpperCase()} scan successful!`);
+    // Step 2: Update user profile boolean field
+    const updateData = action === 'enter' 
+      ? { event_entry: true } 
+      : { event_entry: false };
+
+    const { error: profileError } = await supabase
+      .from('users_profiles')
+      .update(updateData)
+      .eq('id', selectedAttendee.id);
+
+    if (profileError) {
+      showFeedback('error', `Failed to update status: ${profileError.message}`);
+      return;
+    }
+
+    // Step 3: Add score for volunteer (1 point for any action)
+    const { error: volunteerScoreError } = await supabase
+      .from('user_scores')
+      .insert({
+        user_id: user.id,
+        points: 1,
+        activity_type: 'registration_scan',
+        activity_description: `Processed ${action} for ${selectedAttendee.first_name} ${selectedAttendee.last_name}`
+      });
+
+    if (volunteerScoreError) {
+      console.error('Failed to add volunteer score:', volunteerScoreError);
+      // Continue anyway since main action succeeded
+    }
+
+    // Step 4: Add score for attendee (10 points for entrance, once per day)
+    if (action === 'enter') {
+      // Check if attendee already got points today
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const { data: existingScores } = await supabase
+        .from('user_scores')
+        .select('id')
+        .eq('user_id', selectedAttendee.id)
+        .eq('activity_type', 'daily_entrance_bonus')
+        .gte('awarded_at', today.toISOString())
+        .limit(1);
+
+      if (!existingScores || existingScores.length === 0) {
+        // No score today, add new one
+        const { error: attendeeScoreError } = await supabase
+          .from('user_scores')
+          .insert({
+            user_id: selectedAttendee.id,
+            points: 10,
+            activity_type: 'daily_entrance_bonus',
+            activity_description: 'Daily entrance bonus'
+          });
+
+        if (attendeeScoreError) {
+          console.error('Failed to add attendee score:', attendeeScoreError);
+        }
+      }
+    }
+
+    showFeedback('success', `${action.toUpperCase()} scan successful!`);
     
-    // Update attendee status
+    // Update local state
     const newStatus = action === 'enter' ? 'inside' : 'outside';
     const newEventEntry = action === 'enter';
     
