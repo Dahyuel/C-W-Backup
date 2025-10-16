@@ -235,6 +235,7 @@ const AuthStateDebugger: React.FC = () => {
 };
 
 // Main App Router
+// In src/App.tsx - Update the AppRouter component
 const AppRouter: React.FC = () => {
   return (
     <>
@@ -246,6 +247,9 @@ const AppRouter: React.FC = () => {
         <Route path="/auth-register" element={<PublicRoute><AuthRegistrationWrapper /></PublicRoute>} />
         <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordForm /></PublicRoute>} />
         <Route path="/reset-password" element={<PublicRoute><ResetPasswordForm /></PublicRoute>} />
+        
+        {/* NEW: Unauthorized Page */}
+        <Route path="/unauthorized" element={<UnauthorizedPage />} />
         
         {/* Registration Forms */}
         <Route path="/attendee-register" element={
@@ -262,12 +266,12 @@ const AppRouter: React.FC = () => {
           </ProtectedRoute>
         } />
 
-        {/* Role Changer - Only accessible by marketing role */}
-<Route path="/rolechangingform" element={
-  <ProtectedRoute requiredRole={["marketing", "team_leader"]} requireCompleteProfile={true}>
-    <RoleChanger />
-  </ProtectedRoute>
-} />
+        {/* Role Changer */}
+        <Route path="/rolechangingform" element={
+          <ProtectedRoute requiredRole={["marketing", "team_leader"]} requireCompleteProfile={true}>
+            <RoleChanger />
+          </ProtectedRoute>
+        } />
 
         {/* Dashboards */}
         <Route path="/attendee" element={<LazyRoute component={AttendeeDashboard} requiredRole="attendee" />} />
