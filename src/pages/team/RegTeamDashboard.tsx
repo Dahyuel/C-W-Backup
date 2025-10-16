@@ -359,26 +359,26 @@ const handleAttendanceAction = async (action: 'enter' | 'exit') => {
       subtitle="Manage attendee registrations and check-ins"
     >
       {/* Feedback Toast */}
-      {feedback && (
-        <div className={`fixed top-4 right-4 z-50 flex items-center space-x-2 px-4 py-3 rounded-lg shadow-lg ${
-          feedback.type === 'success' 
-            ? 'bg-green-500 text-white' 
-            : 'bg-red-500 text-white'
-        }`}>
-          {feedback.type === 'success' ? (
-            <CheckCircle className="h-5 w-5" />
-          ) : (
-            <AlertCircle className="h-5 w-5" />
-          )}
-          <span className="font-medium">{feedback.message}</span>
-          <button
-            onClick={() => setFeedback(null)}
-            className="ml-2 hover:bg-black hover:bg-opacity-20 rounded p-1"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      )}
+     {feedback && (
+  <div className={`fixed top-4 right-4 z-[100] flex items-center space-x-2 px-4 py-3 rounded-lg shadow-lg ${
+    feedback.type === 'success' 
+      ? 'bg-green-500 text-white' 
+      : 'bg-red-500 text-white'
+  }`}>
+    {feedback.type === 'success' ? (
+      <CheckCircle className="h-5 w-5" />
+    ) : (
+      <AlertCircle className="h-5 w-5" />
+    )}
+    <span className="font-medium">{feedback.message}</span>
+    <button
+      onClick={() => setFeedback(null)}
+      className="ml-2 hover:bg-black hover:bg-opacity-20 rounded p-1"
+    >
+      <X className="h-4 w-4" />
+    </button>
+  </div>
+)}
 
       {/* Validation Error Alert */}
       {validationError && (
