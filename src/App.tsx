@@ -4,6 +4,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'r
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ResetPasswordForm } from './components/ResetPasswordForm';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { UnauthorizedPage } from './components/UnauthorizedPage';
 
 // Auth Components
 import { LoginForm } from './components/LoginForm';
