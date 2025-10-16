@@ -893,13 +893,27 @@ export const uploadMapImage = async (dayNumber: number, imageFile: File, userId:
   }
 };
 
+// Update the existing updateUserFiles function to maintain authorization
 export const updateUserFiles = async (userId: string, filePaths: { university_id_path?: string, cv_path?: string }) => {
   try {
     console.log('Updating user files:', filePaths);
     
+    // Get current user data to preserve authorization
+    const { data: currentUser } = await supabase
+      .from('users_profiles')
+      .select('authorized')
+      .eq('id', userId)
+      .single();
+
+    const updateData = {
+      ...filePaths,
+      updated_at: new Date().toISOString(),
+      authorized: currentUser?.authorized // Preserve existing authorization
+    };
+
     const { data, error } = await supabase
       .from('users_profiles')
-      .update(filePaths)
+      .update(updateData)
       .eq('id', userId)
       .select();
 
