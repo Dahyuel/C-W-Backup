@@ -37,15 +37,16 @@ interface Attendee {
   authorized?: boolean; // Add this line
 }
 
-
 const castToAttendee = (data: any): Attendee => {
   console.log('Casting attendee data:', data);
+  console.log('Authorization field from DB:', data.authorized, 'Type:', typeof data.authorized);
+  
   return {
     ...data,
     current_status: data.event_entry ? 'inside' : 'outside',
     event_entry: data.event_entry || false,
-    profile_complete: data.profile_complete !== undefined ? data.profile_complete : true, // Default to true if not provided
-    authorized: data.authorized !== undefined ? data.authorized : true // Default to true if not provided
+    profile_complete: data.profile_complete !== undefined ? data.profile_complete : true,
+    authorized: data.authorized !== undefined ? data.authorized : false // Changed from true to false
   } as Attendee;
 };
 
