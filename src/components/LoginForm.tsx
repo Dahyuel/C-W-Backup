@@ -1,6 +1,6 @@
-// components/LoginForm.tsx - OPTIMIZED & FIXED
+// components/LoginForm.tsx - UPDATED with authorization check
 import React, { useState, useEffect, useRef } from 'react';
-import { Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle, UserX } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { LoginData, ValidationError } from '../types';
@@ -25,31 +25,37 @@ export const LoginForm: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<ValidationError[]>([]);
   const [loading, setLoading] = useState(false);
+  const [unauthorizedUser, setUnauthorizedUser] = useState(false);
 
-  // Use refs to prevent redirect loops
-  const hasRedirected = useRef(false);
-  const redirectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Redirect effect for authorized users
+  useEffect(() => {
+    if (authLoading || !isAuthenticated || !profile) {
+      return;
+    }
 
-// In LoginForm.tsx - FIXED redirect logic
-useEffect(() => {
-  // Don't redirect if still loading or not authenticated
-  if (authLoading || !isAuthenticated || !profile) {
-    return;
-  }
+    // Check if user is authorized
+    if (profile.authorized === false) {
+      setUnauthorizedUser(true);
+      return;
+    }
 
-  // Use a small timeout to ensure state is consistent
-  const redirectTimer = setTimeout(() => {
-    const redirectPath = getRoleBasedRedirect(profile.role, profile.profile_complete);
-    console.log('🔄 Login redirecting to:', redirectPath);
-    navigate(redirectPath, { replace: true });
-  }, 100);
+    // Only redirect if user is authorized
+    const redirectTimer = setTimeout(() => {
+      const redirectPath = getRoleBasedRedirect(profile.role, profile.profile_complete);
+      console.log('🔄 Login redirecting to:', redirectPath);
+      navigate(redirectPath, { replace: true });
+    }, 100);
 
-  return () => clearTimeout(redirectTimer);
-}, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect]);
+    return () => clearTimeout(redirectTimer);
+  }, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect]);
 
   const updateField = (field: keyof LoginData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     setErrors(prev => prev.filter(error => error.field !== field));
+    // Reset unauthorized state when user starts typing again
+    if (unauthorizedUser) {
+      setUnauthorizedUser(false);
+    }
   };
 
   const validateForm = (): ValidationError[] => {
@@ -78,6 +84,7 @@ useEffect(() => {
 
     setLoading(true);
     setErrors([]);
+    setUnauthorizedUser(false);
 
     try {
       const result = await signIn(formData.email, formData.password);
@@ -91,7 +98,7 @@ useEffect(() => {
         return;
       }
 
-      // Success - let the useEffect handle redirect
+      // The useEffect will handle the authorization check and redirect
       
     } catch (error: any) {
       console.error('Login exception:', error);
@@ -106,6 +113,53 @@ useEffect(() => {
   const getFieldError = (field: string) => {
     return errors.find(error => error.field === field)?.message;
   };
+
+  // Show unauthorized user message
+  if (unauthorizedUser) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-white flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl border border-red-200 w-full max-w-md overflow-hidden text-center fade-in-up-blur">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-8 text-center">
+            <div className="mx-auto w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4 shadow-lg">
+              <UserX className="h-10 w-10 text-red-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-white mb-2">Access Restricted</h1>
+            <p className="text-red-100">Account Not Authorized</p>
+          </div>
+
+          {/* Message */}
+          <div className="p-8">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
+              <div className="flex items-center justify-center space-x-3 mb-4">
+                <AlertCircle className="h-8 w-8 text-red-600" />
+                <h3 className="text-lg font-semibold text-red-800">
+                  Sorry, You Didn't Meet the Event Requirements
+                </h3>
+              </div>
+              <p className="text-red-700 mb-4">
+                Your account has not been authorized to access the ASU Career Week event. 
+                This may be due to incomplete registration requirements or eligibility criteria.
+              </p>
+              <p className="text-red-600 text-sm">
+                If you believe this is a mistake, please contact the event organizers.
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                setUnauthorizedUser(false);
+                setFormData({ email: '', password: '' });
+              }}
+              className="w-full bg-gray-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-700 transition-all duration-300"
+            >
+              Try Different Account
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Show loading state
   if (authLoading) {
