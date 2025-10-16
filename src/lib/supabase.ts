@@ -265,179 +265,13 @@ export const validateRegistrationWithEdgeFunction = async (
     };
   }
 };
-export const checkUniversityAuthorization = (university: string, degreeLevel?: string): boolean => {
-  if (!university) return false;
-  
-  // Always authorize Ain Shams University students and graduates
-  if (university.toLowerCase().includes('ain shams')) {
-    return true;
-  }
-  
-  // For other universities, only authorize graduates
-  const authorizedUniversities = [
-    'helwan university',
-    'banha university', 
-    'canadian ahram university',
-    'banha university' // Duplicate in your list, keeping it as is
-  ];
-  
-  const isAuthorizedUniversity = authorizedUniversities.some(authUni => 
-    university.toLowerCase().includes(authUni.toLowerCase())
-  );
-  
-  // For authorized universities, check if they are graduates
-  if (isAuthorizedUniversity) {
-    // If degree level is provided, check if it's graduate level
-    if (degreeLevel) {
-      const graduateLevels = ['graduate'];
-      return graduateLevels.some(level => 
-        degreeLevel.toLowerCase().includes(level.toLowerCase())
-      );
-    }
-    // If no degree level provided, assume not authorized (need to be graduate)
-    return false;
-  }
-  
-  // For all other universities, not authorized
-  return false;
-};
-// Add building entry score for volunteer
-export const addBuildingEntryScoreForVolunteer = async (volunteerId: string, attendeeName: string) => {
-  try {
-    const { data, error } = await supabase
-      .from('user_scores')
-      .insert([{
-        user_id: volunteerId,
-        points: 1,
-        activity_type: 'building_entry',
-        activity_description: `Building entry processed for attendee: ${attendeeName}`
-      }])
-      .select();
 
-    if (error) {
-      console.error('Error adding building entry score for volunteer:', error);
-      return { data: null, error };
-    }
-
-    return { data: data[0], error: null };
-  } catch (error: any) {
-    console.error('Add building entry score exception:', error);
-    return { data: null, error: { message: error.message } };
-  }
-};
-
-// Add session entry score for volunteer
-export const addSessionEntryScoreForVolunteer = async (volunteerId: string, attendeeName: string, sessionTitle: string) => {
-  try {
-    const { data, error } = await supabase
-      .from('user_scores')
-      .insert([{
-        user_id: volunteerId,
-        points: 1,
-        activity_type: 'session_entry',
-        activity_description: `Session entry processed for ${attendeeName} in: ${sessionTitle}`
-      }])
-      .select();
-
-    if (error) {
-      console.error('Error adding session entry score for volunteer:', error);
-      return { data: null, error };
-    }
-
-    return { data: data[0], error: null };
-  } catch (error: any) {
-    console.error('Add session entry score exception:', error);
-    return { data: null, error: { message: error.message } };
-  }
-};
-
-// Check if attendee has building entry today
-export const hasAttendeeBuildingEntryToday = async (attendeeId: string): Promise<boolean> => {
-  try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const { data, error } = await supabase
-      .from('user_scores')
-      .select('id')
-      .eq('user_id', attendeeId)
-      .eq('activity_type', 'building_entry_bonus')
-      .gte('awarded_at', today.toISOString())
-      .limit(1);
-
-    if (error) {
-      console.error('Error checking building entry bonus:', error);
-      return false;
-    }
-
-    return data && data.length > 0;
-  } catch (error: any) {
-    console.error('Check building entry bonus exception:', error);
-    return false;
-  }
-};
-
-// Add building entry bonus for attendee (once per day)
-export const addBuildingEntryBonusForAttendee = async (attendeeId: string) => {
-  try {
-    // Check if already got bonus today
-    const hasBonusToday = await hasAttendeeBuildingEntryToday(attendeeId);
-    if (hasBonusToday) {
-      return { data: null, error: { message: 'Building entry bonus already awarded today' } };
-    }
-
-    const { data, error } = await supabase
-      .from('user_scores')
-      .insert([{
-        user_id: attendeeId,
-        points: 10,
-        activity_type: 'building_entry_bonus',
-        activity_description: 'Daily building entry bonus'
-      }])
-      .select();
-
-    if (error) {
-      console.error('Error adding building entry bonus for attendee:', error);
-      return { data: null, error };
-    }
-
-    return { data: data[0], error: null };
-  } catch (error: any) {
-    console.error('Add building entry bonus exception:', error);
-    return { data: null, error: { message: error.message } };
-  }
-};
-
-// Add session entry bonus for attendee (unlimited)
-export const addSessionEntryBonusForAttendee = async (attendeeId: string, sessionTitle: string) => {
-  try {
-    const { data, error } = await supabase
-      .from('user_scores')
-      .insert([{
-        user_id: attendeeId,
-        points: 10,
-        activity_type: 'session_entry_bonus',
-        activity_description: `Session attendance bonus: ${sessionTitle}`
-      }])
-      .select();
-
-    if (error) {
-      console.error('Error adding session entry bonus for attendee:', error);
-      return { data: null, error };
-    }
-
-    return { data: data[0], error: null };
-  } catch (error: any) {
-    console.error('Add session entry bonus exception:', error);
-    return { data: null, error: { message: error.message } };
-  }
-};
-
+// In supabase.ts - Fix the signUpUser function
 export const signUpUser = async (email: string, password: string, userData: any) => {
   try {
     console.log('Starting auth user creation (two-step flow)...');
     
-    // Step 1: Create auth user only - let the trigger handle profile creation
+    // Step 1: Create auth user only using Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
       password: password,
@@ -476,27 +310,70 @@ export const signUpUser = async (email: string, password: string, userData: any)
 
     console.log('✅ Auth user created successfully:', authData.user.id);
 
-    // Step 2: Wait for trigger to create profile (don't create it manually)
-    console.log('⏳ Waiting for trigger to create profile...');
+    // Step 2: Create basic profile with the auth user's ID
+    const profileData = {
+      id: authData.user.id, // CRITICAL: Use the auth user's ID as foreign key
+      email: email.trim().toLowerCase(),
+      first_name: userData.first_name,
+      last_name: userData.last_name,
+      role: userData.role || 'attendee',
+      personal_id: null,
+      phone: null,
+      university: null,
+      faculty: null,
+      gender: null,
+      nationality: null,
+      degree_level: null,
+      program: null,
+      class: null,
+      how_did_hear_about_event: null,
+      volunteer_id: null,
+      university_id_path: null,
+      cv_path: null,
+      score: 0,
+      qr_code: null,
+      building_entry: false,
+      event_entry: false,
+      tl_team: null,
+      profile_complete: false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    console.log('Creating profile with ID:', authData.user.id);
+    console.log('Profile data:', profileData);
     
-    // Wait a bit for the trigger to execute
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // Check if profile was created by trigger
-    const { data: profileData, error: profileError } = await supabase
+    const { data: profileDataResult, error: profileError } = await supabase
       .from('users_profiles')
-      .select('*')
-      .eq('id', authData.user.id)
+      .insert([profileData])
+      .select()
       .single();
 
-    if (profileError || !profileData) {
-      console.warn('⚠️ Profile not created by trigger, user will need to complete registration later');
-      // Don't fail - the auth user was created successfully
-    } else {
-      console.log('✅ Profile created by trigger with authorized:', profileData.authorized);
+    if (profileError) {
+      console.error('❌ Profile creation error:', profileError);
+      
+      // Check if it's a foreign key constraint error
+      if (profileError.code === '23503') {
+        console.error('Foreign key constraint violation - auth user might not exist in database yet');
+      }
+      
+      // Even if profile creation fails, return success since auth user was created
+      console.warn('⚠️ Auth user created but profile creation failed. User can complete profile later.');
+      
+      return {
+        success: true,
+        data: {
+          user: authData.user,
+          profile: null,
+          session: authData.session
+        },
+        error: null
+      };
     }
 
-    // Step 3: Try to auto-sign in
+    console.log('✅ Profile created successfully:', profileDataResult);
+
+    // Step 3: Try to auto-sign in (but don't block on errors)
     try {
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email: email.trim().toLowerCase(),
@@ -511,22 +388,22 @@ export const signUpUser = async (email: string, password: string, userData: any)
           success: true,
           data: {
             user: signInData.user,
-            profile: profileData || null,
+            profile: profileDataResult,
             session: signInData.session
           },
           error: null
         };
       }
     } catch (signInError) {
-      console.warn('Auto-signin exception:', signInSignIn);
+      console.warn('Auto-signin exception:', signInError);
     }
 
-    // Return success
+    // Return success even if auto-signin fails
     return {
       success: true,
       data: {
         user: authData.user,
-        profile: profileData || null,
+        profile: profileDataResult,
         session: authData.session
       },
       error: null
@@ -541,91 +418,6 @@ export const signUpUser = async (email: string, password: string, userData: any)
         message: error.message || 'Registration failed'
       }
     };
-  }
-};
-export const checkUserAuthorizationStatus = async (userId: string): Promise<boolean> => {
-  try {
-    const { data, error } = await supabase
-      .from('users_profiles')
-      .select('authorized')
-      .eq('id', userId)
-      .single();
-
-    if (error) {
-      console.error('Error checking user authorization status:', error);
-      return false;
-    }
-
-    return data.authorized === true;
-  } catch (error: any) {
-    console.error('Check user authorization status exception:', error);
-    return false;
-  }
-};
-export const updateUserAuthorization = async (userId: string, authorized: boolean) => {
-  try {
-    const { data, error } = await supabase
-      .from('users_profiles')
-      .update({ 
-        authorized: authorized,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', userId)
-      .select();
-
-    if (error) {
-      console.error('Error updating user authorization:', error);
-      return { data: null, error };
-    }
-
-    return { data: data[0], error: null };
-  } catch (error: any) {
-    console.error('Update user authorization exception:', error);
-    return { data: null, error: { message: error.message } };
-  }
-};
-
-// In lib/supabase.ts - Make sure completeProfile returns authorization status
-export const completeProfile = async (userId: string, profileData: any) => {
-  try {
-    console.log('Completing profile for user:', userId);
-    
-    // Check university authorization when completing profile
-    const isAuthorized = checkUniversityAuthorization(profileData.university, profileData.degree_level);
-    
-    const updateData = {
-      ...profileData,
-      authorized: isAuthorized,
-      profile_complete: true,
-      updated_at: new Date().toISOString()
-    };
-
-    console.log('Updating profile with authorization:', isAuthorized);
-
-    const { data, error } = await supabase
-      .from('users_profiles')
-      .update(updateData)
-      .eq('id', userId)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Profile completion error:', error);
-      return { data: null, error };
-    }
-
-    console.log('✅ Profile completed successfully with authorization:', isAuthorized);
-    return { 
-      data: { 
-        ...data, 
-        isAuthorized // Make sure this is returned
-      }, 
-      error: null 
-    };
-
-  } catch (error: any) {
-    console.error('Complete profile exception:', error);
-    return { data: null, error: { message: error.message } };
   }
 };
 
@@ -969,27 +761,13 @@ export const uploadMapImage = async (dayNumber: number, imageFile: File, userId:
   }
 };
 
-// Update the existing updateUserFiles function to maintain authorization
 export const updateUserFiles = async (userId: string, filePaths: { university_id_path?: string, cv_path?: string }) => {
   try {
     console.log('Updating user files:', filePaths);
     
-    // Get current user data to preserve authorization
-    const { data: currentUser } = await supabase
-      .from('users_profiles')
-      .select('authorized')
-      .eq('id', userId)
-      .single();
-
-    const updateData = {
-      ...filePaths,
-      updated_at: new Date().toISOString(),
-      authorized: currentUser?.authorized // Preserve existing authorization
-    };
-
     const { data, error } = await supabase
       .from('users_profiles')
-      .update(updateData)
+      .update(filePaths)
       .eq('id', userId)
       .select();
 
@@ -2319,6 +2097,5 @@ export const updateUserStatus = async (userId: string, updates: { building_entry
     return { data: null, error: { message: error.message } };
   }
 };
-// Export all the scoring functions
 
 export default supabase;
