@@ -1452,9 +1452,10 @@ const tabItems = [
     <div className="space-y-8">
       {PARTNER_TYPES.map((partnerType) => {
         // Filter companies by partner type AND active day
+        // If days is null or empty, show on all days
         const partnerCompanies = companies.filter(company => 
           company.partner_type === partnerType && 
-          company.days.includes(activeCompanyDay) // Filter by day number
+          (!company.days || company.days.length === 0 || company.days.includes(activeCompanyDay))
         );
         
         if (partnerCompanies.length === 0) return null;
@@ -1483,18 +1484,24 @@ const tabItems = [
                     {/* Days Badge */}
                     <div className="mb-3">
                       <div className="flex flex-wrap justify-center gap-1">
-                        {company.days.map((day, idx) => (
-                          <span 
-                            key={idx}
-                            className={`inline-block px-2 py-1 text-xs rounded-full border ${
-                              day === activeCompanyDay
-                                ? 'bg-orange-100 text-orange-800 border-orange-200 font-bold'
-                                : 'bg-gray-100 text-gray-600 border-gray-200'
-                            }`}
-                          >
-                            Day {day}
+                        {(!company.days || company.days.length === 0) ? (
+                          <span className="inline-block px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full border border-green-200 font-bold">
+                            All Days
                           </span>
-                        ))}
+                        ) : (
+                          company.days.map((day, idx) => (
+                            <span 
+                              key={idx}
+                              className={`inline-block px-2 py-1 text-xs rounded-full border ${
+                                day === activeCompanyDay
+                                  ? 'bg-orange-100 text-orange-800 border-orange-200 font-bold'
+                                  : 'bg-gray-100 text-gray-600 border-gray-200'
+                              }`}
+                            >
+                              Day {day}
+                            </span>
+                          ))
+                        )}
                       </div>
                     </div>
                     
@@ -1534,7 +1541,7 @@ const tabItems = [
                       </div>
                     )}
                     
-                    {/* HR Emails */}
+                    {/* HR Emails - Only show if not null/empty */}
                     {company.hr_mails && company.hr_mails.length > 0 && (
                       <div className="mb-3">
                         <p className="text-xs font-medium text-gray-700 mb-2">HR Contacts:</p>
@@ -1568,7 +1575,9 @@ const tabItems = [
       })}
       
       {/* Fallback if no companies found for selected day */}
-      {companies.filter(company => company.days.includes(activeCompanyDay)).length === 0 && (
+      {companies.filter(company => 
+        !company.days || company.days.length === 0 || company.days.includes(activeCompanyDay)
+      ).length === 0 && (
         <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200">
           <Building className="h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mx-auto mb-3 sm:mb-4" />
           <p className="text-gray-500 text-sm sm:text-base">No companies available for Day {activeCompanyDay}</p>
