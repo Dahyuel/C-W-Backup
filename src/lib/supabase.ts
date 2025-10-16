@@ -437,15 +437,7 @@ export const signUpUser = async (email: string, password: string, userData: any)
   try {
     console.log('Starting auth user creation (two-step flow)...');
     
-    // Step 1: Check university authorization
-    const isAuthorized = checkUniversityAuthorization(userData.university, userData.degree_level);
-    console.log('University authorization check:', { 
-      university: userData.university, 
-      degreeLevel: userData.degree_level,
-      authorized: isAuthorized 
-    });
-
-    // Step 2: Create auth user only using Supabase Auth
+    // Step 1: Create auth user only using Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
       password: password,
@@ -484,23 +476,23 @@ export const signUpUser = async (email: string, password: string, userData: any)
 
     console.log('✅ Auth user created successfully:', authData.user.id);
 
-    // Step 3: Create basic profile with authorization status
+    // Step 2: Create basic profile with the auth user's ID
     const profileData = {
-      id: authData.user.id,
+      id: authData.user.id, // CRITICAL: Use the auth user's ID as foreign key
       email: email.trim().toLowerCase(),
       first_name: userData.first_name,
       last_name: userData.last_name,
       role: userData.role || 'attendee',
       personal_id: null,
       phone: null,
-      university: userData.university || null,
-      faculty: userData.faculty || null,
-      gender: userData.gender || null,
-      nationality: userData.nationality || null,
-      degree_level: userData.degree_level || null,
-      program: userData.program || null,
-      class: userData.class || null,
-      how_did_hear_about_event: userData.how_did_hear_about_event || null,
+      university: null,
+      faculty: null,
+      gender: null,
+      nationality: null,
+      degree_level: null,
+      program: null,
+      class: null,
+      how_did_hear_about_event: null,
       volunteer_id: null,
       university_id_path: null,
       cv_path: null,
@@ -510,13 +502,12 @@ export const signUpUser = async (email: string, password: string, userData: any)
       event_entry: false,
       tl_team: null,
       profile_complete: false,
-      authorized: isAuthorized, // SET AUTHORIZATION STATUS
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
 
     console.log('Creating profile with ID:', authData.user.id);
-    console.log('Profile data with authorization:', profileData);
+    console.log('Profile data:', profileData);
     
     const { data: profileDataResult, error: profileError } = await supabase
       .from('users_profiles')
@@ -546,7 +537,7 @@ export const signUpUser = async (email: string, password: string, userData: any)
       };
     }
 
-    console.log('✅ Profile created successfully with authorization:', isAuthorized);
+    console.log('✅ Profile created successfully:', profileDataResult);
 
     // Step 3: Try to auto-sign in (but don't block on errors)
     try {
@@ -564,8 +555,7 @@ export const signUpUser = async (email: string, password: string, userData: any)
           data: {
             user: signInData.user,
             profile: profileDataResult,
-            session: signInData.session,
-            isAuthorized: isAuthorized // Include authorization status in response
+            session: signInData.session
           },
           error: null
         };
@@ -580,8 +570,7 @@ export const signUpUser = async (email: string, password: string, userData: any)
       data: {
         user: authData.user,
         profile: profileDataResult,
-        session: authData.session,
-        isAuthorized: isAuthorized // Include authorization status in response
+        session: authData.session
       },
       error: null
     };
@@ -597,6 +586,7 @@ export const signUpUser = async (email: string, password: string, userData: any)
     };
   }
 };
+
 export const checkUserAuthorizationStatus = async (userId: string): Promise<boolean> => {
   try {
     const { data, error } = await supabase
