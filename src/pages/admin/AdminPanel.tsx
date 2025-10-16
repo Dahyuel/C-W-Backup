@@ -313,29 +313,34 @@ export function AdminPanel() {
     type: "general",
   });
   
-  const [newCompany, setNewCompany] = useState<{ 
-    name: string; 
-    logo: File | null; 
-    logoUrl: string; 
-    logoType: 'link' | 'upload'; 
-    description: string; 
-    website: string; 
-    boothNumber: string;
-    partnerType: string;
-    academicFaculties: string[];
-    vacanciesType: string[];
-  }>({
-    name: "",
-    logo: null,
-    logoUrl: "",
-    logoType: "link",
-    description: "",
-    website: "",
-    boothNumber: "",
-    partnerType: "",
-    academicFaculties: [],
-    vacanciesType: [],
-  });
+// Update the newCompany state
+const [newCompany, setNewCompany] = useState<{ 
+  name: string; 
+  logo: File | null; 
+  logoUrl: string; 
+  logoType: 'link' | 'upload'; 
+  description: string; 
+  website: string; 
+  boothNumber: string;
+  partnerType: string;
+  academicFaculties: string[];
+  vacanciesType: string[];
+  days: number[]; // Add this
+  hrMails: string[]; // Add this
+}>({
+  name: "",
+  logo: null,
+  logoUrl: "",
+  logoType: "link",
+  description: "",
+  website: "",
+  boothNumber: "",
+  partnerType: "",
+  academicFaculties: [],
+  vacanciesType: [],
+  days: [], // Add this
+  hrMails: [], // Add this
+});
 
   const [newSession, setNewSession] = useState<{ title: string; date: string; speaker: string; capacity: string | number; type: 'session' | string; hour: string; location: string; description: string;}>({
     title: "",
