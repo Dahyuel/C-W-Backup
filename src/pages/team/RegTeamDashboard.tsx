@@ -473,6 +473,13 @@ const validateAttendee = (attendee: any): { isValid: boolean; error?: string } =
                                     <span className="text-xs text-yellow-600">Profile Incomplete</span>
                                   </div>
                                 )}
+                                {/* Show authorization status */}
+                                {!attendee.authorized && (
+                                  <div className="flex items-center space-x-1 mt-1">
+                                    <AlertTriangle className="h-3 w-3 text-red-500" />
+                                    <span className="text-xs text-red-600">Not Authorized</span>
+                                  </div>
+                                )}
                               </div>
                               <div className="text-right">
                                 <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
