@@ -1423,15 +1423,36 @@ const tabItems = [
 {/* Companies - Responsive */}
 {activeTab === "companies" && (
   <div className="tab-content-animate">
-    <h2 className="text-lg sm:text-xl font-bold text-gray-900 mb-4 sm:mb-6 flex items-center">
-      <Building className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600" /> 
-      <span className="text-sm sm:text-lg">Participating Companies</span>
-    </h2>
-    
+    <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center justify-between mb-6">
+      <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center">
+        <Building className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600" /> 
+        <span className="text-sm sm:text-lg">Participating Companies</span>
+      </h2>
+      
+      {/* Day Selector for Companies */}
+      <div className="flex space-x-1 sm:space-x-2 overflow-x-auto pb-2 sm:pb-0">
+        {[1, 2, 3, 4, 5].map((day) => (
+          <button
+            key={day}
+            onClick={() => setActiveCompanyDay(day)}
+            className={`px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex-shrink-0 ${
+              activeCompanyDay === day 
+                ? "bg-orange-500 text-white shadow-lg scale-105" 
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md"
+            } transform hover:scale-105 transition-all duration-300`}
+          >
+            Day {day}
+          </button>
+        ))}
+      </div>
+    </div>
+
     <div className="space-y-8">
       {PARTNER_TYPES.map((partnerType) => {
+        // Filter companies by partner type AND active day
         const partnerCompanies = companies.filter(company => 
-          company.partner_type === partnerType
+          company.partner_type === partnerType && 
+          company.days.includes(activeCompanyDay) // Filter by day number
         );
         
         if (partnerCompanies.length === 0) return null;
@@ -1457,7 +1478,25 @@ const tabItems = [
                     />
                     <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 line-clamp-2">{company.name}</h3>
                     
-                    {/* Faculty Information - Show ALL faculties */}
+                    {/* Days Badge */}
+                    <div className="mb-3">
+                      <div className="flex flex-wrap justify-center gap-1">
+                        {company.days.map((day, idx) => (
+                          <span 
+                            key={idx}
+                            className={`inline-block px-2 py-1 text-xs rounded-full border ${
+                              day === activeCompanyDay
+                                ? 'bg-orange-100 text-orange-800 border-orange-200 font-bold'
+                                : 'bg-gray-100 text-gray-600 border-gray-200'
+                            }`}
+                          >
+                            Day {day}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Faculty Information */}
                     {company.academic_faculties_seeking_for && company.academic_faculties_seeking_for.length > 0 && (
                       <div className="mb-3">
                         <p className="text-xs font-medium text-gray-700 mb-2">Seeking Faculties:</p>
@@ -1493,6 +1532,25 @@ const tabItems = [
                       </div>
                     )}
                     
+                    {/* HR Emails */}
+                    {company.hr_mails && company.hr_mails.length > 0 && (
+                      <div className="mb-3">
+                        <p className="text-xs font-medium text-gray-700 mb-2">HR Contacts:</p>
+                        <div className="flex flex-col gap-1">
+                          {company.hr_mails.map((email, idx) => (
+                            <a
+                              key={idx}
+                              href={`mailto:${email}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-xs text-blue-600 hover:text-blue-800 break-all px-2 py-1 bg-gray-50 rounded border border-gray-200 hover:bg-gray-100 transition-colors"
+                            >
+                              {email}
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
                     {company.booth_number && (
                       <div className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
                         <MapPin className="h-3 w-3 mr-1" />
@@ -1507,11 +1565,12 @@ const tabItems = [
         );
       })}
       
-      {/* Fallback if no companies found */}
-      {companies.length === 0 && (
+      {/* Fallback if no companies found for selected day */}
+      {companies.filter(company => company.days.includes(activeCompanyDay)).length === 0 && (
         <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200">
           <Building className="h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mx-auto mb-3 sm:mb-4" />
-          <p className="text-gray-500 text-sm sm:text-base">No companies available</p>
+          <p className="text-gray-500 text-sm sm:text-base">No companies available for Day {activeCompanyDay}</p>
+          <p className="text-gray-400 text-xs mt-2">Try selecting a different day</p>
         </div>
       )}
     </div>
