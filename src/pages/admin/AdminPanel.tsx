@@ -35,6 +35,7 @@ interface StatsSummary {
   total_volunteers: number;
 }
 
+// In your types section, update the CompanyItem interface
 interface CompanyItem {
   id: string;
   name: string;
@@ -46,6 +47,8 @@ interface CompanyItem {
   created_at?: string;
   academic_faculties_seeking_for?: string[];
   vacancies_type?: string[];
+  days?: number[]; // Add this
+  hr_mails?: string[]; // Add this
 }
 
 // Add partner type order
