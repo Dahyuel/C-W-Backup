@@ -640,27 +640,89 @@ const fetchOpenRecruitmentBookingsDirect = async (day: number): Promise<Attendan
     return [];
   }
 };
-  // HR Emails handlers
+
+  // Add these helper functions near your other checkbox handlers
+
+const handleDayChange = (day: number) => {
+
+  setSelectedDays(prev => {
+
+    if (prev.includes(day)) {
+
+      // Remove day
+
+      return prev.filter(d => d !== day);
+
+    } else {
+
+      // Add day and sort
+
+      return [...prev, day].sort((a, b) => a - b);
+
+    }
+
+  });
+
+};
+
+const handleEditDayChange = (day: number) => {
+
+  setEditSelectedDays(prev => {
+
+    if (prev.includes(day)) {
+
+      // Remove day
+
+      return prev.filter(d => d !== day);
+
+    } else {
+
+      // Add day and sort
+
+      return [...prev, day].sort((a, b) => a - b);
+
+    }
+
+  });
+
+};
+
+// HR Emails handlers
+
 const handleAddHrEmail = () => {
+
   if (newHrEmail && newHrEmail.includes('@')) {
+
     setHrEmails(prev => [...prev, newHrEmail.trim()]);
+
     setNewHrEmail("");
+
   }
+
 };
 
 const handleAddEditHrEmail = () => {
+
   if (editNewHrEmail && editNewHrEmail.includes('@')) {
+
     setEditHrEmails(prev => [...prev, editNewHrEmail.trim()]);
+
     setEditNewHrEmail("");
+
   }
+
 };
 
 const handleRemoveHrEmail = (index: number) => {
+
   setHrEmails(prev => prev.filter((_, i) => i !== index));
+
 };
 
 const handleRemoveEditHrEmail = (index: number) => {
+
   setEditHrEmails(prev => prev.filter((_, i) => i !== index));
+
 };
  
   // Load bookings when Open Recruitment tab is active
@@ -2099,54 +2161,7 @@ const handleEditCompany = (company: CompanyItem) => {
       fetchDailyActivity(selectedDay);
     }, [selectedDay]);
 
-// Add these helper functions near your other checkbox handlers
 
-const handleDayChange = (day: number) => {
-  setSelectedDays(prev => {
-    if (prev.includes(day)) {
-      // Remove day
-      return prev.filter(d => d !== day);
-    } else {
-      // Add day and sort
-      return [...prev, day].sort((a, b) => a - b);
-    }
-  });
-};
-
-const handleEditDayChange = (day: number) => {
-  setEditSelectedDays(prev => {
-    if (prev.includes(day)) {
-      // Remove day
-      return prev.filter(d => d !== day);
-    } else {
-      // Add day and sort
-      return [...prev, day].sort((a, b) => a - b);
-    }
-  });
-};
-
-// HR Emails handlers
-const handleAddHrEmail = () => {
-  if (newHrEmail && newHrEmail.includes('@')) {
-    setHrEmails(prev => [...prev, newHrEmail.trim()]);
-    setNewHrEmail("");
-  }
-};
-
-const handleAddEditHrEmail = () => {
-  if (editNewHrEmail && editNewHrEmail.includes('@')) {
-    setEditHrEmails(prev => [...prev, editNewHrEmail.trim()]);
-    setEditNewHrEmail("");
-  }
-};
-
-const handleRemoveHrEmail = (index: number) => {
-  setHrEmails(prev => prev.filter((_, i) => i !== index));
-};
-
-const handleRemoveEditHrEmail = (index: number) => {
-  setEditHrEmails(prev => prev.filter((_, i) => i !== index));
-};
     
     const fetchDailyActivity = async (day: number) => {
       try {
