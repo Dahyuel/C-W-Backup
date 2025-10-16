@@ -54,7 +54,8 @@ export const AuthRegistration: React.FC<AuthRegistrationProps> = ({ onSuccess })
     return validationErrors.length === 0;
   };
 
- const handleSubmit = async (e: React.FormEvent) => {
+  // In AuthRegistration - Update handleSubmit
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) return;
@@ -83,14 +84,32 @@ export const AuthRegistration: React.FC<AuthRegistrationProps> = ({ onSuccess })
           navigate('/attendee-register', { replace: true });
         }, 1000);
       } else {
-        // ... error handling remains the same
+        console.error('Registration failed:', result.error);
+        
+        let errorMessage = result.error?.message || 'Registration failed. Please try again.';
+        
+        if (errorMessage.includes('User already registered')) {
+          errorMessage = 'An account with this email already exists. Please sign in instead.';
+        } else if (errorMessage.includes('Email not confirmed')) {
+          errorMessage = 'Please check your email to confirm your account before signing in.';
+        }
+
+        setErrors([{ 
+          field: 'general', 
+          message: errorMessage 
+        }]);
       }
     } catch (error: any) {
-      // ... error handling remains the same
+      console.error('Unexpected registration error:', error);
+      setErrors([{ 
+        field: 'general', 
+        message: 'An unexpected error occurred. Please try again.' 
+      }]);
     } finally {
       setLoading(false);
     }
   };
+
   const getFieldError = (field: string) => {
     return errors.find(error => error.field === field)?.message;
   };
