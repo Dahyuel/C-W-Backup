@@ -34,7 +34,9 @@ interface Attendee {
   last_scan?: string;
   event_entry?: boolean;
   profile_complete?: boolean;
+  authorized?: boolean; // Add this line
 }
+
 
 const castToAttendee = (data: any): Attendee => {
   console.log('Casting attendee data:', data);
