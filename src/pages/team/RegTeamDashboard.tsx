@@ -570,23 +570,24 @@ const handleAttendanceAction = async (action: 'enter' | 'exit') => {
       />
 
       {/* Attendee Card Modal */}
-      <AttendeeCard
-        isOpen={showAttendeeCard}
-        onClose={() => {
-          setShowAttendeeCard(false);
-          setSelectedAttendee(null);
-          setValidationError(null);
-        }}
-        attendee={selectedAttendee}
-        onAction={handleAttendanceAction}
-        loading={actionLoading}
-        mode="registration"
-        // Pass validation info to the card
-        validationInfo={{
-          profileComplete: selectedAttendee?.profile_complete || false,
-          eventEntry: selectedAttendee?.event_entry || false
-        }}
-      />
+<AttendeeCard
+  isOpen={showAttendeeCard}
+  onClose={() => {
+    setShowAttendeeCard(false);
+    setSelectedAttendee(null);
+    setValidationError(null);
+  }}
+  attendee={selectedAttendee}
+  onAction={handleAttendanceAction}
+  loading={actionLoading}
+  mode="registration"
+  // Pass validation info to the card
+  validationInfo={{
+    profileComplete: selectedAttendee?.profile_complete || false,
+    eventEntry: selectedAttendee?.event_entry || false,
+    authorized: selectedAttendee?.authorized || false // Add this line
+  }}
+/>
     </DashboardLayout>
   );
 };
