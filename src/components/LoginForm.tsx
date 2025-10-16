@@ -70,46 +70,7 @@ export const LoginForm: React.FC = () => {
     return validationErrors;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Prevent double submission
-    if (loading) return;
-    
-    const validationErrors = validateForm();
-    if (validationErrors.length > 0) {
-      setErrors(validationErrors);
-      return;
-    }
-
-    setLoading(true);
-    setErrors([]);
-    setUnauthorizedUser(false);
-
-    try {
-      const result = await signIn(formData.email, formData.password);
-
-      if (!result.success) {
-        setErrors([{ 
-          field: 'general', 
-          message: result.error?.message || 'Invalid email or password' 
-        }]);
-        setLoading(false);
-        return;
-      }
-
-      // The useEffect will handle the authorization check and redirect
-      
-    } catch (error: any) {
-      console.error('Login exception:', error);
-      setErrors([{ 
-        field: 'general', 
-        message: error.message || 'Login failed. Please try again.' 
-      }]);
-      setLoading(false);
-    }
-  };
-
+handleSubmit 
   const getFieldError = (field: string) => {
     return errors.find(error => error.field === field)?.message;
   };
