@@ -3720,14 +3720,17 @@ const handleRemoveEditHrEmail = (index: number) => {
   <div className="fade-in-blur">
     <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
       <Calendar className="h-4 w-4 mr-2" />
-      Open Recruitment Days
+      Days
     </label>
     <div className="flex flex-wrap gap-2">
-      {selectedCompanyDetail.days.map((day, index) => (
-        <span key={index} className="inline-flex items-center px-2 sm:px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-xs sm:text-sm">
-          Day {day}
-        </span>
-      ))}
+      {selectedCompanyDetail.days.map((day, index) => {
+        const dayLabel = OPEN_RECRUITMENT_DAYS.find(d => d.value === day);
+        return (
+          <span key={index} className="inline-flex items-center px-2 sm:px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-xs sm:text-sm">
+            {dayLabel?.label || `Day ${day}`}
+          </span>
+        );
+      })}
     </div>
   </div>
 )}
