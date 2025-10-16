@@ -355,7 +355,7 @@ export const addBuildingEntryBonusForAttendee = async (attendeeId: string) => {
       .from('user_scores')
       .insert([{
         user_id: attendeeId,
-        points: 1,
+        points: 10,
         activity_type: 'building_entry_bonus',
         activity_description: 'Daily building entry bonus'
       }])
