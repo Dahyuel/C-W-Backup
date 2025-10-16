@@ -4835,20 +4835,23 @@ const handleRemoveEditHrEmail = (index: number) => {
     Days
   </label>
   <div className="grid grid-cols-2 gap-2 sm:gap-3">
-    {OPEN_RECRUITMENT_DAYS.map((day) => (
-      <label key={day.value} className="flex items-center space-x-2 cursor-pointer p-2 hover:bg-gray-50 rounded transition-colors">
+    {OPEN_RECRUITMENT_DAYS.map((dayOption) => (
+      <label 
+        key={dayOption.value} 
+        className="flex items-center space-x-2 cursor-pointer p-2 hover:bg-gray-50 rounded transition-colors"
+      >
         <input
           type="checkbox"
-          checked={editSelectedDays.includes(day.value)}
-          onChange={() => handleEditDayChange(day.value)}
-          className="rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+          checked={editSelectedDays.includes(dayOption.value)}
+          onChange={() => handleEditDayChange(dayOption.value)}
+          className="rounded border-gray-300 text-orange-600 focus:ring-orange-500 w-4 h-4"
         />
-        <span className="text-sm text-gray-700">{day.label}</span>
+        <span className="text-sm text-gray-700">{dayOption.label}</span>
       </label>
     ))}
   </div>
   <p className="text-xs text-gray-500 mt-2">
-    Select days when company is available for recruitment
+    Selected: {editSelectedDays.length > 0 ? editSelectedDays.join(', ') : 'None'}
   </p>
 </div>
 
