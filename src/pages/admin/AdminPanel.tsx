@@ -2059,6 +2059,48 @@ const handleEditEvent = (event: EventItem) => {
       fetchDailyActivity(selectedDay);
     }, [selectedDay]);
 
+// Add these helper functions near your other checkbox handlers
+
+// Days selection handlers
+const handleDayChange = (day: number) => {
+  setSelectedDays(prev =>
+    prev.includes(day)
+      ? prev.filter(d => d !== day)
+      : [...prev, day].sort()
+  );
+};
+
+const handleEditDayChange = (day: number) => {
+  setEditSelectedDays(prev =>
+    prev.includes(day)
+      ? prev.filter(d => d !== day)
+      : [...prev, day].sort()
+  );
+};
+
+// HR Emails handlers
+const handleAddHrEmail = () => {
+  if (newHrEmail && newHrEmail.includes('@')) {
+    setHrEmails(prev => [...prev, newHrEmail.trim()]);
+    setNewHrEmail("");
+  }
+};
+
+const handleAddEditHrEmail = () => {
+  if (editNewHrEmail && editNewHrEmail.includes('@')) {
+    setEditHrEmails(prev => [...prev, editNewHrEmail.trim()]);
+    setEditNewHrEmail("");
+  }
+};
+
+const handleRemoveHrEmail = (index: number) => {
+  setHrEmails(prev => prev.filter((_, i) => i !== index));
+};
+
+const handleRemoveEditHrEmail = (index: number) => {
+  setEditHrEmails(prev => prev.filter((_, i) => i !== index));
+};
+    
     const fetchDailyActivity = async (day: number) => {
       try {
         // Calculate the date for the selected day (Day 1 = Oct 19, 2025)
