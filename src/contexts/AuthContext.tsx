@@ -23,9 +23,8 @@ type AuthContextType = {
   isProfileComplete: (profile: any, role?: string) => boolean;
   getRegistrationState: () => any;
   setRegistrationState: (state: any) => void;
-  isUserAuthorized: boolean;
+  isUserAuthorized: boolean; // This should already be there
 };
-
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
