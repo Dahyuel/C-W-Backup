@@ -537,7 +537,6 @@ const handleBuildingAttendanceAction = async (action: 'enter' | 'exit') => {
     setActionLoading(false);
   }
 };
-
 // Update the handleSessionAttendanceAction function
 const handleSessionAttendanceAction = async () => {
   if (!selectedAttendee || !selectedSession) return;
@@ -590,45 +589,6 @@ const handleSessionAttendanceAction = async () => {
     setActionLoading(false);
   }
 };
-  const handleSessionAttendanceAction = async () => {
-    if (!selectedAttendee || !selectedSession) return;
-
-    try {
-      setActionLoading(true);
-      
-      const { data, error } = await processBuildingAttendance(
-        selectedAttendee.personal_id, 
-        'session_entry',
-        selectedSession.id
-      );
-
-      if (error) {
-        showFeedback('error', error.message || 'Failed to add to session');
-        return;
-      }
-
-      showFeedback('success', data.message || 'Successfully added to session!');
-      
-      // Refresh sessions to update current_attendees count
-      fetchSessions();
-
-      // Close attendee card after successful action
-      setTimeout(() => {
-        setShowAttendeeCard(false);
-        setSelectedAttendee(null);
-        setSessionMode(null);
-        setHasSessionBooking(false);
-        setHasSessionAttendance(false);
-      }, 2000);
-
-    } catch (error) {
-      console.error("Session attendance action error:", error);
-      showFeedback('error', 'Failed to add to session');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
   const clearBuildingSearch = () => {
     setBuildingSearchTerm("");
     setBuildingSearchResults([]);
