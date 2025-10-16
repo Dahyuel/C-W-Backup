@@ -439,8 +439,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Sign up handler
-// In AuthContext.tsx - Update the signUp function
+
+// In AuthContext.tsx - Fix the signUp function
 const signUp = async (email: string, password: string, profileData: any) => {
   try {
     setAuthActionLoading(true);
@@ -455,7 +455,7 @@ const signUp = async (email: string, password: string, profileData: any) => {
       await new Promise(resolve => setTimeout(resolve, 1000));
       const userProfile = await fetchProfile(result.data.user.id);
       
-      // Check if user is authorized
+      // Check if user is authorized - FIXED LOGIC
       if (userProfile && userProfile.authorized === false) {
         setAuthActionMessage('Registration completed but authorization pending...');
         
@@ -471,11 +471,11 @@ const signUp = async (email: string, password: string, profileData: any) => {
         };
       }
       
+      // If user is authorized or authorization is null (pending), proceed to registration
       setAuthActionMessage('Account created successfully!');
       
-      const redirectPath = userProfile?.role === 'attendee' 
-        ? '/attendee-register' 
-        : '/V0lunt33ringR3g';
+      // Always redirect to registration form for attendee role
+      const redirectPath = '/attendee-register';
       
       return { success: true, data: result.data, redirectPath };
     }
@@ -488,6 +488,7 @@ const signUp = async (email: string, password: string, profileData: any) => {
     setAuthActionLoading(false);
   }
 };
+  
   // Volunteer sign up handler
   const signUpVolunteerFunc = async (email: string, password: string, profileData: any) => {
     try {
