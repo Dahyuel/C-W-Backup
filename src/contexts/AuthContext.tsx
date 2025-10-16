@@ -1,4 +1,4 @@
-// src/contexts/AuthContext.tsx - UPDATED WITH AUTHORIZATION CHECK
+// src/contexts/AuthContext.tsx - OPTIMIZED & FIXED
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { supabase, signUpUser, signUpVolunteer, signInUser, validateRegistrationData } from "../lib/supabase";
 import type { User, Session } from '@supabase/supabase-js';
@@ -23,8 +23,8 @@ type AuthContextType = {
   isProfileComplete: (profile: any, role?: string) => boolean;
   getRegistrationState: () => any;
   setRegistrationState: (state: any) => void;
-  isUserAuthorized: boolean; // This should already be there
 };
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -35,7 +35,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [sessionLoaded, setSessionLoaded] = useState(false);
   const [authActionLoading, setAuthActionLoading] = useState(false);
   const [authActionMessage, setAuthActionMessage] = useState('');
-  const [isUserAuthorized, setIsUserAuthorized] = useState(true);
 
   // Refs to prevent re-initialization
   const initializedRef = useRef(false);
@@ -53,7 +52,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             hasAuth: !!profileData,
             role: profileData?.role,
             profileComplete: profileData?.profile_complete || false,
-            authorized: profileData?.authorized,
             timestamp: Date.now()
           }));
         }
@@ -107,44 +105,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }), []);
 
-// In AuthContext.tsx - Fix the checkUserAuthorization function
-const checkUserAuthorization = useCallback(async (userId: string): Promise<boolean> => {
-  try {
-    const { data: profileData, error } = await supabase
-      .from('users_profiles')
-      .select('authorized, role')
-      .eq('id', userId)
-      .single();
-
-    if (error) {
-      console.error('Error checking user authorization:', error);
-      return true; // Default to true for backward compatibility
-    }
-
-    // All roles except attendee are always authorized
-    if (profileData.role !== 'attendee') {
-      console.log(`✅ ${profileData.role} role is always authorized`);
-      return true;
-    }
-
-    // For attendees only, check the authorized field
-    // Only return true if authorized is explicitly true
-    const isAuthorized = profileData.authorized === true;
-    console.log(`🔐 Attendee authorization status:`, {
-      authorized: profileData.authorized,
-      isAuthorized,
-      role: profileData.role
-    });
-    
-    setIsUserAuthorized(isAuthorized);
-    return isAuthorized;
-
-  } catch (error) {
-    console.error('Authorization check error:', error);
-    setIsUserAuthorized(true); // Default to true on error
-    return true;
-  }
-}, []);
   // Profile completeness check
   const isProfileComplete = useCallback((profile: any, role?: string): boolean => {
     if (!profile) return false;
@@ -165,7 +125,7 @@ const checkUserAuthorization = useCallback(async (userId: string): Promise<boole
     return false;
   }, []);
 
-  // Optimized profile fetching with exponential backoff and authorization check
+  // Optimized profile fetching with exponential backoff
   const fetchProfile = useCallback(async (uid: string): Promise<any> => {
     const maxRetries = 3;
     const baseDelay = 500;
@@ -176,7 +136,7 @@ const checkUserAuthorization = useCallback(async (userId: string): Promise<boole
           .from("users_profiles")
           .select("*")
           .eq("id", uid)
-          .maybeSingle();
+          .maybeSingle(); // Use maybeSingle to avoid errors on no rows
 
         if (error) {
           if (error.code === 'PGRST116') {
@@ -198,10 +158,6 @@ const checkUserAuthorization = useCallback(async (userId: string): Promise<boole
         }
 
         if (data) {
-          // Check authorization when profile is fetched
-          const isAuthorized = await checkUserAuthorization(uid);
-          setIsUserAuthorized(isAuthorized);
-          
           setProfile(data);
           sessionHelpers.saveProfile(data);
           return data;
@@ -219,158 +175,129 @@ const checkUserAuthorization = useCallback(async (userId: string): Promise<boole
     }
     
     return null;
-  }, [sessionHelpers, checkUserAuthorization]);
+  }, [sessionHelpers]);
 
-// In AuthContext.tsx - Fix the handleAuthStateChange function
-const handleAuthStateChange = useCallback(async (event: string, session: Session | null) => {
-  // Prevent concurrent processing
-  if (isProcessingAuthChange.current) return;
-  isProcessingAuthChange.current = true;
+  // Debounced auth state change handler
+  const handleAuthStateChange = useCallback(async (event: string, session: Session | null) => {
+    // Prevent concurrent processing
+    if (isProcessingAuthChange.current) return;
+    isProcessingAuthChange.current = true;
 
-  try {
-    if (session?.user) {
-      setUser(session.user);
-      setSessionLoaded(true);
+    try {
+      if (session?.user) {
+        setUser(session.user);
+        setSessionLoaded(true);
 
-      // Check cached profile first for speed
-      const cachedProfile = sessionHelpers.getProfile();
-      if (cachedProfile && cachedProfile.id === session.user.id) {
-        // Check authorization for cached profile
-        const isAuthorized = await checkUserAuthorization(session.user.id);
-        setIsUserAuthorized(isAuthorized);
-        
-        setProfile(cachedProfile);
+        // Check cached profile first for speed
+        const cachedProfile = sessionHelpers.getProfile();
+        if (cachedProfile && cachedProfile.id === session.user.id) {
+          setProfile(cachedProfile);
+          setLoading(false);
+          return;
+        }
+
+        // Fetch profile with timeout
+        if (profileFetchTimeoutRef.current) {
+          clearTimeout(profileFetchTimeoutRef.current);
+        }
+
+        profileFetchTimeoutRef.current = setTimeout(async () => {
+          await fetchProfile(session.user.id);
+          setLoading(false);
+        }, 100); // Small delay to debounce
+
+      } else {
+        setUser(null);
+        setProfile(null);
+        sessionHelpers.clearProfile();
+        setSessionLoaded(true);
         setLoading(false);
-        return;
       }
-
-      // Fetch profile with timeout
-      if (profileFetchTimeoutRef.current) {
-        clearTimeout(profileFetchTimeoutRef.current);
-      }
-
-      profileFetchTimeoutRef.current = setTimeout(async () => {
-        await fetchProfile(session.user.id);
-        setLoading(false);
-      }, 100);
-
-    } else {
-      setUser(null);
-      setProfile(null);
-      setIsUserAuthorized(true); // Reset authorization state
-      sessionHelpers.clearProfile();
+    } catch (error) {
+      console.error('Auth state change error:', error);
       setSessionLoaded(true);
       setLoading(false);
+    } finally {
+      isProcessingAuthChange.current = false;
     }
-  } catch (error) {
-    console.error('Auth state change error:', error);
-    setSessionLoaded(true);
-    setLoading(false);
-  } finally {
-    isProcessingAuthChange.current = false;
-  }
-}, [fetchProfile, sessionHelpers, checkUserAuthorization]);
-  // Enhanced initialization with authorization check
-  useEffect(() => {
-    let mounted = true;
-    let initializationTimeout: NodeJS.Timeout;
+  }, [fetchProfile, sessionHelpers]);
 
-    const initialize = async () => {
-      // Set timeout to prevent infinite loading
-      initializationTimeout = setTimeout(() => {
-        if (mounted && loading) {
-          console.warn('Auth initialization timeout - forcing completion');
-          setLoading(false);
+// In AuthContext.tsx - FIXED initialization
+useEffect(() => {
+  let mounted = true;
+  let initializationTimeout: NodeJS.Timeout;
+
+  const initialize = async () => {
+    // Set timeout to prevent infinite loading
+    initializationTimeout = setTimeout(() => {
+      if (mounted && loading) {
+        console.warn('Auth initialization timeout - forcing completion');
+        setLoading(false);
+        setSessionLoaded(true);
+      }
+    }, 3000);
+
+    try {
+      console.log('🚀 Starting optimized auth initialization...');
+      
+      // Get session first
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!mounted) return;
+
+      if (session?.user) {
+        console.log('✅ Session found for user:', session.user.id);
+        setUser(session.user);
+        
+        // Try to get profile quickly
+        const cachedProfile = sessionHelpers.getProfile();
+        if (cachedProfile && cachedProfile.id === session.user.id) {
+          console.log('✅ Using cached profile');
+          setProfile(cachedProfile);
           setSessionLoaded(true);
+          setLoading(false);
+          clearTimeout(initializationTimeout);
+          return;
         }
-      }, 3000);
 
-      try {
-        console.log('🚀 Starting optimized auth initialization...');
+        // Fetch fresh profile with timeout
+        const profileFetch = fetchProfile(session.user.id);
+        const profileTimeout = new Promise((resolve) => 
+          setTimeout(() => resolve(null), 2000)
+        );
+
+        const profileResult = await Promise.race([profileFetch, profileTimeout]);
         
-        // Get session first
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (!mounted) return;
-
-        if (session?.user) {
-          console.log('✅ Session found for user:', session.user.id);
-          setUser(session.user);
-          
-          // Try to get profile quickly
-          const cachedProfile = sessionHelpers.getProfile();
-          if (cachedProfile && cachedProfile.id === session.user.id) {
-            console.log('✅ Using cached profile');
-            
-            // Check authorization for cached profile
-            const isAuthorized = await checkUserAuthorization(session.user.id);
-            setIsUserAuthorized(isAuthorized);
-            
-            setProfile(cachedProfile);
-            setSessionLoaded(true);
-            setLoading(false);
-            clearTimeout(initializationTimeout);
-            return;
-          }
-
-          // Fetch fresh profile with timeout and authorization check
-          const profileFetch = fetchProfile(session.user.id);
-          const profileTimeout = new Promise((resolve) => 
-            setTimeout(() => resolve(null), 2000)
-          );
-
-          const profileResult = await Promise.race([profileFetch, profileTimeout]);
-          
-          if (mounted) {
-            setSessionLoaded(true);
-            setLoading(false);
-            clearTimeout(initializationTimeout);
-          }
-        } else {
-          console.log('ℹ️ No session found');
-          if (mounted) {
-            setSessionLoaded(true);
-            setLoading(false);
-            clearTimeout(initializationTimeout);
-          }
+        if (mounted) {
+          setSessionLoaded(true);
+          setLoading(false);
+          clearTimeout(initializationTimeout);
         }
-      } catch (error) {
-        console.error('Initialization error:', error);
+      } else {
+        console.log('ℹ️ No session found');
         if (mounted) {
           setSessionLoaded(true);
           setLoading(false);
           clearTimeout(initializationTimeout);
         }
       }
-    };
-
-    initialize();
-
-    return () => {
-      mounted = false;
-      clearTimeout(initializationTimeout);
-    };
-  }, []);
-
-  // Set up auth state listener
-  useEffect(() => {
-    if (initializedRef.current) return;
-    
-    console.log('🔐 Setting up auth state listener...');
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(handleAuthStateChange);
-    authListenerRef.current = subscription;
-    initializedRef.current = true;
-
-    return () => {
-      if (authListenerRef.current) {
-        authListenerRef.current.unsubscribe();
+    } catch (error) {
+      console.error('Initialization error:', error);
+      if (mounted) {
+        setSessionLoaded(true);
+        setLoading(false);
+        clearTimeout(initializationTimeout);
       }
-      if (profileFetchTimeoutRef.current) {
-        clearTimeout(profileFetchTimeoutRef.current);
-      }
-    };
-  }, [handleAuthStateChange]);
+    }
+  };
+
+  initialize();
+
+  return () => {
+    mounted = false;
+    clearTimeout(initializationTimeout);
+  };
+}, []); // Empty deps - only run once
 
   // Role-based redirect logic
   const getRoleBasedRedirect = useCallback((role?: string, profileComplete?: boolean) => {
@@ -394,107 +321,39 @@ const handleAuthStateChange = useCallback(async (event: string, session: Session
     return roleMap[r] || '/volunteer';
   }, [profile]);
 
-// In AuthContext.tsx - Update the signIn function
-const signIn = async (email: string, password: string) => {
-  try {
-    setAuthActionLoading(true);
-    setAuthActionMessage('Signing you in...');
-    
-    const { data, error } = await signInUser(email, password);
-
-    if (error) {
-      return { success: false, error };
-    }
-
-    if (data?.user?.id) {
-      setUser(data.user);
+  // Sign up handler
+  const signUp = async (email: string, password: string, profileData: any) => {
+    try {
+      setAuthActionLoading(true);
+      setAuthActionMessage('Creating your account...');
       
-      // Wait for profile fetch and authorization check
-      const userProfile = await fetchProfile(data.user.id);
+      const result = await signUpUser(email, password, profileData);
       
-      // Check if user is authorized - UPDATED LOGIC
-      if (userProfile && userProfile.role === 'attendee' && userProfile.authorized === false) {
-        console.log('🚫 Attendee not authorized, blocking access');
+      if (result.success && result.data?.user) {
+        setUser(result.data.user);
         
-        // Set unauthorized state
-        setIsUserAuthorized(false);
+        // Wait a bit for trigger to create profile
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const userProfile = await fetchProfile(result.data.user.id);
         
-        return { 
-          success: false, 
-          error: { 
-            message: 'Sorry, you didn\'t meet the event requirements. Only Ain Shams University students/graduates or graduates from specific universities are eligible.',
-            unauthorized: true 
-          } 
-        };
+        setAuthActionMessage('Account created successfully!');
+        
+        const redirectPath = userProfile?.role === 'attendee' 
+          ? '/attendee-register' 
+          : '/V0lunt33ringR3g';
+        
+        return { success: true, data: result.data, redirectPath };
       }
       
-      setAuthActionMessage('Sign in successful!');
+      return { success: false, error: result.error };
       
-      const redirectPath = getRoleBasedRedirect(
-        userProfile?.role, 
-        userProfile?.profile_complete
-      );
-      
-      return { success: true, redirectPath };
+    } catch (error: any) {
+      return { success: false, error: { message: error.message || 'Registration failed' } };
+    } finally {
+      setAuthActionLoading(false);
     }
-    
-    return { success: true, redirectPath: '/V0lunt33ringR3g' };
-    
-  } catch (error: any) {
-    return { success: false, error: { message: error.message || 'Sign in failed' } };
-  } finally {
-    setAuthActionLoading(false);
-  }
-};
-// In AuthContext.tsx - Fix the signUp function
-const signUp = async (email: string, password: string, profileData: any) => {
-  try {
-    setAuthActionLoading(true);
-    setAuthActionMessage('Creating your account...');
-    
-    const result = await signUpUser(email, password, profileData);
-    
-    if (result.success && result.data?.user) {
-      setUser(result.data.user);
-      
-      // Wait a bit for trigger to create profile
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const userProfile = await fetchProfile(result.data.user.id);
-      
-      // Check if user is authorized - FIXED LOGIC
-      if (userProfile && userProfile.authorized === false) {
-        setAuthActionMessage('Registration completed but authorization pending...');
-        
-        // Sign out the user since they're not authorized
-        await signOut();
-        
-        return { 
-          success: false, 
-          error: { 
-            message: 'Sorry, you didn\'t meet the event requirements. Only Ain Shams University students/graduates or graduates from specific universities are eligible.',
-            unauthorized: true 
-          } 
-        };
-      }
-      
-      // If user is authorized or authorization is null (pending), proceed to registration
-      setAuthActionMessage('Account created successfully!');
-      
-      // Always redirect to registration form for attendee role
-      const redirectPath = '/attendee-register';
-      
-      return { success: true, data: result.data, redirectPath };
-    }
-    
-    return { success: false, error: result.error };
-    
-  } catch (error: any) {
-    return { success: false, error: { message: error.message || 'Registration failed' } };
-  } finally {
-    setAuthActionLoading(false);
-  }
-};
-  
+  };
+
   // Volunteer sign up handler
   const signUpVolunteerFunc = async (email: string, password: string, profileData: any) => {
     try {
@@ -533,6 +392,43 @@ const signUp = async (email: string, password: string, profileData: any) => {
     }
   };
 
+  // Sign in handler
+  const signIn = async (email: string, password: string) => {
+    try {
+      setAuthActionLoading(true);
+      setAuthActionMessage('Signing you in...');
+      
+      const { data, error } = await signInUser(email, password);
+  
+      if (error) {
+        return { success: false, error };
+      }
+  
+      if (data?.user?.id) {
+        setUser(data.user);
+        
+        // Wait for profile fetch
+        const userProfile = await fetchProfile(data.user.id);
+        
+        setAuthActionMessage('Sign in successful!');
+        
+        const redirectPath = getRoleBasedRedirect(
+          userProfile?.role, 
+          userProfile?.profile_complete
+        );
+        
+        return { success: true, redirectPath };
+      }
+      
+      return { success: true, redirectPath: '/V0lunt33ringR3g' };
+      
+    } catch (error: any) {
+      return { success: false, error: { message: error.message || 'Sign in failed' } };
+    } finally {
+      setAuthActionLoading(false);
+    }
+  };
+
   // Sign out handler
   const signOut = async () => {
     try {
@@ -541,7 +437,6 @@ const signUp = async (email: string, password: string, profileData: any) => {
       sessionHelpers.clearProfile();
       setUser(null);
       setProfile(null);
-      setIsUserAuthorized(true); // Reset authorization state
     } catch (error) {
       console.error('Sign out error:', error);
     } finally {
@@ -598,7 +493,6 @@ const signUp = async (email: string, password: string, profileData: any) => {
     isProfileComplete,
     getRegistrationState: sessionHelpers.getRegistrationState,
     setRegistrationState: sessionHelpers.setRegistrationState,
-    isUserAuthorized, // NEW: Expose authorization status
   }), [
     user,
     profile,
@@ -611,8 +505,7 @@ const signUp = async (email: string, password: string, profileData: any) => {
     refreshProfile,
     clearAuthAction,
     isProfileComplete,
-    sessionHelpers,
-    isUserAuthorized, // NEW: Include in dependencies
+    sessionHelpers
   ]);
 
   return (
