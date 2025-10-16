@@ -440,38 +440,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Sign up handler
-  const signUp = async (email: string, password: string, profileData: any) => {
-    try {
-      setAuthActionLoading(true);
-      setAuthActionMessage('Creating your account...');
+// In AuthContext.tsx - Update the signUp function
+const signUp = async (email: string, password: string, profileData: any) => {
+  try {
+    setAuthActionLoading(true);
+    setAuthActionMessage('Creating your account...');
+    
+    const result = await signUpUser(email, password, profileData);
+    
+    if (result.success && result.data?.user) {
+      setUser(result.data.user);
       
-      const result = await signUpUser(email, password, profileData);
+      // Wait a bit for trigger to create profile
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const userProfile = await fetchProfile(result.data.user.id);
       
-      if (result.success && result.data?.user) {
-        setUser(result.data.user);
+      // Check if user is authorized
+      if (userProfile && userProfile.authorized === false) {
+        setAuthActionMessage('Registration completed but authorization pending...');
         
-        // Wait a bit for trigger to create profile
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        const userProfile = await fetchProfile(result.data.user.id);
+        // Sign out the user since they're not authorized
+        await signOut();
         
-        setAuthActionMessage('Account created successfully!');
-        
-        const redirectPath = userProfile?.role === 'attendee' 
-          ? '/attendee-register' 
-          : '/V0lunt33ringR3g';
-        
-        return { success: true, data: result.data, redirectPath };
+        return { 
+          success: false, 
+          error: { 
+            message: 'Sorry, you didn\'t meet the event requirements. Only Ain Shams University students/graduates or graduates from specific universities are eligible.',
+            unauthorized: true 
+          } 
+        };
       }
       
-      return { success: false, error: result.error };
+      setAuthActionMessage('Account created successfully!');
       
-    } catch (error: any) {
-      return { success: false, error: { message: error.message || 'Registration failed' } };
-    } finally {
-      setAuthActionLoading(false);
+      const redirectPath = userProfile?.role === 'attendee' 
+        ? '/attendee-register' 
+        : '/V0lunt33ringR3g';
+      
+      return { success: true, data: result.data, redirectPath };
     }
-  };
-
+    
+    return { success: false, error: result.error };
+    
+  } catch (error: any) {
+    return { success: false, error: { message: error.message || 'Registration failed' } };
+  } finally {
+    setAuthActionLoading(false);
+  }
+};
   // Volunteer sign up handler
   const signUpVolunteerFunc = async (email: string, password: string, profileData: any) => {
     try {
