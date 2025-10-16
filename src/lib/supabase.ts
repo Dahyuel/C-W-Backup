@@ -266,6 +266,138 @@ export const validateRegistrationWithEdgeFunction = async (
   }
 };
 
+// Add building entry score for volunteer
+export const addBuildingEntryScoreForVolunteer = async (volunteerId: string, attendeeName: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('user_scores')
+      .insert([{
+        user_id: volunteerId,
+        points: 1,
+        activity_type: 'building_entry',
+        activity_description: `Building entry processed for attendee: ${attendeeName}`
+      }])
+      .select();
+
+    if (error) {
+      console.error('Error adding building entry score for volunteer:', error);
+      return { data: null, error };
+    }
+
+    return { data: data[0], error: null };
+  } catch (error: any) {
+    console.error('Add building entry score exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
+// Add session entry score for volunteer
+export const addSessionEntryScoreForVolunteer = async (volunteerId: string, attendeeName: string, sessionTitle: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('user_scores')
+      .insert([{
+        user_id: volunteerId,
+        points: 1,
+        activity_type: 'session_entry',
+        activity_description: `Session entry processed for ${attendeeName} in: ${sessionTitle}`
+      }])
+      .select();
+
+    if (error) {
+      console.error('Error adding session entry score for volunteer:', error);
+      return { data: null, error };
+    }
+
+    return { data: data[0], error: null };
+  } catch (error: any) {
+    console.error('Add session entry score exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
+// Check if attendee has building entry today
+export const hasAttendeeBuildingEntryToday = async (attendeeId: string): Promise<boolean> => {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const { data, error } = await supabase
+      .from('user_scores')
+      .select('id')
+      .eq('user_id', attendeeId)
+      .eq('activity_type', 'building_entry_bonus')
+      .gte('awarded_at', today.toISOString())
+      .limit(1);
+
+    if (error) {
+      console.error('Error checking building entry bonus:', error);
+      return false;
+    }
+
+    return data && data.length > 0;
+  } catch (error: any) {
+    console.error('Check building entry bonus exception:', error);
+    return false;
+  }
+};
+
+// Add building entry bonus for attendee (once per day)
+export const addBuildingEntryBonusForAttendee = async (attendeeId: string) => {
+  try {
+    // Check if already got bonus today
+    const hasBonusToday = await hasAttendeeBuildingEntryToday(attendeeId);
+    if (hasBonusToday) {
+      return { data: null, error: { message: 'Building entry bonus already awarded today' } };
+    }
+
+    const { data, error } = await supabase
+      .from('user_scores')
+      .insert([{
+        user_id: attendeeId,
+        points: 1,
+        activity_type: 'building_entry_bonus',
+        activity_description: 'Daily building entry bonus'
+      }])
+      .select();
+
+    if (error) {
+      console.error('Error adding building entry bonus for attendee:', error);
+      return { data: null, error };
+    }
+
+    return { data: data[0], error: null };
+  } catch (error: any) {
+    console.error('Add building entry bonus exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
+// Add session entry bonus for attendee (unlimited)
+export const addSessionEntryBonusForAttendee = async (attendeeId: string, sessionTitle: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('user_scores')
+      .insert([{
+        user_id: attendeeId,
+        points: 1,
+        activity_type: 'session_entry_bonus',
+        activity_description: `Session attendance bonus: ${sessionTitle}`
+      }])
+      .select();
+
+    if (error) {
+      console.error('Error adding session entry bonus for attendee:', error);
+      return { data: null, error };
+    }
+
+    return { data: data[0], error: null };
+  } catch (error: any) {
+    console.error('Add session entry bonus exception:', error);
+    return { data: null, error: { message: error.message } };
+  }
+};
+
 // In supabase.ts - Fix the signUpUser function
 export const signUpUser = async (email: string, password: string, userData: any) => {
   try {

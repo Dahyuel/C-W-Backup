@@ -53,19 +53,19 @@ interface Attendee {
   faculty?: string;
   current_status?: 'inside' | 'outside';
   building_entry?: boolean;
+  event_entry?: boolean; // Add this
   last_scan?: string;
 }
-
 //
 
 const castToAttendee = (data: any): Attendee => {
   return {
     ...data,
     current_status: data.building_entry ? 'inside' : 'outside',
-    building_entry: data.building_entry
+    building_entry: data.building_entry,
+    event_entry: data.event_entry // Add this
   } as Attendee;
 };
-
 export const BuildTeamDashboard: React.FC = () => {
 
   // Tab state
@@ -483,45 +483,113 @@ export const BuildTeamDashboard: React.FC = () => {
       showFeedback('error', 'Failed to process QR code');
     }
   };
+// Update the handleBuildingAttendanceAction function
+const handleBuildingAttendanceAction = async (action: 'enter' | 'exit') => {
+  if (!selectedAttendee) return;
 
-  const handleBuildingAttendanceAction = async (action: 'enter' | 'exit') => {
-    if (!selectedAttendee) return;
+  try {
+    setActionLoading(true);
+    
+    const buildingAction = action === 'enter' ? 'building_entry' : 'building_exit';
+    const { data, error } = await processBuildingAttendance(selectedAttendee.personal_id, buildingAction);
 
-    try {
-      setActionLoading(true);
-      
-      const buildingAction = action === 'enter' ? 'building_entry' : 'building_exit';
-      const { data, error } = await processBuildingAttendance(selectedAttendee.personal_id, buildingAction);
+    if (error) {
+      showFeedback('error', error.message || `Failed to process ${action}`);
+      return;
+    }
 
-      if (error) {
-        showFeedback('error', error.message || `Failed to process ${action}`);
-        return;
+    // Add score for volunteer for successful building entry/exit
+    if (action === 'enter') {
+      // Get current user (volunteer) ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await addBuildingEntryScoreForVolunteer(
+          user.id, 
+          `${selectedAttendee.first_name} ${selectedAttendee.last_name}`
+        );
       }
 
-      showFeedback('success', data.message || `Building ${action.toUpperCase()} successful!`);
-      
-      // Update attendee status
-      const newStatus = action === 'enter' ? 'inside' : 'outside';
-      setSelectedAttendee(prev => prev ? {
-        ...prev,
-        current_status: newStatus,
-        last_scan: new Date().toISOString()
-      } : null);
-
-      // Close attendee card after successful action
-      setTimeout(() => {
-        setShowAttendeeCard(false);
-        setSelectedAttendee(null);
-      }, 2000);
-
-    } catch (error) {
-      console.error("Building attendance action error:", error);
-      showFeedback('error', `Failed to process ${action}`);
-    } finally {
-      setActionLoading(false);
+      // Add building entry bonus for attendee (once per day)
+      await addBuildingEntryBonusForAttendee(selectedAttendee.id);
     }
-  };
 
+    showFeedback('success', data.message || `Building ${action.toUpperCase()} successful!`);
+    
+    // Update attendee status
+    const newStatus = action === 'enter' ? 'inside' : 'outside';
+    setSelectedAttendee(prev => prev ? {
+      ...prev,
+      current_status: newStatus,
+      building_entry: action === 'enter', // Update building_entry boolean
+      last_scan: new Date().toISOString()
+    } : null);
+
+    // Close attendee card after successful action
+    setTimeout(() => {
+      setShowAttendeeCard(false);
+      setSelectedAttendee(null);
+    }, 2000);
+
+  } catch (error) {
+    console.error("Building attendance action error:", error);
+    showFeedback('error', `Failed to process ${action}`);
+  } finally {
+    setActionLoading(false);
+  }
+};
+
+// Update the handleSessionAttendanceAction function
+const handleSessionAttendanceAction = async () => {
+  if (!selectedAttendee || !selectedSession) return;
+
+  try {
+    setActionLoading(true);
+    
+    const { data, error } = await processBuildingAttendance(
+      selectedAttendee.personal_id, 
+      'session_entry',
+      selectedSession.id
+    );
+
+    if (error) {
+      showFeedback('error', error.message || 'Failed to add to session');
+      return;
+    }
+
+    // Add score for volunteer for successful session entry
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await addSessionEntryScoreForVolunteer(
+        user.id,
+        `${selectedAttendee.first_name} ${selectedAttendee.last_name}`,
+        selectedSession.title
+      );
+    }
+
+    // Add session entry bonus for attendee
+    await addSessionEntryBonusForAttendee(selectedAttendee.id, selectedSession.title);
+
+    showFeedback('success', data.message || 'Successfully added to session!');
+    
+    // Refresh sessions to update current_attendees count
+    fetchSessions();
+
+    // Close attendee card after successful action
+    setTimeout(() => {
+      setShowAttendeeCard(false);
+      setSelectedAttendee(null);
+      setSessionMode(null);
+      setHasSessionBooking(false);
+      setHasSessionAttendance(false);
+    }, 2000);
+
+  } catch (error) {
+    console.error("Session attendance action error:", error);
+    showFeedback('error', 'Failed to add to session');
+  } finally {
+    setActionLoading(false);
+  }
+};
   const handleSessionAttendanceAction = async () => {
     if (!selectedAttendee || !selectedSession) return;
 
@@ -1150,142 +1218,198 @@ export const BuildTeamDashboard: React.FC = () => {
           />
         )}
 
-        {/* Attendee Card Modal with Portal and Animations */}
-        {showAttendeeCard && selectedAttendee && createPortal(
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
+      {/* Attendee Card Modal with Portal and Animations */}
+{showAttendeeCard && selectedAttendee && createPortal(
+  <div 
+    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
+    onClick={() => {
+      setShowAttendeeCard(false);
+      setSelectedAttendee(null);
+      setHasSessionBooking(false);
+      setHasSessionAttendance(false);
+    }}
+  >
+    <div 
+      className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="p-6 stagger-children">
+        <div className="flex items-center justify-between mb-6 fade-in-blur">
+          <h2 className="text-xl font-bold text-gray-900">
+            {activeTab === "session" && sessionMode === "session_entry" 
+              ? `Add to Session: ${selectedSession?.title}` 
+              : "Attendee Information"}
+          </h2>
+          <button
             onClick={() => {
               setShowAttendeeCard(false);
               setSelectedAttendee(null);
               setHasSessionBooking(false);
               setHasSessionAttendance(false);
             }}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <div 
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-6 stagger-children">
-                <div className="flex items-center justify-between mb-6 fade-in-blur">
-                  <h2 className="text-xl font-bold text-gray-900">
-                    {activeTab === "session" && sessionMode === "session_entry" 
-                      ? `Add to Session: ${selectedSession?.title}` 
-                      : "Attendee Information"}
-                  </h2>
-                  <button
-                    onClick={() => {
-                      setShowAttendeeCard(false);
-                      setSelectedAttendee(null);
-                      setHasSessionBooking(false);
-                      setHasSessionAttendance(false);
-                    }}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <X className="h-6 w-6" />
-                  </button>
-                </div>
+            <X className="h-6 w-6" />
+          </button>
+        </div>
 
-                <div className="space-y-4">
-                  {/* Attendee Information */}
-                  <div className="grid grid-cols-2 gap-4 fade-in-blur">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-                      <p className="text-gray-900">{selectedAttendee.first_name} {selectedAttendee.last_name}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Personal ID</label>
-                      <p className="text-gray-900">{selectedAttendee.personal_id}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                      <p className="text-gray-900">{selectedAttendee.email}</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        selectedAttendee.current_status === 'inside'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {selectedAttendee.current_status === 'inside' ? 'Inside' : 'Outside'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Session Booking & Attendance Check */}
-                  {activeTab === "session" && sessionMode === "session_entry" && (
-                    <div className="fade-in-blur">
-                      {bookingCheckLoading ? (
-                        <div className="flex items-center p-3 bg-blue-50 rounded-lg">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
-                          <span className="text-blue-800 text-sm">Checking session status...</span>
-                        </div>
-                      ) : hasSessionAttendance ? (
-                        <div className="flex items-center p-3 bg-yellow-50 rounded-lg">
-                          <CheckCircle className="h-5 w-5 text-yellow-500 mr-2" />
-                          <div>
-                            <span className="text-yellow-800 font-medium block">Already attended this session</span>
-                            <span className="text-yellow-700 text-sm block mt-1">
-                              This attendee has already been added to the session
-                            </span>
-                          </div>
-                        </div>
-                      ) : !hasSessionBooking ? (
-                        <div className="flex items-center p-3 bg-red-50 rounded-lg">
-                          <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
-                          <div>
-                            <span className="text-red-800 font-medium block">Attendee hasn't booked this session</span>
-                            <span className="text-red-700 text-sm block mt-1">
-                              Please book the session first or head to info desk
-                            </span>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center p-3 bg-green-50 rounded-lg">
-                          <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
-                          <span className="text-green-800 font-medium">Ready to add to session</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Action Buttons */}
-                  <div className="pt-4 fade-in-blur">
-                    {activeTab === "session" && sessionMode === "session_entry" ? (
-                      <button
-                        onClick={() => handleSessionAttendanceAction()}
-                        disabled={actionLoading || !hasSessionBooking || hasSessionAttendance || Boolean(bookingCheckLoading)}
-                        className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
-                      >
-                        {actionLoading ? 'Adding to Session...' : 
-                         hasSessionAttendance ? 'Already Attended' :
-                         !hasSessionBooking ? 'Cannot Add - No Booking' : 'Add to Session'}
-                      </button>
-                    ) : (
-                      <div className="grid grid-cols-2 gap-3">
-                        <button
-                          onClick={() => handleBuildingAttendanceAction('enter')}
-                          disabled={actionLoading || selectedAttendee.current_status === 'inside'}
-                          className="bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
-                        >
-                          {actionLoading ? 'Processing...' : 'Enter Building'}
-                        </button>
-                        <button
-                          onClick={() => handleBuildingAttendanceAction('exit')}
-                          disabled={actionLoading || selectedAttendee.current_status === 'outside'}
-                          className="bg-red-500 text-white py-3 px-4 rounded-lg hover:bg-red-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
-                        >
-                          {actionLoading ? 'Processing...' : 'Exit Building'}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+        <div className="space-y-4">
+          {/* Attendee Information */}
+          <div className="grid grid-cols-2 gap-4 fade-in-blur">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+              <p className="text-gray-900">{selectedAttendee.first_name} {selectedAttendee.last_name}</p>
             </div>
-          </div>,
-          document.body
-        )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Personal ID</label>
+              <p className="text-gray-900">{selectedAttendee.personal_id}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <p className="text-gray-900">{selectedAttendee.email}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                selectedAttendee.current_status === 'inside'
+                  ? 'bg-green-100 text-green-800'
+                  : 'bg-gray-100 text-gray-800'
+              }`}>
+                {selectedAttendee.current_status === 'inside' ? 'Inside' : 'Outside'}
+              </span>
+            </div>
+          </div>
+
+          {/* BUILDING TAB VALIDATIONS */}
+          {activeTab === "building" && (
+            <div className="fade-in-blur">
+              {!selectedAttendee.event_entry ? (
+                <div className="flex items-center p-3 bg-red-50 rounded-lg mb-4">
+                  <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+                  <div>
+                    <span className="text-red-800 font-medium block">Attendee not inside event</span>
+                    <span className="text-red-700 text-sm block mt-1">
+                      This attendee must enter the event first before building access
+                    </span>
+                  </div>
+                </div>
+              ) : selectedAttendee.current_status === 'inside' ? (
+                <div className="flex items-center p-3 bg-blue-50 rounded-lg mb-4">
+                  <AlertCircle className="h-5 w-5 text-blue-500 mr-2" />
+                  <span className="text-blue-800 font-medium">Attendee is inside building</span>
+                </div>
+              ) : (
+                <div className="flex items-center p-3 bg-green-50 rounded-lg mb-4">
+                  <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                  <span className="text-green-800 font-medium">Ready for building entry</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* SESSION TAB VALIDATIONS */}
+          {activeTab === "session" && sessionMode === "session_entry" && (
+            <div className="fade-in-blur">
+              {bookingCheckLoading ? (
+                <div className="flex items-center p-3 bg-blue-50 rounded-lg">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+                  <span className="text-blue-800 text-sm">Checking session status...</span>
+                </div>
+              ) : !selectedAttendee.building_entry ? (
+                <div className="flex items-center p-3 bg-red-50 rounded-lg">
+                  <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+                  <div>
+                    <span className="text-red-800 font-medium block">Attendee not inside building</span>
+                    <span className="text-red-700 text-sm block mt-1">
+                      This attendee must enter the building first
+                    </span>
+                  </div>
+                </div>
+              ) : hasSessionAttendance ? (
+                <div className="flex items-center p-3 bg-yellow-50 rounded-lg">
+                  <CheckCircle className="h-5 w-5 text-yellow-500 mr-2" />
+                  <div>
+                    <span className="text-yellow-800 font-medium block">Already attended this session</span>
+                    <span className="text-yellow-700 text-sm block mt-1">
+                      This attendee has already been added to the session
+                    </span>
+                  </div>
+                </div>
+              ) : !hasSessionBooking ? (
+                <div className="flex items-center p-3 bg-red-50 rounded-lg">
+                  <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+                  <div>
+                    <span className="text-red-800 font-medium block">Attendee hasn't booked this session</span>
+                    <span className="text-red-700 text-sm block mt-1">
+                      Please book the session first or head to info desk
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center p-3 bg-green-50 rounded-lg">
+                  <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
+                  <span className="text-green-800 font-medium">Ready to add to session</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="pt-4 fade-in-blur">
+            {activeTab === "session" && sessionMode === "session_entry" ? (
+              <button
+                onClick={() => handleSessionAttendanceAction()}
+                disabled={
+                  actionLoading || 
+                  !selectedAttendee.building_entry || 
+                  !hasSessionBooking || 
+                  hasSessionAttendance || 
+                  Boolean(bookingCheckLoading)
+                }
+                className="w-full bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+              >
+                {actionLoading ? 'Adding to Session...' : 
+                 !selectedAttendee.building_entry ? 'Cannot Add - Not in Building' :
+                 hasSessionAttendance ? 'Already Attended' :
+                 !hasSessionBooking ? 'Cannot Add - No Booking' : 'Add to Session'}
+              </button>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => handleBuildingAttendanceAction('enter')}
+                  disabled={
+                    actionLoading || 
+                    !selectedAttendee.event_entry || 
+                    selectedAttendee.current_status === 'inside'
+                  }
+                  className="bg-green-500 text-white py-3 px-4 rounded-lg hover:bg-green-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+                >
+                  {actionLoading ? 'Processing...' : 
+                   !selectedAttendee.event_entry ? 'Not in Event' :
+                   selectedAttendee.current_status === 'inside' ? 'Already Inside' : 'Enter Building'}
+                </button>
+                <button
+                  onClick={() => handleBuildingAttendanceAction('exit')}
+                  disabled={
+                    actionLoading || 
+                    !selectedAttendee.event_entry || 
+                    selectedAttendee.current_status === 'outside'
+                  }
+                  className="bg-red-500 text-white py-3 px-4 rounded-lg hover:bg-red-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed font-medium"
+                >
+                  {actionLoading ? 'Processing...' : 
+                   !selectedAttendee.event_entry ? 'Not in Event' :
+                   selectedAttendee.current_status === 'outside' ? 'Already Outside' : 'Exit Building'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
       </div>
     </DashboardLayout>
   );

@@ -31,7 +31,7 @@ const getRoleDisplayName = (role: string): string => {
     'ushers': 'Ushers',
     'marketing': 'Marketing',
     'media': 'Media',
-    'ER': 'Emergency Response',
+    'ER': 'Employer Relation',
     'BD': 'Business Development',
     'catering': 'Catering',
     'feedback': 'Feedback',
@@ -266,8 +266,8 @@ export const VolunteerDashboard: React.FC = () => {
                 "Thank you for assisting attendees! You provide valuable information and help create a positive experience for everyone."}
               {profile?.role === 'ushers' && 
                 "Thank you for guiding our attendees! You help maintain order and ensure everyone finds their way around the venue."}
-              {profile?.role === 'ER' && 
-                "Thank you for keeping everyone safe! Your emergency response skills provide crucial support throughout the event."}
+{profile?.role === 'ER' && 
+  "Thank you for connecting employers with talent! Your efforts help build strong partnerships and meaningful career opportunities throughout the event."}
               {profile?.role === 'BD' && 
                 "Thank you for your business development efforts! You help build valuable partnerships and opportunities."}
               {profile?.role === 'catering' && 
