@@ -3383,12 +3383,13 @@ const handleRemoveEditHrEmail = (index: number) => {
                     )}
                     
                     {/* ADD THE DAYS BADGE RIGHT HERE - after partner type badge */}
-{company.days && company.days.length > 0 && (
-  <div className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mb-2 ml-1 sm:ml-2">
-    <Calendar className="h-3 w-3 mr-1" />
-    Days: {company.days.sort().join(',')}
-  </div>
-)}
+                    {/* Days Badge */}
+                    {company.days && company.days.length > 0 && (
+                      <div className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mb-2 ml-1 sm:ml-2">
+                        <Calendar className="h-3 w-3 mr-1" />
+                        Days: {company.days.sort().join(',')}
+                      </div>
+                    )}
                     
                     {company.booth_number && (
                       <div className="inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 mb-3 sm:mb-4 ml-1 sm:ml-2">
