@@ -33,7 +33,7 @@ const LoadingScreen: React.FC<{ message?: string }> = ({ message = "Loading..." 
   </div>
 );
 
-// OPTIMIZED ProtectedRoute with better state management
+// In src/App.tsx - Update the ProtectedRoute component
 const ProtectedRoute: React.FC<{ 
   children: React.ReactNode; 
   requiredRole?: string | string[];
@@ -46,7 +46,8 @@ const ProtectedRoute: React.FC<{
     loading, 
     sessionLoaded, 
     hasRole, 
-    getRoleBasedRedirect
+    getRoleBasedRedirect,
+    isUserAuthorized // ADD THIS
   } = useAuth();
   
   const [routeState, setRouteState] = useState<'checking' | 'redirecting' | 'ready'>('checking');
@@ -66,6 +67,13 @@ const ProtectedRoute: React.FC<{
 
     // If authenticated but no profile yet (shouldn't happen normally)
     if (!profile) {
+      setRouteState('redirecting');
+      return;
+    }
+
+    // NEW: Check if user is authorized - BLOCK UNAUTHORIZED USERS
+    if (isUserAuthorized === false) {
+      console.log('🚫 User not authorized, blocking route access');
       setRouteState('redirecting');
       return;
     }
@@ -100,7 +108,7 @@ const ProtectedRoute: React.FC<{
 
     // All checks passed - ready to render
     setRouteState('ready');
-  }, [isAuthenticated, profile, loading, sessionLoaded, requiredRole, requireCompleteProfile, allowIncompleteVolunteer, hasRole]);
+  }, [isAuthenticated, profile, loading, sessionLoaded, requiredRole, requireCompleteProfile, allowIncompleteVolunteer, hasRole, isUserAuthorized]);
 
   // Show loading while checking auth state
   if (routeState === 'checking') {
@@ -111,6 +119,11 @@ const ProtectedRoute: React.FC<{
   if (routeState === 'redirecting') {
     if (!isAuthenticated) {
       return <Navigate to="/login" replace />;
+    }
+
+    // NEW: Redirect unauthorized users to unauthorized page
+    if (isUserAuthorized === false) {
+      return <Navigate to="/unauthorized" replace />;
     }
 
     // Calculate the correct redirect path based on profile state
