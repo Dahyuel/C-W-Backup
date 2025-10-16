@@ -263,31 +263,36 @@ export function AdminPanel() {
     { value: "custom", label: "Custom Selection" }
   ];
   
-  const [editCompany, setEditCompany] = useState<{ 
-    id: string; 
-    name: string; 
-    logo: File | null; 
-    logoUrl: string; 
-    logoType: 'link' | 'upload'; 
-    description: string; 
-    website: string; 
-    boothNumber: string;
-    partnerType: string;
-    academicFaculties: string[];
-    vacanciesType: string[];
-  }>({
-    id: "",
-    name: "",
-    logo: null,
-    logoUrl: "",
-    logoType: "link",
-    description: "",
-    website: "",
-    boothNumber: "",
-    partnerType: "",
-    academicFaculties: [],
-    vacanciesType: [],
-  });
+// Update the editCompany state
+const [editCompany, setEditCompany] = useState<{ 
+  id: string; 
+  name: string; 
+  logo: File | null; 
+  logoUrl: string; 
+  logoType: 'link' | 'upload'; 
+  description: string; 
+  website: string; 
+  boothNumber: string;
+  partnerType: string;
+  academicFaculties: string[];
+  vacanciesType: string[];
+  days: number[]; // Add this
+  hrMails: string[]; // Add this
+}>({
+  id: "",
+  name: "",
+  logo: null,
+  logoUrl: "",
+  logoType: "link",
+  description: "",
+  website: "",
+  boothNumber: "",
+  partnerType: "",
+  academicFaculties: [],
+  vacanciesType: [],
+  days: [], // Add this
+  hrMails: [], // Add this
+});
 
   const [editSession, setEditSession] = useState<{ id: string; title: string; date: string; speaker: string; capacity: string | number; type: 'session' | string; hour: string; location: string; description: string;}>({
     id: "",
