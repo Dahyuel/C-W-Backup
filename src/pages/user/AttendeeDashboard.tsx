@@ -1954,6 +1954,23 @@ const tabItems = [
             />
             <h3 className="text-2xl font-bold text-gray-900">{selectedCompany.name}</h3>
             
+            {/* Days */}
+            {selectedCompany.days && selectedCompany.days.length > 0 && (
+              <div className="mt-2">
+                <p className="text-sm font-medium text-gray-700 mb-1">Participating Days:</p>
+                <div className="flex flex-wrap justify-center gap-1">
+                  {selectedCompany.days.map((day, idx) => (
+                    <span 
+                      key={idx}
+                      className="inline-block px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full border border-orange-200 font-medium"
+                    >
+                      Day {day}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            
             {/* Partner Type Badge */}
             {selectedCompany.partner_type && (
               <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800 mt-2">
@@ -1998,6 +2015,24 @@ const tabItems = [
                   >
                     {vacancy}
                   </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* HR Emails */}
+          {selectedCompany.hr_mails && selectedCompany.hr_mails.length > 0 && (
+            <div className="fade-in-blur">
+              <label className="block text-sm font-medium text-gray-700 mb-2">HR Contacts</label>
+              <div className="space-y-2">
+                {selectedCompany.hr_mails.map((email, idx) => (
+                  <a
+                    key={idx}
+                    href={`mailto:${email}`}
+                    className="block text-blue-600 hover:text-blue-800 break-all text-sm bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+                  >
+                    {email}
+                  </a>
                 ))}
               </div>
             </div>
