@@ -405,39 +405,21 @@ const signIn = async (email: string, password: string) => {
     if (data?.user?.id) {
       setUser(data.user);
       
-      // Wait for profile fetch with a longer timeout to ensure it completes
+      // Wait for profile fetch and authorization check
       const userProfile = await fetchProfile(data.user.id);
       
-      // Add a small delay to ensure state is updated
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Check if user is authorized - FIXED: Check the actual profile data
+      // Check if user is authorized - FIXED LOGIC
       if (userProfile && userProfile.authorized === false) {
         console.log('🚫 User not authorized, signing out...');
         
-        // Sign out the user since they're not authorized
-        await signOut();
+        // Set unauthorized state but don't sign out immediately
+        // This allows the UI to show the appropriate message
+        setIsUserAuthorized(false);
         
         return { 
           success: false, 
           error: { 
-            message: 'Your attendee account has been disabled because you didn\'t meet the event requirements.',
-            unauthorized: true 
-          } 
-        };
-      }
-      
-      // If we don't have a profile yet, check the current profile state
-      if (profile && profile.authorized === false) {
-        console.log('🚫 Current profile shows unauthorized, signing out...');
-        
-        // Sign out the user since they're not authorized
-        await signOut();
-        
-        return { 
-          success: false, 
-          error: { 
-            message: 'Your attendee account has been disabled because you didn\'t meet the event requirements.',
+            message: 'Sorry, you didn\'t meet the event requirements. Only Ain Shams University students/graduates or graduates from specific universities are eligible.',
             unauthorized: true 
           } 
         };
