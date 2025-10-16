@@ -3297,7 +3297,7 @@ const handleRemoveEditHrEmail = (index: number) => {
             </div>
           )}
 
-         {/* Companies Tab - Responsive */}
+ {/* Companies Tab - Responsive */}
 {activeTab === "companies" && (
   <div className="fade-in-blur">
     <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6">
@@ -3483,81 +3483,87 @@ const handleRemoveEditHrEmail = (index: number) => {
               </div>
 
               {loading ? (
-                <div className="flex items-center justify-center h-32 fade-in-blur">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+      <div className="flex items-center justify-center h-32 fade-in-blur">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+      </div>
+    ) : (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 stagger-children">
+        {(openRecruitmentDay === 4 ? day4Bookings : day5Bookings).map((booking) => (
+          <div 
+            key={booking.id} 
+            onClick={() => handleBookingClick(booking)}
+            className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 hover:shadow-md transition-all duration-300 smooth-hover card-hover fade-in-blur cursor-pointer"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                  <User className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 stagger-children">
-                {(openRecruitmentDay === 4 ? day4Bookings : day5Bookings).map((booking) => (
-  <div 
-    key={booking.id} 
-    onClick={() => handleBookingClick(booking)}
-    className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 hover:shadow-md transition-all duration-300 smooth-hover card-hover fade-in-blur cursor-pointer"
-  >
-    <div className="flex items-center justify-between mb-4">
-      <div className="flex items-center space-x-3">
-        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-orange-100 rounded-full flex items-center justify-center">
-          <User className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
-        </div>
-        <div>
-          <h3 className="font-semibold text-gray-900 text-sm sm:text-base">
-            {booking.user?.first_name} {booking.user?.last_name}
-          </h3>
-          <p className="text-xs sm:text-sm text-gray-500">
-            {booking.user?.personal_id} • {booking.user?.faculty}
-          </p>
-        </div>
-      </div>
-    </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 text-sm sm:text-base">
+                    {booking.user?.first_name} {booking.user?.last_name}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-gray-500">
+                    {booking.user?.personal_id} • {booking.user?.faculty}
+                  </p>
+                  {/* ADD PHONE NUMBER HERE */}
+                  {booking.user?.phone && (
+                    <p className="text-xs text-blue-600 mt-1">
+                      📞 {booking.user.phone}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
 
-    <div className="space-y-2 text-xs sm:text-sm text-gray-600">
-      <div className="flex items-center">
-        <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-        <span>
-          Session: {booking.session?.title}
-        </span>
-      </div>
-      <div className="flex items-center">
-        <Clock className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-        <span>
-          {new Date(booking.session?.start_time || booking.scanned_at).toLocaleDateString()} at {' '}
-          {new Date(booking.session?.start_time || booking.scanned_at).toLocaleTimeString()}
-        </span>
-      </div>
-      {booking.session?.speaker && (
-        <div className="flex items-center">
-          <User className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
-          <span>Speaker: {booking.session.speaker}</span>
-        </div>
-      )}
-    </div>
-
-    <div className="flex gap-2 mt-4">
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          handleBookingClick(booking);
-        }}
-        className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
-      >
-        <Eye className="h-3 w-3 mr-1 inline" />
-        View
-      </button>
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          openDeleteBookingModal(booking);
-        }}
-        className="flex-1 bg-red-500 text-white py-2 px-3 rounded-lg hover:bg-red-600 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
-      >
-        <Trash2 className="h-3 w-3 mr-1 inline" />
-        Delete
-      </button>
-    </div>
-  </div>
-))}
+            <div className="space-y-2 text-xs sm:text-sm text-gray-600">
+              <div className="flex items-center">
+                <Calendar className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                <span>
+                  Session: {booking.session?.title}
+                </span>
+              </div>
+              <div className="flex items-center">
+                <Clock className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                <span>
+                  {new Date(booking.session?.start_time || booking.scanned_at).toLocaleDateString()} at {' '}
+                  {new Date(booking.session?.start_time || booking.scanned_at).toLocaleTimeString()}
+                </span>
+              </div>
+              {booking.session?.speaker && (
+                <div className="flex items-center">
+                  <User className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+                  <span>Speaker: {booking.session.speaker}</span>
                 </div>
               )}
+            </div>
+
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleBookingClick(booking);
+                }}
+                className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
+              >
+                <Eye className="h-3 w-3 mr-1 inline" />
+                View
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openDeleteBookingModal(booking);
+                }}
+                className="flex-1 bg-red-500 text-white py-2 px-3 rounded-lg hover:bg-red-600 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
+              >
+                <Trash2 className="h-3 w-3 mr-1 inline" />
+                Delete
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
 
               {(openRecruitmentDay === 4 ? day4Bookings : day5Bookings).length === 0 && !loading && (
                 <div className="text-center py-8 sm:py-12 bg-white rounded-xl border border-gray-200 fade-in-blur">
@@ -4121,6 +4127,11 @@ const handleRemoveEditHrEmail = (index: number) => {
               <div>
                 <label className="font-medium text-gray-700">Email:</label>
                 <p className="text-gray-900">{selectedBooking.user?.email}</p>
+              </div>
+              {/* ADD PHONE NUMBER HERE */}
+              <div>
+                <label className="font-medium text-gray-700">Phone:</label>
+                <p className="text-gray-900">{selectedBooking.user?.phone || 'Not provided'}</p>
               </div>
               <div>
                 <label className="font-medium text-gray-700">Gender:</label>
