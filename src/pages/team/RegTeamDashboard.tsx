@@ -46,7 +46,7 @@ const castToAttendee = (data: any): Attendee => {
     current_status: data.event_entry ? 'inside' : 'outside',
     event_entry: data.event_entry || false,
     profile_complete: data.profile_complete !== undefined ? data.profile_complete : true,
-    authorized: data.authorized !== undefined ? data.authorized : false // Changed from true to false
+    authorized: data.authorized !== undefined ? data.authorized : true // Changed from true to false
   } as Attendee;
 };
 
