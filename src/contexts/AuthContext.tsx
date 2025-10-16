@@ -390,55 +390,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return roleMap[r] || '/volunteer';
   }, [profile]);
 
-  // Enhanced sign in handler with authorization check
-  const signIn = async (email: string, password: string) => {
-    try {
-      setAuthActionLoading(true);
-      setAuthActionMessage('Signing you in...');
-      
-      const { data, error } = await signInUser(email, password);
-  
-      if (error) {
-        return { success: false, error };
-      }
-  
-      if (data?.user?.id) {
-        setUser(data.user);
-        
-        // Wait for profile fetch and authorization check
-        const userProfile = await fetchProfile(data.user.id);
-        
-        // Check if user is authorized
-        if (!isUserAuthorized) {
-          await signOut();
-          return { 
-            success: false, 
-            error: { 
-              message: 'Sorry, you didn\'t meet the event requirements. Please contact event organizers.',
-              unauthorized: true 
-            } 
-          };
-        }
-        
-        setAuthActionMessage('Sign in successful!');
-        
-        const redirectPath = getRoleBasedRedirect(
-          userProfile?.role, 
-          userProfile?.profile_complete
-        );
-        
-        return { success: true, redirectPath };
-      }
-      
-      return { success: true, redirectPath: '/V0lunt33ringR3g' };
-      
-    } catch (error: any) {
-      return { success: false, error: { message: error.message || 'Sign in failed' } };
-    } finally {
-      setAuthActionLoading(false);
-    }
-  };
+// In AuthContext.tsx - Fix the signIn function
+const signIn = async (email: string, password: string) => {
+  try {
+    setAuthActionLoading(true);
+    setAuthActionMessage('Signing you in...');
+    
+    const { data, error } = await signInUser(email, password);
 
+    if (error) {
+      return { success: false, error };
+    }
+
+    if (data?.user?.id) {
+      setUser(data.user);
+      
+      // Wait for profile fetch and authorization check
+      const userProfile = await fetchProfile(data.user.id);
+      
+      // Check if user is authorized - FIXED LOGIC
+      if (userProfile && userProfile.authorized === false) {
+        console.log('🚫 User not authorized, signing out...');
+        
+        // Sign out the user since they're not authorized
+        await signOut();
+        
+        return { 
+          success: false, 
+          error: { 
+            message: 'Sorry, you didn\'t meet the event requirements. Only Ain Shams University students/graduates or graduates from specific universities are eligible.',
+            unauthorized: true 
+          } 
+        };
+      }
+      
+      setAuthActionMessage('Sign in successful!');
+      
+      const redirectPath = getRoleBasedRedirect(
+        userProfile?.role, 
+        userProfile?.profile_complete
+      );
+      
+      return { success: true, redirectPath };
+    }
+    
+    return { success: true, redirectPath: '/V0lunt33ringR3g' };
+    
+  } catch (error: any) {
+    return { success: false, error: { message: error.message || 'Sign in failed' } };
+  } finally {
+    setAuthActionLoading(false);
+  }
+};
 
 // In AuthContext.tsx - Fix the signUp function
 const signUp = async (email: string, password: string, profileData: any) => {
