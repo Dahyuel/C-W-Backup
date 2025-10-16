@@ -107,38 +107,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }), []);
 
-  // Check user authorization - NEW FUNCTION
-  const checkUserAuthorization = useCallback(async (userId: string): Promise<boolean> => {
-    try {
-      const { data: profileData, error } = await supabase
-        .from('users_profiles')
-        .select('authorized, role')
-        .eq('id', userId)
-        .single();
+// In AuthContext.tsx - Fix the checkUserAuthorization function
+const checkUserAuthorization = useCallback(async (userId: string): Promise<boolean> => {
+  try {
+    const { data: profileData, error } = await supabase
+      .from('users_profiles')
+      .select('authorized, role')
+      .eq('id', userId)
+      .single();
 
-      if (error) {
-        console.error('Error checking user authorization:', error);
-        return true; // Default to true for backward compatibility
-      }
+    if (error) {
+      console.error('Error checking user authorization:', error);
+      return true; // Default to true for backward compatibility
+    }
 
-      // Admins and team leaders are always authorized
-      if (profileData.role === 'admin' || profileData.role === 'team_leader') {
-        return true;
-      }
-
-      // For other roles, check the authorized field
-      // Return true if authorized is true or null (for backward compatibility)
-      const authorized = profileData.authorized === true || profileData.authorized === null;
-      setIsUserAuthorized(authorized);
-      return authorized;
-
-    } catch (error) {
-      console.error('Authorization check error:', error);
-      setIsUserAuthorized(true); // Default to true on error
+    // All roles except attendee are always authorized
+    if (profileData.role !== 'attendee') {
+      console.log(`✅ ${profileData.role} role is always authorized`);
       return true;
     }
-  }, []);
 
+    // For attendees only, check the authorized field
+    // Only return true if authorized is explicitly true
+    const isAuthorized = profileData.authorized === true;
+    console.log(`🔐 Attendee authorization status:`, {
+      authorized: profileData.authorized,
+      isAuthorized,
+      role: profileData.role
+    });
+    
+    setIsUserAuthorized(isAuthorized);
+    return isAuthorized;
+
+  } catch (error) {
+    console.error('Authorization check error:', error);
+    setIsUserAuthorized(true); // Default to true on error
+    return true;
+  }
+}, []);
   // Profile completeness check
   const isProfileComplete = useCallback((profile: any, role?: string): boolean => {
     if (!profile) return false;
