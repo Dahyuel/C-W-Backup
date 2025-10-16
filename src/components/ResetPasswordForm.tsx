@@ -19,66 +19,96 @@ export const ResetPasswordForm: React.FC = () => {
   const [tokenValid, setTokenValid] = useState<boolean | null>(null);
 
   // Check if we have valid reset token on component mount
-  useEffect(() => {
-    const checkToken = async () => {
-      console.log('Checking reset password tokens...');
-      
-      // Check URL search parameters first (newer Supabase format)
-      const typeFromParams = searchParams.get('type');
-      const accessTokenFromParams = searchParams.get('access_token');
-      const refreshTokenFromParams = searchParams.get('refresh_token');
+// Check if we have valid reset token on component mount
+useEffect(() => {
+  const checkToken = async () => {
+    console.log('Checking reset password tokens...');
+    
+    // Check URL search parameters first (newer Supabase format)
+    const typeFromParams = searchParams.get('type');
+    const accessTokenFromParams = searchParams.get('access_token');
+    const refreshTokenFromParams = searchParams.get('refresh_token');
 
-      // Check URL hash parameters (older Supabase format)
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const typeFromHash = hashParams.get('type');
-      const accessTokenFromHash = hashParams.get('access_token');
-      const refreshTokenFromHash = hashParams.get('refresh_token');
+    // Check URL hash parameters (older Supabase format)
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const typeFromHash = hashParams.get('type');
+    const accessTokenFromHash = hashParams.get('access_token');
+    const refreshTokenFromHash = hashParams.get('refresh_token');
 
-      // Use whichever has the tokens
-      const type = typeFromParams || typeFromHash;
-      const accessToken = accessTokenFromParams || accessTokenFromHash;
-      const refreshToken = refreshTokenFromParams || refreshTokenFromHash;
-
-      console.log('Token check results:', {
-        type,
-        hasAccessToken: !!accessToken,
-        hasRefreshToken: !!refreshToken,
-        source: accessTokenFromParams ? 'params' : accessTokenFromHash ? 'hash' : 'none'
-      });
-
-      if (type === 'recovery' && accessToken && refreshToken) {
-        try {
-          console.log('Setting session with recovery tokens...');
-          
-          // Set the session with the tokens
-          const { data, error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken
-          });
-
-          if (error) {
-            console.error('Token validation error:', error);
-            setTokenValid(false);
-          } else {
-            console.log('✅ Token validated successfully');
-            setTokenValid(true);
-          }
-        } catch (error) {
-          console.error('Session setup error:', error);
-          setTokenValid(false);
-        }
-      } else {
-        console.error('Missing required parameters for password reset');
-        console.log('Available parameters:', {
-          searchParams: Object.fromEntries(searchParams.entries()),
-          hashParams: Object.fromEntries(hashParams.entries())
+    // Handle malformed URL with double hash (like #type=recovery#access_token=...)
+    let malformedAccessToken = null;
+    let malformedRefreshToken = null;
+    let malformedType = null;
+    
+    const hash = window.location.hash;
+    if (hash.includes('#type=recovery#')) {
+      console.log('Detected malformed URL with double hash');
+      // Extract everything after the second #
+      const secondHashIndex = hash.indexOf('#', hash.indexOf('#') + 1);
+      if (secondHashIndex !== -1) {
+        const malformedParams = new URLSearchParams(hash.substring(secondHashIndex + 1));
+        malformedType = 'recovery';
+        malformedAccessToken = malformedParams.get('access_token');
+        malformedRefreshToken = malformedParams.get('refresh_token');
+        
+        console.log('Malformed params extracted:', {
+          malformedType,
+          hasMalformedAccessToken: !!malformedAccessToken,
+          hasMalformedRefreshToken: !!malformedRefreshToken
         });
+      }
+    }
+
+    // Use whichever has the tokens (priority: malformed > hash > params)
+    const type = malformedType || typeFromParams || typeFromHash;
+    const accessToken = malformedAccessToken || accessTokenFromParams || accessTokenFromHash;
+    const refreshToken = malformedRefreshToken || refreshTokenFromParams || refreshTokenFromHash;
+
+    console.log('Final token check results:', {
+      type,
+      hasAccessToken: !!accessToken,
+      hasRefreshToken: !!refreshToken,
+      source: malformedAccessToken ? 'malformed' : accessTokenFromParams ? 'params' : accessTokenFromHash ? 'hash' : 'none'
+    });
+
+    if (type === 'recovery' && accessToken && refreshToken) {
+      try {
+        console.log('Setting session with recovery tokens...');
+        
+        // Set the session with the tokens
+        const { data, error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken
+        });
+
+        if (error) {
+          console.error('Token validation error:', error);
+          setTokenValid(false);
+        } else {
+          console.log('✅ Token validated successfully');
+          setTokenValid(true);
+        }
+      } catch (error) {
+        console.error('Session setup error:', error);
         setTokenValid(false);
       }
-    };
+    } else {
+      console.error('Missing required parameters for password reset');
+      console.log('Available parameters:', {
+        searchParams: Object.fromEntries(searchParams.entries()),
+        hashParams: Object.fromEntries(hashParams.entries()),
+        malformedParams: {
+          type: malformedType,
+          accessToken: malformedAccessToken,
+          refreshToken: malformedRefreshToken
+        }
+      });
+      setTokenValid(false);
+    }
+  };
 
-    checkToken();
-  }, [searchParams]);
+  checkToken();
+}, [searchParams]);
 
   // Rest of your component remains the same...
   const validatePassword = (password: string): string[] => {
