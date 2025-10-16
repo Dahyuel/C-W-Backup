@@ -127,32 +127,41 @@ export const RegTeamDashboard: React.FC = () => {
     setTimeout(() => setFeedback(null), 5000);
   };
 
-  // Validate attendee before showing card
-  const validateAttendee = (attendee: any): { isValid: boolean; error?: string } => {
-    console.log('Validating attendee:', attendee);
-    
-    // Check if role is attendee
-    if (attendee.role !== 'attendee') {
-      return {
-        isValid: false,
-        error: 'Only attendees can be processed through this system'
-      };
-    }
+const validateAttendee = (attendee: any): { isValid: boolean; error?: string } => {
+  console.log('Validating attendee:', attendee);
+  
+  // Check if role is attendee
+  if (attendee.role !== 'attendee') {
+    return {
+      isValid: false,
+      error: 'Only attendees can be processed through this system'
+    };
+  }
 
-    // Check if profile is complete - handle both boolean and string values
-    const profileComplete = attendee.profile_complete === true || attendee.profile_complete === 'true';
-    console.log('Profile complete status:', attendee.profile_complete, 'parsed as:', profileComplete);
-    
-    if (!profileComplete) {
-      return {
-        isValid: false,
-        error: 'This attendee has not completed their profile and cannot enter the event'
-      };
-    }
+  // Check if profile is complete - handle both boolean and string values
+  const profileComplete = attendee.profile_complete === true || attendee.profile_complete === 'true';
+  console.log('Profile complete status:', attendee.profile_complete, 'parsed as:', profileComplete);
+  
+  if (!profileComplete) {
+    return {
+      isValid: false,
+      error: 'This attendee has not completed their profile and cannot enter the event'
+    };
+  }
 
-    return { isValid: true };
-  };
+  // Check if attendee is authorized - handle both boolean and string values
+  const isAuthorized = attendee.authorized === true || attendee.authorized === 'true';
+  console.log('Authorization status:', attendee.authorized, 'parsed as:', isAuthorized);
+  
+  if (!isAuthorized) {
+    return {
+      isValid: false,
+      error: 'This attendee is not authorized to enter the event'
+    };
+  }
 
+  return { isValid: true };
+};
   // Check if a string is a UUID format
   const isUUID = (str: string): boolean => {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
