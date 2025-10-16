@@ -952,25 +952,29 @@ const handleEditEvent = (event: EventItem) => {
   }
 };
 
-  const handleEditCompany = (company: CompanyItem) => {
-    setSelectedCompanyEdit(company);
-    setEditCompany({
-      id: company.id,
-      name: company.name || "",
-      logo: null,
-      logoUrl: company.logo_url || "",
-      logoType: "link",
-      description: company.description || "",
-      website: company.website || "",
-      boothNumber: company.booth_number || "",
-      partnerType: company.partner_type || "",
-      academicFaculties: company.academic_faculties_seeking_for || [],
-      vacanciesType: company.vacancies_type || [],
-    });
-    setEditSelectedAcademicFaculties(company.academic_faculties_seeking_for || []);
-    setEditSelectedVacanciesTypes(company.vacancies_type || []);
-    setEditCompanyModal(true);
-  };
+const handleEditCompany = (company: CompanyItem) => {
+  setSelectedCompanyEdit(company);
+  setEditCompany({
+    id: company.id,
+    name: company.name || "",
+    logo: null,
+    logoUrl: company.logo_url || "",
+    logoType: "link",
+    description: company.description || "",
+    website: company.website || "",
+    boothNumber: company.booth_number || "",
+    partnerType: company.partner_type || "",
+    academicFaculties: company.academic_faculties_seeking_for || [],
+    vacanciesType: company.vacancies_type || [],
+    days: company.days || [], // Add this
+    hrMails: company.hr_mails || [], // Add this
+  });
+  setEditSelectedAcademicFaculties(company.academic_faculties_seeking_for || []);
+  setEditSelectedVacanciesTypes(company.vacancies_type || []);
+  setEditSelectedDays(company.days || []); // Add this
+  setEditHrEmails(company.hr_mails || []); // Add this
+  setEditCompanyModal(true);
+};
 
   // Enhanced Stat Card Component with animations
   const StatCard: React.FC<{ title: string; value: number | string | JSX.Element; icon: JSX.Element; color: 'blue' | 'green' | 'purple' | 'orange' | 'red'; }> = ({ title, value, icon, color }) => {
