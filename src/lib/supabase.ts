@@ -2229,5 +2229,12 @@ export const updateUserStatus = async (userId: string, updates: { building_entry
     return { data: null, error: { message: error.message } };
   }
 };
-
+// Export all the scoring functions
+export {
+  addBuildingEntryScoreForVolunteer,
+  addSessionEntryScoreForVolunteer,
+  hasAttendeeBuildingEntryToday,
+  addBuildingEntryBonusForAttendee,
+  addSessionEntryBonusForAttendee
+};
 export default supabase;
