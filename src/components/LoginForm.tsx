@@ -1,4 +1,4 @@
-// components/LoginForm.tsx - UPDATED with authorization check
+// components/LoginForm.tsx - UPDATED with specific alert message
 import React, { useState, useEffect, useRef } from 'react';
 import { Eye, EyeOff, AlertCircle, UserX } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -70,51 +70,51 @@ export const LoginForm: React.FC = () => {
     return validationErrors;
   };
 
-// In LoginForm.tsx - Update the handleSubmit function
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  // Prevent double submission
-  if (loading) return;
-  
-  const validationErrors = validateForm();
-  if (validationErrors.length > 0) {
-    setErrors(validationErrors);
-    return;
-  }
-
-  setLoading(true);
-  setErrors([]);
-  setUnauthorizedUser(false);
-
-  try {
-    const result = await signIn(formData.email, formData.password);
-
-    if (!result.success) {
-      // Check if it's an unauthorized error
-      if (result.error?.unauthorized) {
-        setUnauthorizedUser(true);
-      } else {
-        setErrors([{ 
-          field: 'general', 
-          message: result.error?.message || 'Invalid email or password' 
-        }]);
-      }
-      setLoading(false);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Prevent double submission
+    if (loading) return;
+    
+    const validationErrors = validateForm();
+    if (validationErrors.length > 0) {
+      setErrors(validationErrors);
       return;
     }
 
-    // The useEffect will handle the redirect for authorized users
-    
-  } catch (error: any) {
-    console.error('Login exception:', error);
-    setErrors([{ 
-      field: 'general', 
-      message: error.message || 'Login failed. Please try again.' 
-    }]);
-    setLoading(false);
-  }
-};
+    setLoading(true);
+    setErrors([]);
+    setUnauthorizedUser(false);
+
+    try {
+      const result = await signIn(formData.email, formData.password);
+
+      if (!result.success) {
+        // Check if it's an unauthorized error
+        if (result.error?.unauthorized) {
+          setUnauthorizedUser(true);
+        } else {
+          setErrors([{ 
+            field: 'general', 
+            message: result.error?.message || 'Invalid email or password' 
+          }]);
+        }
+        setLoading(false);
+        return;
+      }
+
+      // The useEffect will handle the redirect for authorized users
+      
+    } catch (error: any) {
+      console.error('Login exception:', error);
+      setErrors([{ 
+        field: 'general', 
+        message: error.message || 'Login failed. Please try again.' 
+      }]);
+      setLoading(false);
+    }
+  };
+
   const getFieldError = (field: string) => {
     return errors.find(error => error.field === field)?.message;
   };
@@ -129,8 +129,8 @@ const handleSubmit = async (e: React.FormEvent) => {
             <div className="mx-auto w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4 shadow-lg">
               <UserX className="h-10 w-10 text-red-600" />
             </div>
-            <h1 className="text-2xl font-bold text-white mb-2">Access Restricted</h1>
-            <p className="text-red-100">Account Not Authorized</p>
+            <h1 className="text-2xl font-bold text-white mb-2">Account Disabled</h1>
+            <p className="text-red-100">Access Restricted</p>
           </div>
 
           {/* Message */}
@@ -139,27 +139,43 @@ const handleSubmit = async (e: React.FormEvent) => {
               <div className="flex items-center justify-center space-x-3 mb-4">
                 <AlertCircle className="h-8 w-8 text-red-600" />
                 <h3 className="text-lg font-semibold text-red-800">
-                  Sorry, You Didn't Meet the Event Requirements
+                  Attendee Account Disabled
                 </h3>
               </div>
               <p className="text-red-700 mb-4">
-                Your account has not been authorized to access the ASU Career Week event. 
-                This may be due to incomplete registration requirements or eligibility criteria.
+                Your attendee account has been disabled because you didn't meet the event requirements.
               </p>
+              <div className="text-left bg-red-100 p-4 rounded-lg mb-4">
+                <p className="text-red-800 text-sm font-medium mb-2">Eligibility Requirements:</p>
+                <ul className="text-red-700 text-sm list-disc list-inside space-y-1">
+                  <li>Ain Shams University students or graduates</li>
+                  <li>Graduates from Helwan University</li>
+                  <li>Graduates from Banha University</li>
+                  <li>Graduates from Canadian Ahram University</li>
+                </ul>
+              </div>
               <p className="text-red-600 text-sm">
                 If you believe this is a mistake, please contact the event organizers.
               </p>
             </div>
 
-            <button
-              onClick={() => {
-                setUnauthorizedUser(false);
-                setFormData({ email: '', password: '' });
-              }}
-              className="w-full bg-gray-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-700 transition-all duration-300"
-            >
-              Try Different Account
-            </button>
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  setUnauthorizedUser(false);
+                  setFormData({ email: '', password: '' });
+                }}
+                className="w-full bg-gray-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-700 transition-all duration-300"
+              >
+                Try Different Account
+              </button>
+              <button
+                onClick={() => navigate('/auth-register')}
+                className="w-full bg-orange-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-orange-700 transition-all duration-300"
+              >
+                Create New Account
+              </button>
+            </div>
           </div>
         </div>
       </div>
