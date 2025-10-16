@@ -1,4 +1,4 @@
-// components/LoginForm.tsx - UPDATED with specific alert message
+// components/LoginForm.tsx - UPDATED with better unauthorized handling
 import React, { useState, useEffect, useRef } from 'react';
 import { Eye, EyeOff, AlertCircle, UserX } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -15,7 +15,8 @@ export const LoginForm: React.FC = () => {
     loading: authLoading, 
     profile, 
     user,
-    isProfileComplete 
+    isProfileComplete,
+    isUserAuthorized // NEW: Get authorization status from context
   } = useAuth();
   
   const [formData, setFormData] = useState<LoginData>({
@@ -33,8 +34,8 @@ export const LoginForm: React.FC = () => {
       return;
     }
 
-    // Check if user is authorized
-    if (profile.authorized === false) {
+    // Check if user is authorized - FIXED LOGIC
+    if (isUserAuthorized === false) {
       setUnauthorizedUser(true);
       return;
     }
@@ -47,7 +48,7 @@ export const LoginForm: React.FC = () => {
     }, 100);
 
     return () => clearTimeout(redirectTimer);
-  }, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect]);
+  }, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect, isUserAuthorized]);
 
   const updateField = (field: keyof LoginData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
