@@ -675,98 +675,106 @@ const getLeaderboardDescription = () => {
       </div>
 
       {/* User Details Modal */}
-      {selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 fade-in-blur">
-          <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">User Details</h3>
-              <button
-                onClick={closeUserModal}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+    {selectedUser && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto transform transition-all">
+      <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
+        <h3 className="text-xl font-semibold text-gray-900">User Details</h3>
+        <button
+          onClick={closeUserModal}
+          className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1 rounded transition-colors"
+        >
+          <X className="h-5 w-5" />
+        </button>
+      </div>
 
-            <div className="space-y-4">
-              {/* Avatar and Basic Info */}
-              <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold text-xl">
-                    {selectedUser.first_name?.charAt(0)}{selectedUser.last_name?.charAt(0)}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-xl font-bold text-gray-900">
-                    {selectedUser.first_name} {selectedUser.last_name}
-                  </p>
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-1 ${getRoleColor(selectedUser.role)}`}>
-                    {getRoleIcon(selectedUser.role)}
-                    <span className="ml-1 capitalize">{selectedUser.role.replace('_', ' ')}</span>
-                  </span>
-                </div>
-              </div>
-
-              {/* IDs */}
-              <div className="grid grid-cols-1 gap-3">
-                {selectedUser.personal_id && (
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-sm font-medium text-gray-700">Personal ID</p>
-                    <p className="text-lg font-mono text-gray-900">{selectedUser.personal_id}</p>
-                  </div>
-                )}
-                {selectedUser.volunteer_id && (
-                  <div className="bg-gray-50 p-3 rounded-lg">
-                    <p className="text-sm font-medium text-gray-700">Volunteer ID</p>
-                    <p className="text-lg font-mono text-gray-900">{selectedUser.volunteer_id}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Score */}
-              <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
-                <p className="text-sm font-medium text-orange-800 mb-1">Total Score</p>
-                <p className="text-3xl font-bold text-orange-600">{selectedUser.score}</p>
-                <p className="text-xs text-orange-600">points</p>
-                <p className="text-sm text-orange-700 mt-1">Rank #{selectedUser.rank}</p>
-              </div>
-
-              {/* Additional Details from userDetails */}
-              {userDetails && (
-                <div className="space-y-3">
-                  {userDetails.email && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Email</p>
-                      <p className="text-gray-900">{userDetails.email}</p>
-                    </div>
-                  )}
-                  {userDetails.phone && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Phone</p>
-                      <p className="text-gray-900">{userDetails.phone}</p>
-                    </div>
-                  )}
-                  {userDetails.tl_team && (
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Team</p>
-                      <p className="text-gray-900 capitalize">{userDetails.tl_team.replace('_', ' ')}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={closeUserModal}
-                className="bg-orange-500 text-white px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors"
-              >
-                Close
-              </button>
-            </div>
+      <div className="space-y-6">
+        {/* Avatar and Basic Info */}
+        <div className="flex items-center space-x-4">
+          <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center flex-shrink-0">
+            <span className="text-white font-bold text-xl">
+              {selectedUser.first_name?.charAt(0)}{selectedUser.last_name?.charAt(0)}
+            </span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xl font-bold text-gray-900 truncate">
+              {selectedUser.first_name} {selectedUser.last_name}
+            </p>
+            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-2 ${getRoleColor(selectedUser.role)}`}>
+              {getRoleIcon(selectedUser.role)}
+              <span className="ml-1 capitalize">{selectedUser.role.replace('_', ' ')}</span>
+            </span>
           </div>
         </div>
-      )}
+
+        {/* Divider */}
+        <div className="border-t border-gray-200"></div>
+
+        {/* IDs Section */}
+        {(selectedUser.personal_id || selectedUser.volunteer_id) && (
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-gray-700">Identification</h4>
+            {selectedUser.personal_id && (
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <p className="text-xs font-medium text-gray-600 uppercase">Personal ID</p>
+                <p className="text-sm font-mono text-gray-900 mt-1">{selectedUser.personal_id}</p>
+              </div>
+            )}
+            {selectedUser.volunteer_id && (
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <p className="text-xs font-medium text-gray-600 uppercase">Volunteer ID</p>
+                <p className="text-sm font-mono text-gray-900 mt-1">{selectedUser.volunteer_id}</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Score Section */}
+        <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+          <p className="text-sm font-medium text-orange-800 mb-2">Total Score</p>
+          <p className="text-4xl font-bold text-orange-600">{selectedUser.score}</p>
+          <p className="text-xs text-orange-600 mt-1">points</p>
+          <p className="text-sm text-orange-700 font-semibold mt-3">Rank #{selectedUser.rank}</p>
+        </div>
+
+        {/* Additional Details */}
+        {userDetails && (
+          <div className="space-y-3 border-t border-gray-200 pt-4">
+            <h4 className="text-sm font-semibold text-gray-700">Additional Information</h4>
+            {userDetails.email && (
+              <div>
+                <p className="text-xs font-medium text-gray-600 uppercase">Email</p>
+                <p className="text-sm text-gray-900 mt-1 truncate">{userDetails.email}</p>
+              </div>
+            )}
+            {userDetails.phone && (
+              <div>
+                <p className="text-xs font-medium text-gray-600 uppercase">Phone</p>
+                <p className="text-sm text-gray-900 mt-1">{userDetails.phone}</p>
+              </div>
+            )}
+            {userDetails.tl_team && (
+              <div>
+                <p className="text-xs font-medium text-gray-600 uppercase">Team</p>
+                <p className="text-sm text-gray-900 mt-1 capitalize">{userDetails.tl_team.replace('_', ' ')}</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Close Button */}
+      <div className="mt-8 pt-4 border-t border-gray-200 flex justify-end gap-3">
+        <button
+          onClick={closeUserModal}
+          className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 };
