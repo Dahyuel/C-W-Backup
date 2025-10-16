@@ -48,6 +48,7 @@ const castToAttendee = (data: any): Attendee => {
     authorized: data.authorized !== undefined ? data.authorized : true // Default to true if not provided
   } as Attendee;
 };
+
 export const RegTeamDashboard: React.FC = () => {
   const { profile } = useAuth();
 
