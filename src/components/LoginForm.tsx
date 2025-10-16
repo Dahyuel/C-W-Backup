@@ -28,7 +28,28 @@ export const LoginForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [unauthorizedUser, setUnauthorizedUser] = useState(false);
   const [checkedAuthorization, setCheckedAuthorization] = useState(false);
+// In your LoginForm component - Add this useEffect
+useEffect(() => {
+  if (authLoading || !isAuthenticated || !profile) {
+    return;
+  }
 
+  // NEW: Check if user is unauthorized and redirect to unauthorized page
+  if (isUserAuthorized === false) {
+    console.log('🚫 Unauthorized user detected in LoginForm, redirecting to unauthorized page');
+    navigate('/unauthorized', { replace: true });
+    return;
+  }
+
+  // Only redirect if user is authorized
+  const redirectTimer = setTimeout(() => {
+    const redirectPath = getRoleBasedRedirect(profile.role, profile.profile_complete);
+    console.log('🔄 Login redirecting to:', redirectPath);
+    navigate(redirectPath, { replace: true });
+  }, 100);
+
+  return () => clearTimeout(redirectTimer);
+}, [isAuthenticated, profile, authLoading, navigate, getRoleBasedRedirect, isUserAuthorized]);
   // NEW: Effect to check authorization status after authentication
   useEffect(() => {
     const checkAuthorizationAndRedirect = async () => {
