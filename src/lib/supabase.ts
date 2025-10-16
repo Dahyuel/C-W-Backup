@@ -380,7 +380,7 @@ export const addSessionEntryBonusForAttendee = async (attendeeId: string, sessio
       .from('user_scores')
       .insert([{
         user_id: attendeeId,
-        points: 1,
+        points: 10,
         activity_type: 'session_entry_bonus',
         activity_description: `Session attendance bonus: ${sessionTitle}`
       }])
