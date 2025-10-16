@@ -3669,7 +3669,44 @@ const handleRemoveEditHrEmail = (index: number) => {
               <p className="text-gray-500 text-sm sm:text-base">No website provided</p>
             )}
           </div>
+{/* Days */}
+{selectedCompanyDetail.days && selectedCompanyDetail.days.length > 0 && (
+  <div className="fade-in-blur">
+    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+      <Calendar className="h-4 w-4 mr-2" />
+      Open Recruitment Days
+    </label>
+    <div className="flex flex-wrap gap-2">
+      {selectedCompanyDetail.days.map((day, index) => (
+        <span key={index} className="inline-flex items-center px-2 sm:px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-xs sm:text-sm">
+          Day {day}
+        </span>
+      ))}
+    </div>
+  </div>
+)}
 
+{/* HR Emails */}
+{selectedCompanyDetail.hr_mails && selectedCompanyDetail.hr_mails.length > 0 && (
+  <div className="fade-in-blur">
+    <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
+      <User className="h-4 w-4 mr-2" />
+      HR Contact Emails
+    </label>
+    <div className="space-y-2">
+      {selectedCompanyDetail.hr_mails.map((email, index) => (
+        <div key={index} className="bg-gray-50 p-2 rounded">
+          <a 
+            href={`mailto:${email}`}
+            className="text-orange-600 hover:text-orange-700 text-sm sm:text-base break-all"
+          >
+            {email}
+          </a>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
           {/* Additional Information */}
           <div className="grid grid-cols-2 gap-3 sm:gap-4">
             {/* Created Date */}
