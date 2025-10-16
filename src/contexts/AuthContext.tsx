@@ -405,10 +405,13 @@ const signIn = async (email: string, password: string) => {
     if (data?.user?.id) {
       setUser(data.user);
       
-      // Wait for profile fetch and authorization check
+      // Wait for profile fetch with a longer timeout to ensure it completes
       const userProfile = await fetchProfile(data.user.id);
       
-      // Check if user is authorized - FIXED LOGIC
+      // Add a small delay to ensure state is updated
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Check if user is authorized - FIXED: Check the actual profile data
       if (userProfile && userProfile.authorized === false) {
         console.log('🚫 User not authorized, signing out...');
         
@@ -418,7 +421,23 @@ const signIn = async (email: string, password: string) => {
         return { 
           success: false, 
           error: { 
-            message: 'Sorry, you didn\'t meet the event requirements. Only Ain Shams University students/graduates or graduates from specific universities are eligible.',
+            message: 'Your attendee account has been disabled because you didn\'t meet the event requirements.',
+            unauthorized: true 
+          } 
+        };
+      }
+      
+      // If we don't have a profile yet, check the current profile state
+      if (profile && profile.authorized === false) {
+        console.log('🚫 Current profile shows unauthorized, signing out...');
+        
+        // Sign out the user since they're not authorized
+        await signOut();
+        
+        return { 
+          success: false, 
+          error: { 
+            message: 'Your attendee account has been disabled because you didn\'t meet the event requirements.',
             unauthorized: true 
           } 
         };
@@ -442,7 +461,6 @@ const signIn = async (email: string, password: string) => {
     setAuthActionLoading(false);
   }
 };
-
 // In AuthContext.tsx - Fix the signUp function
 const signUp = async (email: string, password: string, profileData: any) => {
   try {
