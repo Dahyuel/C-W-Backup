@@ -131,6 +131,7 @@ export const RegTeamDashboard: React.FC = () => {
 
 const validateAttendee = (attendee: any): { isValid: boolean; error?: string } => {
   console.log('Validating attendee:', attendee);
+  console.log('Authorization value:', attendee.authorized, 'Type:', typeof attendee.authorized);
   
   // Check if role is attendee
   if (attendee.role !== 'attendee') {
@@ -140,8 +141,8 @@ const validateAttendee = (attendee: any): { isValid: boolean; error?: string } =
     };
   }
 
-  // Check if profile is complete - handle both boolean and string values
-  const profileComplete = attendee.profile_complete === true || attendee.profile_complete === 'true';
+  // Check if profile is complete
+  const profileComplete = attendee.profile_complete === true;
   console.log('Profile complete status:', attendee.profile_complete, 'parsed as:', profileComplete);
   
   if (!profileComplete) {
@@ -151,8 +152,8 @@ const validateAttendee = (attendee: any): { isValid: boolean; error?: string } =
     };
   }
 
-  // Check if attendee is authorized - handle both boolean and string values
-  const isAuthorized = attendee.authorized === true || attendee.authorized === 'true';
+  // Check if attendee is authorized - strict boolean check
+  const isAuthorized = attendee.authorized === true;
   console.log('Authorization status:', attendee.authorized, 'parsed as:', isAuthorized);
   
   if (!isAuthorized) {
