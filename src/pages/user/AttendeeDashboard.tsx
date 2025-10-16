@@ -119,6 +119,8 @@ const AttendeeDashboard: React.FC = () => {
   const { profile } = useAuth();
   const navigate = useNavigate();
 
+  // Add this with the other state declarations
+const [activeCompanyDay, setActiveCompanyDay] = useState<number>(1);
   const [userScore, setUserScore] = useState<UserScore | null>(null);
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
   const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
