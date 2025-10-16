@@ -2411,44 +2411,50 @@ const handleRemoveEditHrEmail = (index: number) => {
       }
 
       const insertData = {
-        name: newCompany.name,
-        logo_url: logoUrl,
-        description: newCompany.description,
-        website: newCompany.website,
-        booth_number: newCompany.boothNumber,
-        partner_type: newCompany.partnerType,
-        academic_faculties_seeking_for: selectedAcademicFaculties.length > 0 ? selectedAcademicFaculties : null,
-        vacancies_type: selectedVacanciesTypes.length > 0 ? selectedVacanciesTypes : null,
-      };
+      name: newCompany.name,
+      logo_url: logoUrl,
+      description: newCompany.description,
+      website: newCompany.website,
+      booth_number: newCompany.boothNumber,
+      partner_type: newCompany.partnerType,
+      academic_faculties_seeking_for: selectedAcademicFaculties.length > 0 ? selectedAcademicFaculties : null,
+      vacancies_type: selectedVacanciesTypes.length > 0 ? selectedVacanciesTypes : null,
+      days: selectedDays.length > 0 ? selectedDays : null, // Add this
+      hr_mails: hrEmails.length > 0 ? hrEmails : null, // Add this
+    };
 
-      const { error } = await supabase.from("companies").insert(insertData);
+    const { error } = await supabase.from("companies").insert(insertData);
 
-      if (error) {
-        showFeedback("Failed to add company", "error");
-      } else {
-        setCompanyModal(false);
-        setNewCompany({
-          name: "",
-          logo: null,
-          logoUrl: "",
-          logoType: "link",
-          description: "",
-          website: "",
-          boothNumber: "",
-          partnerType: "",
-          academicFaculties: [],
-          vacanciesType: [],
-        });
-        setSelectedAcademicFaculties([]);
-        setSelectedVacanciesTypes([]);
-        showFeedback("Company added successfully!", "success");
-        await fetchCompanies();
-      }
-    } catch (err) {
+    if (error) {
       showFeedback("Failed to add company", "error");
-    } finally {
-      setLoading(false);
+    } else {
+      setCompanyModal(false);
+      setNewCompany({
+        name: "",
+        logo: null,
+        logoUrl: "",
+        logoType: "link",
+        description: "",
+        website: "",
+        boothNumber: "",
+        partnerType: "",
+        academicFaculties: [],
+        vacanciesType: [],
+        days: [], // Reset
+        hrMails: [], // Reset
+      });
+      setSelectedAcademicFaculties([]);
+      setSelectedVacanciesTypes([]);
+      setSelectedDays([]); // Reset
+      setHrEmails([]); // Reset
+      showFeedback("Company added successfully!", "success");
+      await fetchCompanies();
     }
+  } catch (err) {
+    showFeedback("Failed to add company", "error");
+  } finally {
+    setLoading(false);
+  }
   };
 
   // Handle Session Submit
