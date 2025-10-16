@@ -2101,22 +2101,27 @@ const handleEditCompany = (company: CompanyItem) => {
 
 // Add these helper functions near your other checkbox handlers
 
-// Days selection handlers
 const handleDayChange = (day: number) => {
   setSelectedDays(prev => {
-    const updated = prev.includes(day)
-      ? prev.filter(d => d !== day)
-      : [...prev, day];
-    return updated.sort((a, b) => a - b);
+    if (prev.includes(day)) {
+      // Remove day
+      return prev.filter(d => d !== day);
+    } else {
+      // Add day and sort
+      return [...prev, day].sort((a, b) => a - b);
+    }
   });
 };
 
 const handleEditDayChange = (day: number) => {
   setEditSelectedDays(prev => {
-    const updated = prev.includes(day)
-      ? prev.filter(d => d !== day)
-      : [...prev, day];
-    return updated.sort((a, b) => a - b);
+    if (prev.includes(day)) {
+      // Remove day
+      return prev.filter(d => d !== day);
+    } else {
+      // Add day and sort
+      return [...prev, day].sort((a, b) => a - b);
+    }
   });
 };
 
