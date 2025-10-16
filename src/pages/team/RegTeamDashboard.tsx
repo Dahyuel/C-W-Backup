@@ -37,11 +37,12 @@ interface Attendee {
 }
 
 const castToAttendee = (data: any): Attendee => {
+  console.log('Casting attendee data:', data);
   return {
     ...data,
     current_status: data.event_entry ? 'inside' : 'outside',
     event_entry: data.event_entry || false,
-    profile_complete: data.profile_complete || false
+    profile_complete: data.profile_complete !== undefined ? data.profile_complete : true // Default to true if not provided
   } as Attendee;
 };
 
@@ -106,6 +107,7 @@ export const RegTeamDashboard: React.FC = () => {
         console.error("Search error:", error);
         setSearchResults([]);
       } else {
+        console.log('Search results:', data);
         const attendees = (data || []).map(item => castToAttendee(item));
         setSearchResults(attendees);
         setShowSearchResults(true);
@@ -125,6 +127,8 @@ export const RegTeamDashboard: React.FC = () => {
 
   // Validate attendee before showing card
   const validateAttendee = (attendee: any): { isValid: boolean; error?: string } => {
+    console.log('Validating attendee:', attendee);
+    
     // Check if role is attendee
     if (attendee.role !== 'attendee') {
       return {
@@ -133,8 +137,11 @@ export const RegTeamDashboard: React.FC = () => {
       };
     }
 
-    // Check if profile is complete
-    if (!attendee.profile_complete) {
+    // Check if profile is complete - handle both boolean and string values
+    const profileComplete = attendee.profile_complete === true || attendee.profile_complete === 'true';
+    console.log('Profile complete status:', attendee.profile_complete, 'parsed as:', profileComplete);
+    
+    if (!profileComplete) {
       return {
         isValid: false,
         error: 'This attendee has not completed their profile and cannot enter the event'
@@ -167,6 +174,8 @@ export const RegTeamDashboard: React.FC = () => {
         return;
       }
 
+      console.log('Found attendee data:', data);
+
       // Validate attendee
       const validation = validateAttendee(data);
       if (!validation.isValid) {
@@ -189,6 +198,8 @@ export const RegTeamDashboard: React.FC = () => {
   };
 
   const handleSelectSearchResult = (attendee: Attendee) => {
+    console.log('Selected attendee from search:', attendee);
+    
     // Validate attendee before selection
     const validation = validateAttendee(attendee);
     if (!validation.isValid) {
@@ -233,6 +244,8 @@ export const RegTeamDashboard: React.FC = () => {
         showFeedback('error', errorMsg);
         return;
       }
+
+      console.log('Found attendee from QR scan:', attendeeData);
 
       // Validate attendee
       const validation = validateAttendee(attendeeData);
@@ -318,16 +331,6 @@ export const RegTeamDashboard: React.FC = () => {
     setTimeout(() => {
       setShowSearchResults(false);
     }, 200);
-  };
-
-  // Determine which action buttons should be enabled
-  const getActionButtonState = (attendee: Attendee | null) => {
-    if (!attendee) return { enterEnabled: false, exitEnabled: false };
-    
-    return {
-      enterEnabled: !attendee.event_entry, // Enable enter if NOT inside event
-      exitEnabled: !!attendee.event_entry   // Enable exit if inside event
-    };
   };
 
   return (
