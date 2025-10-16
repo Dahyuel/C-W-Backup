@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trophy, Medal, Crown, Star, User, Heart, Shield, Users, Building, UserCheck, Camera, Megaphone, Stethoscope, Briefcase, Utensils, MessageSquare, Radio, ChevronDown, Search, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { createPortal } from 'react-dom'; // Import createPortal
 
 interface LeaderboardEntry {
   id: string;
@@ -47,7 +48,7 @@ const UserDetailsModal: React.FC<{
     return () => document.removeEventListener('keydown', handleEscape);
   }, [onClose]);
 
-  return React.createPortal(
+  return createPortal(
     <div 
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm fade-in-modal"
       onClick={handleBackdropClick}
