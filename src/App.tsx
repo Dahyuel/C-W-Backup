@@ -7,7 +7,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { UnauthorizedPage } from './components/UnauthorizedPage';
 
 // Auth Components
-import { LoginForm } from './components/LoginForm';
+import { LoginForm } from '/components/LoginForm';
 import { RegistrationForm } from './components/RegistrationForm';
 import { ForgotPasswordForm } from './components/ForgotPasswordForm';
 import { AuthRegistration } from './components/AuthRegistration';
