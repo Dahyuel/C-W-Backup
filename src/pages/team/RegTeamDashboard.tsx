@@ -44,10 +44,10 @@ const castToAttendee = (data: any): Attendee => {
     ...data,
     current_status: data.event_entry ? 'inside' : 'outside',
     event_entry: data.event_entry || false,
-    profile_complete: data.profile_complete !== undefined ? data.profile_complete : true // Default to true if not provided
+    profile_complete: data.profile_complete !== undefined ? data.profile_complete : true, // Default to true if not provided
+    authorized: data.authorized !== undefined ? data.authorized : true // Default to true if not provided
   } as Attendee;
 };
-
 export const RegTeamDashboard: React.FC = () => {
   const { profile } = useAuth();
 
