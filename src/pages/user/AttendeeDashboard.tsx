@@ -1966,7 +1966,7 @@ const tabItems = [
             <h3 className="text-2xl font-bold text-gray-900">{selectedCompany.name}</h3>
             
             {/* Days */}
-            {selectedCompany.days && selectedCompany.days.length > 0 && (
+            {selectedCompany.days && selectedCompany.days.length > 0 ? (
               <div className="mt-2">
                 <p className="text-sm font-medium text-gray-700 mb-1">Participating Days:</p>
                 <div className="flex flex-wrap justify-center gap-1">
@@ -1979,6 +1979,13 @@ const tabItems = [
                     </span>
                   ))}
                 </div>
+              </div>
+            ) : (
+              <div className="mt-2">
+                <p className="text-sm font-medium text-gray-700 mb-1">Participating Days:</p>
+                <span className="inline-block px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full border border-green-200 font-medium">
+                  All Days
+                </span>
               </div>
             )}
             
@@ -2031,7 +2038,7 @@ const tabItems = [
             </div>
           )}
 
-          {/* HR Emails */}
+          {/* HR Emails - Only show if not null/empty */}
           {selectedCompany.hr_mails && selectedCompany.hr_mails.length > 0 && (
             <div className="fade-in-blur">
               <label className="block text-sm font-medium text-gray-700 mb-2">HR Contacts</label>
