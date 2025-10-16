@@ -20,6 +20,140 @@ interface LeaderboardProps {
   userTeam?: string;
 }
 
+// User Details Modal Component
+const UserDetailsModal: React.FC<{
+  user: LeaderboardEntry;
+  userDetails: any;
+  onClose: () => void;
+  getRoleColor: (role: string) => string;
+  getRoleIcon: (role: string) => React.ReactNode;
+}> = ({ user, userDetails, onClose, getRoleColor, getRoleIcon }) => {
+  // Close modal when clicking outside
+  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
+  // Close modal on Escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
+
+  return React.createPortal(
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm fade-in-modal"
+      onClick={handleBackdropClick}
+    >
+      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto transform transition-all modal-scale-in">
+        <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
+          <h3 className="text-xl font-semibold text-gray-900">User Details</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1 rounded-full transition-colors"
+            aria-label="Close modal"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="space-y-6">
+          {/* Avatar and Basic Info */}
+          <div className="flex items-center space-x-4">
+            <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-white font-bold text-xl">
+                {user.first_name?.charAt(0)}{user.last_name?.charAt(0)}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xl font-bold text-gray-900 truncate">
+                {user.first_name} {user.last_name}
+              </p>
+              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-2 ${getRoleColor(user.role)}`}>
+                {getRoleIcon(user.role)}
+                <span className="ml-1 capitalize">{user.role.replace('_', ' ')}</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="border-t border-gray-200"></div>
+
+          {/* IDs Section */}
+          {(user.personal_id || user.volunteer_id) && (
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold text-gray-700">Identification</h4>
+              {user.personal_id && (
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-xs font-medium text-gray-600 uppercase">Personal ID</p>
+                  <p className="text-sm font-mono text-gray-900 mt-1">{user.personal_id}</p>
+                </div>
+              )}
+              {user.volunteer_id && (
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="text-xs font-medium text-gray-600 uppercase">Volunteer ID</p>
+                  <p className="text-sm font-mono text-gray-900 mt-1">{user.volunteer_id}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Score Section */}
+          <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+            <p className="text-sm font-medium text-orange-800 mb-2">Total Score</p>
+            <p className="text-4xl font-bold text-orange-600">{user.score}</p>
+            <p className="text-xs text-orange-600 mt-1">points</p>
+            <p className="text-sm text-orange-700 font-semibold mt-3">Rank #{user.rank}</p>
+          </div>
+
+          {/* Additional Details */}
+          {userDetails && (
+            <div className="space-y-3 border-t border-gray-200 pt-4">
+              <h4 className="text-sm font-semibold text-gray-700">Additional Information</h4>
+              {userDetails.email && (
+                <div>
+                  <p className="text-xs font-medium text-gray-600 uppercase">Email</p>
+                  <p className="text-sm text-gray-900 mt-1 truncate">{userDetails.email}</p>
+                </div>
+              )}
+              {userDetails.phone && (
+                <div>
+                  <p className="text-xs font-medium text-gray-600 uppercase">Phone</p>
+                  <p className="text-sm text-gray-900 mt-1">{userDetails.phone}</p>
+                </div>
+              )}
+              {userDetails.tl_team && (
+                <div>
+                  <p className="text-xs font-medium text-gray-600 uppercase">Team</p>
+                  <p className="text-sm text-gray-900 mt-1 capitalize">{userDetails.tl_team.replace('_', ' ')}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Close Button */}
+        <div className="mt-8 pt-4 border-t border-gray-200 flex justify-end">
+          <button
+            onClick={onClose}
+            className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+};
+
 const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, userTeam }) => {
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
   const [activeTab, setActiveTab] = useState<'attendees' | 'volunteers' | 'team'>('attendees');
@@ -70,129 +204,128 @@ const Leaderboard: React.FC<LeaderboardProps> = ({ userRole, currentUserId, user
     }
   };
 
+  const fetchLeaderboard = async () => {
+    setLoading(true);
+    setError(null);
 
-const fetchLeaderboard = async () => {
-  setLoading(true);
-  setError(null);
+    try {
+      let data;
+      let error;
 
-  try {
-    let data;
-    let error;
+      // For team_leader - show all users with the same role
+      if (userRole === 'team_leader' && userTeam) {
+        console.log('Fetching role leaderboard for team leader:', userRole);
+        
+        const result = await supabase
+          .from('users_profiles')
+          .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
+          .eq('role', userTeam)  // Show users with same role as team leader
+          .order('score', { ascending: false });
 
-    // For team_leader - show all users with the same role
-    if (userRole === 'team_leader' && userTeam) {
-      console.log('Fetching role leaderboard for team leader:', userRole);
-      
-      const result = await supabase
-        .from('users_profiles')
-        .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
-        .eq('role', userTeam)  // Show users with same role as team leader
-        .order('score', { ascending: false });
-
-      data = result.data;
-      error = result.error;
-      
-      console.log('Role leaderboard data:', data);
-    }
-    // For admin team view
-    else if (activeTab === 'team' && selectedTeam) {
-      const result = await supabase.rpc('get_team_leaderboard', {
-        p_team_name: selectedTeam,
-        p_limit_param: 100
-      });
-      
-      if (result.error) {
-        console.error('RPC Error:', result.error);
-        throw result.error;
+        data = result.data;
+        error = result.error;
+        
+        console.log('Role leaderboard data:', data);
       }
-      
-      data = result.data;
-      
-      if (data) {
-        data = data.map((item: any) => ({
-          id: item.user_id,
-          first_name: item.first_name,
-          last_name: item.last_name,
-          role: item.user_role,
-          score: item.score,
-          tl_team: item.team_name,
-          rank: item.user_rank
-        }));
+      // For admin team view
+      else if (activeTab === 'team' && selectedTeam) {
+        const result = await supabase.rpc('get_team_leaderboard', {
+          p_team_name: selectedTeam,
+          p_limit_param: 100
+        });
+        
+        if (result.error) {
+          console.error('RPC Error:', result.error);
+          throw result.error;
+        }
+        
+        data = result.data;
+        
+        if (data) {
+          data = data.map((item: any) => ({
+            id: item.user_id,
+            first_name: item.first_name,
+            last_name: item.last_name,
+            role: item.user_role,
+            score: item.score,
+            tl_team: item.team_name,
+            rank: item.user_rank
+          }));
+        }
       }
-    }
-    // For admin attendees/volunteers view
-    else if (userRole === 'admin') {
-      let query = supabase
-        .from('users_profiles')
-        .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
-        .order('score', { ascending: false });
+      // For admin attendees/volunteers view
+      else if (userRole === 'admin') {
+        let query = supabase
+          .from('users_profiles')
+          .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
+          .order('score', { ascending: false });
 
-      if (activeTab === 'attendees') {
-        query = query.eq('role', 'attendee');
-      } else if (activeTab === 'volunteers') {
-        query = query.in('role', [
-          'volunteer', 'registration', 'building', 'info_desk',
-          'ushers', 'marketing', 'media', 'ER', 'BD', 'catering', 'feedback', 'stage'
-        ]);
+        if (activeTab === 'attendees') {
+          query = query.eq('role', 'attendee');
+        } else if (activeTab === 'volunteers') {
+          query = query.in('role', [
+            'volunteer', 'registration', 'building', 'info_desk',
+            'ushers', 'marketing', 'media', 'ER', 'BD', 'catering', 'feedback', 'stage'
+          ]);
+        }
+
+        const result = await query;
+        data = result.data;
+        error = result.error;
+      }
+      // For all other roles - show only their specific role
+      else if (userRole) {
+        const result = await supabase
+          .from('users_profiles')
+          .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
+          .eq('role', userRole)
+          .order('score', { ascending: false });
+
+        data = result.data;
+        error = result.error;
       }
 
-      const result = await query;
-      data = result.data;
-      error = result.error;
-    }
-    // For all other roles - show only their specific role
-    else if (userRole) {
-      const result = await supabase
-        .from('users_profiles')
-        .select('id, first_name, last_name, role, score, tl_team, personal_id, volunteer_id')
-        .eq('role', userRole)
-        .order('score', { ascending: false });
+      if (error) {
+        console.error('Error fetching leaderboard:', error);
+        setError('Failed to load leaderboard');
+        return;
+      }
 
-      data = result.data;
-      error = result.error;
-    }
-
-    if (error) {
-      console.error('Error fetching leaderboard:', error);
-      setError('Failed to load leaderboard');
-      return;
-    }
-
-    let rankedData: LeaderboardEntry[] = (data || []).map((user, index) => ({
-      ...user,
-      rank: index + 1
-    }));
-
-    // MODIFIED: Team leaders see ALL team members, no limit
-    const limitCount = userRole === 'admin' ? 100 : (userRole === 'team_leader' ? 1000 : 15);
-    
-    if (rankedData.length > limitCount) {
-      rankedData = rankedData.slice(0, limitCount);
-    }
-
-    setLeaderboardData(rankedData);
-    
-    // Set current user data for all users
-    let userData;
-    if (currentUserId) {
-      // Find user in the original ranked data (before slicing) to get accurate global rank
-      const originalRankedData = (data || []).map((user: any, index: number) => ({
+      let rankedData: LeaderboardEntry[] = (data || []).map((user, index) => ({
         ...user,
         rank: index + 1
       }));
-      userData = originalRankedData.find((user: LeaderboardEntry) => user.id === currentUserId);
+
+      // MODIFIED: Team leaders see ALL team members, no limit
+      const limitCount = userRole === 'admin' ? 100 : (userRole === 'team_leader' ? 1000 : 15);
+      
+      if (rankedData.length > limitCount) {
+        rankedData = rankedData.slice(0, limitCount);
+      }
+
+      setLeaderboardData(rankedData);
+      
+      // Set current user data for all users
+      let userData;
+      if (currentUserId) {
+        // Find user in the original ranked data (before slicing) to get accurate global rank
+        const originalRankedData = (data || []).map((user: any, index: number) => ({
+          ...user,
+          rank: index + 1
+        }));
+        userData = originalRankedData.find((user: LeaderboardEntry) => user.id === currentUserId);
+      }
+      
+      if (userData) {
+        setCurrentUserData(userData);
+      }
+    } catch (err) {
+      console.error('Error fetching leaderboard:', err);
+      setError('An error occurred while loading the leaderboard');
+    } finally {
+      setLoading(false);
     }
-    
-    if (userData) {
-      setCurrentUserData(userData);
-    }
-  } catch (err) {
-    console.error('Error fetching leaderboard:', err);
-    setError('An error occurred while loading the leaderboard');
-  } finally {
-    setLoading(false);
-  }
-};
+  };
   
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
@@ -351,30 +484,31 @@ const fetchLeaderboard = async () => {
     }
   };
 
-const getTabTitle = () => {
-  if (userRole === 'admin') {
-    if (activeTab === 'attendees') return 'Top Attendees';
-    if (activeTab === 'volunteers') return 'Top Volunteers';
-    if (activeTab === 'team') return `Team: ${selectedTeam}`;
-  } else if (userRole === 'team_leader') {
-    return `Top ${userTeam?.replace('_', ' ')}s`; // Shows "Top Marketings" etc.
-  } else if (userRole) {
-    // For all other roles, show their specific role leaderboard
-    return `Top ${userRole.replace('_', ' ')}s`;
-  }
-  return 'Leaderboard';
-};
+  const getTabTitle = () => {
+    if (userRole === 'admin') {
+      if (activeTab === 'attendees') return 'Top Attendees';
+      if (activeTab === 'volunteers') return 'Top Volunteers';
+      if (activeTab === 'team') return `Team: ${selectedTeam}`;
+    } else if (userRole === 'team_leader') {
+      return `Top ${userTeam?.replace('_', ' ')}s`; // Shows "Top Marketings" etc.
+    } else if (userRole) {
+      // For all other roles, show their specific role leaderboard
+      return `Top ${userRole.replace('_', ' ')}s`;
+    }
+    return 'Leaderboard';
+  };
 
-const getLeaderboardDescription = () => {
-  if (userRole === 'admin') {
-    return 'View rankings across all roles and teams';
-  } else if (userRole === 'team_leader') {
-    return `All ${userTeam?.replace('_', ' ')} team members ranked by score`; // Updated description
-  } else if (userRole) {
-    return `Leaderboard for ${userRole.replace('_', ' ')}s only`;
-  }
-  return 'Leaderboard';
-}; 
+  const getLeaderboardDescription = () => {
+    if (userRole === 'admin') {
+      return 'View rankings across all roles and teams';
+    } else if (userRole === 'team_leader') {
+      return `All ${userTeam?.replace('_', ' ')} team members ranked by score`; // Updated description
+    } else if (userRole) {
+      return `Leaderboard for ${userRole.replace('_', ' ')}s only`;
+    }
+    return 'Leaderboard';
+  }; 
+
   const TeamSelector = () => (
     <div className="relative">
       <button
@@ -467,9 +601,9 @@ const getLeaderboardDescription = () => {
           </div>
 
           {/* Search Results */}
-{searchResults.length > 0 && (
-  <div className="absolute z-40 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-    {searchResults.map((user) => (
+          {searchResults.length > 0 && (
+            <div className="absolute z-40 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+              {searchResults.map((user) => (
                 <button
                   key={user.id}
                   onClick={() => handleUserSelect(user)}
@@ -512,12 +646,12 @@ const getLeaderboardDescription = () => {
             <Trophy className="h-6 w-6 mr-2 text-orange-600" />
             {getTabTitle()}
           </h2>
-<p className="text-sm text-gray-500">
-  {userRole === 'team_leader' 
-    ? `${leaderboardData.length} team members` // Shows total count for team leaders
-    : `Top ${Math.min(leaderboardData.length, userRole === 'admin' ? 100 : 15)}`
-  }
-</p>
+          <p className="text-sm text-gray-500">
+            {userRole === 'team_leader' 
+              ? `${leaderboardData.length} team members` // Shows total count for team leaders
+              : `Top ${Math.min(leaderboardData.length, userRole === 'admin' ? 100 : 15)}`
+            }
+          </p>
         </div>
         <p className="text-gray-600 text-sm">{getLeaderboardDescription()}</p>
       </div>
@@ -614,14 +748,14 @@ const getLeaderboardDescription = () => {
           <div className="text-center py-8 fade-in-scale">
             <Trophy className="h-12 w-12 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">No data available</p>
-<p className="text-gray-400 text-sm mt-2">
-  {userRole === 'team_leader' 
-    ? `No ${userTeam?.replace('_', ' ')}s found` 
-    : userRole 
-      ? `No ${userRole.replace('_', ' ')}s found` 
-      : 'No users found'
-  }
-</p>
+            <p className="text-gray-400 text-sm mt-2">
+              {userRole === 'team_leader' 
+                ? `No ${userTeam?.replace('_', ' ')}s found` 
+                : userRole 
+                  ? `No ${userRole.replace('_', ' ')}s found` 
+                  : 'No users found'
+              }
+            </p>
           </div>
         ) : (
           <div className="space-y-3 stagger-children">
@@ -674,107 +808,16 @@ const getLeaderboardDescription = () => {
         )}
       </div>
 
-      {/* User Details Modal */}
-    {selectedUser && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto transform transition-all">
-      <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
-        <h3 className="text-xl font-semibold text-gray-900">User Details</h3>
-        <button
-          onClick={closeUserModal}
-          className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 p-1 rounded transition-colors"
-        >
-          <X className="h-5 w-5" />
-        </button>
-      </div>
-
-      <div className="space-y-6">
-        {/* Avatar and Basic Info */}
-        <div className="flex items-center space-x-4">
-          <div className="w-16 h-16 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-white font-bold text-xl">
-              {selectedUser.first_name?.charAt(0)}{selectedUser.last_name?.charAt(0)}
-            </span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xl font-bold text-gray-900 truncate">
-              {selectedUser.first_name} {selectedUser.last_name}
-            </p>
-            <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mt-2 ${getRoleColor(selectedUser.role)}`}>
-              {getRoleIcon(selectedUser.role)}
-              <span className="ml-1 capitalize">{selectedUser.role.replace('_', ' ')}</span>
-            </span>
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="border-t border-gray-200"></div>
-
-        {/* IDs Section */}
-        {(selectedUser.personal_id || selectedUser.volunteer_id) && (
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-gray-700">Identification</h4>
-            {selectedUser.personal_id && (
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <p className="text-xs font-medium text-gray-600 uppercase">Personal ID</p>
-                <p className="text-sm font-mono text-gray-900 mt-1">{selectedUser.personal_id}</p>
-              </div>
-            )}
-            {selectedUser.volunteer_id && (
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <p className="text-xs font-medium text-gray-600 uppercase">Volunteer ID</p>
-                <p className="text-sm font-mono text-gray-900 mt-1">{selectedUser.volunteer_id}</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Score Section */}
-        <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
-          <p className="text-sm font-medium text-orange-800 mb-2">Total Score</p>
-          <p className="text-4xl font-bold text-orange-600">{selectedUser.score}</p>
-          <p className="text-xs text-orange-600 mt-1">points</p>
-          <p className="text-sm text-orange-700 font-semibold mt-3">Rank #{selectedUser.rank}</p>
-        </div>
-
-        {/* Additional Details */}
-        {userDetails && (
-          <div className="space-y-3 border-t border-gray-200 pt-4">
-            <h4 className="text-sm font-semibold text-gray-700">Additional Information</h4>
-            {userDetails.email && (
-              <div>
-                <p className="text-xs font-medium text-gray-600 uppercase">Email</p>
-                <p className="text-sm text-gray-900 mt-1 truncate">{userDetails.email}</p>
-              </div>
-            )}
-            {userDetails.phone && (
-              <div>
-                <p className="text-xs font-medium text-gray-600 uppercase">Phone</p>
-                <p className="text-sm text-gray-900 mt-1">{userDetails.phone}</p>
-              </div>
-            )}
-            {userDetails.tl_team && (
-              <div>
-                <p className="text-xs font-medium text-gray-600 uppercase">Team</p>
-                <p className="text-sm text-gray-900 mt-1 capitalize">{userDetails.tl_team.replace('_', ' ')}</p>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Close Button */}
-      <div className="mt-8 pt-4 border-t border-gray-200 flex justify-end gap-3">
-        <button
-          onClick={closeUserModal}
-          className="bg-orange-500 text-white px-6 py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+      {/* User Details Modal via Portal */}
+      {selectedUser && (
+        <UserDetailsModal
+          user={selectedUser}
+          userDetails={userDetails}
+          onClose={closeUserModal}
+          getRoleColor={getRoleColor}
+          getRoleIcon={getRoleIcon}
+        />
+      )}
     </div>
   );
 };
