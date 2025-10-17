@@ -4206,7 +4206,72 @@ const handleSessionSubmit = async () => {
             placeholder="Enter capacity (leave empty for unlimited)"
           />
         </div>
+{/* Add this section to both Add Session and Edit Session modals */}
+<div className="fade-in-blur">
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Speaker LinkedIn Profile URL
+  </label>
+  <input
+    type="url"
+    value={newSession.speakerLinkedIn} // Use editSession.speakerLinkedIn for edit modal
+    onChange={(e) => setNewSession({ ...newSession, speakerLinkedIn: e.target.value })} // Use setEditSession for edit modal
+    className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+    placeholder="https://linkedin.com/in/speaker-profile"
+  />
+</div>
 
+<div className="fade-in-blur">
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Speaker Photo
+  </label>
+  <div className="flex space-x-2 sm:space-x-4 mb-3">
+    <button
+      type="button"
+      onClick={() => setNewSession({ ...newSession, speakerPhotoType: "link" })} // Use setEditSession for edit modal
+      className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-300 smooth-hover ${
+        newSession.speakerPhotoType === "link"  // Use editSession for edit modal
+          ? "bg-blue-500 text-white" 
+          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+      }`}
+    >
+      <Link className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+      URL
+    </button>
+    <button
+      type="button"
+      onClick={() => setNewSession({ ...newSession, speakerPhotoType: "upload" })} // Use setEditSession for edit modal
+      className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-300 smooth-hover ${
+        newSession.speakerPhotoType === "upload"  // Use editSession for edit modal
+          ? "bg-blue-500 text-white" 
+          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+      }`}
+    >
+      <Upload className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+      Upload
+    </button>
+  </div>
+  
+  {newSession.speakerPhotoType === "link" ? (  // Use editSession for edit modal
+    <input
+      type="url"
+      value={newSession.speakerPhotoUrl}  // Use editSession for edit modal
+      onChange={(e) => setNewSession({ ...newSession, speakerPhotoUrl: e.target.value })}  // Use setEditSession for edit modal
+      className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+      placeholder="https://example.com/speaker-photo.jpg"
+    />
+  ) : (
+    <div>
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) => setNewSession({ ...newSession, speakerPhoto: e.target.files?.[0] || null })}  // Use setEditSession for edit modal
+        className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+      />
+      <p className="text-xs text-gray-500 mt-1">
+        Supported formats: PNG, JPG, SVG. Max size: 5MB. Will be stored in /Assets/speakers bucket
+      </p>
+    </div>
+  )}
         <div className="fade-in-blur">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Session Type *
