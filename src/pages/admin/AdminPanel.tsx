@@ -950,9 +950,13 @@ const handleEditSession = (session: SessionItem) => {
     date: startTime.toISOString().split('T')[0],
     hour: startTime.toTimeString().slice(0, 5),
     location: session.location || "",
+    speakerPhoto: null, // Add this
+    speakerPhotoUrl: session.speaker_photo_url || "", // Add this
+    speakerPhotoType: "link", // Add this
+    speakerLinkedIn: session.speaker_linkedin_url || "" // Add this
   });
   setEditSessionModal(true);
-  setSessionDetailModal(false); // Close detail modal when editing
+  setSessionDetailModal(false);
 };
 
 const handleEditEvent = (event: EventItem) => {
