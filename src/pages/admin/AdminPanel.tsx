@@ -116,6 +116,8 @@ interface SessionItem {
   current_bookings?: number;
   session_type?: string;
   max_attendees?: number;
+  speaker_photo_url?: string; // Add this
+  speaker_linkedin_url?: string; // Add this
 }
 
 interface EventItem {
