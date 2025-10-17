@@ -3239,100 +3239,99 @@ const handleSessionSubmit = async () => {
             <StatisticsTab />
           )}
 
-          {/* Sessions Tab - Responsive */}
-          {activeTab === "sessions" && (
-            <div className="fade-in-blur">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center mb-4 sm:mb-0 fade-in-blur">
-                  <Calendar className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600" /> Sessions Management
-                </h2>
-                <button
-                  onClick={() => setSessionModal(true)}
-                  className="flex items-center px-3 sm:px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-300 smooth-hover fade-in-blur"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  <span className="text-sm sm:text-base">Add Session</span>
-                </button>
-              </div>
+         {/* Sessions Tab - Responsive */}
+{activeTab === "sessions" && (
+  <div className="fade-in-blur">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6">
+      <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center mb-4 sm:mb-0 fade-in-blur">
+        <Calendar className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600" /> Sessions Management
+      </h2>
+      <button
+        onClick={() => setSessionModal(true)}
+        className="flex items-center px-3 sm:px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-300 smooth-hover fade-in-blur"
+      >
+        <Plus className="h-4 w-4 mr-2" />
+        <span className="text-sm sm:text-base">Add Session</span>
+      </button>
+    </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 stagger-children">
-                {sessions.map((session) => (
-                  <div 
-                    key={session.id} 
-                    onClick={() => handleSessionClick(session)}
-                    className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 hover:shadow-md transition-all duration-300 smooth-hover card-hover fade-in-blur"
-                  >
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">{session.title}</h3>
-                    <p className="text-xs sm:text-sm text-gray-600 mb-3 line-clamp-2">{session.description}</p>
-                    {session.speaker && (
-                      <p className="text-xs sm:text-sm font-medium text-gray-900 mb-2">Speaker: {session.speaker}</p>
-                    )}
-                    {session.speaker_photo_url && (
-  <div className="mt-2">
-    <img 
-      src={session.speaker_photo_url} 
-      alt={`${session.speaker} photo`}
-      className="h-12 w-12 rounded-full object-cover"
-      onError={(e) => {
-        (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/48x48/gray/white?text=Photo";
-      }}
-    />
-  </div>
-)}
-
-                    <div className="space-y-1 text-xs text-gray-500 mb-4">
-                      <div className="flex items-center">
-                        <Clock className="h-3 w-3 mr-1" />
-                        {new Date(session.start_time).toLocaleDateString()} {new Date(session.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </div>
-                      <div className="flex items-center">
-                        <MapPin className="h-3 w-3 mr-1" />
-                        {session.location}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
-                        {session.session_type}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {session.current_bookings || 0}/{session.capacity || 'Unlimited'}
-                      </span>
-                    </div>
-                    
-                   <div className="flex gap-2 mt-4">
-  <button
-    onClick={() => handleSessionClick(session)}
-    className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
-  >
-    <Eye className="h-3 w-3 mr-1 inline" />
-    View
-  </button>
-  <button
-    onClick={(e) => {
-      e.stopPropagation(); // Add this line
-      handleEditSession(session);
-    }}
-    className="flex-1 bg-blue-500 text-white py-2 px-3 rounded-lg hover:bg-blue-600 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
-  >
-    Edit
-  </button>
-  <button
-    onClick={(e) => {
-      e.stopPropagation(); // Add this line
-      handleDeleteSession(session);
-    }}
-    className="flex-1 bg-red-500 text-white py-2 px-3 rounded-lg hover:bg-red-600 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
-  >
-    <Trash2 className="h-3 w-3 mr-1 inline" />
-    Delete
-  </button>
-</div>
-                  </div>
-                ))}
-              </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 stagger-children">
+      {sessions.map((session) => (
+        <div 
+          key={session.id} 
+          onClick={() => handleSessionClick(session)}
+          className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 hover:shadow-md transition-all duration-300 smooth-hover card-hover fade-in-blur"
+        >
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">{session.title}</h3>
+          <p className="text-xs sm:text-sm text-gray-600 mb-3 line-clamp-2">{session.description}</p>
+          {session.speaker && (
+            <p className="text-xs sm:text-sm font-medium text-gray-900 mb-2">Speaker: {session.speaker}</p>
+          )}
+          {session.speaker_photo_url && (
+            <div className="mt-2">
+<img 
+  src={session.speaker_photo_url} 
+  alt={`${session.speaker} photo`}
+  className="h-12 w-12 rounded-full object-cover"
+  onError={(e) => {
+    (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/48x48/gray/white?text=Photo";
+  }}
+/>
             </div>
           )}
 
+          <div className="space-y-1 text-xs text-gray-500 mb-4">
+            <div className="flex items-center">
+              <Clock className="h-3 w-3 mr-1" />
+              {new Date(session.start_time).toLocaleDateString()} {new Date(session.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </div>
+            <div className="flex items-center">
+              <MapPin className="h-3 w-3 mr-1" />
+              {session.location}
+            </div>
+          </div>
+          <div className="flex items-center justify-between mb-4">
+            <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+              {session.session_type}
+            </span>
+            <span className="text-xs text-gray-500">
+              {session.current_bookings || 0}/{session.capacity || 'Unlimited'}
+            </span>
+          </div>
+          
+          <div className="flex gap-2 mt-4">
+            <button
+              onClick={() => handleSessionClick(session)}
+              className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
+            >
+              <Eye className="h-3 w-3 mr-1 inline" />
+              View
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleEditSession(session);
+              }}
+              className="flex-1 bg-blue-500 text-white py-2 px-3 rounded-lg hover:bg-blue-600 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
+            >
+              Edit
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleDeleteSession(session);
+              }}
+              className="flex-1 bg-red-500 text-white py-2 px-3 rounded-lg hover:bg-red-600 transition-all duration-300 smooth-hover text-xs sm:text-sm font-medium"
+            >
+              <Trash2 className="h-3 w-3 mr-1 inline" />
+              Delete
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+)}
           {/* Events Tab - Responsive */}
           {activeTab === "events" && (
             <div className="fade-in-blur">
@@ -5643,8 +5642,8 @@ const handleSessionSubmit = async () => {
   </label>
   <input
     type="url"
-    value={newSession.speakerLinkedIn} // Use editSession.speakerLinkedIn for edit modal
-    onChange={(e) => setNewSession({ ...newSession, speakerLinkedIn: e.target.value })} // Use setEditSession for edit modal
+    value={newSession.speakerLinkedIn}
+    onChange={(e) => setNewSession({ ...newSession, speakerLinkedIn: e.target.value })}
     className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
     placeholder="https://linkedin.com/in/speaker-profile"
   />
@@ -5657,9 +5656,9 @@ const handleSessionSubmit = async () => {
   <div className="flex space-x-2 sm:space-x-4 mb-3">
     <button
       type="button"
-      onClick={() => setNewSession({ ...newSession, speakerPhotoType: "link" })} // Use setEditSession for edit modal
+      onClick={() => setNewSession({ ...newSession, speakerPhotoType: "link" })}
       className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-300 smooth-hover ${
-        newSession.speakerPhotoType === "link"  // Use editSession for edit modal
+        newSession.speakerPhotoType === "link" 
           ? "bg-blue-500 text-white" 
           : "bg-gray-100 text-gray-700 hover:bg-gray-200"
       }`}
@@ -5669,9 +5668,9 @@ const handleSessionSubmit = async () => {
     </button>
     <button
       type="button"
-      onClick={() => setNewSession({ ...newSession, speakerPhotoType: "upload" })} // Use setEditSession for edit modal
+      onClick={() => setNewSession({ ...newSession, speakerPhotoType: "upload" })}
       className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-300 smooth-hover ${
-        newSession.speakerPhotoType === "upload"  // Use editSession for edit modal
+        newSession.speakerPhotoType === "upload" 
           ? "bg-blue-500 text-white" 
           : "bg-gray-100 text-gray-700 hover:bg-gray-200"
       }`}
@@ -5681,11 +5680,11 @@ const handleSessionSubmit = async () => {
     </button>
   </div>
   
-  {newSession.speakerPhotoType === "link" ? (  // Use editSession for edit modal
+  {newSession.speakerPhotoType === "link" ? (
     <input
       type="url"
-      value={newSession.speakerPhotoUrl}  // Use editSession for edit modal
-      onChange={(e) => setNewSession({ ...newSession, speakerPhotoUrl: e.target.value })}  // Use setEditSession for edit modal
+      value={newSession.speakerPhotoUrl}
+      onChange={(e) => setNewSession({ ...newSession, speakerPhotoUrl: e.target.value })}
       className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
       placeholder="https://example.com/speaker-photo.jpg"
     />
@@ -5694,7 +5693,7 @@ const handleSessionSubmit = async () => {
       <input
         type="file"
         accept="image/*"
-        onChange={(e) => setNewSession({ ...newSession, speakerPhoto: e.target.files?.[0] || null })}  // Use setEditSession for edit modal
+        onChange={(e) => setNewSession({ ...newSession, speakerPhoto: e.target.files?.[0] || null })}
         className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
       />
       <p className="text-xs text-gray-500 mt-1">
@@ -5702,6 +5701,8 @@ const handleSessionSubmit = async () => {
       </p>
     </div>
   )}
+</div>
+
 <div className="fade-in-blur">
   <label className="block text-sm font-medium text-gray-700 mb-2">
     Session Type
@@ -6156,6 +6157,8 @@ const handleSessionSubmit = async () => {
   </div>,
   document.body
 )}
+        
+      </div>
     </DashboardLayout>
   );
 }
