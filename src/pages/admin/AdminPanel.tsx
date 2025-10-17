@@ -6156,8 +6156,6 @@ const handleSessionSubmit = async () => {
   </div>,
   document.body
 )}
-        
-      </div>
     </DashboardLayout>
   );
 }
