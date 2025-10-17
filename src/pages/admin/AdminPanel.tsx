@@ -983,40 +983,68 @@ const handleEditEvent = (event: EventItem) => {
     setEventDetailModal(true);
   };
 
-  const handleSessionUpdate = async () => {
-    if (!editSession.title || !editSession.date || !editSession.speaker) {
-      showFeedback("Please fill all required fields!", "error");
-      return;
+const handleSessionUpdate = async () => {
+  if (!editSession.title || !editSession.date || !editSession.speaker) {
+    showFeedback("Please fill all required fields!", "error");
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const startDateTime = new Date(`${editSession.date}T${editSession.hour}`);
+    const endDateTime = new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000);
+    let capacityValue: number | null = null;
+    if (typeof editSession.capacity === 'number') {
+      capacityValue = editSession.capacity;
+    } else if (typeof editSession.capacity === 'string') {
+      const parsed = parseInt(editSession.capacity, 10);
+      capacityValue = isNaN(parsed) ? null : parsed;
     }
 
-    setLoading(true);
-    try {
-      const startDateTime = new Date(`${editSession.date}T${editSession.hour}`);
-      const endDateTime = new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000);
-      let capacityValue: number | null = null;
-      if (typeof editSession.capacity === 'number') {
-        capacityValue = editSession.capacity;
-      } else if (typeof editSession.capacity === 'string') {
-        const parsed = parseInt(editSession.capacity, 10);
-        capacityValue = isNaN(parsed) ? null : parsed;
+    // Handle speaker photo upload
+    let speakerPhotoUrl = editSession.speakerPhotoUrl;
+
+    if (editSession.speakerPhotoType === "upload" && editSession.speakerPhoto) {
+      const fileExt = editSession.speakerPhoto.name.split('.').pop();
+      const fileName = `${Date.now()}-${editSession.speaker.replace(/[^a-zA-Z0-9]/g, '_')}.${fileExt}`;
+      const filePath = `speakers/${fileName}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("Assets")
+        .upload(filePath, editSession.speakerPhoto);
+
+      if (uploadError) {
+        console.error("Speaker photo upload error:", uploadError);
+        showFeedback("Failed to upload speaker photo", "error");
+        setLoading(false);
+        return;
       }
 
-      const { error } = await supabase.from("sessions").update({
-        title: editSession.title,
-        description: editSession.description,
-        speaker: editSession.speaker,
-        start_time: startDateTime.toISOString(),
-        end_time: endDateTime.toISOString(),
-        location: editSession.location,
-        capacity: capacityValue,
-        max_attendees: capacityValue,
-        session_type: editSession.type,
-      }).eq('id', editSession.id);
+      const { data: urlData } = supabase.storage
+        .from("Assets")
+        .getPublicUrl(filePath);
 
-       if (error) {
+      speakerPhotoUrl = urlData.publicUrl;
+    }
+
+    const { error } = await supabase.from("sessions").update({
+      title: editSession.title,
+      description: editSession.description,
+      speaker: editSession.speaker,
+      start_time: startDateTime.toISOString(),
+      end_time: endDateTime.toISOString(),
+      location: editSession.location,
+      capacity: capacityValue,
+      max_attendees: capacityValue,
+      session_type: editSession.type,
+      speaker_photo_url: speakerPhotoUrl,
+      speaker_linkedin_url: editSession.speakerLinkedIn
+    }).eq('id', editSession.id);
+
+    if (error) {
       showFeedback("Failed to update session", "error");
     } else {
-      setEditSessionModal(false); // Close edit modal
+      setEditSessionModal(false);
       setEditSession({
         id: "",
         title: "",
@@ -1027,6 +1055,10 @@ const handleEditEvent = (event: EventItem) => {
         hour: "",
         location: "",
         description: "",
+        speakerPhoto: null,
+        speakerPhotoUrl: "",
+        speakerPhotoType: "link",
+        speakerLinkedIn: ""
       });
       showFeedback("Session updated successfully!", "success");
       await fetchSessions();
