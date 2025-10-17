@@ -4206,7 +4206,88 @@ const handleSessionSubmit = async () => {
             placeholder="Enter capacity (leave empty for unlimited)"
           />
         </div>
+{/* Add this section to the Edit Session modal */}
+<div className="fade-in-blur">
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Speaker LinkedIn Profile URL
+  </label>
+  <input
+    type="url"
+    value={editSession.speakerLinkedIn}
+    onChange={(e) => setEditSession({ ...editSession, speakerLinkedIn: e.target.value })}
+    className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+    placeholder="https://linkedin.com/in/speaker-profile"
+  />
+</div>
 
+<div className="fade-in-blur">
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Speaker Photo
+  </label>
+  <div className="flex space-x-2 sm:space-x-4 mb-3">
+    <button
+      type="button"
+      onClick={() => setEditSession({ ...editSession, speakerPhotoType: "link" })}
+      className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-300 smooth-hover ${
+        editSession.speakerPhotoType === "link" 
+          ? "bg-blue-500 text-white" 
+          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+      }`}
+    >
+      <Link className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+      URL
+    </button>
+    <button
+      type="button"
+      onClick={() => setEditSession({ ...editSession, speakerPhotoType: "upload" })}
+      className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-300 smooth-hover ${
+        editSession.speakerPhotoType === "upload" 
+          ? "bg-blue-500 text-white" 
+          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+      }`}
+    >
+      <Upload className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+      Upload New
+    </button>
+  </div>
+  
+  {editSession.speakerPhotoType === "link" ? (
+    <input
+      type="url"
+      value={editSession.speakerPhotoUrl}
+      onChange={(e) => setEditSession({ ...editSession, speakerPhotoUrl: e.target.value })}
+      className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+      placeholder="https://example.com/speaker-photo.jpg"
+    />
+  ) : (
+    <div>
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) => setEditSession({ ...editSession, speakerPhoto: e.target.files?.[0] || null })}
+        className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+      />
+      <p className="text-xs text-gray-500 mt-1">
+        Leave empty to keep current photo. Supported formats: PNG, JPG, SVG. Max size: 5MB
+      </p>
+    </div>
+  )}
+  
+  {/* Show current photo in edit modal */}
+  {editSession.speakerPhotoUrl && (
+    <div className="mt-3 p-3 bg-gray-50 rounded-lg fade-in-blur">
+      <p className="text-sm text-gray-600 mb-2">Current Speaker Photo:</p>
+      <img 
+        src={editSession.speakerPhotoUrl} 
+        alt="Current speaker" 
+        className="h-16 w-16 object-cover rounded-lg"
+        onError={(e) => {
+          (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/64x64/gray/white?text=Photo";
+        }}
+      />
+    </div>
+  )}
+</div>
         <div className="fade-in-blur">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Session Type *
