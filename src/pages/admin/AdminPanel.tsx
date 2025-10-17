@@ -5211,7 +5211,37 @@ const handleSessionSubmit = async () => {
               {selectedSessionDetail.current_bookings || 0} / {selectedSessionDetail.max_attendees || 'Unlimited'} booked
             </p>
           </div>
-
+{(selectedSessionDetail?.speaker_photo_url || selectedSessionDetail?.speaker_linkedin_url) && (
+  <div className="fade-in-blur">
+    <label className="block text-sm font-medium text-gray-700 mb-2">Speaker Details</label>
+    <div className="flex items-center space-x-4">
+      {selectedSessionDetail?.speaker_photo_url && (
+        <img 
+          src={selectedSessionDetail.speaker_photo_url} 
+          alt={`${selectedSessionDetail.speaker} photo`}
+          className="h-16 w-16 rounded-full object-cover"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/64x64/gray/white?text=Photo";
+          }}
+        />
+      )}
+      <div>
+        <p className="text-gray-900 font-medium">{selectedSessionDetail?.speaker}</p>
+        {selectedSessionDetail?.speaker_linkedin_url && (
+          <a 
+            href={selectedSessionDetail.speaker_linkedin_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
+          >
+            <Link className="h-3 w-3 mr-1" />
+            LinkedIn Profile
+          </a>
+        )}
+      </div>
+    </div>
+  </div>
+)}
           {/* Action Buttons */}
           <div className="pt-4 space-y-3 fade-in-blur">
             <div className="grid grid-cols-2 gap-3">
@@ -5252,6 +5282,7 @@ const handleSessionSubmit = async () => {
   </div>,
   document.body
 )}
+        
 
 {/* Event Detail Modal */}
 {eventDetailModal && selectedEventDetail && createPortal(
