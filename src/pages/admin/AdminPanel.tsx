@@ -2560,59 +2560,91 @@ const handleEditCompany = (company: CompanyItem) => {
   };
 
   // Handle Session Submit
-  const handleSessionSubmit = async () => {
-    if (!newSession.title || !newSession.date || !newSession.speaker) {
-      showFeedback("Please fill all required fields!", "error");
-      return;
+const handleSessionSubmit = async () => {
+  if (!newSession.title || !newSession.date || !newSession.speaker) {
+    showFeedback("Please fill all required fields!", "error");
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const startDateTime = new Date(`${newSession.date}T${newSession.hour}`);
+    const endDateTime = new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000);
+    let capacityValue: number | null = null;
+    if (typeof newSession.capacity === 'number') {
+      capacityValue = newSession.capacity;
+    } else if (typeof newSession.capacity === 'string') {
+      const parsed = parseInt(newSession.capacity, 10);
+      capacityValue = isNaN(parsed) ? null : parsed;
     }
 
-    setLoading(true);
-    try {
-      const startDateTime = new Date(`${newSession.date}T${newSession.hour}`);
-      const endDateTime = new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000);
-      let capacityValue: number | null = null;
-      if (typeof newSession.capacity === 'number') {
-        capacityValue = newSession.capacity;
-      } else if (typeof newSession.capacity === 'string') {
-        const parsed = parseInt(newSession.capacity, 10);
-        capacityValue = isNaN(parsed) ? null : parsed;
+    // Handle speaker photo upload
+    let speakerPhotoUrl = newSession.speakerPhotoUrl;
+
+    if (newSession.speakerPhotoType === "upload" && newSession.speakerPhoto) {
+      const fileExt = newSession.speakerPhoto.name.split('.').pop();
+      const fileName = `${Date.now()}-${newSession.speaker.replace(/[^a-zA-Z0-9]/g, '_')}.${fileExt}`;
+      const filePath = `speakers/${fileName}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("Assets")
+        .upload(filePath, newSession.speakerPhoto);
+
+      if (uploadError) {
+        console.error("Speaker photo upload error:", uploadError);
+        showFeedback("Failed to upload speaker photo", "error");
+        setLoading(false);
+        return;
       }
 
-      const { error } = await supabase.from("sessions").insert({
-        title: newSession.title,
-        description: newSession.description,
-        speaker: newSession.speaker,
-        start_time: startDateTime.toISOString(),
-        end_time: endDateTime.toISOString(),
-        location: newSession.location,
-        capacity: capacityValue,
-        max_attendees: capacityValue,
-        session_type: newSession.type,
-      });
+      const { data: urlData } = supabase.storage
+        .from("Assets")
+        .getPublicUrl(filePath);
 
-      if (error) {
-        showFeedback("Failed to add session", "error");
-      } else {
-        setSessionModal(false);
-        setNewSession({
-          title: "",
-          date: "",
-          speaker: "",
-          capacity: "",
-          type: "session",
-          hour: "",
-          location: "",
-          description: "",
-        });
-        showFeedback("Session added successfully!", "success");
-        await fetchSessions();
-      }
-    } catch (err) {
+      speakerPhotoUrl = urlData.publicUrl;
+    }
+
+    const { error } = await supabase.from("sessions").insert({
+      title: newSession.title,
+      description: newSession.description,
+      speaker: newSession.speaker,
+      start_time: startDateTime.toISOString(),
+      end_time: endDateTime.toISOString(),
+      location: newSession.location,
+      capacity: capacityValue,
+      max_attendees: capacityValue,
+      session_type: newSession.type,
+      speaker_photo_url: speakerPhotoUrl,
+      speaker_linkedin_url: newSession.speakerLinkedIn
+    });
+
+    if (error) {
       showFeedback("Failed to add session", "error");
-    } finally {
-      setLoading(false);
+    } else {
+      setSessionModal(false);
+      setNewSession({
+        title: "",
+        date: "",
+        speaker: "",
+        capacity: "",
+        type: "session",
+        hour: "",
+        location: "",
+        description: "",
+        speakerPhoto: null,
+        speakerPhotoUrl: "",
+        speakerPhotoType: "link",
+        speakerLinkedIn: ""
+      });
+      showFeedback("Session added successfully!", "success");
+      await fetchSessions();
     }
-  };
+  } catch (err) {
+    showFeedback("Failed to add session", "error");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const openDeleteCompanyModal = (company: CompanyItem) => {
     setSelectedCompanyDelete(company);
