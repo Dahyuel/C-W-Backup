@@ -3267,6 +3267,19 @@ const handleSessionSubmit = async () => {
                     {session.speaker && (
                       <p className="text-xs sm:text-sm font-medium text-gray-900 mb-2">Speaker: {session.speaker}</p>
                     )}
+                    {session.speaker_photo_url && (
+  <div className="mt-2">
+    <img 
+      src={session.speaker_photo_url} 
+      alt={`${session.speaker} photo`}
+      className="h-12 w-12 rounded-full object-cover"
+      onError={(e) => {
+        (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/48x48/gray/white?text=Photo";
+      }}
+    />
+  </div>
+)}
+
                     <div className="space-y-1 text-xs text-gray-500 mb-4">
                       <div className="flex items-center">
                         <Clock className="h-3 w-3 mr-1" />
