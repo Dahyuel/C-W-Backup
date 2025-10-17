@@ -310,17 +310,35 @@ const [editCompany, setEditCompany] = useState<{
   hrMails: [], // Add this
 });
 
-  const [editSession, setEditSession] = useState<{ id: string; title: string; date: string; speaker: string; capacity: string | number; type: 'session' | string; hour: string; location: string; description: string;}>({
-    id: "",
-    title: "",
-    date: "",
-    speaker: "",
-    capacity: "",
-    type: "session",
-    hour: "",
-    location: "",
-    description: "",
-  });
+  const [editSession, setEditSession] = useState<{ 
+  id: string; 
+  title: string; 
+  date: string; 
+  speaker: string; 
+  capacity: string | number; 
+  type: 'session' | string; 
+  hour: string; 
+  location: string; 
+  description: string;
+  speakerPhoto: File | null; // Add this
+  speakerPhotoUrl: string; // Add this
+  speakerPhotoType: 'link' | 'upload'; // Add this
+  speakerLinkedIn: string; // Add this
+}>({
+  id: "",
+  title: "",
+  date: "",
+  speaker: "",
+  capacity: "",
+  type: "session",
+  hour: "",
+  location: "",
+  description: "",
+  speakerPhoto: null, // Add this
+  speakerPhotoUrl: "", // Add this
+  speakerPhotoType: "link", // Add this
+  speakerLinkedIn: "" // Add this
+});
 
   const [editEvent, setEditEvent] = useState<{ id: string; title: string; description: string; startDate: string; endDate: string; startTime: string; endTime: string; location: string; type: 'general' | string;}>({
     id: "",
