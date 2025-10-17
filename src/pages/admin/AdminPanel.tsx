@@ -360,17 +360,33 @@ const [newCompany, setNewCompany] = useState<{
   days: [], // Add this
   hrMails: [], // Add this
 });
-
-  const [newSession, setNewSession] = useState<{ title: string; date: string; speaker: string; capacity: string | number; type: 'session' | string; hour: string; location: string; description: string;}>({
-    title: "",
-    date: "",
-    speaker: "",
-    capacity: "",
-    type: "session",
-    hour: "",
-    location: "",
-    description: "",
-  });
+const [newSession, setNewSession] = useState<{ 
+  title: string; 
+  date: string; 
+  speaker: string; 
+  capacity: string | number; 
+  type: 'session' | string; 
+  hour: string; 
+  location: string; 
+  description: string;
+  speakerPhoto: File | null; // Add this
+  speakerPhotoUrl: string; // Add this
+  speakerPhotoType: 'link' | 'upload'; // Add this
+  speakerLinkedIn: string; // Add this
+}>({
+  title: "",
+  date: "",
+  speaker: "",
+  capacity: "",
+  type: "session",
+  hour: "",
+  location: "",
+  description: "",
+  speakerPhoto: null, // Add this
+  speakerPhotoUrl: "", // Add this
+  speakerPhotoType: "link", // Add this
+  speakerLinkedIn: "" // Add this
+});
 
   const [newEvent, setNewEvent] = useState<{ title: string; description: string; startDate: string; endDate: string; startTime: string; endTime: string; location: string; type: 'general' | string;}>({
     title: "",
