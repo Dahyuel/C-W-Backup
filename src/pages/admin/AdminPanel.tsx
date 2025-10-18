@@ -987,20 +987,19 @@ const handleEditSession = (session: SessionItem) => {
     title: session.title || "",
     description: session.description || "",
     speaker: session.speaker || "",
-    capacity: (session.current_bookings ?? "") as any,
+    capacity: session.max_attendees || session.capacity || "", // ✅ Use capacity fields, not current_bookings
     type: session.session_type || "session",
     date: startTime.toISOString().split('T')[0],
     hour: startTime.toTimeString().slice(0, 5),
     location: session.location || "",
-    speakerPhoto: null, // Add this
-    speakerPhotoUrl: session.speaker_photo_url || "", // Add this
-    speakerPhotoType: "link", // Add this
-    speakerLinkedIn: session.speaker_linkedin_url || "" // Add this
+    speakerPhoto: null,
+    speakerPhotoUrl: session.speaker_photo_url || "",
+    speakerPhotoType: "link",
+    speakerLinkedIn: session.speaker_linkedin_url || ""
   });
   setEditSessionModal(true);
   setSessionDetailModal(false);
 };
-
 const handleEditEvent = (event: EventItem) => {
   setSelectedEventEdit(event);
   const startTime = new Date(event.start_time);
