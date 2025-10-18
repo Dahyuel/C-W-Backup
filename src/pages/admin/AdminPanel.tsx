@@ -411,16 +411,35 @@ const [newSession, setNewSession] = useState<{
   speakerLinkedIn: "" // Add this
 });
 
-  const [newEvent, setNewEvent] = useState<{ title: string; description: string; startDate: string; endDate: string; startTime: string; endTime: string; location: string; type: 'general' | string;}>({
-    title: "",
-    description: "",
-    startDate: "",
-    endDate: "",
-    startTime: "",
-    endTime: "",
-    location: "",
-    type: "general",
-  });
+const [newEvent, setNewEvent] = useState<{ 
+  title: string; 
+  description: string; 
+  startDate: string; 
+  endDate: string; 
+  startTime: string; 
+  endTime: string; 
+  location: string; 
+  type: 'general' | string;
+  speaker: string; // Add this
+  speakerPhoto: File | null; // Add this
+  speakerPhotoUrl: string; // Add this
+  speakerPhotoType: 'link' | 'upload'; // Add this
+  speakerLinkedIn: string; // Add this
+}>({
+  title: "",
+  description: "",
+  startDate: "",
+  endDate: "",
+  startTime: "",
+  endTime: "",
+  location: "",
+  type: "general",
+  speaker: "", // Add this
+  speakerPhoto: null, // Add this
+  speakerPhotoUrl: "", // Add this
+  speakerPhotoType: "link", // Add this
+  speakerLinkedIn: "" // Add this
+});
 
   const [mapForm, setMapForm] = useState<{ day: number; image: File | null;}>({
     day: 1,
