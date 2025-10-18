@@ -5981,7 +5981,86 @@ const handleEventSubmit = async () => {
           </select>
         </div>
       </div>
+{/* Add these fields to the Add Event Modal */}
+<div className="fade-in-blur">
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Speaker
+  </label>
+  <input
+    type="text"
+    value={newEvent.speaker}
+    onChange={(e) => setNewEvent({ ...newEvent, speaker: e.target.value })}
+    className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+    placeholder="Enter speaker name"
+  />
+</div>
 
+<div className="fade-in-blur">
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Speaker LinkedIn Profile URL
+  </label>
+  <input
+    type="url"
+    value={newEvent.speakerLinkedIn}
+    onChange={(e) => setNewEvent({ ...newEvent, speakerLinkedIn: e.target.value })}
+    className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+    placeholder="https://linkedin.com/in/speaker-profile"
+  />
+</div>
+
+<div className="fade-in-blur">
+  <label className="block text-sm font-medium text-gray-700 mb-2">
+    Speaker Photo
+  </label>
+  <div className="flex space-x-2 sm:space-x-4 mb-3">
+    <button
+      type="button"
+      onClick={() => setNewEvent({ ...newEvent, speakerPhotoType: "link" })}
+      className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-300 smooth-hover ${
+        newEvent.speakerPhotoType === "link" 
+          ? "bg-blue-500 text-white" 
+          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+      }`}
+    >
+      <Link className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+      URL
+    </button>
+    <button
+      type="button"
+      onClick={() => setNewEvent({ ...newEvent, speakerPhotoType: "upload" })}
+      className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-300 smooth-hover ${
+        newEvent.speakerPhotoType === "upload" 
+          ? "bg-blue-500 text-white" 
+          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+      }`}
+    >
+      <Upload className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+      Upload
+    </button>
+  </div>
+  
+  {newEvent.speakerPhotoType === "link" ? (
+    <input
+      type="url"
+      value={newEvent.speakerPhotoUrl}
+      onChange={(e) => setNewEvent({ ...newEvent, speakerPhotoUrl: e.target.value })}
+      className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+      placeholder="https://example.com/speaker-photo.jpg"
+    />
+  ) : (
+    <div>
+      <input
+        type="file"
+        accept="image/*"
+        onChange={(e) => setNewEvent({ ...newEvent, speakerPhoto: e.target.files?.[0] || null })}
+        className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+      />
+      <p className="text-xs text-gray-500 mt-1">
+        Supported formats: PNG, JPG, SVG. Max size: 5MB
+      </p>
+    </div>
+  )}
+</div>
       <div className="flex justify-end space-x-3 mt-6 fade-in-blur">
         <button
           onClick={() => setEventModal(false)}
