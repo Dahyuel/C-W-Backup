@@ -1016,10 +1016,16 @@ const handleEditEvent = (event: EventItem) => {
     endTime: endTime ? endTime.toTimeString().slice(0, 5) : "",
     location: event.location || "",
     type: event.item_type || "general",
+    speaker: event.speaker || "", // Add this
+    speakerPhoto: null, // Add this
+    speakerPhotoUrl: event.speaker_photo_url || "", // Add this
+    speakerPhotoType: "link", // Add this
+    speakerLinkedIn: event.speaker_linkedin_url || "" // Add this
   });
   setEditEventModal(true);
-  setEventDetailModal(false); // Close detail modal when editing
+  setEventDetailModal(false);
 };
+  
   const handleEventClick = (event: EventItem) => {
     setSelectedEventDetail(event);
     setEventDetailModal(true);
