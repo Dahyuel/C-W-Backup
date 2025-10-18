@@ -124,10 +124,13 @@ interface EventItem {
   id: string;
   title: string;
   description?: string;
+  speaker?: string; // Add this
   start_time: string;
   end_time?: string;
   location?: string;
   item_type?: string;
+  speaker_photo_url?: string; // Add this
+  speaker_linkedin_url?: string; // Add this
 }
 
 interface UserProfileItem {
