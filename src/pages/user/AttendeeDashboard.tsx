@@ -1909,89 +1909,125 @@ const renderSessionCards = (sessionsToRender: Session[], sessionType: 'building'
           document.body
         )}
 
-        {/* Event Details Modal */}
-        {showEventModal && selectedEvent && createPortal(
-          <div 
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
+       {/* Event Details Modal */}
+{showEventModal && selectedEvent && createPortal(
+  <div 
+    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
+    onClick={() => {
+      setShowEventModal(false);
+      setSelectedEvent(null);
+    }}
+  >
+    <div 
+      className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="p-6 stagger-children">
+        <div className="flex items-center justify-between mb-6 fade-in-blur">
+          <h2 className="text-xl font-bold text-gray-900">Event Details</h2>
+          <button
             onClick={() => {
               setShowEventModal(false);
               setSelectedEvent(null);
             }}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <div 
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="p-6 stagger-children">
-                <div className="flex items-center justify-between mb-6 fade-in-blur">
-                  <h2 className="text-xl font-bold text-gray-900">Event Details</h2>
-                  <button
-                    onClick={() => {
-                      setShowEventModal(false);
-                      setSelectedEvent(null);
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        <div className="space-y-6">
+          <div className="fade-in-blur">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">{selectedEvent.title}</h3>
+            <p className="text-gray-700 leading-relaxed">{selectedEvent.description}</p>
+          </div>
+
+          {/* ADD SPEAKER INFORMATION TO MODAL */}
+          {selectedEvent.speaker && (
+            <div className="fade-in-blur">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Speaker</label>
+              <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                {selectedEvent.speaker_photo_url ? (
+                  <img 
+                    src={selectedEvent.speaker_photo_url} 
+                    alt={selectedEvent.speaker}
+                    className="w-12 h-12 rounded-full object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/48x48/gray/white?text=Photo";
                     }}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <X className="h-6 w-6" />
-                  </button>
-                </div>
-
-                <div className="space-y-6">
-                  <div className="fade-in-blur">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">{selectedEvent.title}</h3>
-                    <p className="text-gray-700 leading-relaxed">{selectedEvent.description}</p>
+                  />
+                ) : (
+                  <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
+                    <User className="h-6 w-6 text-gray-400" />
                   </div>
-
-                  <div className="grid grid-cols-1 gap-4 fade-in-blur">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time</label>
-                      <p className="text-gray-900">
-                        {new Date(selectedEvent.start_time).toLocaleDateString('en-US', { 
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}
-                      </p>
-                      <p className="text-gray-600 text-sm">
-                        {new Date(selectedEvent.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - 
-                        {new Date(selectedEvent.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </p>
-                    </div>
-
-                    <div className="fade-in-blur">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                      <p className="text-gray-900 flex items-center">
-                        <MapPin className="h-4 w-4 mr-2" />
-                        {selectedEvent.location}
-                      </p>
-                    </div>
-
-                    {selectedEvent.item_type && (
-                      <div className="fade-in-blur">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Event Type</label>
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                          {selectedEvent.item_type}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="pt-4 border-t border-gray-200 fade-in-blur">
-                    <button
-                      onClick={() => setShowEventModal(false)}
-                      className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+                )}
+                <div className="flex-1">
+                  <p className="font-medium text-gray-900">{selectedEvent.speaker}</p>
+                  {selectedEvent.speaker_linkedin_url && (
+                    <a 
+                      href={selectedEvent.speaker_linkedin_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
                     >
-                      Close Details
-                    </button>
-                  </div>
+                      <ExternalLink className="h-3 w-3 mr-1" />
+                      LinkedIn Profile
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
-          </div>,
-          document.body
-        )}
+          )}
 
+          <div className="grid grid-cols-1 gap-4 fade-in-blur">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time</label>
+              <p className="text-gray-900">
+                {new Date(selectedEvent.start_time).toLocaleDateString('en-US', { 
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })}
+              </p>
+              <p className="text-gray-600 text-sm">
+                {new Date(selectedEvent.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - 
+                {new Date(selectedEvent.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </p>
+            </div>
+
+            <div className="fade-in-blur">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+              <p className="text-gray-900 flex items-center">
+                <MapPin className="h-4 w-4 mr-2" />
+                {selectedEvent.location}
+              </p>
+            </div>
+
+            {selectedEvent.item_type && (
+              <div className="fade-in-blur">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Event Type</label>
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                  {selectedEvent.item_type}
+                </span>
+              </div>
+            )}
+          </div>
+
+          <div className="pt-4 border-t border-gray-200 fade-in-blur">
+            <button
+              onClick={() => setShowEventModal(false)}
+              className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+            >
+              Close Details
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>,
+  document.body
+)}
         {/* Session Details Modal */}
         {showSessionModal && selectedSession && createPortal(
           <div 
