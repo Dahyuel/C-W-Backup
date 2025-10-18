@@ -1117,32 +1117,62 @@ const handleSessionUpdate = async () => {
     setLoading(false);
   }
 };
-  const handleEventUpdate = async () => {
-    if (!editEvent.title || !editEvent.startDate || !editEvent.startTime) {
-      showFeedback("Please fill all required fields!", "error");
-      return;
+
+const handleEventUpdate = async () => {
+  if (!editEvent.title || !editEvent.startDate || !editEvent.startTime) {
+    showFeedback("Please fill all required fields!", "error");
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const startDateTime = new Date(`${editEvent.startDate}T${editEvent.startTime}`);
+    const endDateTime = editEvent.endDate && editEvent.endTime 
+      ? new Date(`${editEvent.endDate}T${editEvent.endTime}`)
+      : new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000);
+
+    // Handle speaker photo upload
+    let speakerPhotoUrl = editEvent.speakerPhotoUrl;
+
+    if (editEvent.speakerPhotoType === "upload" && editEvent.speakerPhoto) {
+      const fileExt = editEvent.speakerPhoto.name.split('.').pop();
+      const fileName = `${Date.now()}-${editEvent.speaker.replace(/[^a-zA-Z0-9]/g, '_')}.${fileExt}`;
+      const filePath = `speakers/${fileName}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("Assets")
+        .upload(filePath, editEvent.speakerPhoto);
+
+      if (uploadError) {
+        console.error("Speaker photo upload error:", uploadError);
+        showFeedback("Failed to upload speaker photo", "error");
+        setLoading(false);
+        return;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("Assets")
+        .getPublicUrl(filePath);
+
+      speakerPhotoUrl = urlData.publicUrl;
     }
 
-    setLoading(true);
-    try {
-      const startDateTime = new Date(`${editEvent.startDate}T${editEvent.startTime}`);
-      const endDateTime = editEvent.endDate && editEvent.endTime 
-        ? new Date(`${editEvent.endDate}T${editEvent.endTime}`)
-        : new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000);
+    const { error } = await supabase.from("schedule_items").update({
+      title: editEvent.title,
+      description: editEvent.description,
+      speaker: editEvent.speaker, // Add this
+      start_time: startDateTime.toISOString(),
+      end_time: endDateTime.toISOString(),
+      location: editEvent.location,
+      item_type: editEvent.type,
+      speaker_photo_url: speakerPhotoUrl, // Add this
+      speaker_linkedin_url: editEvent.speakerLinkedIn // Add this
+    }).eq('id', editEvent.id);
 
-      const { error } = await supabase.from("schedule_items").update({
-        title: editEvent.title,
-        description: editEvent.description,
-        start_time: startDateTime.toISOString(),
-        end_time: endDateTime.toISOString(),
-        location: editEvent.location,
-        item_type: editEvent.type,
-      }).eq('id', editEvent.id);
-
-      if (error) {
+    if (error) {
       showFeedback("Failed to update event", "error");
     } else {
-      setEditEventModal(false); // Close edit modal
+      setEditEventModal(false);
       setEditEvent({
         id: "",
         title: "",
@@ -1153,6 +1183,11 @@ const handleSessionUpdate = async () => {
         endTime: "",
         location: "",
         type: "general",
+        speaker: "", // Reset
+        speakerPhoto: null, // Reset
+        speakerPhotoUrl: "", // Reset
+        speakerPhotoType: "link", // Reset
+        speakerLinkedIn: "" // Reset
       });
       showFeedback("Event updated successfully!", "success");
       await fetchEventsByDay(activeDay);
@@ -1163,7 +1198,7 @@ const handleSessionUpdate = async () => {
     setLoading(false);
   }
 };
-
+  
 const handleEditCompany = (company: CompanyItem) => {
   setSelectedCompanyEdit(company);
   setEditCompany({
