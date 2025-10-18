@@ -3485,6 +3485,21 @@ const handleEventSubmit = async () => {
                 {events.map((event) => (
                   <div key={event.id} className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 fade-in-blur card-hover smooth-hover">
                     <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">{event.title}</h3>
+                          {event.speaker && (
+        <p className="text-xs sm:text-sm font-medium text-gray-900 mb-2">Speaker: {event.speaker}</p>
+      )}
+      {event.speaker_photo_url && (
+        <div className="mt-2">
+          <img 
+            src={event.speaker_photo_url} 
+            alt={`${event.speaker} photo`}
+            className="h-12 w-12 rounded-full object-cover"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/48x48/gray/white?text=Photo";
+            }}
+          />
+        </div>
+      )}
                     <p className="text-xs sm:text-sm text-gray-600 mb-3">{event.description}</p>
                     <div className="space-y-1 text-xs text-gray-500 mb-4">
                       <div className="flex items-center">
