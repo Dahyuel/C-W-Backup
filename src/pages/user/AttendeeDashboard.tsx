@@ -1230,88 +1230,120 @@ const renderSessionCards = (sessionsToRender: Session[], sessionType: 'building'
           )}
 
           {/* Stage Activities */}
-          {activeTab === "stage-activities" && (
-            <div className="tab-content-animate stagger-animation">
-              <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center justify-between mb-6 transform transition-all duration-500">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center animate-pulse">
-                  <Calendar className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600 transform transition-all duration-500 hover:rotate-180" /> 
-                  <span className="text-sm sm:text-lg">5-Day Stage Activities</span>
-                </h2>
-                
-                {/* Day Selector */}
-                <div className="flex space-x-1 sm:space-x-2 overflow-x-auto pb-2 sm:pb-0 transform transition-all duration-500">
-                  {[1, 2, 3, 4, 5].map((day, index) => (
-                    <button
-                      key={day}
-                      onClick={() => setActiveDay(day)}
-                      className={`px-2 py-1 rounded-lg text-xs font-medium transition-all duration-300 flex-shrink-0 transform hover:scale-105 min-w-10 ${
-                        activeDay === day 
-                          ? "bg-orange-500 text-white shadow-lg scale-110" 
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md"
-                      }`}
-                      style={{ animationDelay: `${index * 100}ms` }}
-                    >
-                      {day}
-                    </button>
-                  ))}
-                </div>
-              </div>
+{activeTab === "stage-activities" && (
+  <div className="tab-content-animate stagger-animation">
+    <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center justify-between mb-6 transform transition-all duration-500">
+      <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center animate-pulse">
+        <Calendar className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600 transform transition-all duration-500 hover:rotate-180" /> 
+        <span className="text-sm sm:text-lg">5-Day Stage Activities</span>
+      </h2>
+      
+      {/* Day Selector */}
+      <div className="flex space-x-1 sm:space-x-2 overflow-x-auto pb-2 sm:pb-0 transform transition-all duration-500">
+        {[1, 2, 3, 4, 5].map((day, index) => (
+          <button
+            key={day}
+            onClick={() => setActiveDay(day)}
+            className={`px-2 py-1 rounded-lg text-xs font-medium transition-all duration-300 flex-shrink-0 transform hover:scale-105 min-w-10 ${
+              activeDay === day 
+                ? "bg-orange-500 text-white shadow-lg scale-110" 
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md"
+            }`}
+            style={{ animationDelay: `${index * 100}ms` }}
+          >
+            {day}
+          </button>
+        ))}
+      </div>
+    </div>
 
-              {eventsLoading ? (
-                <div className="flex items-center justify-center h-32 transform transition-all duration-500">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
-                </div>
-              ) : schedule.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur stagger-animation">
-                  {schedule.map((item, index) => (
-                    <div 
-                      key={item.id} 
-                      onClick={() => handleEventClick(item)}
-                      className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 cursor-pointer h-full flex flex-col card-hover-enhanced dashboard-card transform transition-all duration-500 hover:scale-105 hover:shadow-xl"
-                      style={{ animationDelay: `${index * 100}ms` }}
+    {eventsLoading ? (
+      <div className="flex items-center justify-center h-32 transform transition-all duration-500">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+      </div>
+    ) : schedule.length > 0 ? (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur stagger-animation">
+        {schedule.map((item, index) => (
+          <div 
+            key={item.id} 
+            onClick={() => handleEventClick(item)}
+            className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 cursor-pointer h-full flex flex-col card-hover-enhanced dashboard-card transform transition-all duration-500 hover:scale-105 hover:shadow-xl"
+            style={{ animationDelay: `${index * 100}ms` }}
+          >
+            <div className="flex items-start justify-between mb-3">
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 line-clamp-2 flex-1 transform transition-all duration-300 hover:text-orange-600">{item.title}</h3>
+            </div>
+            
+            <p className="text-xs sm:text-sm text-gray-600 mb-4 line-clamp-3 flex-1 transform transition-all duration-300">{item.description}</p>
+            
+            {/* ADD SPEAKER INFORMATION HERE */}
+            {item.speaker && (
+              <div className="flex items-center mb-3">
+                {item.speaker_photo_url ? (
+                  <img 
+                    src={item.speaker_photo_url} 
+                    alt={`${item.speaker} photo`}
+                    className="h-12 w-12 rounded-full object-cover"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/48x48/gray/white?text=Photo";
+                    }}
+                  />
+                ) : (
+                  <User className="h-4 w-4 text-gray-400 mr-2" />
+                )}
+                <p className="text-xs sm:text-sm font-medium text-gray-900 line-clamp-1">
+                  Speaker: {item.speaker}
+                  {item.speaker_linkedin_url && (
+                    <a 
+                      href={item.speaker_linkedin_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="ml-1 text-blue-600 hover:text-blue-800 inline-flex items-center"
                     >
-                      <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-base sm:text-lg font-semibold text-gray-900 line-clamp-2 flex-1 transform transition-all duration-300 hover:text-orange-600">{item.title}</h3>
-                      </div>
-                      
-                      <p className="text-xs sm:text-sm text-gray-600 mb-4 line-clamp-3 flex-1 transform transition-all duration-300">{item.description}</p>
-                      
-                      <div className="space-y-1.5 sm:space-y-2 text-xs text-gray-500 mt-auto">
-                        <div className="flex items-center transform transition-all duration-300 hover:translate-x-2">
-                          <Clock className="h-3 w-3 mr-2 flex-shrink-0" />
-                          <span className="truncate text-xs">
-                            {new Date(item.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - 
-                            {new Date(item.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                          </span>
-                        </div>
-                        <div className="flex items-center transform transition-all duration-300 hover:translate-x-2">
-                          <MapPin className="h-3 w-3 mr-2 flex-shrink-0" />
-                          <span className="truncate text-xs">{item.location}</span>
-                        </div>
-                      </div>
-                      
-                      <div className="mt-3 sm:mt-4 pt-3 border-t border-gray-100 transform transition-all duration-500">
-                        {item.item_type ? (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 transform transition-all duration-300 hover:scale-105">
-                            {item.item_type}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 transform transition-all duration-300 hover:scale-105">
-                            Event
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                </p>
+              </div>
+            )}
+            
+            <div className="space-y-1.5 sm:space-y-2 text-xs text-gray-500 mt-auto">
+              <div className="flex items-center transform transition-all duration-300 hover:translate-x-2">
+                <Clock className="h-3 w-3 mr-2 flex-shrink-0" />
+                <span className="truncate text-xs">
+                  {new Date(item.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - 
+                  {new Date(item.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              </div>
+              <div className="flex items-center transform transition-all duration-300 hover:translate-x-2">
+                <MapPin className="h-3 w-3 mr-2 flex-shrink-0" />
+                <span className="truncate text-xs">{item.location}</span>
+              </div>
+            </div>
+            
+            <div className="mt-3 sm:mt-4 pt-3 border-t border-gray-100 transform transition-all duration-500">
+              {item.item_type ? (
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 transform transition-all duration-300 hover:scale-105">
+                  {item.item_type}
+                </span>
               ) : (
-                <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200 transform transition-all duration-500">
-                  <Calendar className="h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mx-auto mb-3 sm:mb-4 animate-pulse" />
-                  <p className="text-gray-500 text-sm sm:text-base">No events scheduled for Day {activeDay}</p>
-                </div>
+                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 transform transition-all duration-300 hover:scale-105">
+                  Event
+                </span>
               )}
             </div>
-          )}
+          </div>
+        ))}
+      </div>
+    ) : (
+      <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200 transform transition-all duration-500">
+        <Calendar className="h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mx-auto mb-3 sm:mb-4 animate-pulse" />
+        <p className="text-gray-500 text-sm sm:text-base">No events scheduled for Day {activeDay}</p>
+      </div>
+    )}
+  </div>
+)}
 
           {/* Career Portal */}
           {activeTab === "career-portal" && (
