@@ -343,17 +343,37 @@ const [editCompany, setEditCompany] = useState<{
   speakerLinkedIn: "" // Add this
 });
 
-  const [editEvent, setEditEvent] = useState<{ id: string; title: string; description: string; startDate: string; endDate: string; startTime: string; endTime: string; location: string; type: 'general' | string;}>({
-    id: "",
-    title: "",
-    description: "",
-    startDate: "",
-    endDate: "",
-    startTime: "",
-    endTime: "",
-    location: "",
-    type: "general",
-  });
+const [editEvent, setEditEvent] = useState<{ 
+  id: string; 
+  title: string; 
+  description: string; 
+  startDate: string; 
+  endDate: string; 
+  startTime: string; 
+  endTime: string; 
+  location: string; 
+  type: 'general' | string;
+  speaker: string; // Add this
+  speakerPhoto: File | null; // Add this
+  speakerPhotoUrl: string; // Add this
+  speakerPhotoType: 'link' | 'upload'; // Add this
+  speakerLinkedIn: string; // Add this
+}>({
+  id: "",
+  title: "",
+  description: "",
+  startDate: "",
+  endDate: "",
+  startTime: "",
+  endTime: "",
+  location: "",
+  type: "general",
+  speaker: "", // Add this
+  speakerPhoto: null, // Add this
+  speakerPhotoUrl: "", // Add this
+  speakerPhotoType: "link", // Add this
+  speakerLinkedIn: "" // Add this
+});
   
 // Update the newCompany state
 const [newCompany, setNewCompany] = useState<{ 
