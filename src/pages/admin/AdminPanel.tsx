@@ -2753,53 +2753,85 @@ const handleSessionSubmit = async () => {
     }
   };
 
-  // Handle Event Submit
-  const handleEventSubmit = async () => {
-    if (!newEvent.title || !newEvent.startDate || !newEvent.startTime) {
-      showFeedback("Please fill all required fields!", "error");
-      return;
-    }
+const handleEventSubmit = async () => {
+  if (!newEvent.title || !newEvent.startDate || !newEvent.startTime) {
+    showFeedback("Please fill all required fields!", "error");
+    return;
+  }
 
-    setLoading(true);
-    try {
-      const startDateTime = new Date(`${newEvent.startDate}T${newEvent.startTime}`);
-      const endDateTime = newEvent.endDate && newEvent.endTime 
-        ? new Date(`${newEvent.endDate}T${newEvent.endTime}`)
-        : new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000);
+  setLoading(true);
+  try {
+    const startDateTime = new Date(`${newEvent.startDate}T${newEvent.startTime}`);
+    const endDateTime = newEvent.endDate && newEvent.endTime 
+      ? new Date(`${newEvent.endDate}T${newEvent.endTime}`)
+      : new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000);
 
-      const { error } = await supabase.from("schedule_items").insert({
-        title: newEvent.title,
-        description: newEvent.description,
-        start_time: startDateTime.toISOString(),
-        end_time: endDateTime.toISOString(),
-        location: newEvent.location,
-        item_type: newEvent.type,
-      });
+    // Handle speaker photo upload
+    let speakerPhotoUrl = newEvent.speakerPhotoUrl;
 
-      if (error) {
-        showFeedback("Failed to add event", "error");
-      } else {
-        setEventModal(false);
-        setNewEvent({
-          title: "",
-          description: "",
-          startDate: "",
-          endDate: "",
-          startTime: "",
-          endTime: "",
-          location: "",
-          type: "general",
-        });
-        showFeedback("Event added successfully!", "success");
-        await fetchEventsByDay(activeDay);
+    if (newEvent.speakerPhotoType === "upload" && newEvent.speakerPhoto) {
+      const fileExt = newEvent.speakerPhoto.name.split('.').pop();
+      const fileName = `${Date.now()}-${newEvent.speaker.replace(/[^a-zA-Z0-9]/g, '_')}.${fileExt}`;
+      const filePath = `speakers/${fileName}`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from("Assets")
+        .upload(filePath, newEvent.speakerPhoto);
+
+      if (uploadError) {
+        console.error("Speaker photo upload error:", uploadError);
+        showFeedback("Failed to upload speaker photo", "error");
+        setLoading(false);
+        return;
       }
-    } catch (err) {
-      showFeedback("Failed to add event", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
 
+      const { data: urlData } = supabase.storage
+        .from("Assets")
+        .getPublicUrl(filePath);
+
+      speakerPhotoUrl = urlData.publicUrl;
+    }
+
+    const { error } = await supabase.from("schedule_items").insert({
+      title: newEvent.title,
+      description: newEvent.description,
+      speaker: newEvent.speaker, // Add this
+      start_time: startDateTime.toISOString(),
+      end_time: endDateTime.toISOString(),
+      location: newEvent.location,
+      item_type: newEvent.type,
+      speaker_photo_url: speakerPhotoUrl, // Add this
+      speaker_linkedin_url: newEvent.speakerLinkedIn // Add this
+    });
+
+    if (error) {
+      showFeedback("Failed to add event", "error");
+    } else {
+      setEventModal(false);
+      setNewEvent({
+        title: "",
+        description: "",
+        startDate: "",
+        endDate: "",
+        startTime: "",
+        endTime: "",
+        location: "",
+        type: "general",
+        speaker: "", // Reset
+        speakerPhoto: null, // Reset
+        speakerPhotoUrl: "", // Reset
+        speakerPhotoType: "link", // Reset
+        speakerLinkedIn: "" // Reset
+      });
+      showFeedback("Event added successfully!", "success");
+      await fetchEventsByDay(activeDay);
+    }
+  } catch (err) {
+    showFeedback("Failed to add event", "error");
+  } finally {
+    setLoading(false);
+  }
+};
   const handleDeleteSession = async (session: SessionItem) => {
     setSelectedSessionDelete(session);
     setDeleteSessionModal(true);
