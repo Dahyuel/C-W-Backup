@@ -1040,12 +1040,16 @@ const handleSessionUpdate = async () => {
   try {
     const startDateTime = new Date(`${editSession.date}T${editSession.hour}`);
     const endDateTime = new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000);
+    
+    // Handle capacity conversion - use max_attendees as the source of truth
     let capacityValue: number | null = null;
-    if (typeof editSession.capacity === 'number') {
-      capacityValue = editSession.capacity;
-    } else if (typeof editSession.capacity === 'string') {
-      const parsed = parseInt(editSession.capacity, 10);
-      capacityValue = isNaN(parsed) ? null : parsed;
+    if (editSession.capacity !== "" && editSession.capacity !== null) {
+      if (typeof editSession.capacity === 'number') {
+        capacityValue = editSession.capacity;
+      } else if (typeof editSession.capacity === 'string') {
+        const parsed = parseInt(editSession.capacity, 10);
+        capacityValue = isNaN(parsed) ? null : parsed;
+      }
     }
 
     // Handle speaker photo upload
@@ -1074,19 +1078,25 @@ const handleSessionUpdate = async () => {
       speakerPhotoUrl = urlData.publicUrl;
     }
 
-    const { error } = await supabase.from("sessions").update({
+    // Update both capacity and max_attendees fields
+    const updateData = {
       title: editSession.title,
       description: editSession.description,
       speaker: editSession.speaker,
       start_time: startDateTime.toISOString(),
       end_time: endDateTime.toISOString(),
       location: editSession.location,
-      capacity: capacityValue,
-      max_attendees: capacityValue,
       session_type: editSession.type,
       speaker_photo_url: speakerPhotoUrl,
-      speaker_linkedin_url: editSession.speakerLinkedIn
-    }).eq('id', editSession.id);
+      speaker_linkedin_url: editSession.speakerLinkedIn,
+      capacity: capacityValue, // Update capacity field
+      max_attendees: capacityValue // Also update max_attendees field
+    };
+
+    const { error } = await supabase
+      .from("sessions")
+      .update(updateData)
+      .eq('id', editSession.id);
 
     if (error) {
       showFeedback("Failed to update session", "error");
@@ -1116,7 +1126,6 @@ const handleSessionUpdate = async () => {
     setLoading(false);
   }
 };
-
 const handleEventUpdate = async () => {
   if (!editEvent.title || !editEvent.startDate || !editEvent.startTime) {
     showFeedback("Please fill all required fields!", "error");
