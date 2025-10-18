@@ -4081,7 +4081,7 @@ const handleEventSubmit = async () => {
   document.body
 )}
 {/* Edit Event Modal */}
-          {editEventModal && selectedEventEdit && createPortal(
+{editEventModal && selectedEventEdit && createPortal(
   <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
     <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur">
       <div className="flex items-center justify-between mb-4 sm:mb-6 fade-in-blur">
@@ -4118,6 +4118,20 @@ const handleEventSubmit = async () => {
             className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
             placeholder="Enter event description"
             rows={3}
+          />
+        </div>
+
+        {/* Add Speaker Field */}
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Speaker
+          </label>
+          <input
+            type="text"
+            value={editEvent.speaker}
+            onChange={(e) => setEditEvent({ ...editEvent, speaker: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="Enter speaker name"
           />
         </div>
 
@@ -4184,6 +4198,89 @@ const handleEventSubmit = async () => {
           />
         </div>
 
+        {/* Add Speaker LinkedIn URL */}
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Speaker LinkedIn Profile URL
+          </label>
+          <input
+            type="url"
+            value={editEvent.speakerLinkedIn}
+            onChange={(e) => setEditEvent({ ...editEvent, speakerLinkedIn: e.target.value })}
+            className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+            placeholder="https://linkedin.com/in/speaker-profile"
+          />
+        </div>
+
+        {/* Add Speaker Photo */}
+        <div className="fade-in-blur">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Speaker Photo
+          </label>
+          <div className="flex space-x-2 sm:space-x-4 mb-3">
+            <button
+              type="button"
+              onClick={() => setEditEvent({ ...editEvent, speakerPhotoType: "link" })}
+              className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-300 smooth-hover ${
+                editEvent.speakerPhotoType === "link" 
+                  ? "bg-blue-500 text-white" 
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              <Link className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+              URL
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditEvent({ ...editEvent, speakerPhotoType: "upload" })}
+              className={`flex items-center px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-300 smooth-hover ${
+                editEvent.speakerPhotoType === "upload" 
+                  ? "bg-blue-500 text-white" 
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              <Upload className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
+              Upload New
+            </button>
+          </div>
+          
+          {editEvent.speakerPhotoType === "link" ? (
+            <input
+              type="url"
+              value={editEvent.speakerPhotoUrl}
+              onChange={(e) => setEditEvent({ ...editEvent, speakerPhotoUrl: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+              placeholder="https://example.com/speaker-photo.jpg"
+            />
+          ) : (
+            <div>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setEditEvent({ ...editEvent, speakerPhoto: e.target.files?.[0] || null })}
+                className="w-full border border-gray-300 rounded-lg p-2 sm:p-3 text-sm focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Leave empty to keep current photo
+              </p>
+            </div>
+          )}
+          
+          {editEvent.speakerPhotoUrl && (
+            <div className="mt-3 p-3 bg-gray-50 rounded-lg fade-in-blur">
+              <p className="text-sm text-gray-600 mb-2">Current Speaker Photo:</p>
+              <img 
+                src={editEvent.speakerPhotoUrl} 
+                alt="Current speaker" 
+                className="h-16 w-16 object-cover rounded-lg"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/64x64/gray/white?text=Photo";
+                }}
+              />
+            </div>
+          )}
+        </div>
+
         <div className="fade-in-blur">
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Event Type
@@ -4228,7 +4325,7 @@ const handleEventSubmit = async () => {
   </div>,
   document.body
 )}
-
+        
 {/* Edit Session Modal */}
 {editSessionModal && selectedSessionEdit && createPortal(
   <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4 modal-backdrop-blur">
