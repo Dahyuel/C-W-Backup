@@ -138,7 +138,6 @@ export const InfoDeskDashboard: React.FC = () => {
     }
   };
 
-  
 const loadSessions = async () => {
   try {
     setLoading(true);
@@ -147,21 +146,11 @@ const loadSessions = async () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    // Define the excluded date ranges
-    const oct22Start = new Date('2025-10-22T00:00:00.000Z');
-    const oct22End = new Date('2025-10-22T23:59:59.999Z');
-    const oct23Start = new Date('2025-10-23T00:00:00.000Z');
-    const oct23End = new Date('2025-10-23T23:59:59.999Z');
-    
-    // Get sessions starting from today, but exclude specific dates
+    // Get all sessions starting from today
     const { data, error } = await supabase
       .from('sessions')
       .select('*')
-      .gte('start_time', today.toISOString()) // Only sessions starting from today
-      .not('start_time', 'gte', oct22Start.toISOString()) // Exclude Oct 22
-      .not('start_time', 'lte', oct22End.toISOString()) // Exclude Oct 22
-      .not('start_time', 'gte', oct23Start.toISOString()) // Exclude Oct 23
-      .not('start_time', 'lte', oct23End.toISOString()) // Exclude Oct 23
+      .gte('start_time', today.toISOString())
       .order('start_time', { ascending: true });
 
     if (error) {
@@ -170,14 +159,25 @@ const loadSessions = async () => {
       return;
     }
 
-    setSessions(data || []);
+    // Filter out sessions on October 22nd and 23rd on the client side
+    const filteredSessions = (data || []).filter(session => {
+      const sessionDate = new Date(session.start_time);
+      const day = sessionDate.getDate();
+      const month = sessionDate.getMonth() + 1; // Months are 0-indexed
+      const year = sessionDate.getFullYear();
+      
+      // Exclude October 22nd and 23rd, 2025
+      return !(year === 2025 && month === 10 && (day === 22 || day === 23));
+    });
+
+    setSessions(filteredSessions);
   } catch (err) {
     setError("Failed to load sessions");
     console.error("Exception loading sessions:", err);
   } finally {
     setLoading(false);
   }
-};  
+};
   // Check if attendee is inside the session
   const checkAttendeeSessionEntry = async (userId: string, sessionId: string): Promise<boolean> => {
     try {
