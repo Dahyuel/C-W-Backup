@@ -789,17 +789,17 @@ export const InfoDeskDashboard: React.FC = () => {
                 </div>
               )}
 
-              {/* Capacity Check */}
-              {selectedSession.max_attendees && selectedSession.current_bookings >= selectedSession.max_attendees && !sessionBookingInfo.isBooked && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                  <div className="flex items-center">
-                    <XCircle className="h-5 w-5 text-red-500 mr-2" />
-                    <span className="text-red-800 text-sm">
-                      Session is at full capacity
-                    </span>
-                  </div>
-                </div>
-              )}
+{/* Capacity Check */}
+{isSessionAtCapacity(selectedSession) && !sessionBookingInfo.isBooked && (
+  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+    <div className="flex items-center">
+      <XCircle className="h-5 w-5 text-red-500 mr-2" />
+      <span className="text-red-800 text-sm">
+        Session is at full capacity ({selectedSession.current_bookings}/{selectedSession.max_attendees})
+      </span>
+    </div>
+  </div>
+)}
 
               {/* Action Buttons */}
               <div className="flex space-x-4">
