@@ -181,77 +181,78 @@ export const InfoDeskDashboard: React.FC = () => {
     }
   };
 
-// Load session attendees - FIXED QUERY with explicit relationship
-const loadSessionAttendees = async (sessionId: string) => {
-  try {
-    setLoadingAttendees(true);
-    console.log('Loading attendees for session:', sessionId);
+  // Load session attendees - FIXED QUERY with explicit relationship
+  const loadSessionAttendees = async (sessionId: string) => {
+    try {
+      setLoadingAttendees(true);
+      console.log('Loading attendees for session:', sessionId);
 
-    // First, get all bookings for this session with explicit relationship
-    const { data: bookingsData, error: bookingsError } = await supabase
-      .from('attendances')
-      .select(`
-        id,
-        user_id,
-        scanned_at,
-        users_profiles!attendances_user_id_fkey (
+      // First, get all bookings for this session with explicit relationship
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from('attendances')
+        .select(`
           id,
-          first_name,
-          last_name,
-          email,
-          personal_id,
-          university,
-          faculty
-        )
-      `)
-      .eq('session_id', sessionId)
-      .eq('scan_type', 'booking');
+          user_id,
+          scanned_at,
+          users_profiles!attendances_user_id_fkey (
+            id,
+            first_name,
+            last_name,
+            email,
+            personal_id,
+            university,
+            faculty
+          )
+        `)
+        .eq('session_id', sessionId)
+        .eq('scan_type', 'booking');
 
-    if (bookingsError) {
-      console.error('Error loading session bookings:', bookingsError);
+      if (bookingsError) {
+        console.error('Error loading session bookings:', bookingsError);
+        setSessionAttendees([]);
+        return;
+      }
+
+      console.log('Found bookings:', bookingsData);
+
+      if (!bookingsData || bookingsData.length === 0) {
+        setSessionAttendees([]);
+        return;
+      }
+
+      // Check session entry status for each attendee
+      const attendeesWithStatus: SessionAttendee[] = await Promise.all(
+        bookingsData.map(async (attendance) => {
+          if (!attendance.users_profiles) {
+            console.log('No user profile found for attendance:', attendance.id);
+            return null;
+          }
+
+          const isInsideSession = await checkAttendeeSessionEntry(attendance.user_id, sessionId);
+          
+          return {
+            ...attendance.users_profiles,
+            booking_id: attendance.id,
+            booked_at: attendance.scanned_at,
+            is_inside_session: isInsideSession
+          };
+        })
+      );
+
+      // Filter out any null entries
+      const validAttendees = attendeesWithStatus.filter(attendee => attendee !== null) as SessionAttendee[];
+      
+      console.log('Final attendees with status:', validAttendees);
+      setSessionAttendees(validAttendees);
+      
+    } catch (err) {
+      console.error('Exception loading session attendees:', err);
       setSessionAttendees([]);
-      return;
+    } finally {
+      setLoadingAttendees(false);
     }
+  };
 
-    console.log('Found bookings:', bookingsData);
-
-    if (!bookingsData || bookingsData.length === 0) {
-      setSessionAttendees([]);
-      return;
-    }
-
-    // Check session entry status for each attendee
-    const attendeesWithStatus: SessionAttendee[] = await Promise.all(
-      bookingsData.map(async (attendance) => {
-        if (!attendance.users_profiles) {
-          console.log('No user profile found for attendance:', attendance.id);
-          return null;
-        }
-
-        const isInsideSession = await checkAttendeeSessionEntry(attendance.user_id, sessionId);
-        
-        return {
-          ...attendance.users_profiles,
-          booking_id: attendance.id,
-          booked_at: attendance.scanned_at,
-          is_inside_session: isInsideSession
-        };
-      })
-    );
-
-    // Filter out any null entries
-    const validAttendees = attendeesWithStatus.filter(attendee => attendee !== null) as SessionAttendee[];
-    
-    console.log('Final attendees with status:', validAttendees);
-    setSessionAttendees(validAttendees);
-    
-  } catch (err) {
-    console.error('Exception loading session attendees:', err);
-    setSessionAttendees([]);
-  } finally {
-    setLoadingAttendees(false);
-  }
-};
   // Format time for display
   const formatTime = (timeString: string) => {
     if (!timeString) return '';
@@ -274,13 +275,14 @@ const loadSessionAttendees = async (sessionId: string) => {
     });
   };
 
-const isSessionAtCapacity = (session: Session): boolean => {
-  // Use capacity field since it matches max_attendees
-  if (!session.capacity || session.capacity <= 0) {
-    return false; // No capacity limit
-  }
-  return session.current_bookings >= session.capacity;
-};
+  const isSessionAtCapacity = (session: Session): boolean => {
+    // Use capacity field since it matches max_attendees
+    if (!session.capacity || session.capacity <= 0) {
+      return false; // No capacity limit
+    }
+    return session.current_bookings >= session.capacity;
+  };
+
   // Check if attendee has booked the session
   const checkSessionBooking = async (userId: string, sessionId: string): Promise<SessionBookingInfo> => {
     try {
@@ -538,19 +540,21 @@ const isSessionAtCapacity = (session: Session): boolean => {
     setShowAttendeesList(false);
     setSessionAttendees([]);
     setSelectedAttendeeForRemoval(null);
+    setSelectedSession(null); // Reset selected session
   };
 
-  // Close attendees list modal and go back to main dashboard
+  // Close attendees list modal and go back to main dashboard - FIXED
   const closeAttendeesList = () => {
     setShowAttendeesList(false);
     setSessionAttendees([]);
     setSelectedAttendeeForRemoval(null);
+    setSelectedSession(null); // Reset selected session to show session list
   };
 
   // Get capacity display text
-const getCapacityDisplay = (session: Session) => {
-  return `${session.current_bookings || 0}/${session.capacity || 'Unlimited'}`;
-};
+  const getCapacityDisplay = (session: Session) => {
+    return `${session.current_bookings || 0}/${session.capacity || 'Unlimited'}`;
+  };
 
   if (loading) {
     return (
@@ -587,122 +591,123 @@ const getCapacityDisplay = (session: Session) => {
           </div>
         )}
 
-      {/* Session List */}
-{!selectedSession && !showAttendeesList && (
-  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-    {sessions.length === 0 ? (
-      <div className="col-span-full text-center py-12">
-        <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No Sessions Found</h3>
-        <p className="text-gray-500">There are no sessions available at the moment.</p>
-      </div>
-    ) : (
-      sessions.map((session, index) => (
-        <div
-          key={session.id}
-          className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 hover:shadow-md transition-all duration-300 transform hover:scale-105"
-        >
-          <div className="flex items-start justify-between mb-3">
-            <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 flex-1 pr-2">
-              {session.title}
-            </h3>
-            <Calendar className="h-5 w-5 text-orange-500 flex-shrink-0" />
-          </div>
-          
-          <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-            {session.description}
-          </p>
-          
-          {/* Speaker Information */}
-          {session.speaker && (
-            <div className="flex items-center mb-3">
-              {session.speaker_photo_url ? (
-                <img 
-                  src={session.speaker_photo_url} 
-                  alt={`${session.speaker} photo`}
-                  className="h-10 w-10 rounded-full object-cover mr-3"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/40x40/gray/white?text=Photo";
-                  }}
-                />
-              ) : (
-                <User className="h-4 w-4 text-gray-400 mr-2" />
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 line-clamp-1">
-                  {session.speaker}
-                </p>
-                {session.speaker_linkedin_url && (
-                  <a 
-                    href={session.speaker_linkedin_url} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 text-xs flex items-center"
-                  >
-                    <ExternalLink className="h-3 w-3 mr-1" />
-                    LinkedIn
-                  </a>
-                )}
+        {/* Session List */}
+        {!selectedSession && !showAttendeesList && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+            {sessions.length === 0 ? (
+              <div className="col-span-full text-center py-12">
+                <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Sessions Found</h3>
+                <p className="text-gray-500">There are no sessions available at the moment.</p>
               </div>
-            </div>
-          )}
-          
-          <div className="space-y-2 mb-4">
-            <p className="text-sm text-gray-700">
-              <Clock className="inline-block h-4 w-4 mr-1" />
-              {formatDate(session.start_time)} • {formatTime(session.start_time)} - {formatTime(session.end_time)}
-            </p>
-            
-            {session.location && (
-              <p className="text-sm text-gray-700">
-                <MapPin className="inline-block h-4 w-4 mr-1" />
-                {session.location}
-              </p>
-            )}
-            
-            <p className="text-sm font-medium text-gray-700">
-              <Users className="inline-block h-4 w-4 mr-1" />
-              {getCapacityDisplay(session)} bookings
-            </p>
-          </div>
+            ) : (
+              sessions.map((session, index) => (
+                <div
+                  key={session.id}
+                  className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 hover:shadow-md transition-all duration-300 transform hover:scale-105"
+                >
+                  <div className="flex items-start justify-between mb-3">
+                    <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 flex-1 pr-2">
+                      {session.title}
+                    </h3>
+                    <Calendar className="h-5 w-5 text-orange-500 flex-shrink-0" />
+                  </div>
+                  
+                  <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                    {session.description}
+                  </p>
+                  
+                  {/* Speaker Information */}
+                  {session.speaker && (
+                    <div className="flex items-center mb-3">
+                      {session.speaker_photo_url ? (
+                        <img 
+                          src={session.speaker_photo_url} 
+                          alt={`${session.speaker} photo`}
+                          className="h-10 w-10 rounded-full object-cover mr-3"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/40x40/gray/white?text=Photo";
+                          }}
+                        />
+                      ) : (
+                        <User className="h-4 w-4 text-gray-400 mr-2" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 line-clamp-1">
+                          {session.speaker}
+                        </p>
+                        {session.speaker_linkedin_url && (
+                          <a 
+                            href={session.speaker_linkedin_url} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 text-xs flex items-center"
+                          >
+                            <ExternalLink className="h-3 w-3 mr-1" />
+                            LinkedIn
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="space-y-2 mb-4">
+                    <p className="text-sm text-gray-700">
+                      <Clock className="inline-block h-4 w-4 mr-1" />
+                      {formatDate(session.start_time)} • {formatTime(session.start_time)} - {formatTime(session.end_time)}
+                    </p>
+                    
+                    {session.location && (
+                      <p className="text-sm text-gray-700">
+                        <MapPin className="inline-block h-4 w-4 mr-1" />
+                        {session.location}
+                      </p>
+                    )}
+                    
+                    <p className="text-sm font-medium text-gray-700">
+                      <Users className="inline-block h-4 w-4 mr-1" />
+                      {getCapacityDisplay(session)} bookings
+                    </p>
+                  </div>
 
-          <div className="flex space-x-2">
-            <button
-              onClick={() => {
-                if (isSessionAtCapacity(session)) {
-                  setError(`Session "${session.title}" is at full capacity (${getCapacityDisplay(session)})`);
-                  return;
-                }
-                setSelectedSession(session);
-                setShowBookingManager(true);
-              }}
-              disabled={isSessionAtCapacity(session)}
-              className={`flex-1 flex items-center justify-center p-3 rounded-lg transition-colors ${
-                isSessionAtCapacity(session)
-                  ? 'bg-red-500 text-white cursor-not-allowed'
-                  : 'bg-orange-500 text-white hover:bg-orange-600'
-              }`}
-            >
-              <Edit className="h-4 w-4 mr-2" />
-              {isSessionAtCapacity(session) ? 'Session Full' : 'Manage Bookings'}
-            </button>
-            
-            <button
-              onClick={async () => {
-                setSelectedSession(session);
-                await loadSessionAttendees(session.id);
-                setShowAttendeesList(true);
-              }}
-              className="flex items-center justify-center p-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
-            >
-              <List className="h-4 w-4" />
-            </button>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => {
+                        if (isSessionAtCapacity(session)) {
+                          setError(`Session "${session.title}" is at full capacity (${getCapacityDisplay(session)})`);
+                          return;
+                        }
+                        setSelectedSession(session);
+                        setShowBookingManager(true);
+                      }}
+                      disabled={isSessionAtCapacity(session)}
+                      className={`flex-1 flex items-center justify-center p-3 rounded-lg transition-colors ${
+                        isSessionAtCapacity(session)
+                          ? 'bg-red-500 text-white cursor-not-allowed'
+                          : 'bg-orange-500 text-white hover:bg-orange-600'
+                      }`}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      {isSessionAtCapacity(session) ? 'Session Full' : 'Manage Bookings'}
+                    </button>
+                    
+                    <button
+                      onClick={async () => {
+                        setSelectedSession(session);
+                        await loadSessionAttendees(session.id);
+                        setShowAttendeesList(true);
+                      }}
+                      className="flex items-center justify-center p-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                    >
+                      <List className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
-        </div>
-      ))
-    )}
-  </div>
-)}
+        )}
+
         {/* Session Selected - Booking Manager */}
         {selectedSession && showBookingManager && !selectedAttendee && !showAttendeesList && (
           <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 space-y-6">
