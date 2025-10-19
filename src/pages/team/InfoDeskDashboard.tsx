@@ -706,16 +706,16 @@ const loadSessionAttendees = async (sessionId: string) => {
                       {isSessionAtCapacity(session) ? 'Session Full' : 'Manage Bookings'}
                     </button>
                     
-                    <button
-                      onClick={async () => {
-                        setSelectedSession(session);
-                        await loadSessionAttendees(session.id);
-                        setShowAttendeesList(true);
-                      }}
-                      className="flex items-center justify-center p-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
-                    >
-                      <List className="h-4 w-4" />
-                    </button>
+<button
+  onClick={async () => {
+    setSelectedSession(session);
+    setShowAttendeesList(true); // Show modal immediately
+    await loadSessionAttendees(session.id); // Load data in background
+  }}
+  className="flex items-center justify-center p-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+>
+  <List className="h-4 w-4" />
+</button>
                   </div>
                 </div>
               ))
