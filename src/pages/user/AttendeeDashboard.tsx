@@ -954,7 +954,7 @@ const AttendeeDashboard: React.FC = () => {
   // Day maps path
   const mapImages = [
     "/src/Assets/day1.jpg",
-    "/src/Assets/day2.jpg",];
+    "/src/Assets/day2.jpg"];
 
   const handleEmployerWebsiteClick = (url: string) => {
     window.open(url, "_blank");
