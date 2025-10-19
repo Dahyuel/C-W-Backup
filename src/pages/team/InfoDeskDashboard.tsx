@@ -478,8 +478,6 @@ const removeFromSession = async () => {
                       {session.max_attendees ? `/${session.max_attendees}` : ''} bookings
                     </p>
                   </div>
-
-                 // In the session list section, update the button onClick handler:
 <button
   onClick={() => {
     if (isSessionAtCapacity(session)) {
