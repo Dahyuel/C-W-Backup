@@ -181,78 +181,77 @@ export const InfoDeskDashboard: React.FC = () => {
     }
   };
 
-  // Load session attendees - FIXED QUERY
-  const loadSessionAttendees = async (sessionId: string) => {
-    try {
-      setLoadingAttendees(true);
-      console.log('Loading attendees for session:', sessionId);
+// Load session attendees - FIXED QUERY with explicit relationship
+const loadSessionAttendees = async (sessionId: string) => {
+  try {
+    setLoadingAttendees(true);
+    console.log('Loading attendees for session:', sessionId);
 
-      // First, get all bookings for this session
-      const { data: bookingsData, error: bookingsError } = await supabase
-        .from('attendances')
-        .select(`
+    // First, get all bookings for this session with explicit relationship
+    const { data: bookingsData, error: bookingsError } = await supabase
+      .from('attendances')
+      .select(`
+        id,
+        user_id,
+        scanned_at,
+        users_profiles!attendances_user_id_fkey (
           id,
-          user_id,
-          scanned_at,
-          users_profiles (
-            id,
-            first_name,
-            last_name,
-            email,
-            personal_id,
-            university,
-            faculty
-          )
-        `)
-        .eq('session_id', sessionId)
-        .eq('scan_type', 'booking');
+          first_name,
+          last_name,
+          email,
+          personal_id,
+          university,
+          faculty
+        )
+      `)
+      .eq('session_id', sessionId)
+      .eq('scan_type', 'booking');
 
-      if (bookingsError) {
-        console.error('Error loading session bookings:', bookingsError);
-        setSessionAttendees([]);
-        return;
-      }
-
-      console.log('Found bookings:', bookingsData);
-
-      if (!bookingsData || bookingsData.length === 0) {
-        setSessionAttendees([]);
-        return;
-      }
-
-      // Check session entry status for each attendee
-      const attendeesWithStatus: SessionAttendee[] = await Promise.all(
-        bookingsData.map(async (attendance) => {
-          if (!attendance.users_profiles) {
-            console.log('No user profile found for attendance:', attendance.id);
-            return null;
-          }
-
-          const isInsideSession = await checkAttendeeSessionEntry(attendance.user_id, sessionId);
-          
-          return {
-            ...attendance.users_profiles,
-            booking_id: attendance.id,
-            booked_at: attendance.scanned_at,
-            is_inside_session: isInsideSession
-          };
-        })
-      );
-
-      // Filter out any null entries
-      const validAttendees = attendeesWithStatus.filter(attendee => attendee !== null) as SessionAttendee[];
-      
-      console.log('Final attendees with status:', validAttendees);
-      setSessionAttendees(validAttendees);
-      
-    } catch (err) {
-      console.error('Exception loading session attendees:', err);
+    if (bookingsError) {
+      console.error('Error loading session bookings:', bookingsError);
       setSessionAttendees([]);
-    } finally {
-      setLoadingAttendees(false);
+      return;
     }
-  };
 
+    console.log('Found bookings:', bookingsData);
+
+    if (!bookingsData || bookingsData.length === 0) {
+      setSessionAttendees([]);
+      return;
+    }
+
+    // Check session entry status for each attendee
+    const attendeesWithStatus: SessionAttendee[] = await Promise.all(
+      bookingsData.map(async (attendance) => {
+        if (!attendance.users_profiles) {
+          console.log('No user profile found for attendance:', attendance.id);
+          return null;
+        }
+
+        const isInsideSession = await checkAttendeeSessionEntry(attendance.user_id, sessionId);
+        
+        return {
+          ...attendance.users_profiles,
+          booking_id: attendance.id,
+          booked_at: attendance.scanned_at,
+          is_inside_session: isInsideSession
+        };
+      })
+    );
+
+    // Filter out any null entries
+    const validAttendees = attendeesWithStatus.filter(attendee => attendee !== null) as SessionAttendee[];
+    
+    console.log('Final attendees with status:', validAttendees);
+    setSessionAttendees(validAttendees);
+    
+  } catch (err) {
+    console.error('Exception loading session attendees:', err);
+    setSessionAttendees([]);
+  } finally {
+    setLoadingAttendees(false);
+  }
+};
   // Format time for display
   const formatTime = (timeString: string) => {
     if (!timeString) return '';
