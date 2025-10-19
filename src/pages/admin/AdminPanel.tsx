@@ -2252,9 +2252,8 @@ const StatisticsTab = () => {
   // Current State Widget
 
 
-  // Chart Components
- const DailyActivityChart: React.FC<{ selectedDay: number }> = ({ selectedDay }) => {
-  const [dailyData, setDailyData] = useState<Array<{ hour: string; entries: number; exits: number }>>([]);
+const DailyActivityChart: React.FC<{ selectedDay: number }> = ({ selectedDay }) => {
+  const [dailyData, setDailyData] = useState<Array<{ hour: string; entries: number }>>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -2265,7 +2264,7 @@ const StatisticsTab = () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .rpc('get_daily_activity', { selected_day: day });
+        .rpc('get_daily_activity_entries', { selected_day: day });
 
       if (error) throw error;
       setDailyData(data || []);
@@ -2285,7 +2284,7 @@ const StatisticsTab = () => {
     );
   }
 
-  const maxValue = Math.max(...dailyData.flatMap(d => [d.entries, d.exits]), 1);
+  const maxValue = Math.max(...dailyData.map(d => d.entries), 1);
 
   return (
     <div className="space-y-4 fade-in-blur">
@@ -2293,30 +2292,22 @@ const StatisticsTab = () => {
         <div key={index} className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="font-medium text-gray-700">{data.hour}</span>
-            <div className="flex gap-4">
-              <span className="text-green-600">Entries: {data.entries}</span>
-              <span className="text-red-600">Exits: {data.exits}</span>
-            </div>
+            <span className="text-green-600">Entries: {data.entries}</span>
           </div>
-          <div className="flex gap-1 h-4">
+          <div className="w-full bg-gray-200 rounded-full h-3">
             <div
-              className="bg-green-500 rounded-l"
+              className="bg-green-500 h-3 rounded-full"
               style={{ width: `${(data.entries / maxValue) * 100}%` }}
-            ></div>
-            <div
-              className="bg-red-500 rounded-r"
-              style={{ width: `${(data.exits / maxValue) * 100}%` }}
             ></div>
           </div>
         </div>
       ))}
       {dailyData.length === 0 && (
-        <p className="text-gray-500 text-center">No activity data for today</p>
+        <p className="text-gray-500 text-center">No entry data for this day</p>
       )}
     </div>
   );
 };
-
   const SessionPopularityChart: React.FC<{ selectedDay: number }> = ({ selectedDay }) => {
     const [sessionData, setSessionData] = useState<Array<{ name: string; attendees: number; capacity: number; popularity: number }>>([]);
 
