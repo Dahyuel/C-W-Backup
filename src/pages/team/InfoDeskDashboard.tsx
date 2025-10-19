@@ -819,24 +819,25 @@ export const InfoDeskDashboard: React.FC = () => {
                     )}
                   </button>
                 ) : (
-                  <button
-                    onClick={addToSession}
-                    disabled={
-                      actionLoading || 
-                      !selectedAttendee.event_entry || 
-                      ((typeof selectedSession.max_attendees === 'number' && selectedSession.max_attendees > 0) && (selectedSession.current_bookings >= selectedSession.max_attendees))
-                    }
-                    className="flex-1 flex items-center justify-center p-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
-                  >
-                    {actionLoading ? (
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    ) : (
-                      <>
-                        <UserPlus className="h-5 w-5 mr-2" />
-                        Add to Session
-                      </>
-                    )}
-                  </button>
+                // In the action buttons section, update the disabled condition:
+<button
+  onClick={addToSession}
+  disabled={
+    actionLoading || 
+    !selectedAttendee.event_entry || 
+    isSessionAtCapacity(selectedSession)
+  }
+  className="flex-1 flex items-center justify-center p-3 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+>
+  {actionLoading ? (
+    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+  ) : (
+    <>
+      <UserPlus className="h-5 w-5 mr-2" />
+      Add to Session
+    </>
+  )}
+</button>
                 )}
               </div>
             </div>
