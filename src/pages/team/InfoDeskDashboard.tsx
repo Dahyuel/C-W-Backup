@@ -274,16 +274,13 @@ const loadSessionAttendees = async (sessionId: string) => {
     });
   };
 
-  // Check if session is at full capacity - using capacity and current_bookings
-  const isSessionAtCapacity = (session: Session): boolean => {
-    // Use capacity field first, fallback to max_attendees for backward compatibility
-    const capacityLimit = session.capacity || session.max_attendees;
-    if (!capacityLimit || capacityLimit <= 0) {
-      return false; // No capacity limit
-    }
-    return session.current_bookings >= capacityLimit;
-  };
-
+const isSessionAtCapacity = (session: Session): boolean => {
+  // Use capacity field since it matches max_attendees
+  if (!session.capacity || session.capacity <= 0) {
+    return false; // No capacity limit
+  }
+  return session.current_bookings >= session.capacity;
+};
   // Check if attendee has booked the session
   const checkSessionBooking = async (userId: string, sessionId: string): Promise<SessionBookingInfo> => {
     try {
