@@ -181,11 +181,14 @@ export const InfoDeskDashboard: React.FC = () => {
     }
   };
 
-  // Load session attendees
+  // Load session attendees - FIXED QUERY
   const loadSessionAttendees = async (sessionId: string) => {
     try {
       setLoadingAttendees(true);
-      const { data, error } = await supabase
+      console.log('Loading attendees for session:', sessionId);
+
+      // First, get all bookings for this session
+      const { data: bookingsData, error: bookingsError } = await supabase
         .from('attendances')
         .select(`
           id,
@@ -204,16 +207,29 @@ export const InfoDeskDashboard: React.FC = () => {
         .eq('session_id', sessionId)
         .eq('scan_type', 'booking');
 
-      if (error) {
-        console.error('Error loading session attendees:', error);
+      if (bookingsError) {
+        console.error('Error loading session bookings:', bookingsError);
+        setSessionAttendees([]);
+        return;
+      }
+
+      console.log('Found bookings:', bookingsData);
+
+      if (!bookingsData || bookingsData.length === 0) {
         setSessionAttendees([]);
         return;
       }
 
       // Check session entry status for each attendee
       const attendeesWithStatus: SessionAttendee[] = await Promise.all(
-        data.map(async (attendance) => {
+        bookingsData.map(async (attendance) => {
+          if (!attendance.users_profiles) {
+            console.log('No user profile found for attendance:', attendance.id);
+            return null;
+          }
+
           const isInsideSession = await checkAttendeeSessionEntry(attendance.user_id, sessionId);
+          
           return {
             ...attendance.users_profiles,
             booking_id: attendance.id,
@@ -223,7 +239,12 @@ export const InfoDeskDashboard: React.FC = () => {
         })
       );
 
-      setSessionAttendees(attendeesWithStatus);
+      // Filter out any null entries
+      const validAttendees = attendeesWithStatus.filter(attendee => attendee !== null) as SessionAttendee[];
+      
+      console.log('Final attendees with status:', validAttendees);
+      setSessionAttendees(validAttendees);
+      
     } catch (err) {
       console.error('Exception loading session attendees:', err);
       setSessionAttendees([]);
@@ -523,6 +544,13 @@ export const InfoDeskDashboard: React.FC = () => {
     setSelectedAttendeeForRemoval(null);
   };
 
+  // Close attendees list modal and go back to main dashboard
+  const closeAttendeesList = () => {
+    setShowAttendeesList(false);
+    setSessionAttendees([]);
+    setSelectedAttendeeForRemoval(null);
+  };
+
   // Get capacity display text
   const getCapacityDisplay = (session: Session) => {
     const capacityLimit = session.capacity || session.max_attendees;
@@ -565,7 +593,7 @@ export const InfoDeskDashboard: React.FC = () => {
         )}
 
         {/* Session List */}
-        {!selectedSession && (
+        {!selectedSession && !showAttendeesList && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {sessions.length === 0 ? (
               <div className="col-span-full text-center py-12">
@@ -682,7 +710,7 @@ export const InfoDeskDashboard: React.FC = () => {
         )}
 
         {/* Session Selected - Booking Manager */}
-        {selectedSession && showBookingManager && !selectedAttendee && (
+        {selectedSession && showBookingManager && !selectedAttendee && !showAttendeesList && (
           <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 space-y-6">
             <div className="flex items-center justify-between">
               <div>
@@ -883,7 +911,7 @@ export const InfoDeskDashboard: React.FC = () => {
         )}
 
         {/* Attendee Details with Session Booking Actions */}
-        {selectedSession && selectedAttendee && (
+        {selectedSession && selectedAttendee && !showAttendeesList && (
           <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
@@ -1052,10 +1080,7 @@ export const InfoDeskDashboard: React.FC = () => {
                     </p>
                   </div>
                   <button
-                    onClick={() => {
-                      setShowAttendeesList(false);
-                      setSessionAttendees([]);
-                    }}
+                    onClick={closeAttendeesList}
                     className="text-gray-400 hover:text-gray-600"
                   >
                     <X className="h-6 w-6" />
