@@ -137,6 +137,8 @@ export const InfoDeskDashboard: React.FC = () => {
       setActionLoading(false);
     }
   };
+
+  
 const loadSessions = async () => {
   try {
     setLoading(true);
@@ -145,12 +147,18 @@ const loadSessions = async () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    // Get all sessions and filter only those starting from today
+    // Define the excluded dates (October 22nd and 23rd, 2025)
+    const oct22Start = new Date('2025-10-22T00:00:00.000Z');
+    const oct23End = new Date('2025-10-23T23:59:59.999Z');
+    
+    // Get sessions starting from today, but exclude October 22nd and 23rd
     const { data, error } = await supabase
       .from('sessions')
       .select('*')
       .gte('start_time', today.toISOString()) // Only sessions starting from today
-      .order('start_time', { ascending: true }); // Order by start time
+      .not('start_time', 'gte', oct22Start.toISOString()) // Exclude sessions on or after Oct 22
+      .not('start_time', 'lte', oct23End.toISOString()) // Exclude sessions on or before Oct 23
+      .order('start_time', { ascending: true });
 
     if (error) {
       setError("Failed to load sessions");
@@ -166,6 +174,7 @@ const loadSessions = async () => {
     setLoading(false);
   }
 };
+  
   // Check if attendee is inside the session
   const checkAttendeeSessionEntry = async (userId: string, sessionId: string): Promise<boolean> => {
     try {
