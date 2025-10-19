@@ -32,8 +32,8 @@ interface Session {
   max_attendees: number;
   current_bookings: number;
   session_type: string;
+  capacity?: number; // Keep for backward compatibility
 }
-
 interface Attendee {
   id: string;
   first_name: string;
