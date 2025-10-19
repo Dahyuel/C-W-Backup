@@ -548,10 +548,9 @@ const isSessionAtCapacity = (session: Session): boolean => {
   };
 
   // Get capacity display text
-  const getCapacityDisplay = (session: Session) => {
-    const capacityLimit = session.capacity || session.max_attendees;
-    return `${session.current_bookings || 0}${capacityLimit ? `/${capacityLimit}` : ''}`;
-  };
+const getCapacityDisplay = (session: Session) => {
+  return `${session.current_bookings || 0}/${session.capacity || 'Unlimited'}`;
+};
 
   if (loading) {
     return (
