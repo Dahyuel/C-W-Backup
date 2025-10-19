@@ -103,6 +103,37 @@ const OPEN_RECRUITMENT_DAYS = [
   { value: 4, label: 'Day 4 (22-10-2025)' },
   { value: 5, label: 'Day 5 (23-10-2025)' }
 ];
+const StatCard: React.FC<{ 
+  title: string; 
+  value: number | string | JSX.Element; 
+  icon: JSX.Element; 
+  color: 'blue' | 'green' | 'purple' | 'orange' | 'red'; 
+}> = ({ title, value, icon, color }) => {
+  const colorClasses = {
+    blue: 'bg-blue-500',
+    green: 'bg-green-500',
+    purple: 'bg-purple-500',
+    orange: 'bg-orange-500',
+    red: 'bg-red-500'
+  };
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover dashboard-card">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-600">{title}</p>
+          <p className="text-3xl font-bold text-gray-900">{value}</p>
+        </div>
+        <div className={`w-12 h-12 ${colorClasses[color]} bg-opacity-10 rounded-lg flex items-center justify-center`}>
+          <div className={colorClasses[color].replace('bg-', 'text-')}>
+            {icon}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Current State Widget Component
 const CurrentStateWidget = () => {
   const [currentState, setCurrentState] = useState({
