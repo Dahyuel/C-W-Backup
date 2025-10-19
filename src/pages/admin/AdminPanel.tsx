@@ -1554,443 +1554,157 @@ const handleEditCompany = (company: CompanyItem) => {
   };
 
   // Enhanced StatisticsTab Component with Fixed Today Filter
-  const StatisticsTab = () => {
-    const [statsData, setStatsData] = useState<StatsData>({
-      totalRegistrations: 0,
-      graduates: 0,
-      students: 0,
-      currentInEvent: 0,
-      currentInBuilding: 0,
-      universities: [],
-      faculties: [],
-      genderStats: { male: 0, female: 0 },
-      roleStats: {},
-      marketingSources: [],
-      degreeLevelStats: { student: 0, graduate: 0 },
-      classYearStats: {},
-      currentGenderStats: { male: 0, female: 0 },
-      eventStats: {
-        day1: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
-        day2: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
-        day3: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
-        day4: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
-        day5: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 }
-      }
-    });
-    const [loading, setLoading] = useState(true);
-    const [timeRange, setTimeRange] = useState('all');
-    const [statsType, setStatsType] = useState('registration');
-    const [selectedDay, setSelectedDay] = useState(1);
-
-    useEffect(() => {
-      fetchStatistics();
-    }, [timeRange, statsType, selectedDay]);
-
-    const fetchStatistics = async () => {
-      setLoading(true);
-      try {
-        if (statsType === 'registration') {
-          await fetchRegistrationStats();
-        } else {
-          await fetchEventStats();
-        }
-      } catch (error) {
-        console.error('Error fetching statistics:', error);
-        setStatsData(prev => ({
-          ...prev,
-          eventStats: {
-            day1: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
-            day2: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
-            day3: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
-            day4: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 },
-            day5: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, registrations: 0 }
-          }
-        }));
-      } finally {
-        setLoading(false);
-      }
+// Simplified StatisticsTab Component - Event Only
+const StatisticsTab = () => {
+  const [eventStats, setEventStats] = useState<{
+    day: number;
+    date: string;
+    attendance_stats: {
+      entries: number;
+      exits: number;
+      building_entries: number;
+      building_exits: number;
+      session_entries: number;
+      total_scans: number;
     };
-
-    const fetchEventStats = async () => {
-      try {
-        // Calculate the date for the selected day (Day 1 = Oct 19, 2025)
-        const eventStartDate = new Date('2025-10-19');
-        const targetDate = new Date(eventStartDate);
-        targetDate.setDate(eventStartDate.getDate() + (selectedDay - 1));
-        
-        const startOfDay = new Date(targetDate);
-        startOfDay.setHours(0, 0, 0, 0);
-        
-        const endOfDay = new Date(targetDate);
-        endOfDay.setHours(23, 59, 59, 999);
-
-        const { data: attendances, error } = await supabase
-          .from('attendances')
-          .select('*')
-          .gte('scanned_at', startOfDay.toISOString())
-          .lte('scanned_at', endOfDay.toISOString());
-
-        if (error) throw error;
-
-        const dayStats = processEventStatistics(attendances || []);
-        
-        setStatsData(prev => ({
-          ...prev,
-          eventStats: {
-            ...prev.eventStats,
-            [`day${selectedDay}`]: dayStats
-          }
-        }));
-      } catch (error) {
-        console.error('Error fetching event stats:', error);
-        throw error;
-      }
+    current_state: {
+      building: { current: number; max: number; percentage: number; status: string };
+      event: { current: number; max: number; percentage: number; status: string };
     };
+    total_attendees: number;
+  } | null>(null);
+  
+  const [loading, setLoading] = useState(true);
+  const [selectedDay, setSelectedDay] = useState(1);
 
-    const fetchRegistrationStats = async () => {
-      try {
-        if (timeRange === 'today') {
-          // Use the edge function for today's stats to avoid 1000 row limit
-          const { data: todayStats, error } = await supabase.rpc('get_today_registration_stats');
-          
-          if (error) {
-            console.error('Error fetching today stats:', error);
-            // Fallback to regular query
-            await fetchTodayStatsFallback();
-          } else if (todayStats && todayStats.length > 0) {
-            const stats = todayStats[0];
-            setStatsData(prev => ({
-              ...prev,
-              totalRegistrations: Number(stats.total_registrations) || 0,
-              graduates: Number(stats.graduates) || 0,
-              students: Number(stats.students) || 0,
-              currentInEvent: Number(stats.current_in_event) || 0,
-              currentInBuilding: Number(stats.current_in_building) || 0,
-              genderStats: {
-                male: Number(stats.male_count) || 0,
-                female: Number(stats.female_count) || 0
-              },
-              degreeLevelStats: {
-                student: Number(stats.student_count) || 0,
-                graduate: Number(stats.graduate_count) || 0
-              },
-              // For today, we'll keep other arrays empty to avoid heavy queries
-              universities: [],
-              faculties: [],
-              roleStats: {},
-              marketingSources: [],
-              classYearStats: {},
-              currentGenderStats: { male: 0, female: 0 }
-            }));
-          }
-        } else {
-          // All time - use the existing logic
-          let query = supabase
-            .from('users_profiles')
-            .select('*', { count: 'exact' });
+  useEffect(() => {
+    fetchEventStats(selectedDay);
+  }, [selectedDay]);
 
-          const { data: users, error, count } = await query;
-
-          if (error) {
-            console.error('Query error:', error);
-            throw error;
-          }
-
-          let allUsers = users || [];
-          
-          if (count && count > 1000) {
-            const pageSize = 1000;
-            const totalPages = Math.ceil(count / pageSize);
-            allUsers = [];
-            
-            for (let page = 0; page < totalPages; page++) {
-              const { data: pageUsers, error: pageError } = await supabase
-                .from('users_profiles')
-                .select('*')
-                .range(page * pageSize, (page + 1) * pageSize - 1);
-                
-              if (pageError) throw pageError;
-              if (pageUsers) allUsers = [...allUsers, ...pageUsers];
-            }
-          }
-
-          const stats = processUserStatistics(allUsers as UserProfileItem[]);
-          setStatsData(prev => ({ ...prev, ...stats } as StatsData));
-        }
-      } catch (error) {
-        console.error('Error fetching registration stats:', error);
-        await fetchRegistrationStatsFallback();
-      }
-    };
-
-    const fetchTodayStatsFallback = async () => {
-      try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        const todayStart = today.toISOString();
-        const todayEnd = new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString();
-        
-        const { count, error } = await supabase
-          .from('users_profiles')
-          .select('*', { count: 'exact', head: true })
-          .gte('created_at', todayStart)
-          .lt('created_at', todayEnd);
-
-        if (!error && count !== null) {
-          setStatsData(prev => ({
-            ...prev,
-            totalRegistrations: count,
-            students: 0,
-            graduates: 0,
-            currentInEvent: 0,
-            currentInBuilding: 0,
-            universities: [],
-            faculties: [],
-            genderStats: { male: 0, female: 0 },
-            roleStats: {},
-            marketingSources: [],
-            degreeLevelStats: { student: 0, graduate: 0 },
-            classYearStats: {},
-            currentGenderStats: { male: 0, female: 0 }
-          }));
-        }
-      } catch (fallbackError) {
-        console.error('Fallback query also failed:', fallbackError);
-      }
-    };
-
-    const fetchRegistrationStatsFallback = async () => {
-      try {
-        let countQuery = supabase
-          .from('users_profiles')
-          .select('*', { count: 'exact', head: true });
-
-        if (timeRange === 'today') {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          const todayStart = today.toISOString();
-          const todayEnd = new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString();
-          
-          countQuery = countQuery.gte('created_at', todayStart)
-                              .lt('created_at', todayEnd);
-        }
-
-        const { count, error: countError } = await countQuery;
-        
-        if (!countError && count !== null) {
-          setStatsData(prev => ({
-            ...prev,
-            totalRegistrations: count,
-            students: 0,
-            graduates: 0,
-            currentInEvent: 0,
-            currentInBuilding: 0,
-            universities: [],
-            faculties: [],
-            genderStats: { male: 0, female: 0 },
-            roleStats: {},
-            marketingSources: [],
-            degreeLevelStats: { student: 0, graduate: 0 },
-            classYearStats: {},
-            currentGenderStats: { male: 0, female: 0 }
-          }));
-        }
-      } catch (fallbackError) {
-        console.error('Fallback query also failed:', fallbackError);
-      }
-    };
-
-    const processUserStatistics = (users: UserProfileItem[]) => {
-      const stats: Omit<StatsData, 'eventStats'> = {
-        totalRegistrations: users.length,
-        graduates: 0,
-        students: 0,
-        currentInEvent: 0,
-        currentInBuilding: 0,
-        universities: [],
-        faculties: [],
-        genderStats: { male: 0, female: 0 },
-        roleStats: {},
-        marketingSources: [],
-        degreeLevelStats: { student: 0, graduate: 0 },
-        classYearStats: {},
-        currentGenderStats: { male: 0, female: 0 }
-      };
-    
-      const universityCount: Record<string, number> = {};
-      const facultyCount: Record<string, number> = {};
-      const roleCount: Record<string, number> = {};
-      const marketingCount: Record<string, number> = {};
-      const classYearCount: Record<string, number> = {};
-    
-      users.forEach(user => {
-        if (user.degree_level) {
-          const degreeLevel = user.degree_level.toString().toLowerCase();
-          if (degreeLevel === 'graduate') {
-            stats.graduates++;
-            stats.degreeLevelStats.graduate++;
-          } else if (degreeLevel === 'student') {
-            stats.students++;
-            stats.degreeLevelStats.student++;
-          }
-        }
-    
-        if (user.event_entry) stats.currentInEvent++;
-        if (user.building_entry) stats.currentInBuilding++;
-    
-        if (user.gender === 'male') {
-          stats.genderStats.male++;
-          if (user.event_entry) stats.currentGenderStats.male++;
-        } else if (user.gender === 'female') {
-          stats.genderStats.female++;
-          if (user.event_entry) stats.currentGenderStats.female++;
-        }
-    
-        if (user.university) {
-          universityCount[user.university] = (universityCount[user.university] || 0) + 1;
-        }
-    
-        if (user.faculty) {
-          facultyCount[user.faculty] = (facultyCount[user.faculty] || 0) + 1;
-        }
-    
-        if (user.role) {
-          roleCount[user.role] = (roleCount[user.role] || 0) + 1;
-        }
-    
-        if (user.how_did_hear_about_event) {
-          marketingCount[user.how_did_hear_about_event] = (marketingCount[user.how_did_hear_about_event] || 0) + 1;
-        }
-    
-        if (user.class) {
-          classYearCount[user.class] = (classYearCount[user.class] || 0) + 1;
-        }
+  const fetchEventStats = async (day: number) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('event-stats', {
+        body: { day }
       });
-    
-      stats.universities = (Object.entries(universityCount) as Array<[string, number]>)
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10);
-    
-      stats.faculties = (Object.entries(facultyCount) as Array<[string, number]>)
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10);
-    
-      stats.roleStats = roleCount;
-      stats.marketingSources = (Object.entries(marketingCount) as Array<[string, number]>)
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => b.count - a.count);
-    
-      stats.classYearStats = classYearCount;
-    
-      return stats;
-    };
 
-    const processEventStatistics = (attendances: Array<{ scan_type: string }>): DayStats => {
-      return {
-        entries: attendances.filter(a => a.scan_type === 'entry').length,
-        exits: attendances.filter(a => a.scan_type === 'exit').length,
-        building_entries: attendances.filter(a => a.scan_type === 'building_entry').length,
-        building_exits: attendances.filter(a => a.scan_type === 'building_exit').length,
-        session_entries: attendances.filter(a => a.scan_type === 'session_entry').length,
-        registrations: 0
-      };
-    };
-
-    if (loading) {
-      return (
-        <div className="flex items-center justify-center h-64 fade-in-blur">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
-        </div>
-      );
+      if (error) throw error;
+      setEventStats(data);
+    } catch (error) {
+      console.error('Error fetching event stats:', error);
+      // Fallback to empty stats
+      setEventStats({
+        day,
+        date: new Date().toISOString().split('T')[0],
+        attendance_stats: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, total_scans: 0 },
+        current_state: {
+          building: { current: 0, max: 350, percentage: 0, status: 'good' },
+          event: { current: 0, max: 1500, percentage: 0, status: 'good' }
+        },
+        total_attendees: 0
+      });
+    } finally {
+      setLoading(false);
     }
-
-    return (
-      <div className="space-y-6 sm:space-y-8 fade-in-blur">
-        {/* Stats Type and Time Range Filter */}
-        <div className="space-y-4 fade-in-blur">
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setStatsType('registration')}
-              className={`px-3 py-2 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-300 smooth-hover ${
-                statsType === 'registration' 
-                  ? 'bg-orange-500 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Registration
-            </button>
-            <button
-              onClick={() => setStatsType('event')}
-              className={`px-3 py-2 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-300 smooth-hover ${
-                statsType === 'event' 
-                  ? 'bg-orange-500 text-white' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Event
-            </button>
-          </div>
-
-          {statsType === 'registration' && (
-            <div className="flex flex-wrap gap-2 fade-in-blur">
-              <button
-                onClick={() => setTimeRange('today')}
-                className={`px-3 py-2 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-300 smooth-hover ${
-                  timeRange === 'today' 
-                    ? 'bg-orange-500 text-white' 
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Today
-              </button>
-              <button
-                onClick={() => setTimeRange('all')}
-                className={`px-3 py-2 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-300 smooth-hover ${
-                  timeRange === 'all' 
-                    ? 'bg-orange-500 text-white' 
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                All Time
-              </button>
-            </div>
-          )}
-
-          {statsType === 'event' && (
-            <div className="flex flex-wrap gap-2 fade-in-blur">
-              {[1, 2, 3, 4, 5].map((day) => (
-                <button
-                  key={day}
-                  onClick={() => setSelectedDay(day)}
-                  className={`px-3 py-2 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-300 smooth-hover ${
-                    selectedDay === day 
-                      ? 'bg-orange-500 text-white' 
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  Day {day}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Conditional Content based on Stats Type */}
-        {statsType === 'registration' ? (
-          <RegistrationStatsView statsData={statsData} timeRange={timeRange} />
-        ) : (
-          <EventStatsView statsData={statsData} selectedDay={selectedDay} />
-        )}
-
-        {/* Current State Widget */}
-        <CurrentStateWidget statsData={statsData} />
-      </div>
-    );
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64 fade-in-blur">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+      </div>
+    );
+  }
+
+  if (!eventStats) {
+    return (
+      <div className="text-center py-8 fade-in-blur">
+        <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+        <p className="text-gray-600">Failed to load event statistics</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 sm:space-y-8 fade-in-blur">
+      {/* Day Selector */}
+      <div className="flex flex-wrap gap-2 fade-in-blur">
+        {[1, 2, 3, 4, 5].map((day) => (
+          <button
+            key={day}
+            onClick={() => setSelectedDay(day)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 smooth-hover ${
+              selectedDay === day 
+                ? 'bg-orange-500 text-white' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Day {day} ({getDateForDay(day).split(',')[0]})
+          </button>
+        ))}
+      </div>
+
+      {/* Current Day Stats */}
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Day {eventStats.day} - {getDateForDay(eventStats.day)}
+        </h3>
+        
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 stagger-children">
+          <StatCard
+            title="Entries"
+            value={eventStats.attendance_stats.entries}
+            icon={<TrendingUp className="h-5 w-5" />}
+            color="green"
+          />
+          <StatCard
+            title="Exits"
+            value={eventStats.attendance_stats.exits}
+            icon={<TrendingUp className="h-5 w-5" />}
+            color="red"
+          />
+          <StatCard
+            title="Building Entries"
+            value={eventStats.attendance_stats.building_entries}
+            icon={<Building className="h-5 w-5" />}
+            color="blue"
+          />
+          <StatCard
+            title="Session Entries"
+            value={eventStats.attendance_stats.session_entries}
+            icon={<Calendar className="h-5 w-5" />}
+            color="purple"
+          />
+          <StatCard
+            title="Total Scans"
+            value={eventStats.attendance_stats.total_scans}
+            icon={<Activity className="h-5 w-5" />}
+            color="orange"
+          />
+          <StatCard
+            title="Total Attendees"
+            value={eventStats.total_attendees}
+            icon={<Users className="h-5 w-5" />}
+            color="green"
+          />
+        </div>
+      </div>
+
+      {/* Activity Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 stagger-children">
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Attendance Flow</h3>
+          <AttendanceFlowChart stats={eventStats.attendance_stats} />
+        </div>
+
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Daily Activity</h3>
+          <DailyActivityChart selectedDay={selectedDay} />
+        </div>
+      </div>
+    </div>
+  );
+};
   // Registration Stats View Component
   const RegistrationStatsView: React.FC<{ statsData: StatsData; timeRange: string }> = ({ statsData, timeRange }) => (
     <div className="space-y-6 sm:space-y-8 fade-in-blur">
