@@ -103,7 +103,206 @@ const OPEN_RECRUITMENT_DAYS = [
   { value: 4, label: 'Day 4 (22-10-2025)' },
   { value: 5, label: 'Day 5 (23-10-2025)' }
 ];
+// Current State Widget Component
+const CurrentStateWidget = () => {
+  const [currentState, setCurrentState] = useState({
+    building: { current: 0, max: 350, percentage: 0, status: 'good' },
+    event: { current: 0, max: 1500, percentage: 0, status: 'good' }
+  });
 
+  useEffect(() => {
+    fetchCurrentState();
+  }, []);
+
+  const fetchCurrentState = async () => {
+    try {
+      const { data: buildingData } = await supabase
+        .from('users_profiles')
+        .select('building_entry, event_entry')
+        .eq('role', 'attendee');
+
+      if (buildingData) {
+        const currentInBuilding = buildingData.filter(user => user.building_entry).length;
+        const currentInEvent = buildingData.filter(user => user.event_entry).length;
+        
+        const buildingPercentage = Math.round((currentInBuilding / 350) * 100);
+        const eventPercentage = Math.round((currentInEvent / 1500) * 100);
+
+        setCurrentState({
+          building: {
+            current: currentInBuilding,
+            max: 350,
+            percentage: buildingPercentage,
+            status: buildingPercentage < 80 ? 'good' : buildingPercentage < 90 ? 'warning' : 'critical'
+          },
+          event: {
+            current: currentInEvent,
+            max: 1500,
+            percentage: eventPercentage,
+            status: eventPercentage < 80 ? 'good' : eventPercentage < 90 ? 'warning' : 'critical'
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching current state:', error);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'good': return 'bg-green-100 text-green-800';
+      case 'warning': return 'bg-yellow-100 text-yellow-800';
+      case 'critical': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden fade-in-blur card-hover">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+        <h2 className="text-3xl font-bold text-black-800 flex items-center gap-2">
+          <Activity className="h-7 w-7 text-orange-500" />
+          Current State
+        </h2>
+      </div>
+
+      <div className="p-6">
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-lg font-bold text-left border border-gray-200 rounded-lg overflow-hidden">
+            <thead className="bg-gray-100 text-gray-800 text-xl font-extrabold">
+              <tr>
+                <th className="px-4 py-3">Site</th>
+                <th className="px-4 py-3">Maximum Capacity</th>
+                <th className="px-4 py-3">Current Capacity</th>
+                <th className="px-4 py-3">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-t">
+                <td className="px-4 py-3">Building</td>
+                <td className="px-4 py-3 text-red-600">350</td>
+                <td className="px-4 py-3">{currentState.building.current}</td>
+                <td className="px-4 py-3">
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(currentState.building.status)}`}>
+                    {currentState.building.percentage}%
+                  </span>
+                </td>
+              </tr>
+              <tr className="border-t">
+                <td className="px-4 py-3">Event</td>
+                <td className="px-4 py-3 text-red-600">1500</td>
+                <td className="px-4 py-3">{currentState.event.current}</td>
+                <td className="px-4 py-3">
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(currentState.event.status)}`}>
+                    {currentState.event.percentage}%
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Today's Event Entries Component
+const TodayEventEntries = () => {
+  const [todayEntries, setTodayEntries] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchTodayEntries();
+  }, []);
+
+  const fetchTodayEntries = async () => {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const { count, error } = await supabase
+        .from('attendances')
+        .select('*', { count: 'exact', head: true })
+        .eq('scan_type', 'entry')
+        .gte('scanned_at', today.toISOString());
+
+      if (!error && count !== null) {
+        setTodayEntries(count);
+      }
+    } catch (error) {
+      console.error('Error fetching today entries:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover">
+      <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+        <Calendar className="h-5 w-5 mr-2 text-orange-600" />
+        Today's Event Activity
+      </h3>
+      
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Event Entries Today"
+          value={loading ? '...' : todayEntries}
+          icon={<TrendingUp className="h-5 w-5" />}
+          color="green"
+        />
+        <StatCard
+          title="Current in Event"
+          value={buildingStats?.inside_event || 0}
+          icon={<Users className="h-5 w-5" />}
+          color="blue"
+        />
+        <StatCard
+          title="Current in Building"
+          value={buildingStats?.inside_building || 0}
+          icon={<Building className="h-5 w-5" />}
+          color="orange"
+        />
+        <StatCard
+          title="Total Attendees"
+          value={buildingStats?.total_attendees || 0}
+          icon={<Users className="h-5 w-5" />}
+          color="purple"
+        />
+      </div>
+    </div>
+  );
+};
+
+// Simplified Attendance Flow Chart
+const AttendanceFlowChart: React.FC<{ stats: any }> = ({ stats }) => {
+  const flowData = [
+    { label: 'Entries', value: stats.entries, color: 'bg-green-500' },
+    { label: 'Exits', value: stats.exits, color: 'bg-red-500' },
+    { label: 'Building Entries', value: stats.building_entries, color: 'bg-blue-500' },
+    { label: 'Session Entries', value: stats.session_entries, color: 'bg-purple-500' },
+  ];
+
+  const maxValue = Math.max(...flowData.map(d => d.value), 1);
+
+  return (
+    <div className="space-y-3 fade-in-blur">
+      {flowData.map((item, index) => (
+        <div key={index} className="space-y-1">
+          <div className="flex justify-between text-sm">
+            <span className="font-medium text-gray-700">{item.label}</span>
+            <span className="text-gray-500">{item.value}</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-3">
+            <div
+              className={`${item.color} h-3 rounded-full`}
+              style={{ width: `${(item.value / maxValue) * 100}%` }}
+            ></div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
 interface SessionItem {
   id: string;
   title: string;
@@ -3024,206 +3223,7 @@ const handleEventSubmit = async () => {
         </button>
       </div>
     </div>
-// Current State Widget Component
-const CurrentStateWidget = () => {
-  const [currentState, setCurrentState] = useState({
-    building: { current: 0, max: 350, percentage: 0, status: 'good' },
-    event: { current: 0, max: 1500, percentage: 0, status: 'good' }
-  });
 
-  useEffect(() => {
-    fetchCurrentState();
-  }, []);
-
-  const fetchCurrentState = async () => {
-    try {
-      const { data: buildingData } = await supabase
-        .from('users_profiles')
-        .select('building_entry, event_entry')
-        .eq('role', 'attendee');
-
-      if (buildingData) {
-        const currentInBuilding = buildingData.filter(user => user.building_entry).length;
-        const currentInEvent = buildingData.filter(user => user.event_entry).length;
-        
-        const buildingPercentage = Math.round((currentInBuilding / 350) * 100);
-        const eventPercentage = Math.round((currentInEvent / 1500) * 100);
-
-        setCurrentState({
-          building: {
-            current: currentInBuilding,
-            max: 350,
-            percentage: buildingPercentage,
-            status: buildingPercentage < 80 ? 'good' : buildingPercentage < 90 ? 'warning' : 'critical'
-          },
-          event: {
-            current: currentInEvent,
-            max: 1500,
-            percentage: eventPercentage,
-            status: eventPercentage < 80 ? 'good' : eventPercentage < 90 ? 'warning' : 'critical'
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching current state:', error);
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'good': return 'bg-green-100 text-green-800';
-      case 'warning': return 'bg-yellow-100 text-yellow-800';
-      case 'critical': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  return (
-    <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden fade-in-blur card-hover">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
-        <h2 className="text-3xl font-bold text-black-800 flex items-center gap-2">
-          <Activity className="h-7 w-7 text-orange-500" />
-          Current State
-        </h2>
-      </div>
-
-      <div className="p-6">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-lg font-bold text-left border border-gray-200 rounded-lg overflow-hidden">
-            <thead className="bg-gray-100 text-gray-800 text-xl font-extrabold">
-              <tr>
-                <th className="px-4 py-3">Site</th>
-                <th className="px-4 py-3">Maximum Capacity</th>
-                <th className="px-4 py-3">Current Capacity</th>
-                <th className="px-4 py-3">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-t">
-                <td className="px-4 py-3">Building</td>
-                <td className="px-4 py-3 text-red-600">350</td>
-                <td className="px-4 py-3">{currentState.building.current}</td>
-                <td className="px-4 py-3">
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(currentState.building.status)}`}>
-                    {currentState.building.percentage}%
-                  </span>
-                </td>
-              </tr>
-              <tr className="border-t">
-                <td className="px-4 py-3">Event</td>
-                <td className="px-4 py-3 text-red-600">1500</td>
-                <td className="px-4 py-3">{currentState.event.current}</td>
-                <td className="px-4 py-3">
-                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(currentState.event.status)}`}>
-                    {currentState.event.percentage}%
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Today's Event Entries Component
-const TodayEventEntries = () => {
-  const [todayEntries, setTodayEntries] = useState(0);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchTodayEntries();
-  }, []);
-
-  const fetchTodayEntries = async () => {
-    try {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const { count, error } = await supabase
-        .from('attendances')
-        .select('*', { count: 'exact', head: true })
-        .eq('scan_type', 'entry')
-        .gte('scanned_at', today.toISOString());
-
-      if (!error && count !== null) {
-        setTodayEntries(count);
-      }
-    } catch (error) {
-      console.error('Error fetching today entries:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover">
-      <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-        <Calendar className="h-5 w-5 mr-2 text-orange-600" />
-        Today's Event Activity
-      </h3>
-      
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Event Entries Today"
-          value={loading ? '...' : todayEntries}
-          icon={<TrendingUp className="h-5 w-5" />}
-          color="green"
-        />
-        <StatCard
-          title="Current in Event"
-          value={buildingStats?.inside_event || 0}
-          icon={<Users className="h-5 w-5" />}
-          color="blue"
-        />
-        <StatCard
-          title="Current in Building"
-          value={buildingStats?.inside_building || 0}
-          icon={<Building className="h-5 w-5" />}
-          color="orange"
-        />
-        <StatCard
-          title="Total Attendees"
-          value={buildingStats?.total_attendees || 0}
-          icon={<Users className="h-5 w-5" />}
-          color="purple"
-        />
-      </div>
-    </div>
-  );
-};
-
-// Simplified Attendance Flow Chart
-const AttendanceFlowChart: React.FC<{ stats: any }> = ({ stats }) => {
-  const flowData = [
-    { label: 'Entries', value: stats.entries, color: 'bg-green-500' },
-    { label: 'Exits', value: stats.exits, color: 'bg-red-500' },
-    { label: 'Building Entries', value: stats.building_entries, color: 'bg-blue-500' },
-    { label: 'Session Entries', value: stats.session_entries, color: 'bg-purple-500' },
-  ];
-
-  const maxValue = Math.max(...flowData.map(d => d.value), 1);
-
-  return (
-    <div className="space-y-3 fade-in-blur">
-      {flowData.map((item, index) => (
-        <div key={index} className="space-y-1">
-          <div className="flex justify-between text-sm">
-            <span className="font-medium text-gray-700">{item.label}</span>
-            <span className="text-gray-500">{item.value}</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-3">
-            <div
-              className={`${item.color} h-3 rounded-full`}
-              style={{ width: `${(item.value / maxValue) * 100}%` }}
-            ></div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-};
     {/* Current State Widget - MOVED TO DASHBOARD */}
     <CurrentStateWidget />
 
