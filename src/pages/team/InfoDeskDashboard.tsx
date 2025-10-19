@@ -587,123 +587,122 @@ const getCapacityDisplay = (session: Session) => {
           </div>
         )}
 
-        {/* Session List */}
-        {!selectedSession && !showAttendeesList && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {sessions.length === 0 ? (
-              <div className="col-span-full text-center py-12">
-                <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Sessions Found</h3>
-                <p className="text-gray-500">There are no sessions available at the moment.</p>
-              </div>
-            ) : (
-              sessions.map((session, index) => (
-                <div
-                  key={session.id}
-                  className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 hover:shadow-md transition-all duration-300 transform hover:scale-105"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 flex-1 pr-2">
-                      {session.title}
-                    </h3>
-                    <Calendar className="h-5 w-5 text-orange-500 flex-shrink-0" />
-                  </div>
-                  
-                  <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                    {session.description}
-                  </p>
-                  
-                  {/* Speaker Information */}
-                  {session.speaker && (
-                    <div className="flex items-center mb-3">
-                      {session.speaker_photo_url ? (
-                        <img 
-                          src={session.speaker_photo_url} 
-                          alt={`${session.speaker} photo`}
-                          className="h-10 w-10 rounded-full object-cover mr-3"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/40x40/gray/white?text=Photo";
-                          }}
-                        />
-                      ) : (
-                        <User className="h-4 w-4 text-gray-400 mr-2" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 line-clamp-1">
-                          {session.speaker}
-                        </p>
-                        {session.speaker_linkedin_url && (
-                          <a 
-                            href={session.speaker_linkedin_url} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 text-xs flex items-center"
-                          >
-                            <ExternalLink className="h-3 w-3 mr-1" />
-                            LinkedIn
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className="space-y-2 mb-4">
-                    <p className="text-sm text-gray-700">
-                      <Clock className="inline-block h-4 w-4 mr-1" />
-                      {formatDate(session.start_time)} • {formatTime(session.start_time)} - {formatTime(session.end_time)}
-                    </p>
-                    
-                    {session.location && (
-                      <p className="text-sm text-gray-700">
-                        <MapPin className="inline-block h-4 w-4 mr-1" />
-                        {session.location}
-                      </p>
-                    )}
-                    
-                    <p className="text-sm font-medium text-gray-700">
-                      <Users className="inline-block h-4 w-4 mr-1" />
-                      {getCapacityDisplay(session)} bookings
-                    </p>
-                  </div>
-
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => {
-                        if (isSessionAtCapacity(session)) {
-                          setError(`Session "${session.title}" is at full capacity (${getCapacityDisplay(session)})`);
-                          return;
-                        }
-                        setSelectedSession(session);
-                        setShowBookingManager(true);
-                      }}
-                      disabled={isSessionAtCapacity(session)}
-                      className={`flex-1 flex items-center justify-center p-3 rounded-lg transition-colors ${
-                        isSessionAtCapacity(session)
-                          ? 'bg-red-500 text-white cursor-not-allowed'
-                          : 'bg-orange-500 text-white hover:bg-orange-600'
-                      }`}
-                    >
-                      <Edit className="h-4 w-4 mr-2" />
-                      {isSessionAtCapacity(session) ? 'Session Full' : 'Manage Bookings'}
-                    </button>
-                    
-                    <button
-                      onClick={async () => {
-                        setSelectedSession(session);
-                        await loadSessionAttendees(session.id);
-                        setShowAttendeesList(true);
-                      }}
-                      className="flex items-center justify-center p-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
-                    >
-                      <List className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
+      {/* Session List */}
+{!selectedSession && !showAttendeesList && (
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+    {sessions.length === 0 ? (
+      <div className="col-span-full text-center py-12">
+        <Calendar className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 mb-2">No Sessions Found</h3>
+        <p className="text-gray-500">There are no sessions available at the moment.</p>
+      </div>
+    ) : (
+      sessions.map((session, index) => (
+        <div
+          key={session.id}
+          className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 hover:shadow-md transition-all duration-300 transform hover:scale-105"
+        >
+          <div className="flex items-start justify-between mb-3">
+            <h3 className="text-lg font-semibold text-gray-900 line-clamp-2 flex-1 pr-2">
+              {session.title}
+            </h3>
+            <Calendar className="h-5 w-5 text-orange-500 flex-shrink-0" />
           </div>
-        )}
+          
+          <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+            {session.description}
+          </p>
+          
+          {/* Speaker Information */}
+          {session.speaker && (
+            <div className="flex items-center mb-3">
+              {session.speaker_photo_url ? (
+                <img 
+                  src={session.speaker_photo_url} 
+                  alt={`${session.speaker} photo`}
+                  className="h-10 w-10 rounded-full object-cover mr-3"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/40x40/gray/white?text=Photo";
+                  }}
+                />
+              ) : (
+                <User className="h-4 w-4 text-gray-400 mr-2" />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 line-clamp-1">
+                  {session.speaker}
+                </p>
+                {session.speaker_linkedin_url && (
+                  <a 
+                    href={session.speaker_linkedin_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 text-xs flex items-center"
+                  >
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    LinkedIn
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+          
+          <div className="space-y-2 mb-4">
+            <p className="text-sm text-gray-700">
+              <Clock className="inline-block h-4 w-4 mr-1" />
+              {formatDate(session.start_time)} • {formatTime(session.start_time)} - {formatTime(session.end_time)}
+            </p>
+            
+            {session.location && (
+              <p className="text-sm text-gray-700">
+                <MapPin className="inline-block h-4 w-4 mr-1" />
+                {session.location}
+              </p>
+            )}
+            
+            <p className="text-sm font-medium text-gray-700">
+              <Users className="inline-block h-4 w-4 mr-1" />
+              {getCapacityDisplay(session)} bookings
+            </p>
+          </div>
 
+          <div className="flex space-x-2">
+            <button
+              onClick={() => {
+                if (isSessionAtCapacity(session)) {
+                  setError(`Session "${session.title}" is at full capacity (${getCapacityDisplay(session)})`);
+                  return;
+                }
+                setSelectedSession(session);
+                setShowBookingManager(true);
+              }}
+              disabled={isSessionAtCapacity(session)}
+              className={`flex-1 flex items-center justify-center p-3 rounded-lg transition-colors ${
+                isSessionAtCapacity(session)
+                  ? 'bg-red-500 text-white cursor-not-allowed'
+                  : 'bg-orange-500 text-white hover:bg-orange-600'
+              }`}
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              {isSessionAtCapacity(session) ? 'Session Full' : 'Manage Bookings'}
+            </button>
+            
+            <button
+              onClick={async () => {
+                setSelectedSession(session);
+                await loadSessionAttendees(session.id);
+                setShowAttendeesList(true);
+              }}
+              className="flex items-center justify-center p-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            >
+              <List className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      ))
+    )}
+  </div>
+)}
         {/* Session Selected - Booking Manager */}
         {selectedSession && showBookingManager && !selectedAttendee && !showAttendeesList && (
           <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 space-y-6">
