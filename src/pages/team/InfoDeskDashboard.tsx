@@ -341,37 +341,37 @@ export const InfoDeskDashboard: React.FC = () => {
   };
 
   // Remove attendee from session
-  const removeFromSession = async () => {
-    if (!selectedAttendee || !selectedSession || !sessionBookingInfo.bookingId) return;
+// Remove attendee from session
+const removeFromSession = async () => {
+  if (!selectedAttendee || !selectedSession || !sessionBookingInfo.bookingId) return;
 
-    try {
-      setActionLoading(true);
-      setError(null);
+  try {
+    setActionLoading(true);
+    setError(null);
 
-      const { error } = await supabase
-        .from('attendances')
-        .delete()
-        .eq('id', sessionBookingInfo.bookingId);
+    const { error } = await supabase
+      .from('attendances')
+      .delete()
+      .eq('id', sessionBookingInfo.bookingId);
 
-      if (error) {
-        setError("Failed to remove attendee from session");
-        return;
-      }
-
-      // Update local booking info
-      setSessionBookingInfo({ isBooked: false });
-
-      // Refresh session data to update booking count
-      loadSessions();
-      
-    } catch (err) {
-      console.error('Remove from session error:', err);
+    if (error) {
       setError("Failed to remove attendee from session");
-    } finally {
-      setActionLoading(false);
+      return;
     }
-  };
 
+    // Update local booking info
+    setSessionBookingInfo({ isBooked: false });
+
+    // Refresh session data to update booking count
+    await loadSessions();
+    
+  } catch (err) {
+    console.error('Remove from session error:', err);
+    setError("Failed to remove attendee from session");
+  } finally {
+    setActionLoading(false);
+  }
+};
   // Reset states when going back
   const resetStates = () => {
     setSelectedAttendee(null);
