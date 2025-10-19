@@ -100,7 +100,12 @@ export const InfoDeskDashboard: React.FC = () => {
       }
     };
   }, [searchId]);
-
+const isSessionAtCapacity = (session: Session): boolean => {
+  if (!session.max_attendees || session.max_attendees <= 0) {
+    return false; // No capacity limit
+  }
+  return session.current_bookings >= session.max_attendees;
+};
   const performDynamicSearch = async (query: string) => {
     try {
       setActionLoading(true);
