@@ -180,6 +180,11 @@ const AttendeeDashboard: React.FC = () => {
   const [previousTab, setPreviousTab] = useState("overview");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  // Lazy loading states
+  const [loadedTabs, setLoadedTabs] = useState<Set<string>>(new Set(["overview"]));
+  const [mapsLoaded, setMapsLoaded] = useState<Set<number>>(new Set());
+  const [tabLoading, setTabLoading] = useState<{ [key: string]: boolean }>({});
+
   // Check if user can book based on faculty for Building Sessions
   const canBookDay1 = profile?.faculty && DAY1_FACULTIES.includes(profile.faculty);
   const canBookDay2 = profile?.faculty && DAY2_FACULTIES.includes(profile.faculty);
@@ -199,15 +204,8 @@ const AttendeeDashboard: React.FC = () => {
     setIsMobileMenuOpen(false);
   }, [activeTab]);
 
-  // Fetch events when day changes
-  useEffect(() => {
-    if (activeTab === 'stage-activities') {
-      fetchEventsByDay(activeDay);
-    }
-  }, [activeTab, activeDay]);
-
-  // Handle tab change with animation
-  const handleTabChange = (tabKey: string) => {
+  // Handle tab change with animation and lazy loading
+  const handleTabChange = async (tabKey: string) => {
     if (tabKey === activeTab) return;
     
     setIsTabChanging(true);
@@ -217,7 +215,45 @@ const AttendeeDashboard: React.FC = () => {
       setActiveTab(tabKey);
       setIsTabChanging(false);
     }, 200);
+
+    // Lazy load tab data if not already loaded
+    if (!loadedTabs.has(tabKey)) {
+      setTabLoading(prev => ({ ...prev, [tabKey]: true }));
+      
+      try {
+        switch (tabKey) {
+          case "stage-activities":
+            await fetchEventsByDay(1);
+            break;
+          case "building-sessions":
+            await fetchSessions();
+            break;
+          case "open-recruitment":
+            await fetchSessions();
+            break;
+          case "companies":
+            await fetchCompanies();
+            break;
+          case "career-portal":
+            // No data to load for career portal
+            break;
+        }
+        
+        setLoadedTabs(prev => new Set([...prev, tabKey]));
+      } catch (error) {
+        console.error(`Error loading tab ${tabKey}:`, error);
+      } finally {
+        setTabLoading(prev => ({ ...prev, [tabKey]: false }));
+      }
+    }
   };
+
+  // Fetch events when day changes (only if tab is active and loaded)
+  useEffect(() => {
+    if (activeTab === 'stage-activities' && loadedTabs.has('stage-activities')) {
+      fetchEventsByDay(activeDay);
+    }
+  }, [activeTab, activeDay, loadedTabs]);
 
   // Toggle mobile menu
   const toggleMobileMenu = () => {
@@ -250,10 +286,7 @@ const AttendeeDashboard: React.FC = () => {
     try {
       await fetchUserScore();
       await fetchRecentActivities();
-      await fetchEventsByDay(1);
-      await fetchSessions();
-      await fetchUserBookings();
-      await fetchCompanies();
+      // Only load overview data initially
     } catch (err) {
       console.error(err);
     } finally {
@@ -520,6 +553,13 @@ const AttendeeDashboard: React.FC = () => {
       }
     } catch (error) {
       console.error("Error fetching companies:", error);
+    }
+  };
+
+  // Lazy load map for a specific day
+  const loadMapForDay = (day: number) => {
+    if (!mapsLoaded.has(day)) {
+      setMapsLoaded(prev => new Set([...prev, day]));
     }
   };
 
@@ -954,7 +994,11 @@ const AttendeeDashboard: React.FC = () => {
   // Day maps path
   const mapImages = [
     "/src/Assets/day1.jpg",
-    "/src/Assets/day2.jpg"];
+    "/src/Assets/day2.jpg",
+    "/src/Assets/day3.jpg",
+    "/src/Assets/day4.jpg",
+    "/src/Assets/day5.jpg"
+  ];
 
   const handleEmployerWebsiteClick = (url: string) => {
     window.open(url, "_blank");
@@ -1146,115 +1190,123 @@ const AttendeeDashboard: React.FC = () => {
           {/* Stage Activities */}
           {activeTab === "stage-activities" && (
             <div className="tab-content-animate stagger-animation">
-              <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center justify-between mb-6 transform transition-all duration-500">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center">
-                  <Calendar className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600 transform transition-all duration-500 hover:rotate-180" /> 
-                  <span className="text-sm sm:text-lg">5-Day Stage Activities</span>
-                </h2>
-                
-                {/* Day Selector */}
-                <div className="flex space-x-1 sm:space-x-2 overflow-x-auto pb-2 sm:pb-0 transform transition-all duration-500">
-                  {[1, 2, 3, 4, 5].map((day, index) => (
-                    <button
-                      key={day}
-                      onClick={() => setActiveDay(day)}
-                      className={`px-2 py-1 rounded-lg text-xs font-medium transition-all duration-300 flex-shrink-0 transform hover:scale-105 min-w-10 ${
-                        activeDay === day 
-                          ? "bg-orange-500 text-white shadow-lg scale-110" 
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md"
-                      }`}
-                      style={{ animationDelay: `${index * 100}ms` }}
-                    >
-                      {day}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {eventsLoading ? (
-                <div className="flex items-center justify-center h-32 transform transition-all duration-500">
+              {tabLoading['stage-activities'] ? (
+                <div className="flex items-center justify-center h-32">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
                 </div>
-              ) : schedule.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur stagger-animation">
-                  {schedule.map((item, index) => (
-                    <div 
-                      key={item.id} 
-                      onClick={() => handleEventClick(item)}
-                      className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 cursor-pointer h-full flex flex-col card-hover-enhanced dashboard-card transform transition-all duration-500 hover:scale-105 hover:shadow-xl"
-                      style={{ animationDelay: `${index * 100}ms` }}
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-base sm:text-lg font-semibold text-gray-900 line-clamp-2 flex-1 transform transition-all duration-300 hover:text-orange-600">{item.title}</h3>
-                      </div>
-                      
-                      <p className="text-xs sm:text-sm text-gray-600 mb-4 line-clamp-3 flex-1 transform transition-all duration-300">{item.description}</p>
-                      
-                      {/* SPEAKER INFORMATION */}
-                      {item.speaker && (
-                        <div className="flex items-center mb-3">
-                          {item.speaker_photo_url ? (
-                            <img 
-                              src={item.speaker_photo_url} 
-                              alt={`${item.speaker} photo`}
-                              className="h-12 w-12 rounded-full object-cover"
-                              onError={(e) => {
-                                (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/48x48/gray/white?text=Photo";
-                              }}
-                            />
-                          ) : (
-                            <User className="h-4 w-4 text-gray-400 mr-2" />
-                          )}
-                          <p className="text-xs sm:text-sm font-medium text-gray-900 line-clamp-1">
-                            Speaker: {item.speaker}
-                            {item.speaker_linkedin_url && (
-                              <a 
-                                href={item.speaker_linkedin_url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="ml-1 text-blue-600 hover:text-blue-800 inline-flex items-center"
-                              >
-                                <ExternalLink className="h-3 w-3" />
-                              </a>
-                            )}
-                          </p>
-                        </div>
-                      )}
-                      
-                      <div className="space-y-1.5 sm:space-y-2 text-xs text-gray-500 mt-auto">
-                        <div className="flex items-center transform transition-all duration-300 hover:translate-x-2">
-                          <Clock className="h-3 w-3 mr-2 flex-shrink-0" />
-                          <span className="truncate text-xs">
-                            {new Date(item.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - 
-                            {new Date(item.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                          </span>
-                        </div>
-                        <div className="flex items-center transform transition-all duration-300 hover:translate-x-2">
-                          <MapPin className="h-3 w-3 mr-2 flex-shrink-0" />
-                          <span className="truncate text-xs">{item.location}</span>
-                        </div>
-                      </div>
-                      
-                      <div className="mt-3 sm:mt-4 pt-3 border-t border-gray-100 transform transition-all duration-500">
-                        {item.item_type ? (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 transform transition-all duration-300 hover:scale-105">
-                            {item.item_type}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 transform transition-all duration-300 hover:scale-105">
-                            Event
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
               ) : (
-                <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200 transform transition-all duration-500">
-                  <Calendar className="h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mx-auto mb-3 sm:mb-4" />
-                  <p className="text-gray-500 text-sm sm:text-base">No events scheduled for Day {activeDay}</p>
-                </div>
+                <>
+                  <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center justify-between mb-6 transform transition-all duration-500">
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center">
+                      <Calendar className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600 transform transition-all duration-500 hover:rotate-180" /> 
+                      <span className="text-sm sm:text-lg">5-Day Stage Activities</span>
+                    </h2>
+                    
+                    {/* Day Selector */}
+                    <div className="flex space-x-1 sm:space-x-2 overflow-x-auto pb-2 sm:pb-0 transform transition-all duration-500">
+                      {[1, 2, 3, 4, 5].map((day, index) => (
+                        <button
+                          key={day}
+                          onClick={() => setActiveDay(day)}
+                          className={`px-2 py-1 rounded-lg text-xs font-medium transition-all duration-300 flex-shrink-0 transform hover:scale-105 min-w-10 ${
+                            activeDay === day 
+                              ? "bg-orange-500 text-white shadow-lg scale-110" 
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md"
+                          }`}
+                          style={{ animationDelay: `${index * 100}ms` }}
+                        >
+                          {day}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {eventsLoading ? (
+                    <div className="flex items-center justify-center h-32 transform transition-all duration-500">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                    </div>
+                  ) : schedule.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur stagger-animation">
+                      {schedule.map((item, index) => (
+                        <div 
+                          key={item.id} 
+                          onClick={() => handleEventClick(item)}
+                          className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 cursor-pointer h-full flex flex-col card-hover-enhanced dashboard-card transform transition-all duration-500 hover:scale-105 hover:shadow-xl"
+                          style={{ animationDelay: `${index * 100}ms` }}
+                        >
+                          <div className="flex items-start justify-between mb-3">
+                            <h3 className="text-base sm:text-lg font-semibold text-gray-900 line-clamp-2 flex-1 transform transition-all duration-300 hover:text-orange-600">{item.title}</h3>
+                          </div>
+                          
+                          <p className="text-xs sm:text-sm text-gray-600 mb-4 line-clamp-3 flex-1 transform transition-all duration-300">{item.description}</p>
+                          
+                          {/* SPEAKER INFORMATION */}
+                          {item.speaker && (
+                            <div className="flex items-center mb-3">
+                              {item.speaker_photo_url ? (
+                                <img 
+                                  src={item.speaker_photo_url} 
+                                  alt={`${item.speaker} photo`}
+                                  className="h-12 w-12 rounded-full object-cover"
+                                  onError={(e) => {
+                                    (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/48x48/gray/white?text=Photo";
+                                  }}
+                                />
+                              ) : (
+                                <User className="h-4 w-4 text-gray-400 mr-2" />
+                              )}
+                              <p className="text-xs sm:text-sm font-medium text-gray-900 line-clamp-1">
+                                Speaker: {item.speaker}
+                                {item.speaker_linkedin_url && (
+                                  <a 
+                                    href={item.speaker_linkedin_url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="ml-1 text-blue-600 hover:text-blue-800 inline-flex items-center"
+                                  >
+                                    <ExternalLink className="h-3 w-3" />
+                                  </a>
+                                )}
+                              </p>
+                            </div>
+                          )}
+                          
+                          <div className="space-y-1.5 sm:space-y-2 text-xs text-gray-500 mt-auto">
+                            <div className="flex items-center transform transition-all duration-300 hover:translate-x-2">
+                              <Clock className="h-3 w-3 mr-2 flex-shrink-0" />
+                              <span className="truncate text-xs">
+                                {new Date(item.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - 
+                                {new Date(item.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              </span>
+                            </div>
+                            <div className="flex items-center transform transition-all duration-300 hover:translate-x-2">
+                              <MapPin className="h-3 w-3 mr-2 flex-shrink-0" />
+                              <span className="truncate text-xs">{item.location}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-3 sm:mt-4 pt-3 border-t border-gray-100 transform transition-all duration-500">
+                            {item.item_type ? (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 transform transition-all duration-300 hover:scale-105">
+                                {item.item_type}
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 transform transition-all duration-300 hover:scale-105">
+                                Event
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200 transform transition-all duration-500">
+                      <Calendar className="h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mx-auto mb-3 sm:mb-4" />
+                      <p className="text-gray-500 text-sm sm:text-base">No events scheduled for Day {activeDay}</p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -1290,7 +1342,7 @@ const AttendeeDashboard: React.FC = () => {
                   </button>
                   
                   <button
-                    onClick={() => setActiveTab("companies")}
+                    onClick={() => handleTabChange("companies")}
                     className="border border-orange-500 text-orange-500 px-8 py-3 sm:px-10 sm:py-4 rounded-lg text-base sm:text-lg font-semibold hover:bg-orange-50 transition-all duration-300 transform hover:scale-105"
                   >
                     View Companies First
@@ -1311,81 +1363,89 @@ const AttendeeDashboard: React.FC = () => {
           {/* Building Sessions */}
           {activeTab === "building-sessions" && (
             <div className="tab-content-animate">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center mb-2 sm:mb-0">
-                  <Building className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600" /> 
-                  <span className="text-sm sm:text-lg">Building Sessions (Days 1-3)</span>
-                </h2>
-              </div>
-              
-              {/* Day Selector for Building Sessions */}
-              <div className="flex space-x-1 sm:space-x-2 mb-6 overflow-x-auto pb-2">
-                {[1, 2, 3].map((day) => (
-                  <button
-                    key={day}
-                    onClick={() => setActiveBuildingDay(day)}
-                    className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex-shrink-0 ${
-                      activeBuildingDay === day 
-                        ? "bg-orange-500 text-white" 
-                        : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    Day {day}
-                  </button>
-                ))}
-              </div>
-
-              {/* Faculty Eligibility Notice */}
-              <div id="cv-upload-section" className="mb-4 sm:mb-6 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-start">
-                  <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 mr-2 sm:mr-3 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <h3 className="text-blue-800 font-medium text-sm sm:text-base mb-1">Faculty-Based Eligibility</h3>
-                    <p className="text-blue-700 text-xs sm:text-sm">
-                      {activeBuildingDay === 1 ? (
-                        <>Day 1 sessions are only available for <strong>Faculty of Engineering, Faculty of Computer and Information Sciences, Faculty of Archaeology</strong> students.</>
-                      ) : activeBuildingDay === 2 ? (
-                        <>Day 2 sessions are only available for <strong>Faculty of Business Administration</strong> students.</>
-                      ) : (
-                        <>Day 3 sessions are only available for <strong>Faculty of Alsun, Faculty of Archaeology, Faculty of Law, Faculty of Education, Faculty of Arts, and Faculty of Girls</strong> students.</>
-                      )}
-                    </p>
-                    {profile?.faculty && (
-                      <p className="text-blue-600 text-xs sm:text-sm mt-1">
-                        Your faculty: <strong>{profile.faculty}</strong> - {
-                          (activeBuildingDay === 1 && canBookDay1) || 
-                          (activeBuildingDay === 2 && canBookDay2) || 
-                          (activeBuildingDay === 3 && canBookDay3) 
-                            ? "You are eligible to book sessions" 
-                            : "You are not eligible to book sessions for this day"
-                        }
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {sessionsLoading ? (
+              {tabLoading['building-sessions'] ? (
                 <div className="flex items-center justify-center h-32">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
                 </div>
-              ) : activeBuildingDay === 1 && day1Sessions.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur">
-                  {renderSessionCards(day1Sessions, 'building')}
-                </div>
-              ) : activeBuildingDay === 2 && day2Sessions.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur">
-                  {renderSessionCards(day2Sessions, 'building')}
-                </div>
-              ) : activeBuildingDay === 3 && day3Sessions.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur">
-                  {renderSessionCards(day3Sessions, 'building')}
-                </div>
               ) : (
-                <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200">
-                  <Building className="h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mx-auto mb-3 sm:mb-4" />
-                  <p className="text-gray-500 text-sm sm:text-base">No sessions available for Day {activeBuildingDay}</p>
-                </div>
+                <>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6">
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center mb-2 sm:mb-0">
+                      <Building className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600" /> 
+                      <span className="text-sm sm:text-lg">Building Sessions (Days 1-3)</span>
+                    </h2>
+                  </div>
+                  
+                  {/* Day Selector for Building Sessions */}
+                  <div className="flex space-x-1 sm:space-x-2 mb-6 overflow-x-auto pb-2">
+                    {[1, 2, 3].map((day) => (
+                      <button
+                        key={day}
+                        onClick={() => setActiveBuildingDay(day)}
+                        className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex-shrink-0 ${
+                          activeBuildingDay === day 
+                            ? "bg-orange-500 text-white" 
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                        }`}
+                      >
+                        Day {day}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Faculty Eligibility Notice */}
+                  <div id="cv-upload-section" className="mb-4 sm:mb-6 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start">
+                      <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 mr-2 sm:mr-3 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <h3 className="text-blue-800 font-medium text-sm sm:text-base mb-1">Faculty-Based Eligibility</h3>
+                        <p className="text-blue-700 text-xs sm:text-sm">
+                          {activeBuildingDay === 1 ? (
+                            <>Day 1 sessions are only available for <strong>Faculty of Engineering, Faculty of Computer and Information Sciences, Faculty of Archaeology</strong> students.</>
+                          ) : activeBuildingDay === 2 ? (
+                            <>Day 2 sessions are only available for <strong>Faculty of Business Administration</strong> students.</>
+                          ) : (
+                            <>Day 3 sessions are only available for <strong>Faculty of Alsun, Faculty of Archaeology, Faculty of Law, Faculty of Education, Faculty of Arts, and Faculty of Girls</strong> students.</>
+                          )}
+                        </p>
+                        {profile?.faculty && (
+                          <p className="text-blue-600 text-xs sm:text-sm mt-1">
+                            Your faculty: <strong>{profile.faculty}</strong> - {
+                              (activeBuildingDay === 1 && canBookDay1) || 
+                              (activeBuildingDay === 2 && canBookDay2) || 
+                              (activeBuildingDay === 3 && canBookDay3) 
+                                ? "You are eligible to book sessions" 
+                                : "You are not eligible to book sessions for this day"
+                            }
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {sessionsLoading ? (
+                    <div className="flex items-center justify-center h-32">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                    </div>
+                  ) : activeBuildingDay === 1 && day1Sessions.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur">
+                      {renderSessionCards(day1Sessions, 'building')}
+                    </div>
+                  ) : activeBuildingDay === 2 && day2Sessions.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur">
+                      {renderSessionCards(day2Sessions, 'building')}
+                    </div>
+                  ) : activeBuildingDay === 3 && day3Sessions.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur">
+                      {renderSessionCards(day3Sessions, 'building')}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200">
+                      <Building className="h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mx-auto mb-3 sm:mb-4" />
+                      <p className="text-gray-500 text-sm sm:text-base">No sessions available for Day {activeBuildingDay}</p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -1393,175 +1453,183 @@ const AttendeeDashboard: React.FC = () => {
           {/* Open Recruitment Days */}
           {activeTab === "open-recruitment" && (
             <div className="tab-content-animate">
-              <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center justify-between mb-6">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center">
-                  <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600" /> 
-                  <span className="text-sm sm:text-lg">Open Recruitment Days</span>
-                </h2>
-                
-                {/* Day Selector */}
-                <div className="flex space-x-1 sm:space-x-2 overflow-x-auto pb-2 sm:pb-0">
-                  {[4, 5].map((day) => (
-                    <button
-                      key={day}
-                      onClick={() => setActiveRecruitmentDay(day)}
-                      className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex-shrink-0 ${
-                        activeRecruitmentDay === day 
-                          ? "bg-orange-500 text-white" 
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                      }`}
-                    >
-                      Day {day}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Faculty Eligibility & CV Requirement Notice */}
-              <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="flex items-start">
-                  <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 mr-2 sm:mr-3 mt-0.5 flex-shrink-0" />
-                  <div className="flex-1">
-                    <h3 className="text-blue-800 font-medium text-sm sm:text-base mb-1">Eligibility Requirements</h3>
-                    <p className="text-blue-700 text-xs sm:text-sm">
-                      {activeRecruitmentDay === 4 ? (
-                        <>Day 4 sessions are only available for <strong>Faculty of Engineering</strong> and <strong>Faculty of Computer and Information Sciences</strong> students.</>
-                      ) : (
-                        <>Day 5 sessions are only available for <strong>Business Administration, Arts, Law, Languages, Education, and Alsun</strong> students.</>
-                      )}
-                    </p>
-                    <p className="text-blue-700 text-xs sm:text-sm mt-2">
-                      <strong>CV Requirement:</strong> You must upload your CV before booking Open Recruitment sessions.
-                    </p>
-                    
-                    {/* CV Upload Status */}
-                    <div className="mt-3 p-3 bg-white rounded-lg border border-blue-100">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-gray-700">CV Status:</span>
-                        <span className={`text-sm font-medium ${
-                          profile?.cv_path ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          {profile?.cv_path ? "Uploaded ✅" : "Not Uploaded ❌"}
-                        </span>
-                      </div>
-                      
-                      {/* CV Upload Interface */}
-                      {!profile?.cv_path ? (
-                        <div className="space-y-3">
-                          <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center">
-                            {cvFile ? (
-                              <div className="flex items-center justify-center space-x-2">
-                                <CheckCircle className="h-4 w-4 text-green-600" />
-                                <span className="text-sm text-gray-900">{cvFile.name}</span>
-                                <button
-                                  onClick={handleCvFileRemove}
-                                  className="text-red-600 hover:text-red-800 text-sm"
-                                >
-                                  Remove
-                                </button>
-                              </div>
-                            ) : (
-                              <>
-                                <input
-                                  type="file"
-                                  accept=".pdf,.doc,.docx"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) handleCvFileSelect(file);
-                                  }}
-                                  className="hidden"
-                                  id="cv-upload"
-                                />
-                                <label
-                                  htmlFor="cv-upload"
-                                  className="cursor-pointer text-sm text-blue-600 hover:text-blue-700 font-medium"
-                                >
-                                  Choose CV File
-                                </label>
-                                <p className="text-xs text-gray-500 mt-1">PDF, DOC, DOCX (Max 10MB)</p>
-                              </>
-                            )}
-                          </div>
-
-                          {cvFile && (
-                            <button
-                              onClick={handleCvUpload}
-                              disabled={cvUploadLoading}
-                              className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {cvUploadLoading ? (
-                                <>
-                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                  <span>Uploading...</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Upload className="h-4 w-4" />
-                                  <span>Upload CV</span>
-                                </>
-                              )}
-                            </button>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Your CV is ready for Open Recruitment sessions</span>
-                          <button
-                            onClick={() => window.open('/profile', '_blank')}
-                            className="flex items-center space-x-1 px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
-                          >
-                            <ExternalLink className="h-3 w-3" />
-                            <span>Manage in Profile</span>
-                          </button>
-                        </div>
-                      )}
-                      
-                      {/* Upload Status Messages */}
-                      {cvUploadError && (
-                        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
-                          <p className="text-red-700 text-xs">{cvUploadError}</p>
-                        </div>
-                      )}
-                      
-                      {cvUploadSuccess && (
-                        <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
-                          <p className="text-green-700 text-xs">{cvUploadSuccess}</p>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Faculty Eligibility Status */}
-                    {profile?.faculty && (
-                      <p className="text-blue-600 text-xs sm:text-sm mt-3">
-                        Your faculty: <strong>{profile.faculty}</strong> - {
-                          (activeRecruitmentDay === 4 && canBookDay4 && profile.cv_path) || 
-                          (activeRecruitmentDay === 5 && canBookDay5 && profile.cv_path) 
-                            ? "You are eligible to book sessions" 
-                            : "You are not eligible to book sessions for this day"
-                        }
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {sessionsLoading ? (
+              {tabLoading['open-recruitment'] ? (
                 <div className="flex items-center justify-center h-32">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
                 </div>
-              ) : activeRecruitmentDay === 4 && day4Sessions.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur">
-                  {renderSessionCards(day4Sessions, 'recruitment')}
-                </div>
-              ) : activeRecruitmentDay === 5 && day5Sessions.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur">
-                  {renderSessionCards(day5Sessions, 'recruitment')}
-                </div>
               ) : (
-                <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200">
-                  <BookOpen className="h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mx-auto mb-3 sm:mb-4" />
-                  <p className="text-gray-500 text-sm sm:text-base">No sessions available for Day {activeRecruitmentDay}</p>
-                </div>
+                <>
+                  <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center justify-between mb-6">
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center">
+                      <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600" /> 
+                      <span className="text-sm sm:text-lg">Open Recruitment Days</span>
+                    </h2>
+                    
+                    {/* Day Selector */}
+                    <div className="flex space-x-1 sm:space-x-2 overflow-x-auto pb-2 sm:pb-0">
+                      {[4, 5].map((day) => (
+                        <button
+                          key={day}
+                          onClick={() => setActiveRecruitmentDay(day)}
+                          className={`px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex-shrink-0 ${
+                            activeRecruitmentDay === day 
+                              ? "bg-orange-500 text-white" 
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                          }`}
+                        >
+                          Day {day}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Faculty Eligibility & CV Requirement Notice */}
+                  <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start">
+                      <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 mr-2 sm:mr-3 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <h3 className="text-blue-800 font-medium text-sm sm:text-base mb-1">Eligibility Requirements</h3>
+                        <p className="text-blue-700 text-xs sm:text-sm">
+                          {activeRecruitmentDay === 4 ? (
+                            <>Day 4 sessions are only available for <strong>Faculty of Engineering</strong> and <strong>Faculty of Computer and Information Sciences</strong> students.</>
+                          ) : (
+                            <>Day 5 sessions are only available for <strong>Business Administration, Arts, Law, Languages, Education, and Alsun</strong> students.</>
+                          )}
+                        </p>
+                        <p className="text-blue-700 text-xs sm:text-sm mt-2">
+                          <strong>CV Requirement:</strong> You must upload your CV before booking Open Recruitment sessions.
+                        </p>
+                        
+                        {/* CV Upload Status */}
+                        <div className="mt-3 p-3 bg-white rounded-lg border border-blue-100">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium text-gray-700">CV Status:</span>
+                            <span className={`text-sm font-medium ${
+                              profile?.cv_path ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                              {profile?.cv_path ? "Uploaded ✅" : "Not Uploaded ❌"}
+                            </span>
+                          </div>
+                          
+                          {/* CV Upload Interface */}
+                          {!profile?.cv_path ? (
+                            <div className="space-y-3">
+                              <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center">
+                                {cvFile ? (
+                                  <div className="flex items-center justify-center space-x-2">
+                                    <CheckCircle className="h-4 w-4 text-green-600" />
+                                    <span className="text-sm text-gray-900">{cvFile.name}</span>
+                                    <button
+                                      onClick={handleCvFileRemove}
+                                      className="text-red-600 hover:text-red-800 text-sm"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <input
+                                      type="file"
+                                      accept=".pdf,.doc,.docx"
+                                      onChange={(e) => {
+                                        const file = e.target.files?.[0];
+                                        if (file) handleCvFileSelect(file);
+                                      }}
+                                      className="hidden"
+                                      id="cv-upload"
+                                    />
+                                    <label
+                                      htmlFor="cv-upload"
+                                      className="cursor-pointer text-sm text-blue-600 hover:text-blue-700 font-medium"
+                                    >
+                                      Choose CV File
+                                    </label>
+                                    <p className="text-xs text-gray-500 mt-1">PDF, DOC, DOCX (Max 10MB)</p>
+                                  </>
+                                )}
+                              </div>
+
+                              {cvFile && (
+                                <button
+                                  onClick={handleCvUpload}
+                                  disabled={cvUploadLoading}
+                                  className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {cvUploadLoading ? (
+                                    <>
+                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                      <span>Uploading...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Upload className="h-4 w-4" />
+                                      <span>Upload CV</span>
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-gray-600">Your CV is ready for Open Recruitment sessions</span>
+                              <button
+                                onClick={() => window.open('/profile', '_blank')}
+                                className="flex items-center space-x-1 px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                <span>Manage in Profile</span>
+                              </button>
+                            </div>
+                          )}
+                          
+                          {/* Upload Status Messages */}
+                          {cvUploadError && (
+                            <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
+                              <p className="text-red-700 text-xs">{cvUploadError}</p>
+                            </div>
+                          )}
+                          
+                          {cvUploadSuccess && (
+                            <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                              <p className="text-green-700 text-xs">{cvUploadSuccess}</p>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {/* Faculty Eligibility Status */}
+                        {profile?.faculty && (
+                          <p className="text-blue-600 text-xs sm:text-sm mt-3">
+                            Your faculty: <strong>{profile.faculty}</strong> - {
+                              (activeRecruitmentDay === 4 && canBookDay4 && profile.cv_path) || 
+                              (activeRecruitmentDay === 5 && canBookDay5 && profile.cv_path) 
+                                ? "You are eligible to book sessions" 
+                                : "You are not eligible to book sessions for this day"
+                            }
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {sessionsLoading ? (
+                    <div className="flex items-center justify-center h-32">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                    </div>
+                  ) : activeRecruitmentDay === 4 && day4Sessions.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur">
+                      {renderSessionCards(day4Sessions, 'recruitment')}
+                    </div>
+                  ) : activeRecruitmentDay === 5 && day5Sessions.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur">
+                      {renderSessionCards(day5Sessions, 'recruitment')}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200">
+                      <BookOpen className="h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mx-auto mb-3 sm:mb-4" />
+                      <p className="text-gray-500 text-sm sm:text-base">No sessions available for Day {activeRecruitmentDay}</p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -1574,7 +1642,10 @@ const AttendeeDashboard: React.FC = () => {
                 {[1, 2, 3, 4, 5].map((day) => (
                   <button
                     key={day}
-                    onClick={() => setActiveDay(day)}
+                    onClick={() => {
+                      setActiveDay(day);
+                      loadMapForDay(day);
+                    }}
                     className={`px-3 py-2 rounded-lg text-xs sm:text-sm flex-shrink-0 ${
                       activeDay === day ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-700"
                     }`}
@@ -1584,11 +1655,20 @@ const AttendeeDashboard: React.FC = () => {
                 ))}
               </div>
               <div className="bg-white rounded-xl shadow-sm border p-3 sm:p-4 flex justify-center">
-                <img
-                  src={mapImages[activeDay - 1]}
-                  alt={`Day ${activeDay} Map`}
-                  className="max-w-full h-auto rounded-lg"
-                />
+                {mapsLoaded.has(activeDay) ? (
+                  <img
+                    src={mapImages[activeDay - 1]}
+                    alt={`Day ${activeDay} Map`}
+                    className="max-w-full h-auto rounded-lg"
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-64 w-full">
+                    <div className="text-center">
+                      <MapPin className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                      <p className="text-gray-500">Click on a day to load the map</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -1596,164 +1676,172 @@ const AttendeeDashboard: React.FC = () => {
           {/* Companies */}
           {activeTab === "companies" && (
             <div className="tab-content-animate">
-              <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center justify-between mb-6">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center">
-                  <Building className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600" /> 
-                  <span className="text-sm sm:text-lg">Participating Companies</span>
-                </h2>
-                
-                {/* Day Selector for Companies */}
-                <div className="flex space-x-1 sm:space-x-2 overflow-x-auto pb-2 sm:pb-0">
-                  {[1, 2, 3, 4, 5].map((day) => (
-                    <button
-                      key={day}
-                      onClick={() => setActiveCompanyDay(day)}
-                      className={`px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex-shrink-0 ${
-                        activeCompanyDay === day 
-                          ? "bg-orange-500 text-white shadow-lg scale-105" 
-                          : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md"
-                      } transform hover:scale-105 transition-all duration-300`}
-                    >
-                      Day {day}
-                    </button>
-                  ))}
+              {tabLoading['companies'] ? (
+                <div className="flex items-center justify-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center justify-between mb-6">
+                    <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center">
+                      <Building className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600" /> 
+                      <span className="text-sm sm:text-lg">Participating Companies</span>
+                    </h2>
+                    
+                    {/* Day Selector for Companies */}
+                    <div className="flex space-x-1 sm:space-x-2 overflow-x-auto pb-2 sm:pb-0">
+                      {[1, 2, 3, 4, 5].map((day) => (
+                        <button
+                          key={day}
+                          onClick={() => setActiveCompanyDay(day)}
+                          className={`px-3 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors flex-shrink-0 ${
+                            activeCompanyDay === day 
+                              ? "bg-orange-500 text-white shadow-lg scale-105" 
+                              : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md"
+                          } transform hover:scale-105 transition-all duration-300`}
+                        >
+                          Day {day}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
 
-              <div className="space-y-8">
-                {PARTNER_TYPES.map((partnerType) => {
-                  const partnerCompanies = companies.filter(company => 
-                    company.partner_type === partnerType && 
-                    (!company.days || company.days.length === 0 || company.days.includes(activeCompanyDay))
-                  );
-                  
-                  if (partnerCompanies.length === 0) return null;
-                  
-                  return (
-                    <div key={partnerType} className="fade-in-up-blur">
-                      <h3 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">
-                        {partnerType}
-                      </h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur">
-                        {partnerCompanies.map((company, index) => (
-                          <div
-                            key={company.id}
-                            onClick={() => handleCompanyClick(company)}
-                            className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 cursor-pointer card-hover-enhanced dashboard-card transform transition-all duration-300 hover:scale-105"
-                            style={{ animationDelay: `${index * 100}ms` }}
-                          >
-                            <div className="text-center">
-                              <img 
-                                src={company.logo_url} 
-                                alt={`${company.name} logo`} 
-                                className="h-12 sm:h-16 w-auto mx-auto mb-3 sm:mb-4 object-contain" 
-                              />
-                              <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 line-clamp-2">{company.name}</h3>
-                              
-                              {/* Days Badge */}
-                              <div className="mb-3">
-                                <div className="flex flex-wrap justify-center gap-1">
-                                  {(!company.days || company.days.length === 0) ? (
-                                    <span className="inline-block px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full border border-green-200 font-bold">
-                                      All Days
-                                    </span>
-                                  ) : (
-                                    company.days.map((day, idx) => (
-                                      <span 
-                                        key={idx}
-                                        className={`inline-block px-2 py-1 text-xs rounded-full border ${
-                                          day === activeCompanyDay
-                                            ? 'bg-orange-100 text-orange-800 border-orange-200 font-bold'
-                                            : 'bg-gray-100 text-gray-600 border-gray-200'
-                                        }`}
-                                      >
-                                        Day {day}
-                                      </span>
-                                    ))
+                  <div className="space-y-8">
+                    {PARTNER_TYPES.map((partnerType) => {
+                      const partnerCompanies = companies.filter(company => 
+                        company.partner_type === partnerType && 
+                        (!company.days || company.days.length === 0 || company.days.includes(activeCompanyDay))
+                      );
+                      
+                      if (partnerCompanies.length === 0) return null;
+                      
+                      return (
+                        <div key={partnerType} className="fade-in-up-blur">
+                          <h3 className="text-lg font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">
+                            {partnerType}
+                          </h3>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur">
+                            {partnerCompanies.map((company, index) => (
+                              <div
+                                key={company.id}
+                                onClick={() => handleCompanyClick(company)}
+                                className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 cursor-pointer card-hover-enhanced dashboard-card transform transition-all duration-300 hover:scale-105"
+                                style={{ animationDelay: `${index * 100}ms` }}
+                              >
+                                <div className="text-center">
+                                  <img 
+                                    src={company.logo_url} 
+                                    alt={`${company.name} logo`} 
+                                    className="h-12 sm:h-16 w-auto mx-auto mb-3 sm:mb-4 object-contain" 
+                                  />
+                                  <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-2 line-clamp-2">{company.name}</h3>
+                                  
+                                  {/* Days Badge */}
+                                  <div className="mb-3">
+                                    <div className="flex flex-wrap justify-center gap-1">
+                                      {(!company.days || company.days.length === 0) ? (
+                                        <span className="inline-block px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full border border-green-200 font-bold">
+                                          All Days
+                                        </span>
+                                      ) : (
+                                        company.days.map((day, idx) => (
+                                          <span 
+                                            key={idx}
+                                            className={`inline-block px-2 py-1 text-xs rounded-full border ${
+                                              day === activeCompanyDay
+                                                ? 'bg-orange-100 text-orange-800 border-orange-200 font-bold'
+                                                : 'bg-gray-100 text-gray-600 border-gray-200'
+                                            }`}
+                                          >
+                                            Day {day}
+                                          </span>
+                                        ))
+                                      )}
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Faculty Information */}
+                                  {company.academic_faculties_seeking_for && company.academic_faculties_seeking_for.length > 0 && (
+                                    <div className="mb-3">
+                                      <p className="text-xs font-medium text-gray-700 mb-2">Seeking Faculties:</p>
+                                      <div className="flex flex-col gap-1.5">
+                                        {company.academic_faculties_seeking_for.map((faculty, idx) => (
+                                          <div 
+                                            key={idx}
+                                            className="w-full bg-blue-50 border border-blue-200 rounded-lg px-2 py-1.5"
+                                          >
+                                            <span className="text-xs text-blue-800 font-medium line-clamp-1">
+                                              {faculty.replace('Faculty of ', '')}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {/* Vacancies Type */}
+                                  {company.vacancies_type && company.vacancies_type.length > 0 && (
+                                    <div className="mb-3">
+                                      <p className="text-xs font-medium text-gray-700 mb-2">Vacancies:</p>
+                                      <div className="flex flex-wrap justify-center gap-1">
+                                        {company.vacancies_type.map((vacancy, idx) => (
+                                          <span 
+                                            key={idx}
+                                            className="inline-block px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full border border-green-200"
+                                          >
+                                            {vacancy}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {/* HR Emails */}
+                                  {company.hr_mails && company.hr_mails.length > 0 && (
+                                    <div className="mb-3">
+                                      <p className="text-xs font-medium text-gray-700 mb-2">HR Contacts:</p>
+                                      <div className="flex flex-col gap-1">
+                                        {company.hr_mails.map((email, idx) => (
+                                          <a
+                                            key={idx}
+                                            href={`mailto:${email}`}
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="text-xs text-blue-600 hover:text-blue-800 break-all px-2 py-1 bg-gray-50 rounded border border-gray-200 hover:bg-gray-100 transition-colors"
+                                          >
+                                            {email}
+                                          </a>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                  
+                                  {company.booth_number && (
+                                    <div className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
+                                      <MapPin className="h-3 w-3 mr-1" />
+                                      Booth {company.booth_number}
+                                    </div>
                                   )}
                                 </div>
                               </div>
-                              
-                              {/* Faculty Information */}
-                              {company.academic_faculties_seeking_for && company.academic_faculties_seeking_for.length > 0 && (
-                                <div className="mb-3">
-                                  <p className="text-xs font-medium text-gray-700 mb-2">Seeking Faculties:</p>
-                                  <div className="flex flex-col gap-1.5">
-                                    {company.academic_faculties_seeking_for.map((faculty, idx) => (
-                                      <div 
-                                        key={idx}
-                                        className="w-full bg-blue-50 border border-blue-200 rounded-lg px-2 py-1.5"
-                                      >
-                                        <span className="text-xs text-blue-800 font-medium line-clamp-1">
-                                          {faculty.replace('Faculty of ', '')}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {/* Vacancies Type */}
-                              {company.vacancies_type && company.vacancies_type.length > 0 && (
-                                <div className="mb-3">
-                                  <p className="text-xs font-medium text-gray-700 mb-2">Vacancies:</p>
-                                  <div className="flex flex-wrap justify-center gap-1">
-                                    {company.vacancies_type.map((vacancy, idx) => (
-                                      <span 
-                                        key={idx}
-                                        className="inline-block px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full border border-green-200"
-                                      >
-                                        {vacancy}
-                                      </span>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {/* HR Emails */}
-                              {company.hr_mails && company.hr_mails.length > 0 && (
-                                <div className="mb-3">
-                                  <p className="text-xs font-medium text-gray-700 mb-2">HR Contacts:</p>
-                                  <div className="flex flex-col gap-1">
-                                    {company.hr_mails.map((email, idx) => (
-                                      <a
-                                        key={idx}
-                                        href={`mailto:${email}`}
-                                        onClick={(e) => e.stopPropagation()}
-                                        className="text-xs text-blue-600 hover:text-blue-800 break-all px-2 py-1 bg-gray-50 rounded border border-gray-200 hover:bg-gray-100 transition-colors"
-                                      >
-                                        {email}
-                                      </a>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                              
-                              {company.booth_number && (
-                                <div className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
-                                  <MapPin className="h-3 w-3 mr-1" />
-                                  Booth {company.booth_number}
-                                </div>
-                              )}
-                            </div>
+                            ))}
                           </div>
-                        ))}
+                        </div>
+                      );
+                    })}
+                    
+                    {/* Fallback if no companies found for selected day */}
+                    {companies.filter(company => 
+                      !company.days || company.days.length === 0 || company.days.includes(activeCompanyDay)
+                    ).length === 0 && (
+                      <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200">
+                        <Building className="h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mx-auto mb-3 sm:mb-4" />
+                        <p className="text-gray-500 text-sm sm:text-base">No companies available for Day {activeCompanyDay}</p>
+                        <p className="text-gray-400 text-xs mt-2">Try selecting a different day</p>
                       </div>
-                    </div>
-                  );
-                })}
-                
-                {/* Fallback if no companies found for selected day */}
-                {companies.filter(company => 
-                  !company.days || company.days.length === 0 || company.days.includes(activeCompanyDay)
-                ).length === 0 && (
-                  <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200">
-                    <Building className="h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mx-auto mb-3 sm:mb-4" />
-                    <p className="text-gray-500 text-sm sm:text-base">No companies available for Day {activeCompanyDay}</p>
-                    <p className="text-gray-400 text-xs mt-2">Try selecting a different day</p>
+                    )}
                   </div>
-                )}
-              </div>
+                </>
+              )}
             </div>
           )}
         </div>
