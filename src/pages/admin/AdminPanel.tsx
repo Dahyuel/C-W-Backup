@@ -2988,88 +2988,72 @@ const handleEventSubmit = async () => {
         {/* Tab Content with Smooth Transitions */}
         <div className={getTabContentAnimation()}>
           {/* Dashboard Tab - Responsive */}
-          {activeTab === "dashboard" && (
-            <div className="space-y-6 sm:space-y-8 fade-in-blur">
-              {/* Quick Actions */}
-              <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 text-center fade-in-blur card-hover dashboard-card">
-                <h1 className="text-xl sm:text-3xl font-bold text-black-800 flex items-center justify-center gap-2 mb-4 sm:mb-6">
-                  <Sparkles className="h-5 w-5 sm:h-7 sm:w-7 text-orange-500" />
-                  Quick Actions
-                </h1>
+        // Enhanced Dashboard Tab
+{activeTab === "dashboard" && (
+  <div className="space-y-6 sm:space-y-8 fade-in-blur">
+    {/* Quick Actions */}
+    <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 text-center fade-in-blur card-hover">
+      <h1 className="text-3xl font-bold text-black-800 flex items-center justify-center gap-2 mb-6">
+        <Sparkles className="h-7 w-7 text-orange-500" />
+        Quick Actions
+      </h1>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 stagger-children">
-                  <button
-                    onClick={() => setCompanyModal(true)}
-                    className="flex flex-col items-center justify-center py-4 sm:py-6 px-3 sm:px-4 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 smooth-hover"
-                  >
-                    <Building className="h-6 w-6 sm:h-8 sm:w-8 mb-2" />
-                    <span className="text-sm sm:text-base font-medium">Add Company</span>
-                  </button>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 stagger-children">
+        <button
+          onClick={() => setCompanyModal(true)}
+          className="flex flex-col items-center justify-center py-6 px-4 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all duration-300 smooth-hover"
+        >
+          <Building className="h-8 w-8 mb-2" />
+          <span className="text-base font-medium">Add Company</span>
+        </button>
 
-                  <button
-                    onClick={() => setSessionModal(true)}
-                    className="flex flex-col items-center justify-center py-4 sm:py-6 px-3 sm:px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all duration-300 smooth-hover"
-                  >
-                    <Calendar className="h-6 w-6 sm:h-8 sm:w-8 mb-2" />
-                    <span className="text-sm sm:text-base font-medium">Add Session</span>
-                  </button>
+        <button
+          onClick={() => setSessionModal(true)}
+          className="flex flex-col items-center justify-center py-6 px-4 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-all duration-300 smooth-hover"
+        >
+          <Calendar className="h-8 w-8 mb-2" />
+          <span className="text-base font-medium">Add Session</span>
+        </button>
 
-                  <button
-                    onClick={() => setAnnouncementModal(true)}
-                    className="flex flex-col items-center justify-center py-4 sm:py-6 px-3 sm:px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-700 transition-all duration-300 smooth-hover"
-                  >
-                    <Megaphone className="h-6 w-6 sm:h-8 sm:w-8 mb-2" />
-                    <span className="text-sm sm:text-base font-medium">Send Announcement</span>
-                  </button>
-                </div>
-              </div>
+        <button
+          onClick={() => setAnnouncementModal(true)}
+          className="flex flex-col items-center justify-center py-6 px-4 bg-purple-500 text-white rounded-xl hover:bg-purple-700 transition-all duration-300 smooth-hover"
+        >
+          <Megaphone className="h-8 w-8 mb-2" />
+          <span className="text-base font-medium">Send Announcement</span>
+        </button>
+      </div>
+    </div>
 
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 stagger-children">
-                <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 fade-in-blur card-hover dashboard-card">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Total Users</p>
-                      <p className="text-2xl sm:text-3xl font-bold text-orange-600">
-                        {stats?.total_users || 0}
-                      </p>
-                    </div>
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                      <Users className="h-5 w-5 sm:h-6 sm:w-6 text-orange-600" />
-                    </div>
-                  </div>
-                </div>
+    {/* Current State Widget - MOVED TO DASHBOARD */}
+    <CurrentStateWidget />
 
-                <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 fade-in-blur card-hover dashboard-card">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Total Attendees</p>
-                      <p className="text-2xl sm:text-3xl font-bold text-blue-600">
-                        {buildingStats?.total_attendees || 0}
-                      </p>
-                    </div>
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <Users className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
-                    </div>
-                  </div>
-                </div>
+    {/* Stats Cards */}
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 stagger-children">
+      <StatCard
+        title="Total Users"
+        value={stats?.total_users || 0}
+        icon={<Users className="h-6 w-6" />}
+        color="blue"
+      />
+      <StatCard
+        title="Total Attendees"
+        value={buildingStats?.total_attendees || 0}
+        icon={<Users className="h-6 w-6" />}
+        color="green"
+      />
+      <StatCard
+        title="Total Volunteers"
+        value={(stats?.total_users || 0) - (buildingStats?.total_attendees || 0)}
+        icon={<Users className="h-6 w-6" />}
+        color="purple"
+      />
+    </div>
 
-                <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 fade-in-blur card-hover dashboard-card">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-gray-600">Total Volunteers</p>
-                      <p className="text-2xl sm:text-3xl font-bold text-green-600">
-                        {(stats?.total_users || 0) - (buildingStats?.total_attendees || 0)}
-                      </p>
-                    </div>
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                      <Users className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+    {/* Today's Event Entries */}
+    <TodayEventEntries />
+  </div>
+)}
 
           {/* Statistics Tab */}
           {activeTab === "statistics" && (
