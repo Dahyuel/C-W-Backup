@@ -287,59 +287,64 @@ export const InfoDeskDashboard: React.FC = () => {
     }
   };
 
-  // Add attendee to session
-  const addToSession = async () => {
-    if (!selectedAttendee || !selectedSession) return;
+// Add attendee to session
+const addToSession = async () => {
+  if (!selectedAttendee || !selectedSession) return;
 
-    try {
-      setActionLoading(true);
-      setError(null);
+  try {
+    setActionLoading(true);
+    setError(null);
 
-      // Check capacity first
-      if (selectedSession.max_attendees && selectedSession.current_bookings >= selectedSession.max_attendees) {
-        setError("Session is at full capacity");
-        return;
-      }
-
-      // Create session attendance record
-      const { data, error } = await supabase
-        .from('attendances')
-        .insert({
-          user_id: selectedAttendee.id,
-          session_id: selectedSession.id,
-          scan_type: 'booking',
-          scanned_by: profile?.id
-        })
-        .select()
-        .single();
-
-      if (error) {
-        if (error.code === '23505') { // Unique constraint violation
-          setError("Attendee is already registered for this session");
-        } else {
-          setError("Failed to add attendee to session");
-        }
-        return;
-      }
-
-      // Update local booking info
-      setSessionBookingInfo({
-        isBooked: true,
-        bookingId: data.id,
-        bookedAt: data.scanned_at
-      });
-
-      // Refresh session data to update booking count
-      loadSessions();
-      
-    } catch (err) {
-      console.error('Add to session error:', err);
-      setError("Failed to add attendee to session");
-    } finally {
-      setActionLoading(false);
+    // Double-check capacity before proceeding
+    if (isSessionAtCapacity(selectedSession)) {
+      setError("Session is at full capacity. Cannot add more attendees.");
+      return;
     }
-  };
 
+    // Check if attendee is inside event
+    if (!selectedAttendee.event_entry) {
+      setError("Attendee must be inside the event to book sessions");
+      return;
+    }
+
+    // Create session attendance record
+    const { data, error } = await supabase
+      .from('attendances')
+      .insert({
+        user_id: selectedAttendee.id,
+        session_id: selectedSession.id,
+        scan_type: 'booking',
+        scanned_by: profile?.id
+      })
+      .select()
+      .single();
+
+    if (error) {
+      if (error.code === '23505') { // Unique constraint violation
+        setError("Attendee is already registered for this session");
+      } else {
+        setError("Failed to add attendee to session");
+      }
+      return;
+    }
+
+    // Update local booking info
+    setSessionBookingInfo({
+      isBooked: true,
+      bookingId: data.id,
+      bookedAt: data.scanned_at
+    });
+
+    // Refresh session data to update booking count
+    await loadSessions();
+    
+  } catch (err) {
+    console.error('Add to session error:', err);
+    setError("Failed to add attendee to session");
+  } finally {
+    setActionLoading(false);
+  }
+};
   // Remove attendee from session
 // Remove attendee from session
 const removeFromSession = async () => {
