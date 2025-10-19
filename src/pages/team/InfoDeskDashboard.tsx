@@ -182,77 +182,92 @@ export const InfoDeskDashboard: React.FC = () => {
   };
 
   // Load session attendees - FIXED QUERY with explicit relationship
-  const loadSessionAttendees = async (sessionId: string) => {
-    try {
-      setLoadingAttendees(true);
-      console.log('Loading attendees for session:', sessionId);
+// Load session attendees - OPTIMIZED QUERY
+const loadSessionAttendees = async (sessionId: string) => {
+  try {
+    setLoadingAttendees(true);
+    console.log('Loading attendees for session:', sessionId);
 
-      // First, get all bookings for this session with explicit relationship
-      const { data: bookingsData, error: bookingsError } = await supabase
-        .from('attendances')
-        .select(`
+    // First, get all bookings for this session with explicit relationship
+    const { data: bookingsData, error: bookingsError } = await supabase
+      .from('attendances')
+      .select(`
+        id,
+        user_id,
+        scanned_at,
+        users_profiles!attendances_user_id_fkey (
           id,
-          user_id,
-          scanned_at,
-          users_profiles!attendances_user_id_fkey (
-            id,
-            first_name,
-            last_name,
-            email,
-            personal_id,
-            university,
-            faculty
-          )
-        `)
-        .eq('session_id', sessionId)
-        .eq('scan_type', 'booking');
+          first_name,
+          last_name,
+          email,
+          personal_id,
+          university,
+          faculty
+        )
+      `)
+      .eq('session_id', sessionId)
+      .eq('scan_type', 'booking');
 
-      if (bookingsError) {
-        console.error('Error loading session bookings:', bookingsError);
-        setSessionAttendees([]);
-        return;
-      }
-
-      console.log('Found bookings:', bookingsData);
-
-      if (!bookingsData || bookingsData.length === 0) {
-        setSessionAttendees([]);
-        return;
-      }
-
-      // Check session entry status for each attendee
-      const attendeesWithStatus: SessionAttendee[] = await Promise.all(
-        bookingsData.map(async (attendance) => {
-          if (!attendance.users_profiles) {
-            console.log('No user profile found for attendance:', attendance.id);
-            return null;
-          }
-
-          const isInsideSession = await checkAttendeeSessionEntry(attendance.user_id, sessionId);
-          
-          return {
-            ...attendance.users_profiles,
-            booking_id: attendance.id,
-            booked_at: attendance.scanned_at,
-            is_inside_session: isInsideSession
-          };
-        })
-      );
-
-      // Filter out any null entries
-      const validAttendees = attendeesWithStatus.filter(attendee => attendee !== null) as SessionAttendee[];
-      
-      console.log('Final attendees with status:', validAttendees);
-      setSessionAttendees(validAttendees);
-      
-    } catch (err) {
-      console.error('Exception loading session attendees:', err);
+    if (bookingsError) {
+      console.error('Error loading session bookings:', bookingsError);
       setSessionAttendees([]);
-    } finally {
-      setLoadingAttendees(false);
+      return;
     }
-  };
 
+    console.log('Found bookings:', bookingsData);
+
+    if (!bookingsData || bookingsData.length === 0) {
+      setSessionAttendees([]);
+      return;
+    }
+
+    // OPTIMIZATION: Get all session entries in a single query instead of individual checks
+    const userIds = bookingsData.map(attendance => attendance.user_id).filter(Boolean);
+    
+    let sessionEntries: { user_id: string }[] = [];
+    if (userIds.length > 0) {
+      const { data: entriesData } = await supabase
+        .from('attendances')
+        .select('user_id')
+        .eq('session_id', sessionId)
+        .eq('scan_type', 'session_entry')
+        .in('user_id', userIds);
+
+      sessionEntries = entriesData || [];
+    }
+
+    // Create a Set for faster lookup
+    const sessionEntryUserIds = new Set(sessionEntries.map(entry => entry.user_id));
+
+    // Process attendees with optimized session entry check
+    const attendeesWithStatus: SessionAttendee[] = bookingsData
+      .map((attendance) => {
+        if (!attendance.users_profiles) {
+          console.log('No user profile found for attendance:', attendance.id);
+          return null;
+        }
+
+        const isInsideSession = sessionEntryUserIds.has(attendance.user_id);
+        
+        return {
+          ...attendance.users_profiles,
+          booking_id: attendance.id,
+          booked_at: attendance.scanned_at,
+          is_inside_session: isInsideSession
+        };
+      })
+      .filter(attendee => attendee !== null) as SessionAttendee[];
+
+    console.log('Final attendees with status:', attendeesWithStatus);
+    setSessionAttendees(attendeesWithStatus);
+    
+  } catch (err) {
+    console.error('Exception loading session attendees:', err);
+    setSessionAttendees([]);
+  } finally {
+    setLoadingAttendees(false);
+  }
+};
   // Format time for display
   const formatTime = (timeString: string) => {
     if (!timeString) return '';
