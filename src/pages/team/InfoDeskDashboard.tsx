@@ -137,27 +137,35 @@ export const InfoDeskDashboard: React.FC = () => {
       setActionLoading(false);
     }
   };
+const loadSessions = async () => {
+  try {
+    setLoading(true);
+    
+    // Get today's date at midnight (start of day)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Get all sessions and filter only those starting from today
+    const { data, error } = await supabase
+      .from('sessions')
+      .select('*')
+      .gte('start_time', today.toISOString()) // Only sessions starting from today
+      .order('start_time', { ascending: true }); // Order by start time
 
-  const loadSessions = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await getAllSessions();
-      
-      if (error) {
-        setError("Failed to load sessions");
-        console.error("Error loading sessions:", error);
-        return;
-      }
-
-      setSessions(data);
-    } catch (err) {
+    if (error) {
       setError("Failed to load sessions");
-      console.error("Exception loading sessions:", err);
-    } finally {
-      setLoading(false);
+      console.error("Error loading sessions:", error);
+      return;
     }
-  };
 
+    setSessions(data || []);
+  } catch (err) {
+    setError("Failed to load sessions");
+    console.error("Exception loading sessions:", err);
+  } finally {
+    setLoading(false);
+  }
+};
   // Check if attendee is inside the session
   const checkAttendeeSessionEntry = async (userId: string, sessionId: string): Promise<boolean> => {
     try {
