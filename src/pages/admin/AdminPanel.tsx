@@ -3219,7 +3219,6 @@ const handleEventSubmit = async () => {
         {/* Tab Content with Smooth Transitions */}
         <div className={getTabContentAnimation()}>
           {/* Dashboard Tab - Responsive */}
-        // Enhanced Dashboard Tab
 {activeTab === "dashboard" && (
   <div className="space-y-6 sm:space-y-8 fade-in-blur">
     {/* Quick Actions */}
