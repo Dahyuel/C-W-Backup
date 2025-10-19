@@ -1806,9 +1806,8 @@ const StatisticsTab = () => {
   const fetchEventStats = async (day: number) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('event-stats', {
-        body: { day }
-      });
+      const { data, error } = await supabase
+        .rpc('get_event_stats', { selected_day: day });
 
       if (error) throw error;
       setStats(data);
@@ -1828,23 +1827,7 @@ const StatisticsTab = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64 fade-in-blur">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
-      </div>
-    );
-  }
-
-  if (!stats) {
-    return (
-      <div className="text-center py-8 fade-in-blur">
-        <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-        <p className="text-gray-600">Failed to load event statistics</p>
-      </div>
-    );
-  }
-
+  // ... rest of your component JSX remains the same
   return (
     <div className="space-y-6 sm:space-y-8 fade-in-blur">
       {/* Day Selector */}
@@ -1867,31 +1850,31 @@ const StatisticsTab = () => {
       {/* Current Day Stats */}
       <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Day {stats.day} - {getDateForDay(stats.day)}
+          Day {stats?.day} - {getDateForDay(stats?.day || 1)}
         </h3>
         
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 stagger-children">
           <StatCard
             title="Entries"
-            value={stats.attendance_stats.entries}
+            value={stats?.attendance_stats.entries || 0}
             icon={<TrendingUp className="h-5 w-5" />}
             color="green"
           />
           <StatCard
             title="Exits"
-            value={stats.attendance_stats.exits}
+            value={stats?.attendance_stats.exits || 0}
             icon={<TrendingUp className="h-5 w-5" />}
             color="red"
           />
           <StatCard
             title="Building Entries"
-            value={stats.attendance_stats.building_entries}
+            value={stats?.attendance_stats.building_entries || 0}
             icon={<Building className="h-5 w-5" />}
             color="blue"
           />
           <StatCard
             title="Session Entries"
-            value={stats.attendance_stats.session_entries}
+            value={stats?.attendance_stats.session_entries || 0}
             icon={<Calendar className="h-5 w-5" />}
             color="purple"
           />
@@ -1904,13 +1887,13 @@ const StatisticsTab = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 stagger-children">
           <StatCard
             title="Currently in Event"
-            value={stats.current_state.current_in_event}
+            value={stats?.current_state.current_in_event || 0}
             icon={<Users className="h-5 w-5" />}
             color="orange"
           />
           <StatCard
             title="Currently in Building"
-            value={stats.current_state.current_in_building}
+            value={stats?.current_state.current_in_building || 0}
             icon={<Building className="h-5 w-5" />}
             color="blue"
           />
@@ -1918,49 +1901,51 @@ const StatisticsTab = () => {
       </div>
 
       {/* Student-Graduate Ratio */}
-      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Student-Graduate Ratio</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-700">Students</span>
-              <span className="text-lg font-bold text-green-600">
-                {stats.degree_stats.students} ({stats.degree_stats.student_percentage}%)
-              </span>
+      {stats?.degree_stats && (
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Student-Graduate Ratio</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-gray-700">Students</span>
+                <span className="text-lg font-bold text-green-600">
+                  {stats.degree_stats.students} ({stats.degree_stats.student_percentage}%)
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-4">
+                <div
+                  className="bg-green-500 h-4 rounded-full"
+                  style={{ width: `${stats.degree_stats.student_percentage}%` }}
+                ></div>
+              </div>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-4">
-              <div
-                className="bg-green-500 h-4 rounded-full"
-                style={{ width: `${stats.degree_stats.student_percentage}%` }}
-              ></div>
+            
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-medium text-gray-700">Graduates</span>
+                <span className="text-lg font-bold text-blue-600">
+                  {stats.degree_stats.graduates} ({stats.degree_stats.graduate_percentage}%)
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-4">
+                <div
+                  className="bg-blue-500 h-4 rounded-full"
+                  style={{ width: `${stats.degree_stats.graduate_percentage}%` }}
+                ></div>
+              </div>
             </div>
           </div>
           
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-gray-700">Graduates</span>
-              <span className="text-lg font-bold text-blue-600">
-                {stats.degree_stats.graduates} ({stats.degree_stats.graduate_percentage}%)
-              </span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-4">
-              <div
-                className="bg-blue-500 h-4 rounded-full"
-                style={{ width: `${stats.degree_stats.graduate_percentage}%` }}
-              ></div>
-            </div>
+          <div className="mt-4 text-center">
+            <p className="text-sm text-gray-600">
+              Total attendees with degree information: {stats.degree_stats.total}
+            </p>
           </div>
         </div>
-        
-        <div className="mt-4 text-center">
-          <p className="text-sm text-gray-600">
-            Total attendees with degree information: {stats.degree_stats.total}
-          </p>
-        </div>
-      </div>
+      )}
 
       {/* University Distribution */}
-      {stats.university_stats.length > 0 && (
+      {stats?.university_stats && stats.university_stats.length > 0 && (
         <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Universities in Event</h3>
           <div className="space-y-3">
@@ -1990,7 +1975,7 @@ const StatisticsTab = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 stagger-children">
         <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Attendance Flow</h3>
-          <AttendanceFlowChart stats={stats.attendance_stats} />
+          <AttendanceFlowChart stats={stats?.attendance_stats || { entries: 0, exits: 0, building_entries: 0, session_entries: 0 }} />
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover">
@@ -2001,7 +1986,6 @@ const StatisticsTab = () => {
     </div>
   );
 };
-  
   const RegistrationStatsView: React.FC<{ statsData: StatsData; timeRange: string }> = ({ statsData, timeRange }) => (
     <div className="space-y-6 sm:space-y-8 fade-in-blur">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 stagger-children">
