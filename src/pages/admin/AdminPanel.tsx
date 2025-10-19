@@ -2253,95 +2253,69 @@ const StatisticsTab = () => {
 
 
   // Chart Components
-  const DailyActivityChart: React.FC<{ selectedDay: number }> = ({ selectedDay }) => {
-    const [dailyData, setDailyData] = useState<Array<{ hour: string; entries: number; exits: number }>>([]);
+ const DailyActivityChart: React.FC<{ selectedDay: number }> = ({ selectedDay }) => {
+  const [dailyData, setDailyData] = useState<Array<{ hour: string; entries: number; exits: number }>>([]);
+  const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-      fetchDailyActivity(selectedDay);
-    }, [selectedDay]);
+  useEffect(() => {
+    fetchDailyActivity(selectedDay);
+  }, [selectedDay]);
 
+  const fetchDailyActivity = async (day: number) => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .rpc('get_daily_activity', { selected_day: day });
 
-    
-    const fetchDailyActivity = async (day: number) => {
-      try {
-        // Calculate the date for the selected day (Day 1 = Oct 19, 2025)
-        const eventStartDate = new Date('2025-10-19');
-        const targetDate = new Date(eventStartDate);
-        targetDate.setDate(eventStartDate.getDate() + (day - 1));
-        
-        const startOfDay = new Date(targetDate);
-        startOfDay.setHours(0, 0, 0, 0);
-        
-        const endOfDay = new Date(targetDate);
-        endOfDay.setHours(23, 59, 59, 999);
+      if (error) throw error;
+      setDailyData(data || []);
+    } catch (error) {
+      console.error('Error fetching daily activity:', error);
+      setDailyData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        const { data: attendances, error } = await supabase
-          .from('attendances')
-          .select('*')
-          .gte('scanned_at', startOfDay.toISOString())
-          .lte('scanned_at', endOfDay.toISOString())
-          .order('scanned_at', { ascending: true });
-
-        if (error) throw error;
-
-        const hourlyData: Record<string, { entries: number; exits: number }> = {};
-        (attendances || []).forEach((attendance: { scanned_at: string; scan_type: string }) => {
-          const hour = new Date(attendance.scanned_at).getHours();
-          const hourKey = `${hour}:00`;
-          
-          if (!hourlyData[hourKey]) {
-            hourlyData[hourKey] = { entries: 0, exits: 0 };
-          }
-          
-          if (attendance.scan_type === 'entry') {
-            hourlyData[hourKey].entries++;
-          } else if (attendance.scan_type === 'exit') {
-            hourlyData[hourKey].exits++;
-          }
-        });
-
-        const processedData = (Object.entries(hourlyData) as Array<[string, { entries: number; exits: number }]>)
-          .map(([hour, data]) => ({ hour, entries: data.entries, exits: data.exits }))
-          .sort((a, b) => a.hour.localeCompare(b.hour));
-
-        setDailyData(processedData);
-      } catch (error) {
-        console.error('Error fetching daily activity:', error);
-        setDailyData([]);
-      }
-    };
-
-    const maxValue = Math.max(...dailyData.flatMap(d => [d.entries, d.exits]), 1);
-
+  if (loading) {
     return (
-      <div className="space-y-4 fade-in-blur">
-        {dailyData.map((data, index) => (
-          <div key={index} className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="font-medium text-gray-700">{data.hour}</span>
-              <div className="flex gap-4">
-                <span className="text-green-600">Entries: {data.entries}</span>
-                <span className="text-red-600">Exits: {data.exits}</span>
-              </div>
-            </div>
-            <div className="flex gap-1 h-4">
-              <div
-                className="bg-green-500 rounded-l"
-                style={{ width: `${(data.entries / maxValue) * 100}%` }}
-              ></div>
-              <div
-                className="bg-red-500 rounded-r"
-                style={{ width: `${(data.exits / maxValue) * 100}%` }}
-              ></div>
-            </div>
-          </div>
-        ))}
-        {dailyData.length === 0 && (
-          <p className="text-gray-500 text-center">No activity data for today</p>
-        )}
+      <div className="flex items-center justify-center h-32">
+        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-500"></div>
       </div>
     );
-  };
+  }
+
+  const maxValue = Math.max(...dailyData.flatMap(d => [d.entries, d.exits]), 1);
+
+  return (
+    <div className="space-y-4 fade-in-blur">
+      {dailyData.map((data, index) => (
+        <div key={index} className="space-y-2">
+          <div className="flex justify-between text-sm">
+            <span className="font-medium text-gray-700">{data.hour}</span>
+            <div className="flex gap-4">
+              <span className="text-green-600">Entries: {data.entries}</span>
+              <span className="text-red-600">Exits: {data.exits}</span>
+            </div>
+          </div>
+          <div className="flex gap-1 h-4">
+            <div
+              className="bg-green-500 rounded-l"
+              style={{ width: `${(data.entries / maxValue) * 100}%` }}
+            ></div>
+            <div
+              className="bg-red-500 rounded-r"
+              style={{ width: `${(data.exits / maxValue) * 100}%` }}
+            ></div>
+          </div>
+        </div>
+      ))}
+      {dailyData.length === 0 && (
+        <p className="text-gray-500 text-center">No activity data for today</p>
+      )}
+    </div>
+  );
+};
 
   const SessionPopularityChart: React.FC<{ selectedDay: number }> = ({ selectedDay }) => {
     const [sessionData, setSessionData] = useState<Array<{ name: string; attendees: number; capacity: number; popularity: number }>>([]);
