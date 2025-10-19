@@ -1079,93 +1079,110 @@ const loadSessionAttendees = async (sessionId: string) => {
           </div>
         )}
 
-        {/* Remove Attendees Modal */}
-        {showAttendeesList && selectedSession && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-900">
-                      Session Attendees - {selectedSession.title}
-                    </h2>
-                    <p className="text-gray-600 mt-1">
-                      {getCapacityDisplay(selectedSession)} booked • {sessionAttendees.length} shown
-                    </p>
-                  </div>
-                  <button
-                    onClick={closeAttendeesList}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="h-6 w-6" />
-                  </button>
-                </div>
+      {/* Remove Attendees Modal with Loading State */}
+{showAttendeesList && selectedSession && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="p-6">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">
+              Session Attendees - {selectedSession.title}
+            </h2>
+            <p className="text-gray-600 mt-1">
+              {getCapacityDisplay(selectedSession)} booked
+            </p>
+          </div>
+          <button
+            onClick={closeAttendeesList}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
 
-                {loadingAttendees ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
-                  </div>
-                ) : sessionAttendees.length > 0 ? (
-                  <div className="space-y-3">
-                    {sessionAttendees.map((attendee) => (
-                      <div
-                        key={attendee.booking_id}
-                        className="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:bg-gray-100 transition-colors cursor-pointer"
-                        onClick={() => setSelectedAttendeeForRemoval(attendee)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-3">
-                              <h3 className="font-medium text-gray-900">
-                                {attendee.first_name} {attendee.last_name}
-                              </h3>
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                attendee.is_inside_session
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-gray-100 text-gray-800'
-                              }`}>
-                                {attendee.is_inside_session ? (
-                                  <>
-                                    <DoorOpen className="h-3 w-3 mr-1" />
-                                    Inside Session
-                                  </>
-                                ) : (
-                                  <>
-                                    <DoorClosed className="h-3 w-3 mr-1" />
-                                    Outside Session
-                                  </>
-                                )}
-                              </span>
-                            </div>
-                            <p className="text-sm text-gray-600 mt-1">
-                              ID: {attendee.personal_id} • {attendee.email}
-                            </p>
-                            {attendee.university && (
-                              <p className="text-xs text-gray-500 mt-1">
-                                {attendee.university}
-                                {attendee.faculty && ` - ${attendee.faculty}`}
-                              </p>
-                            )}
-                            <p className="text-xs text-gray-400 mt-1">
-                              Booked: {new Date(attendee.booked_at).toLocaleString()}
-                            </p>
-                          </div>
-                          <Trash2 className="h-5 w-5 text-red-500 hover:text-red-700" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">No Attendees Found</h3>
-                    <p className="text-gray-500">No one has booked this session yet.</p>
-                  </div>
-                )}
+        {loadingAttendees ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mb-4"></div>
+            <p className="text-gray-600">Loading attendees...</p>
+            <p className="text-gray-400 text-sm mt-2">This may take a moment for large sessions</p>
+          </div>
+        ) : sessionAttendees.length > 0 ? (
+          <div className="space-y-3">
+            <div className="flex justify-between items-center mb-4">
+              <p className="text-sm text-gray-600">
+                Showing {sessionAttendees.length} attendees
+              </p>
+              <div className="flex space-x-2">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  <DoorOpen className="h-3 w-3 mr-1" />
+                  {sessionAttendees.filter(a => a.is_inside_session).length} Inside
+                </span>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                  <DoorClosed className="h-3 w-3 mr-1" />
+                  {sessionAttendees.filter(a => !a.is_inside_session).length} Outside
+                </span>
               </div>
             </div>
+            {sessionAttendees.map((attendee) => (
+              <div
+                key={attendee.booking_id}
+                className="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:bg-gray-100 transition-colors cursor-pointer"
+                onClick={() => setSelectedAttendeeForRemoval(attendee)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3">
+                      <h3 className="font-medium text-gray-900">
+                        {attendee.first_name} {attendee.last_name}
+                      </h3>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        attendee.is_inside_session
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {attendee.is_inside_session ? (
+                          <>
+                            <DoorOpen className="h-3 w-3 mr-1" />
+                            Inside Session
+                          </>
+                        ) : (
+                          <>
+                            <DoorClosed className="h-3 w-3 mr-1" />
+                            Outside Session
+                          </>
+                        )}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-1">
+                      ID: {attendee.personal_id} • {attendee.email}
+                    </p>
+                    {attendee.university && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        {attendee.university}
+                        {attendee.faculty && ` - ${attendee.faculty}`}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-400 mt-1">
+                      Booked: {new Date(attendee.booked_at).toLocaleString()}
+                    </p>
+                  </div>
+                  <Trash2 className="h-5 w-5 text-red-500 hover:text-red-700" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Attendees Found</h3>
+            <p className="text-gray-500">No one has booked this session yet.</p>
           </div>
         )}
+      </div>
+    </div>
+  </div>
+)}
 
         {/* Remove Attendee Confirmation Modal */}
         {selectedAttendeeForRemoval && (
