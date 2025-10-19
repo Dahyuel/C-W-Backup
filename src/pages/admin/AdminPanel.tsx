@@ -3450,7 +3450,7 @@ const handleEventSubmit = async () => {
                   onLoad={handleMapLoad}
                   onError={(e) => {
                     handleMapError();
-                    (e.currentTarget as HTMLImageElement).src = "/src/Assets/placeholder-map.png";
+                    (e.currentTarget as HTMLImageElement).src = "/src/Assets/placeholder-map.jpg";
                   }}
                 />
               </div>
