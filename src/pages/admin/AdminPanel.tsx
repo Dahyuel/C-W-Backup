@@ -704,7 +704,14 @@ const TodayEventEntries = () => {
 };
 
 // Simplified Attendance Flow Chart
-const AttendanceFlowChart: React.FC<{ stats: any }> = ({ stats }) => {
+// Update the AttendanceFlowChart component to this:
+
+const AttendanceFlowChart: React.FC<{ stats: { 
+  entries: number; 
+  exits: number; 
+  building_entries: number; 
+  session_entries: number; 
+} }> = ({ stats }) => {
   const flowData = [
     { label: 'Entries', value: stats.entries, color: 'bg-green-500' },
     { label: 'Exits', value: stats.exits, color: 'bg-red-500' },
@@ -733,7 +740,6 @@ const AttendanceFlowChart: React.FC<{ stats: any }> = ({ stats }) => {
     </div>
   );
 };
-  // Handle tab change with animation
   const handleTabChange = (tabKey: string) => {
     if (tabKey === activeTab) return;
     
