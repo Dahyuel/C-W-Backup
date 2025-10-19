@@ -474,16 +474,26 @@ const removeFromSession = async () => {
                     </p>
                   </div>
 
-                  <button
-                    onClick={() => {
-                      setSelectedSession(session);
-                      setShowBookingManager(true);
-                    }}
-                    className="w-full flex items-center justify-center p-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Manage Bookings
-                  </button>
+                 // In the session list section, update the button onClick handler:
+<button
+  onClick={() => {
+    if (isSessionAtCapacity(session)) {
+      setError(`Session "${session.title}" is at full capacity (${session.current_bookings}/${session.max_attendees})`);
+      return;
+    }
+    setSelectedSession(session);
+    setShowBookingManager(true);
+  }}
+  disabled={isSessionAtCapacity(session)}
+  className={`w-full flex items-center justify-center p-3 rounded-lg transition-colors ${
+    isSessionAtCapacity(session)
+      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+      : 'bg-orange-500 text-white hover:bg-orange-600'
+  }`}
+>
+  <Edit className="h-4 w-4 mr-2" />
+  {isSessionAtCapacity(session) ? 'Session Full' : 'Manage Bookings'}
+</button>
                 </div>
               ))
             )}
