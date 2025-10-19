@@ -759,18 +759,21 @@ export const InfoDeskDashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Session Info */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="text-md font-medium text-gray-900 mb-2">Session Details</h4>
-              <p className="text-sm text-gray-700">{selectedSession.title}</p>
-              <p className="text-xs text-gray-500 mt-1">
-                {formatDate(selectedSession.start_time)} • {formatTime(selectedSession.start_time)} - {formatTime(selectedSession.end_time)}
-              </p>
-              <p className="text-xs text-gray-500">
-                Bookings: {selectedSession.current_bookings || 0}
-                {selectedSession.max_attendees ? `/${selectedSession.max_attendees}` : ''}
-              </p>
-            </div>
+          {/* Session Info */}
+<div className="bg-gray-50 p-4 rounded-lg">
+  <h4 className="text-md font-medium text-gray-900 mb-2">Session Details</h4>
+  <p className="text-sm text-gray-700">{selectedSession.title}</p>
+  <p className="text-xs text-gray-500 mt-1">
+    {formatDate(selectedSession.start_time)} • {formatTime(selectedSession.start_time)} - {formatTime(selectedSession.end_time)}
+  </p>
+  <p className={`text-xs font-medium ${
+    isSessionAtCapacity(selectedSession) ? 'text-red-600' : 'text-gray-500'
+  }`}>
+    Bookings: {selectedSession.current_bookings || 0}
+    {selectedSession.max_attendees ? `/${selectedSession.max_attendees}` : ''}
+    {isSessionAtCapacity(selectedSession) && ' (FULL)'}
+  </p>
+</div>
 
             {/* Action Buttons */}
             <div className="space-y-4">
