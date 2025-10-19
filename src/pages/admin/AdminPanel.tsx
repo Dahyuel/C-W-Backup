@@ -1766,6 +1766,8 @@ const handleEditCompany = (company: CompanyItem) => {
 // Simplified StatisticsTab Component - Event Only
 // Replace the existing StatisticsTab component with this:
 
+// Replace the existing StatisticsTab component with this:
+
 const StatisticsTab = () => {
   const [stats, setStats] = useState<{
     day: number;
@@ -1804,86 +1806,12 @@ const StatisticsTab = () => {
   const fetchEventStats = async (day: number) => {
     setLoading(true);
     try {
-      // Calculate the date for the selected day (Day 1 = Oct 19, 2025)
-      const eventStartDate = new Date('2025-10-19');
-      const targetDate = new Date(eventStartDate);
-      targetDate.setDate(eventStartDate.getDate() + (day - 1));
-      
-      const startOfDay = new Date(targetDate);
-      startOfDay.setHours(0, 0, 0, 0);
-      
-      const endOfDay = new Date(targetDate);
-      endOfDay.setHours(23, 59, 59, 999);
-
-      // Fetch attendance statistics
-      const { data: attendances, error: attendanceError } = await supabase
-        .from('attendances')
-        .select('scan_type')
-        .gte('scanned_at', startOfDay.toISOString())
-        .lte('scanned_at', endOfDay.toISOString());
-
-      if (attendanceError) throw attendanceError;
-
-      // Count different scan types
-      const attendanceStats = {
-        entries: attendances.filter(a => a.scan_type === 'entry').length,
-        exits: attendances.filter(a => a.scan_type === 'exit').length,
-        building_entries: attendances.filter(a => a.scan_type === 'building_entry').length,
-        session_entries: attendances.filter(a => a.scan_type === 'session_entry').length,
-      };
-
-      // Fetch current building/event status
-      const { data: currentUsers, error: usersError } = await supabase
-        .from('users_profiles')
-        .select('building_entry, event_entry, degree_level, university')
-        .eq('event_entry', true);
-
-      if (usersError) throw usersError;
-
-      const currentState = {
-        current_in_event: currentUsers.filter(user => user.event_entry).length,
-        current_in_building: currentUsers.filter(user => user.building_entry).length,
-      };
-
-      // Calculate degree level statistics
-      const students = currentUsers.filter(user => user.degree_level === 'student').length;
-      const graduates = currentUsers.filter(user => user.degree_level === 'graduate').length;
-      const totalDegree = students + graduates;
-
-      const degreeStats = {
-        students,
-        graduates,
-        total: totalDegree,
-        student_percentage: totalDegree > 0 ? Math.round((students / totalDegree) * 100) : 0,
-        graduate_percentage: totalDegree > 0 ? Math.round((graduates / totalDegree) * 100) : 0,
-      };
-
-      // Calculate university statistics
-      const universityCounts: Record<string, number> = {};
-      currentUsers.forEach(user => {
-        if (user.university) {
-          universityCounts[user.university] = (universityCounts[user.university] || 0) + 1;
-        }
+      const { data, error } = await supabase.functions.invoke('event-stats', {
+        body: { day }
       });
 
-      const universityStats = Object.entries(universityCounts)
-        .map(([name, count]) => ({
-          name,
-          count,
-          percentage: Math.round((count / currentUsers.length) * 100)
-        }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10); // Top 10 universities
-
-      setStats({
-        day,
-        date: targetDate.toISOString().split('T')[0],
-        attendance_stats: attendanceStats,
-        current_state: currentState,
-        degree_stats: degreeStats,
-        university_stats: universityStats,
-      });
-
+      if (error) throw error;
+      setStats(data);
     } catch (error) {
       console.error('Error fetching event stats:', error);
       // Fallback to empty stats
@@ -2073,6 +2001,7 @@ const StatisticsTab = () => {
     </div>
   );
 };
+  
   const RegistrationStatsView: React.FC<{ statsData: StatsData; timeRange: string }> = ({ statsData, timeRange }) => (
     <div className="space-y-6 sm:space-y-8 fade-in-blur">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 stagger-children">
