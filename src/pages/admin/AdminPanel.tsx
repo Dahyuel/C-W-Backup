@@ -2266,36 +2266,6 @@ const StatisticsTab = () => {
     );
   };
 
-  const AttendanceFlowChart: React.FC<{ dayStats: DayStats }> = ({ dayStats }) => {
-    const flowData = [
-      { label: 'Total Entries', value: dayStats.entries, color: 'bg-green-500' },
-      { label: 'Total Exits', value: dayStats.exits, color: 'bg-red-500' },
-      { label: 'Building Entries', value: dayStats.building_entries, color: 'bg-blue-500' },
-      { label: 'Session Entries', value: dayStats.session_entries, color: 'bg-purple-500' },
-    ];
-
-    const maxValue = Math.max(...flowData.map(d => d.value), 1);
-
-    return (
-      <div className="space-y-3 fade-in-blur">
-        {flowData.map((item, index) => (
-          <div key={index} className="space-y-1">
-            <div className="flex justify-between text-sm">
-              <span className="font-medium text-gray-700">{item.label}</span>
-              <span className="text-gray-500">{item.value}</span>
-            </div>
-            <div className="w-full bg-gray-200 rounded-full h-3">
-              <div
-                className={`${item.color} h-3 rounded-full`}
-                style={{ width: `${(item.value / maxValue) * 100}%` }}
-              ></div>
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
   const SessionPopularityChart: React.FC<{ selectedDay: number }> = ({ selectedDay }) => {
     const [sessionData, setSessionData] = useState<Array<{ name: string; attendees: number; capacity: number; popularity: number }>>([]);
 
