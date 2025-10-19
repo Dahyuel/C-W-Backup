@@ -147,17 +147,21 @@ const loadSessions = async () => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    // Define the excluded dates (October 22nd and 23rd, 2025)
+    // Define the excluded date ranges
     const oct22Start = new Date('2025-10-22T00:00:00.000Z');
+    const oct22End = new Date('2025-10-22T23:59:59.999Z');
+    const oct23Start = new Date('2025-10-23T00:00:00.000Z');
     const oct23End = new Date('2025-10-23T23:59:59.999Z');
     
-    // Get sessions starting from today, but exclude October 22nd and 23rd
+    // Get sessions starting from today, but exclude specific dates
     const { data, error } = await supabase
       .from('sessions')
       .select('*')
       .gte('start_time', today.toISOString()) // Only sessions starting from today
-      .not('start_time', 'gte', oct22Start.toISOString()) // Exclude sessions on or after Oct 22
-      .not('start_time', 'lte', oct23End.toISOString()) // Exclude sessions on or before Oct 23
+      .not('start_time', 'gte', oct22Start.toISOString()) // Exclude Oct 22
+      .not('start_time', 'lte', oct22End.toISOString()) // Exclude Oct 22
+      .not('start_time', 'gte', oct23Start.toISOString()) // Exclude Oct 23
+      .not('start_time', 'lte', oct23End.toISOString()) // Exclude Oct 23
       .order('start_time', { ascending: true });
 
     if (error) {
@@ -173,8 +177,7 @@ const loadSessions = async () => {
   } finally {
     setLoading(false);
   }
-};
-  
+};  
   // Check if attendee is inside the session
   const checkAttendeeSessionEntry = async (userId: string, sessionId: string): Promise<boolean> => {
     try {
