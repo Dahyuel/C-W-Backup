@@ -13,7 +13,6 @@ import { useNavigate } from "react-router-dom";
 import QRCodeLib from "qrcode";
 import { createPortal } from "react-dom";
 
-
 // Types
 interface UserScore {
   score: number;
@@ -29,20 +28,20 @@ interface RecentActivity {
   awarded_at: string;
 }
 
-
 interface ScheduleItem {
   id: string;
   title: string;
   description: string;
-  speaker?: string; // Add this
-  speaker_photo_url?: string; // Add this
-  speaker_linkedin_url?: string; // Add this
+  speaker?: string;
+  speaker_photo_url?: string;
+  speaker_linkedin_url?: string;
   start_time: string;
   end_time: string;
   location: string;
   item_type: string;
   created_at: string;
 }
+
 interface Session {
   id: string;
   title: string;
@@ -166,11 +165,11 @@ const AttendeeDashboard: React.FC = () => {
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [showCompanyModal, setShowCompanyModal] = useState(false);
 
-
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [cvUploadLoading, setCvUploadLoading] = useState(false);
   const [cvUploadError, setCvUploadError] = useState<string | null>(null);
   const [cvUploadSuccess, setCvUploadSuccess] = useState<string | null>(null);
+  
   // Event modal states
   const [selectedEvent, setSelectedEvent] = useState<ScheduleItem | null>(null);
   const [showEventModal, setShowEventModal] = useState(false);
@@ -190,90 +189,15 @@ const AttendeeDashboard: React.FC = () => {
   const canBookDay4 = profile?.faculty && DAY4_FACULTIES.includes(profile.faculty);
   const canBookDay5 = profile?.faculty && DAY5_FACULTIES.includes(profile.faculty);
 
-  // Load dashboard data
+  // Load dashboard data - NO REALTIME SUBSCRIPTIONS
   useEffect(() => {
     fetchDashboardData();
-    
-    // Set up realtime subscriptions
-    const sessionsChannel = supabase
-      .channel('sessions_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'sessions'
-        },
-        (payload) => {
-          console.log('Session change detected:', payload);
-          fetchSessions();
-        }
-      )
-      .subscribe();
-
-    const attendancesChannel = supabase
-      .channel('attendances_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'attendances',
-          filter: 'scan_type=eq.booking'
-        },
-        (payload) => {
-          console.log('Booking change detected:', payload);
-          fetchSessions();
-          if (profile?.id) {
-            fetchUserBookings();
-          }
-        }
-      )
-      .subscribe();
-
-    const scoresChannel = supabase
-      .channel('user_scores_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'user_scores',
-          filter: `user_id=eq.${profile?.id}`
-        },
-        (payload) => {
-          console.log('User score change detected:', payload);
-          fetchUserScore();
-          fetchRecentActivities();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(sessionsChannel);
-      supabase.removeChannel(attendancesChannel);
-      supabase.removeChannel(scoresChannel);
-    };
   }, [profile?.id]);
 
   // Close mobile menu when tab changes
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [activeTab]);
-  
-  // Periodic refresh for sessions
-  useEffect(() => {
-    if (activeTab === 'building-sessions' || activeTab === 'open-recruitment') {
-      const interval = setInterval(() => {
-        fetchSessions();
-        if (profile?.id) {
-          fetchUserBookings();
-        }
-      }, 30000);
-
-      return () => clearInterval(interval);
-    }
-  }, [activeTab, profile?.id]);
 
   // Fetch events when day changes
   useEffect(() => {
@@ -336,68 +260,70 @@ const AttendeeDashboard: React.FC = () => {
       setLoading(false);
     }
   };
-const handleCvUpload = async () => {
-  if (!profile?.id || !cvFile) return;
 
-  setCvUploadLoading(true);
-  setCvUploadError(null);
-  setCvUploadSuccess(null);
+  const handleCvUpload = async () => {
+    if (!profile?.id || !cvFile) return;
 
-  try {
-    // Validate file type and size
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (cvFile.size > maxSize) {
-      throw new Error('File size must be less than 10MB');
+    setCvUploadLoading(true);
+    setCvUploadError(null);
+    setCvUploadSuccess(null);
+
+    try {
+      // Validate file type and size
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (cvFile.size > maxSize) {
+        throw new Error('File size must be less than 10MB');
+      }
+
+      // Upload file to CV bucket
+      const result = await uploadFile('cvs', profile.id, cvFile);
+
+      if (result.error) {
+        throw new Error(result.error.message || 'Failed to upload CV');
+      }
+
+      if (!result.data?.path) {
+        throw new Error('Upload failed - no file path returned');
+      }
+
+      // Update user profile with file path
+      const { error: updateError } = await updateUserFiles(profile.id, {
+        cv_path: result.data.path
+      });
+
+      if (updateError) {
+        throw new Error(`Failed to update profile: ${updateError.message}`);
+      }
+
+      // Refresh profile to get updated data
+      await refreshProfile();
+      
+      setCvUploadSuccess('CV uploaded successfully!');
+      setCvFile(null);
+
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setCvUploadSuccess(null);
+      }, 3000);
+
+    } catch (error: any) {
+      console.error('CV upload error:', error);
+      setCvUploadError(error.message || 'Failed to upload CV');
+    } finally {
+      setCvUploadLoading(false);
     }
+  };
 
-    // Upload file to CV bucket
-    const result = await uploadFile('cvs', profile.id, cvFile);
+  const handleCvFileSelect = (file: File) => {
+    setCvFile(file);
+    setCvUploadError(null);
+  };
 
-    if (result.error) {
-      throw new Error(result.error.message || 'Failed to upload CV');
-    }
-
-    if (!result.data?.path) {
-      throw new Error('Upload failed - no file path returned');
-    }
-
-    // Update user profile with file path
-    const { error: updateError } = await updateUserFiles(profile.id, {
-      cv_path: result.data.path
-    });
-
-    if (updateError) {
-      throw new Error(`Failed to update profile: ${updateError.message}`);
-    }
-
-    // Refresh profile to get updated data
-    await refreshProfile();
-    
-    setCvUploadSuccess('CV uploaded successfully!');
+  const handleCvFileRemove = () => {
     setCvFile(null);
+    setCvUploadError(null);
+  };
 
-    // Clear success message after 3 seconds
-    setTimeout(() => {
-      setCvUploadSuccess(null);
-    }, 3000);
-
-  } catch (error: any) {
-    console.error('CV upload error:', error);
-    setCvUploadError(error.message || 'Failed to upload CV');
-  } finally {
-    setCvUploadLoading(false);
-  }
-};
-
-const handleCvFileSelect = (file: File) => {
-  setCvFile(file);
-  setCvUploadError(null);
-};
-
-const handleCvFileRemove = () => {
-  setCvFile(null);
-  setCvUploadError(null);
-};
   const fetchUserScore = async () => {
     if (!profile?.id) return;
   
@@ -837,191 +763,183 @@ const handleCvFileRemove = () => {
     }
   };
 
-const renderSessionCards = (sessionsToRender: Session[], sessionType: 'building' | 'recruitment' = 'building') => {
-  return sessionsToRender.map((session, index) => {
-    const booked = isSessionBooked(session.id);
-    const full = isSessionFull(session);
-    const { hasOverlap } = hasOverlappingBooking(session);
-    
-    let canBookResult;
-    if (sessionType === 'building') {
-      canBookResult = canBookBuildingSession(session);
-    } else {
-      canBookResult = canBookRecruitmentSession(session);
-    }
-    
-    // For Open Recruitment sessions, check if CV is uploaded
-    const isRecruitmentSession = sessionType === 'recruitment';
-    const hasCV = !!profile?.cv_path;
-    const isDisabled = isRecruitmentSession && !hasCV;
-    
-    return (
-      <div
-        key={session.id}
-        onClick={() => !isDisabled && handleSessionClick(session)}
-        className={`bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 relative card-hover-enhanced dashboard-card transform transition-all duration-300 hover:scale-105 hover:shadow-lg ${
-          isDisabled 
-            ? 'opacity-60 cursor-not-allowed' 
-            : 'cursor-pointer hover:scale-105'
-        }`}
-        style={{
-          animationDelay: `${index * 100}ms`,
-          animation: 'fadeInUp 0.6s ease-out forwards'
-        }}
-      >
-        {/* CV Required Badge - Only for Open Recruitment without CV */}
-        {isRecruitmentSession && !hasCV && (
-          <div className="absolute top-2 right-2 z-10">
-            <div className="bg-red-100 text-red-800 text-xs font-medium px-2 py-1 rounded-full border border-red-200 flex items-center">
-              <AlertCircle className="h-3 w-3 mr-1" />
-              CV Required
+  const renderSessionCards = (sessionsToRender: Session[], sessionType: 'building' | 'recruitment' = 'building') => {
+    return sessionsToRender.map((session, index) => {
+      const booked = isSessionBooked(session.id);
+      const full = isSessionFull(session);
+      const { hasOverlap } = hasOverlappingBooking(session);
+      
+      let canBookResult;
+      if (sessionType === 'building') {
+        canBookResult = canBookBuildingSession(session);
+      } else {
+        canBookResult = canBookRecruitmentSession(session);
+      }
+      
+      // For Open Recruitment sessions, check if CV is uploaded
+      const isRecruitmentSession = sessionType === 'recruitment';
+      const hasCV = !!profile?.cv_path;
+      const isDisabled = isRecruitmentSession && !hasCV;
+      
+      return (
+        <div
+          key={session.id}
+          onClick={() => !isDisabled && handleSessionClick(session)}
+          className={`bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 relative card-hover-enhanced dashboard-card transform transition-all duration-300 hover:scale-105 hover:shadow-lg ${
+            isDisabled 
+              ? 'opacity-60 cursor-not-allowed' 
+              : 'cursor-pointer hover:scale-105'
+          }`}
+          style={{
+            animationDelay: `${index * 100}ms`,
+            animation: 'fadeInUp 0.6s ease-out forwards'
+          }}
+        >
+          {/* CV Required Badge - Only for Open Recruitment without CV */}
+          {isRecruitmentSession && !hasCV && (
+            <div className="absolute top-2 right-2 z-10">
+              <div className="bg-red-100 text-red-800 text-xs font-medium px-2 py-1 rounded-full border border-red-200 flex items-center">
+                <AlertCircle className="h-3 w-3 mr-1" />
+                CV Required
+              </div>
             </div>
-          </div>
-        )}
-        
-        {/* Real-time update indicator */}
-        {sessionsLoading && (
-          <div className="absolute top-2 right-2">
-            <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
-          </div>
-        )}
-        
-        <div className="flex items-start justify-between mb-3">
-          <h3 className={`text-base sm:text-lg font-semibold line-clamp-2 flex-1 pr-2 ${
-            isDisabled ? 'text-gray-500' : 'text-gray-900'
-          }`}>
-            {session.title}
-          </h3>
-          {booked && (
-            <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 flex-shrink-0 animate-bounce" />
           )}
-        </div>
-        
-        <p className={`text-xs sm:text-sm mb-3 line-clamp-2 transition-colors duration-300 ${
-          isDisabled ? 'text-gray-400' : 'text-gray-600'
-        }`}>
-          {session.description}
-        </p>
-        
-        {/* Only show speaker for Building Sessions */}
-        {sessionType === 'building' && session.speaker && (
-          <div className="flex items-center mb-2">
-            {session.speaker_photo_url ? (
-              <img 
-                src={session.speaker_photo_url} 
-                alt={`${session.speaker} photo`}
-                className="h-12 w-12 rounded-full object-cover"
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/48x48/gray/white?text=Photo";
-                }}
-              />
-            ) : (
-              <User className="h-4 w-4 text-gray-400 mr-2" />
+          
+          <div className="flex items-start justify-between mb-3">
+            <h3 className={`text-base sm:text-lg font-semibold line-clamp-2 flex-1 pr-2 ${
+              isDisabled ? 'text-gray-500' : 'text-gray-900'
+            }`}>
+              {session.title}
+            </h3>
+            {booked && (
+              <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 flex-shrink-0" />
             )}
-            <p className={`text-xs sm:text-sm font-medium line-clamp-1 animate-pulse ${
-              isDisabled ? 'text-gray-400' : 'text-gray-900'
-            }`}>
-              Speaker: {session.speaker}
-              {session.speaker_linkedin_url && (
-                <a 
-                  href={session.speaker_linkedin_url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="ml-1 text-blue-600 hover:text-blue-800 inline-flex items-center"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                </a>
+          </div>
+          
+          <p className={`text-xs sm:text-sm mb-3 line-clamp-2 transition-colors duration-300 ${
+            isDisabled ? 'text-gray-400' : 'text-gray-600'
+          }`}>
+            {session.description}
+          </p>
+          
+          {/* Only show speaker for Building Sessions */}
+          {sessionType === 'building' && session.speaker && (
+            <div className="flex items-center mb-2">
+              {session.speaker_photo_url ? (
+                <img 
+                  src={session.speaker_photo_url} 
+                  alt={`${session.speaker} photo`}
+                  className="h-12 w-12 rounded-full object-cover"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/48x48/gray/white?text=Photo";
+                  }}
+                />
+              ) : (
+                <User className="h-4 w-4 text-gray-400 mr-2" />
               )}
-            </p>
-          </div>
-        )}
-        
-        <div className="space-y-1.5 sm:space-y-2 text-xs">
-          <div className={`flex items-center transform transition-transform duration-300 ${
-            isDisabled ? '' : 'hover:translate-x-1'
-          }`}>
-            <Clock className={`h-3 w-3 mr-1 flex-shrink-0 ${
-              isDisabled ? 'text-gray-400' : 'text-gray-500'
-            }`} />
-            <span className={`truncate text-xs ${
-              isDisabled ? 'text-gray-400' : 'text-gray-500'
-            }`}>
-              {new Date(session.start_time).toLocaleDateString()} {new Date(session.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-            </span>
-          </div>
-          <div className={`flex items-center transform transition-transform duration-300 ${
-            isDisabled ? '' : 'hover:translate-x-1'
-          }`}>
-            <MapPin className={`h-3 w-3 mr-1 flex-shrink-0 ${
-              isDisabled ? 'text-gray-400' : 'text-gray-500'
-            }`} />
-            <span className={`truncate text-xs ${
-              isDisabled ? 'text-gray-400' : 'text-gray-500'
-            }`}>{session.location}</span>
-          </div>
-          <div className={`flex items-center transform transition-transform duration-300 ${
-            isDisabled ? '' : 'hover:translate-x-1'
-          }`}>
-            <Users className={`h-3 w-3 mr-1 flex-shrink-0 ${
-              isDisabled ? 'text-gray-400' : 'text-gray-500'
-            }`} />
-            <span className={`transition-colors text-xs ${
-              sessionsLoading ? 'text-orange-500 animate-pulse' : 
-              isDisabled ? 'text-gray-400' : 'text-gray-500'
-            }`}>
-              {session.current_bookings || 0}/{session.max_attendees || 'Unlimited'} booked
-            </span>
-          </div>
-        </div>
-        
-        <div className="mt-3 sm:mt-4 pt-3 border-t border-gray-100 transform transition-all duration-300">
-          {isDisabled ? (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 transform transition-all duration-300">
-              <AlertCircle className="h-3 w-3 mr-1" />
-              Upload CV Required
-            </span>
-          ) : !canBookResult.canBook ? (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 transform transition-all duration-300 hover:scale-105">
-              <XCircle className="h-3 w-3 mr-1" />
-              Not Eligible
-            </span>
-          ) : booked ? (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 transform transition-all duration-300 hover:scale-105">
-              <CheckCircle className="h-3 w-3 mr-1 animate-pulse" />
-              Booked
-            </span>
-          ) : hasOverlap ? (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 transform transition-all duration-300 hover:scale-105">
-              <Clock className="h-3 w-3 mr-1" />
-              Time Conflict
-            </span>
-          ) : full ? (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 transform transition-all duration-300 hover:scale-105">
-              <XCircle className="h-3 w-3 mr-1" />
-              Full
-            </span>
-          ) : (
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 transform transition-all duration-300 hover:scale-105">
-              Available
-            </span>
+              <p className={`text-xs sm:text-sm font-medium line-clamp-1 ${
+                isDisabled ? 'text-gray-400' : 'text-gray-900'
+              }`}>
+                Speaker: {session.speaker}
+                {session.speaker_linkedin_url && (
+                  <a 
+                    href={session.speaker_linkedin_url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="ml-1 text-blue-600 hover:text-blue-800 inline-flex items-center"
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
+              </p>
+            </div>
           )}
-        </div>
-        
-        {/* Disabled Overlay */}
-        {isDisabled && (
-          <div className="absolute inset-0 bg-gray-50 bg-opacity-50 rounded-xl flex items-center justify-center">
-            <div className="text-center p-4">
-              <AlertCircle className="h-8 w-8 text-red-400 mx-auto mb-2" />
-              <p className="text-sm font-medium text-red-600">CV Required</p>
-              <p className="text-xs text-red-500 mt-1">Upload your CV to book this session</p>
+          
+          <div className="space-y-1.5 sm:space-y-2 text-xs">
+            <div className={`flex items-center transform transition-transform duration-300 ${
+              isDisabled ? '' : 'hover:translate-x-1'
+            }`}>
+              <Clock className={`h-3 w-3 mr-1 flex-shrink-0 ${
+                isDisabled ? 'text-gray-400' : 'text-gray-500'
+              }`} />
+              <span className={`truncate text-xs ${
+                isDisabled ? 'text-gray-400' : 'text-gray-500'
+              }`}>
+                {new Date(session.start_time).toLocaleDateString()} {new Date(session.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            </div>
+            <div className={`flex items-center transform transition-transform duration-300 ${
+              isDisabled ? '' : 'hover:translate-x-1'
+            }`}>
+              <MapPin className={`h-3 w-3 mr-1 flex-shrink-0 ${
+                isDisabled ? 'text-gray-400' : 'text-gray-500'
+              }`} />
+              <span className={`truncate text-xs ${
+                isDisabled ? 'text-gray-400' : 'text-gray-500'
+              }`}>{session.location}</span>
+            </div>
+            <div className={`flex items-center transform transition-transform duration-300 ${
+              isDisabled ? '' : 'hover:translate-x-1'
+            }`}>
+              <Users className={`h-3 w-3 mr-1 flex-shrink-0 ${
+                isDisabled ? 'text-gray-400' : 'text-gray-500'
+              }`} />
+              <span className={`transition-colors text-xs ${
+                isDisabled ? 'text-gray-400' : 'text-gray-500'
+              }`}>
+                {session.current_bookings || 0}/{session.max_attendees || 'Unlimited'} booked
+              </span>
             </div>
           </div>
-        )}
-      </div>
-    );
-  });
-};
+          
+          <div className="mt-3 sm:mt-4 pt-3 border-t border-gray-100 transform transition-all duration-300">
+            {isDisabled ? (
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 transform transition-all duration-300">
+                <AlertCircle className="h-3 w-3 mr-1" />
+                Upload CV Required
+              </span>
+            ) : !canBookResult.canBook ? (
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 transform transition-all duration-300 hover:scale-105">
+                <XCircle className="h-3 w-3 mr-1" />
+                Not Eligible
+              </span>
+            ) : booked ? (
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 transform transition-all duration-300 hover:scale-105">
+                <CheckCircle className="h-3 w-3 mr-1" />
+                Booked
+              </span>
+            ) : hasOverlap ? (
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 transform transition-all duration-300 hover:scale-105">
+                <Clock className="h-3 w-3 mr-1" />
+                Time Conflict
+              </span>
+            ) : full ? (
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 transform transition-all duration-300 hover:scale-105">
+                <XCircle className="h-3 w-3 mr-1" />
+                Full
+              </span>
+            ) : (
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 transform transition-all duration-300 hover:scale-105">
+                Available
+              </span>
+            )}
+          </div>
+          
+          {/* Disabled Overlay */}
+          {isDisabled && (
+            <div className="absolute inset-0 bg-gray-50 bg-opacity-50 rounded-xl flex items-center justify-center">
+              <div className="text-center p-4">
+                <AlertCircle className="h-8 w-8 text-red-400 mx-auto mb-2" />
+                <p className="text-sm font-medium text-red-600">CV Required</p>
+                <p className="text-xs text-red-500 mt-1">Upload your CV to book this session</p>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    });
+  };
 
   if (loading) {
     return (
@@ -1095,7 +1013,7 @@ const renderSessionCards = (sessionsToRender: Session[], sessionType: 'building'
           >
             <Menu className="h-5 w-5 transform transition-transform duration-300" />
           </button>
-          <span className="text-sm font-medium text-gray-600 capitalize animate-pulse">
+          <span className="text-sm font-medium text-gray-600 capitalize">
             {activeTab.replace('-', ' ')}
           </span>
         </div>
@@ -1136,7 +1054,7 @@ const renderSessionCards = (sessionsToRender: Session[], sessionType: 'building'
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Your Score</p>
-                    <p className="text-2xl sm:text-3xl font-bold text-orange-600 animate-pulse">
+                    <p className="text-2xl sm:text-3xl font-bold text-orange-600">
                       {userScore?.score || 0}
                     </p>
                   </div>
@@ -1154,7 +1072,7 @@ const renderSessionCards = (sessionsToRender: Session[], sessionType: 'building'
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Your Rank</p>
-                    <p className="text-2xl sm:text-3xl font-bold text-blue-600 animate-bounce">#{userScore?.rank || 0}</p>
+                    <p className="text-2xl sm:text-3xl font-bold text-blue-600">#{userScore?.rank || 0}</p>
                     <p className="text-xs text-gray-500 mt-1">of {userScore?.total_users || 0} attendees</p>
                   </div>
                   <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 rounded-lg flex items-center justify-center transform transition-all duration-500 hover:rotate-12">
@@ -1191,7 +1109,7 @@ const renderSessionCards = (sessionsToRender: Session[], sessionType: 'building'
               >
                 <div className="flex items-center justify-between mb-4">
                   <p className="text-sm font-medium text-gray-600">Recent Activities</p>
-                  <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 animate-pulse" />
+                  <Activity className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                 </div>
                 
                 {recentActivities.length > 0 ? (
@@ -1221,7 +1139,7 @@ const renderSessionCards = (sessionsToRender: Session[], sessionType: 'building'
                   </div>
                 ) : (
                   <div className="text-center py-4 transform transition-all duration-500">
-                    <Activity className="h-6 w-6 sm:h-8 sm:w-8 text-gray-300 mx-auto mb-2 animate-pulse" />
+                    <Activity className="h-6 w-6 sm:h-8 sm:w-8 text-gray-300 mx-auto mb-2" />
                     <p className="text-xs text-gray-500">No recent activities</p>
                   </div>
                 )}
@@ -1230,120 +1148,120 @@ const renderSessionCards = (sessionsToRender: Session[], sessionType: 'building'
           )}
 
           {/* Stage Activities */}
-{activeTab === "stage-activities" && (
-  <div className="tab-content-animate stagger-animation">
-    <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center justify-between mb-6 transform transition-all duration-500">
-      <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center animate-pulse">
-        <Calendar className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600 transform transition-all duration-500 hover:rotate-180" /> 
-        <span className="text-sm sm:text-lg">5-Day Stage Activities</span>
-      </h2>
-      
-      {/* Day Selector */}
-      <div className="flex space-x-1 sm:space-x-2 overflow-x-auto pb-2 sm:pb-0 transform transition-all duration-500">
-        {[1, 2, 3, 4, 5].map((day, index) => (
-          <button
-            key={day}
-            onClick={() => setActiveDay(day)}
-            className={`px-2 py-1 rounded-lg text-xs font-medium transition-all duration-300 flex-shrink-0 transform hover:scale-105 min-w-10 ${
-              activeDay === day 
-                ? "bg-orange-500 text-white shadow-lg scale-110" 
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md"
-            }`}
-            style={{ animationDelay: `${index * 100}ms` }}
-          >
-            {day}
-          </button>
-        ))}
-      </div>
-    </div>
-
-    {eventsLoading ? (
-      <div className="flex items-center justify-center h-32 transform transition-all duration-500">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
-      </div>
-    ) : schedule.length > 0 ? (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur stagger-animation">
-        {schedule.map((item, index) => (
-          <div 
-            key={item.id} 
-            onClick={() => handleEventClick(item)}
-            className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 cursor-pointer h-full flex flex-col card-hover-enhanced dashboard-card transform transition-all duration-500 hover:scale-105 hover:shadow-xl"
-            style={{ animationDelay: `${index * 100}ms` }}
-          >
-            <div className="flex items-start justify-between mb-3">
-              <h3 className="text-base sm:text-lg font-semibold text-gray-900 line-clamp-2 flex-1 transform transition-all duration-300 hover:text-orange-600">{item.title}</h3>
-            </div>
-            
-            <p className="text-xs sm:text-sm text-gray-600 mb-4 line-clamp-3 flex-1 transform transition-all duration-300">{item.description}</p>
-            
-            {/* ADD SPEAKER INFORMATION HERE */}
-            {item.speaker && (
-              <div className="flex items-center mb-3">
-                {item.speaker_photo_url ? (
-                  <img 
-                    src={item.speaker_photo_url} 
-                    alt={`${item.speaker} photo`}
-                    className="h-12 w-12 rounded-full object-cover"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/48x48/gray/white?text=Photo";
-                    }}
-                  />
-                ) : (
-                  <User className="h-4 w-4 text-gray-400 mr-2" />
-                )}
-                <p className="text-xs sm:text-sm font-medium text-gray-900 line-clamp-1">
-                  Speaker: {item.speaker}
-                  {item.speaker_linkedin_url && (
-                    <a 
-                      href={item.speaker_linkedin_url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="ml-1 text-blue-600 hover:text-blue-800 inline-flex items-center"
+          {activeTab === "stage-activities" && (
+            <div className="tab-content-animate stagger-animation">
+              <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center justify-between mb-6 transform transition-all duration-500">
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center">
+                  <Calendar className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600 transform transition-all duration-500 hover:rotate-180" /> 
+                  <span className="text-sm sm:text-lg">5-Day Stage Activities</span>
+                </h2>
+                
+                {/* Day Selector */}
+                <div className="flex space-x-1 sm:space-x-2 overflow-x-auto pb-2 sm:pb-0 transform transition-all duration-500">
+                  {[1, 2, 3, 4, 5].map((day, index) => (
+                    <button
+                      key={day}
+                      onClick={() => setActiveDay(day)}
+                      className={`px-2 py-1 rounded-lg text-xs font-medium transition-all duration-300 flex-shrink-0 transform hover:scale-105 min-w-10 ${
+                        activeDay === day 
+                          ? "bg-orange-500 text-white shadow-lg scale-110" 
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200 hover:shadow-md"
+                      }`}
+                      style={{ animationDelay: `${index * 100}ms` }}
                     >
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  )}
-                </p>
+                      {day}
+                    </button>
+                  ))}
+                </div>
               </div>
-            )}
-            
-            <div className="space-y-1.5 sm:space-y-2 text-xs text-gray-500 mt-auto">
-              <div className="flex items-center transform transition-all duration-300 hover:translate-x-2">
-                <Clock className="h-3 w-3 mr-2 flex-shrink-0" />
-                <span className="truncate text-xs">
-                  {new Date(item.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - 
-                  {new Date(item.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                </span>
-              </div>
-              <div className="flex items-center transform transition-all duration-300 hover:translate-x-2">
-                <MapPin className="h-3 w-3 mr-2 flex-shrink-0" />
-                <span className="truncate text-xs">{item.location}</span>
-              </div>
-            </div>
-            
-            <div className="mt-3 sm:mt-4 pt-3 border-t border-gray-100 transform transition-all duration-500">
-              {item.item_type ? (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 transform transition-all duration-300 hover:scale-105">
-                  {item.item_type}
-                </span>
+
+              {eventsLoading ? (
+                <div className="flex items-center justify-center h-32 transform transition-all duration-500">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+                </div>
+              ) : schedule.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 grid-stagger-blur stagger-animation">
+                  {schedule.map((item, index) => (
+                    <div 
+                      key={item.id} 
+                      onClick={() => handleEventClick(item)}
+                      className="bg-white rounded-xl shadow-sm border border-orange-100 p-4 sm:p-6 cursor-pointer h-full flex flex-col card-hover-enhanced dashboard-card transform transition-all duration-500 hover:scale-105 hover:shadow-xl"
+                      style={{ animationDelay: `${index * 100}ms` }}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <h3 className="text-base sm:text-lg font-semibold text-gray-900 line-clamp-2 flex-1 transform transition-all duration-300 hover:text-orange-600">{item.title}</h3>
+                      </div>
+                      
+                      <p className="text-xs sm:text-sm text-gray-600 mb-4 line-clamp-3 flex-1 transform transition-all duration-300">{item.description}</p>
+                      
+                      {/* SPEAKER INFORMATION */}
+                      {item.speaker && (
+                        <div className="flex items-center mb-3">
+                          {item.speaker_photo_url ? (
+                            <img 
+                              src={item.speaker_photo_url} 
+                              alt={`${item.speaker} photo`}
+                              className="h-12 w-12 rounded-full object-cover"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/48x48/gray/white?text=Photo";
+                              }}
+                            />
+                          ) : (
+                            <User className="h-4 w-4 text-gray-400 mr-2" />
+                          )}
+                          <p className="text-xs sm:text-sm font-medium text-gray-900 line-clamp-1">
+                            Speaker: {item.speaker}
+                            {item.speaker_linkedin_url && (
+                              <a 
+                                href={item.speaker_linkedin_url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="ml-1 text-blue-600 hover:text-blue-800 inline-flex items-center"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                              </a>
+                            )}
+                          </p>
+                        </div>
+                      )}
+                      
+                      <div className="space-y-1.5 sm:space-y-2 text-xs text-gray-500 mt-auto">
+                        <div className="flex items-center transform transition-all duration-300 hover:translate-x-2">
+                          <Clock className="h-3 w-3 mr-2 flex-shrink-0" />
+                          <span className="truncate text-xs">
+                            {new Date(item.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - 
+                            {new Date(item.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                        <div className="flex items-center transform transition-all duration-300 hover:translate-x-2">
+                          <MapPin className="h-3 w-3 mr-2 flex-shrink-0" />
+                          <span className="truncate text-xs">{item.location}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-3 sm:mt-4 pt-3 border-t border-gray-100 transform transition-all duration-500">
+                        {item.item_type ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 transform transition-all duration-300 hover:scale-105">
+                            {item.item_type}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 transform transition-all duration-300 hover:scale-105">
+                            Event
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               ) : (
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800 transform transition-all duration-300 hover:scale-105">
-                  Event
-                </span>
+                <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200 transform transition-all duration-500">
+                  <Calendar className="h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mx-auto mb-3 sm:mb-4" />
+                  <p className="text-gray-500 text-sm sm:text-base">No events scheduled for Day {activeDay}</p>
+                </div>
               )}
             </div>
-          </div>
-        ))}
-      </div>
-    ) : (
-      <div className="text-center py-8 sm:py-12 bg-white rounded-lg border border-gray-200 transform transition-all duration-500">
-        <Calendar className="h-8 w-8 sm:h-12 sm:w-12 text-gray-300 mx-auto mb-3 sm:mb-4 animate-pulse" />
-        <p className="text-gray-500 text-sm sm:text-base">No events scheduled for Day {activeDay}</p>
-      </div>
-    )}
-  </div>
-)}
+          )}
 
           {/* Career Portal */}
           {activeTab === "career-portal" && (
@@ -1402,12 +1320,6 @@ const renderSessionCards = (sessionsToRender: Session[], sessionType: 'building'
                   <Building className="h-4 w-4 sm:h-5 sm:w-5 mr-2 text-orange-600" /> 
                   <span className="text-sm sm:text-lg">Building Sessions (Days 1-3)</span>
                 </h2>
-                {sessionsLoading && (
-                  <div className="flex items-center text-xs sm:text-sm text-gray-500">
-                    <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-orange-500 mr-2"></div>
-                    Updating...
-                  </div>
-                )}
               </div>
               
               {/* Day Selector for Building Sessions */}
@@ -1509,133 +1421,133 @@ const renderSessionCards = (sessionsToRender: Session[], sessionType: 'building'
                 </div>
               </div>
 
-{/* Faculty Eligibility & CV Requirement Notice */}
-<div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
-  <div className="flex items-start">
-    <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 mr-2 sm:mr-3 mt-0.5 flex-shrink-0" />
-    <div className="flex-1">
-      <h3 className="text-blue-800 font-medium text-sm sm:text-base mb-1">Eligibility Requirements</h3>
-      <p className="text-blue-700 text-xs sm:text-sm">
-        {activeRecruitmentDay === 4 ? (
-          <>Day 4 sessions are only available for <strong>Faculty of Engineering</strong> and <strong>Faculty of Computer and Information Sciences</strong> students.</>
-        ) : (
-          <>Day 5 sessions are only available for <strong>Business Administration, Arts, Law, Languages, Education, and Alsun</strong> students.</>
-        )}
-      </p>
-      <p className="text-blue-700 text-xs sm:text-sm mt-2">
-        <strong>CV Requirement:</strong> You must upload your CV before booking Open Recruitment sessions.
-      </p>
-      
-      {/* CV Upload Status */}
-      <div className="mt-3 p-3 bg-white rounded-lg border border-blue-100">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium text-gray-700">CV Status:</span>
-          <span className={`text-sm font-medium ${
-            profile?.cv_path ? 'text-green-600' : 'text-red-600'
-          }`}>
-            {profile?.cv_path ? "Uploaded ✅" : "Not Uploaded ❌"}
-          </span>
-        </div>
-        
-        {/* CV Upload Interface */}
-        {!profile?.cv_path ? (
-          <div className="space-y-3">
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center">
-              {cvFile ? (
-                <div className="flex items-center justify-center space-x-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <span className="text-sm text-gray-900">{cvFile.name}</span>
-                  <button
-                    onClick={handleCvFileRemove}
-                    className="text-red-600 hover:text-red-800 text-sm"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <input
-                    type="file"
-                    accept=".pdf,.doc,.docx"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleCvFileSelect(file);
-                    }}
-                    className="hidden"
-                    id="cv-upload"
-                  />
-                  <label
-                    htmlFor="cv-upload"
-                    className="cursor-pointer text-sm text-blue-600 hover:text-blue-700 font-medium"
-                  >
-                    Choose CV File
-                  </label>
-                  <p className="text-xs text-gray-500 mt-1">PDF, DOC, DOCX (Max 10MB)</p>
-                </>
-              )}
-            </div>
+              {/* Faculty Eligibility & CV Requirement Notice */}
+              <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start">
+                  <BookOpen className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500 mr-2 sm:mr-3 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <h3 className="text-blue-800 font-medium text-sm sm:text-base mb-1">Eligibility Requirements</h3>
+                    <p className="text-blue-700 text-xs sm:text-sm">
+                      {activeRecruitmentDay === 4 ? (
+                        <>Day 4 sessions are only available for <strong>Faculty of Engineering</strong> and <strong>Faculty of Computer and Information Sciences</strong> students.</>
+                      ) : (
+                        <>Day 5 sessions are only available for <strong>Business Administration, Arts, Law, Languages, Education, and Alsun</strong> students.</>
+                      )}
+                    </p>
+                    <p className="text-blue-700 text-xs sm:text-sm mt-2">
+                      <strong>CV Requirement:</strong> You must upload your CV before booking Open Recruitment sessions.
+                    </p>
+                    
+                    {/* CV Upload Status */}
+                    <div className="mt-3 p-3 bg-white rounded-lg border border-blue-100">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-700">CV Status:</span>
+                        <span className={`text-sm font-medium ${
+                          profile?.cv_path ? 'text-green-600' : 'text-red-600'
+                        }`}>
+                          {profile?.cv_path ? "Uploaded ✅" : "Not Uploaded ❌"}
+                        </span>
+                      </div>
+                      
+                      {/* CV Upload Interface */}
+                      {!profile?.cv_path ? (
+                        <div className="space-y-3">
+                          <div className="border-2 border-dashed border-gray-300 rounded-lg p-3 text-center">
+                            {cvFile ? (
+                              <div className="flex items-center justify-center space-x-2">
+                                <CheckCircle className="h-4 w-4 text-green-600" />
+                                <span className="text-sm text-gray-900">{cvFile.name}</span>
+                                <button
+                                  onClick={handleCvFileRemove}
+                                  className="text-red-600 hover:text-red-800 text-sm"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <input
+                                  type="file"
+                                  accept=".pdf,.doc,.docx"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handleCvFileSelect(file);
+                                  }}
+                                  className="hidden"
+                                  id="cv-upload"
+                                />
+                                <label
+                                  htmlFor="cv-upload"
+                                  className="cursor-pointer text-sm text-blue-600 hover:text-blue-700 font-medium"
+                                >
+                                  Choose CV File
+                                </label>
+                                <p className="text-xs text-gray-500 mt-1">PDF, DOC, DOCX (Max 10MB)</p>
+                              </>
+                            )}
+                          </div>
 
-            {cvFile && (
-              <button
-                onClick={handleCvUpload}
-                disabled={cvUploadLoading}
-                className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {cvUploadLoading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Uploading...</span>
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-4 w-4" />
-                    <span>Upload CV</span>
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">Your CV is ready for Open Recruitment sessions</span>
-            <button
-              onClick={() => window.open('/profile', '_blank')}
-              className="flex items-center space-x-1 px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
-            >
-              <ExternalLink className="h-3 w-3" />
-              <span>Manage in Profile</span>
-            </button>
-          </div>
-        )}
-        
-        {/* Upload Status Messages */}
-        {cvUploadError && (
-          <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-red-700 text-xs">{cvUploadError}</p>
-          </div>
-        )}
-        
-        {cvUploadSuccess && (
-          <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
-            <p className="text-green-700 text-xs">{cvUploadSuccess}</p>
-          </div>
-        )}
-      </div>
-      
-      {/* Faculty Eligibility Status */}
-      {profile?.faculty && (
-        <p className="text-blue-600 text-xs sm:text-sm mt-3">
-          Your faculty: <strong>{profile.faculty}</strong> - {
-            (activeRecruitmentDay === 4 && canBookDay4 && profile.cv_path) || 
-            (activeRecruitmentDay === 5 && canBookDay5 && profile.cv_path) 
-              ? "You are eligible to book sessions" 
-              : "You are not eligible to book sessions for this day"
-          }
-        </p>
-      )}
-    </div>
-  </div>
-</div>
+                          {cvFile && (
+                            <button
+                              onClick={handleCvUpload}
+                              disabled={cvUploadLoading}
+                              className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {cvUploadLoading ? (
+                                <>
+                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                  <span>Uploading...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Upload className="h-4 w-4" />
+                                  <span>Upload CV</span>
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">Your CV is ready for Open Recruitment sessions</span>
+                          <button
+                            onClick={() => window.open('/profile', '_blank')}
+                            className="flex items-center space-x-1 px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            <span>Manage in Profile</span>
+                          </button>
+                        </div>
+                      )}
+                      
+                      {/* Upload Status Messages */}
+                      {cvUploadError && (
+                        <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg">
+                          <p className="text-red-700 text-xs">{cvUploadError}</p>
+                        </div>
+                      )}
+                      
+                      {cvUploadSuccess && (
+                        <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                          <p className="text-green-700 text-xs">{cvUploadSuccess}</p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Faculty Eligibility Status */}
+                    {profile?.faculty && (
+                      <p className="text-blue-600 text-xs sm:text-sm mt-3">
+                        Your faculty: <strong>{profile.faculty}</strong> - {
+                          (activeRecruitmentDay === 4 && canBookDay4 && profile.cv_path) || 
+                          (activeRecruitmentDay === 5 && canBookDay5 && profile.cv_path) 
+                            ? "You are eligible to book sessions" 
+                            : "You are not eligible to book sessions for this day"
+                        }
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
 
               {sessionsLoading ? (
                 <div className="flex items-center justify-center h-32">
@@ -1909,125 +1821,126 @@ const renderSessionCards = (sessionsToRender: Session[], sessionType: 'building'
           document.body
         )}
 
-       {/* Event Details Modal */}
-{showEventModal && selectedEvent && createPortal(
-  <div 
-    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
-    onClick={() => {
-      setShowEventModal(false);
-      setSelectedEvent(null);
-    }}
-  >
-    <div 
-      className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div className="p-6 stagger-children">
-        <div className="flex items-center justify-between mb-6 fade-in-blur">
-          <h2 className="text-xl font-bold text-gray-900">Event Details</h2>
-          <button
+        {/* Event Details Modal */}
+        {showEventModal && selectedEvent && createPortal(
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[200] p-4 modal-backdrop-blur"
             onClick={() => {
               setShowEventModal(false);
               setSelectedEvent(null);
             }}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
           >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-
-        <div className="space-y-6">
-          <div className="fade-in-blur">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">{selectedEvent.title}</h3>
-            <p className="text-gray-700 leading-relaxed">{selectedEvent.description}</p>
-          </div>
-
-          {/* ADD SPEAKER INFORMATION TO MODAL */}
-          {selectedEvent.speaker && (
-            <div className="fade-in-blur">
-              <label className="block text-sm font-medium text-gray-700 mb-2">Speaker</label>
-              <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                {selectedEvent.speaker_photo_url ? (
-                  <img 
-                    src={selectedEvent.speaker_photo_url} 
-                    alt={selectedEvent.speaker}
-                    className="w-12 h-12 rounded-full object-cover"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/48x48/gray/white?text=Photo";
+            <div 
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto modal-content-blur fade-in-up-blur"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 stagger-children">
+                <div className="flex items-center justify-between mb-6 fade-in-blur">
+                  <h2 className="text-xl font-bold text-gray-900">Event Details</h2>
+                  <button
+                    onClick={() => {
+                      setShowEventModal(false);
+                      setSelectedEvent(null);
                     }}
-                  />
-                ) : (
-                  <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
-                    <User className="h-6 w-6 text-gray-400" />
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="fade-in-blur">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">{selectedEvent.title}</h3>
+                    <p className="text-gray-700 leading-relaxed">{selectedEvent.description}</p>
                   </div>
-                )}
-                <div className="flex-1">
-                  <p className="font-medium text-gray-900">{selectedEvent.speaker}</p>
-                  {selectedEvent.speaker_linkedin_url && (
-                    <a 
-                      href={selectedEvent.speaker_linkedin_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
-                    >
-                      <ExternalLink className="h-3 w-3 mr-1" />
-                      LinkedIn Profile
-                    </a>
+
+                  {/* SPEAKER INFORMATION TO MODAL */}
+                  {selectedEvent.speaker && (
+                    <div className="fade-in-blur">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Speaker</label>
+                      <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                        {selectedEvent.speaker_photo_url ? (
+                          <img 
+                            src={selectedEvent.speaker_photo_url} 
+                            alt={selectedEvent.speaker}
+                            className="w-12 h-12 rounded-full object-cover"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).src = "https://via.placeholder.com/48x48/gray/white?text=Photo";
+                            }}
+                          />
+                        ) : (
+                          <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
+                            <User className="h-6 w-6 text-gray-400" />
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900">{selectedEvent.speaker}</p>
+                          {selectedEvent.speaker_linkedin_url && (
+                            <a 
+                              href={selectedEvent.speaker_linkedin_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
+                            >
+                              <ExternalLink className="h-3 w-3 mr-1" />
+                              LinkedIn Profile
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   )}
+
+                  <div className="grid grid-cols-1 gap-4 fade-in-blur">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time</label>
+                      <p className="text-gray-900">
+                        {new Date(selectedEvent.start_time).toLocaleDateString('en-US', { 
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </p>
+                      <p className="text-gray-600 text-sm">
+                        {new Date(selectedEvent.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - 
+                        {new Date(selectedEvent.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    </div>
+
+                    <div className="fade-in-blur">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                      <p className="text-gray-900 flex items-center">
+                        <MapPin className="h-4 w-4 mr-2" />
+                        {selectedEvent.location}
+                      </p>
+                    </div>
+
+                    {selectedEvent.item_type && (
+                      <div className="fade-in-blur">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Event Type</label>
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                          {selectedEvent.item_type}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pt-4 border-t border-gray-200 fade-in-blur">
+                    <button
+                      onClick={() => setShowEventModal(false)}
+                      className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+                    >
+                      Close Details
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          )}
+          </div>,
+          document.body
+        )}
 
-          <div className="grid grid-cols-1 gap-4 fade-in-blur">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date & Time</label>
-              <p className="text-gray-900">
-                {new Date(selectedEvent.start_time).toLocaleDateString('en-US', { 
-                  weekday: 'long',
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric'
-                })}
-              </p>
-              <p className="text-gray-600 text-sm">
-                {new Date(selectedEvent.start_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} - 
-                {new Date(selectedEvent.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-              </p>
-            </div>
-
-            <div className="fade-in-blur">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-              <p className="text-gray-900 flex items-center">
-                <MapPin className="h-4 w-4 mr-2" />
-                {selectedEvent.location}
-              </p>
-            </div>
-
-            {selectedEvent.item_type && (
-              <div className="fade-in-blur">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Event Type</label>
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                  {selectedEvent.item_type}
-                </span>
-              </div>
-            )}
-          </div>
-
-          <div className="pt-4 border-t border-gray-200 fade-in-blur">
-            <button
-              onClick={() => setShowEventModal(false)}
-              className="w-full bg-orange-500 text-white py-3 px-4 rounded-lg hover:bg-orange-600 transition-colors font-medium"
-            >
-              Close Details
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>,
-  document.body
-)}
         {/* Session Details Modal */}
         {showSessionModal && selectedSession && createPortal(
           <div 
@@ -2118,84 +2031,86 @@ const renderSessionCards = (sessionsToRender: Session[], sessionType: 'building'
                       {selectedSession.current_bookings || 0} / {selectedSession.max_attendees || 'Unlimited'} booked
                     </p>
                   </div>
+
                   {/* Faculty Eligibility Warning */}
-{(() => {
-  let canBookResult;
-  if (selectedSession.day && selectedSession.day <= 3) {
-    canBookResult = canBookBuildingSession(selectedSession);
-  } else {
-    canBookResult = canBookRecruitmentSession(selectedSession);
-  }
-  
-  if (!canBookResult.canBook) {
-    return (
-      <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg fade-in-blur">
-        <div className="flex items-start">
-          <BookOpen className="h-5 w-5 text-gray-500 mr-2 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-gray-800 font-medium text-sm">Not Eligible</p>
-            <p className="text-gray-700 text-xs mt-1">{canBookResult.reason}</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  return null;
-})()}
+                  {(() => {
+                    let canBookResult;
+                    if (selectedSession.day && selectedSession.day <= 3) {
+                      canBookResult = canBookBuildingSession(selectedSession);
+                    } else {
+                      canBookResult = canBookRecruitmentSession(selectedSession);
+                    }
+                    
+                    if (!canBookResult.canBook) {
+                      return (
+                        <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg fade-in-blur">
+                          <div className="flex items-start">
+                            <BookOpen className="h-5 w-5 text-gray-500 mr-2 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-gray-800 font-medium text-sm">Not Eligible</p>
+                              <p className="text-gray-700 text-xs mt-1">{canBookResult.reason}</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
 
-{/* CV Requirement Warning for Open Recruitment */}
-{selectedSession.day && selectedSession.day >= 4 && !profile?.cv_path && (
-  <div className="p-4 bg-red-50 border border-red-200 rounded-lg fade-in-blur">
-    <div className="flex items-start">
-      <AlertCircle className="h-5 w-5 text-red-500 mr-3 flex-shrink-0 mt-0.5" />
-      <div className="flex-1">
-        <p className="text-red-800 font-medium text-sm mb-2">CV Required for Booking</p>
-        <p className="text-red-700 text-xs mb-3">
-          You must upload your CV before booking Open Recruitment sessions. 
-          These sessions are for recruitment purposes and require your CV to be shared with companies.
-        </p>
-        <div className="flex space-x-2">
-          <button
-            onClick={() => {
-              setShowSessionModal(false);
-              // Scroll to CV upload section in the same tab
-              setTimeout(() => {
-                const cvSection = document.getElementById('cv-upload-section');
-                if (cvSection) {
-                  cvSection.scrollIntoView({ behavior: 'smooth' });
-                }
-              }, 100);
-            }}
-            className="bg-red-500 text-white px-3 py-2 rounded text-xs hover:bg-red-600 transition-colors"
-          >
-            Upload CV Now
-          </button>
-          <button
-            onClick={() => setShowSessionModal(false)}
-            className="bg-gray-200 text-gray-700 px-3 py-2 rounded text-xs hover:bg-gray-300 transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+                  {/* CV Requirement Warning for Open Recruitment */}
+                  {selectedSession.day && selectedSession.day >= 4 && !profile?.cv_path && (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg fade-in-blur">
+                      <div className="flex items-start">
+                        <AlertCircle className="h-5 w-5 text-red-500 mr-3 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <p className="text-red-800 font-medium text-sm mb-2">CV Required for Booking</p>
+                          <p className="text-red-700 text-xs mb-3">
+                            You must upload your CV before booking Open Recruitment sessions. 
+                            These sessions are for recruitment purposes and require your CV to be shared with companies.
+                          </p>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => {
+                                setShowSessionModal(false);
+                                // Scroll to CV upload section in the same tab
+                                setTimeout(() => {
+                                  const cvSection = document.getElementById('cv-upload-section');
+                                  if (cvSection) {
+                                    cvSection.scrollIntoView({ behavior: 'smooth' });
+                                  }
+                                }, 100);
+                              }}
+                              className="bg-red-500 text-white px-3 py-2 rounded text-xs hover:bg-red-600 transition-colors"
+                            >
+                              Upload CV Now
+                            </button>
+                            <button
+                              onClick={() => setShowSessionModal(false)}
+                              className="bg-gray-200 text-gray-700 px-3 py-2 rounded text-xs hover:bg-gray-300 transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
-{/* Time Conflict Warning */}
-{!isSessionBooked(selectedSession.id) && hasOverlappingBooking(selectedSession).hasOverlap && (
-  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg fade-in-blur">
-    <div className="flex items-start">
-      <Clock className="h-5 w-5 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" />
-      <div>
-        <p className="text-yellow-800 font-medium text-sm">Time Conflict</p>
-        <p className="text-yellow-700 text-xs mt-1">
-          You already have a booking at this time. Please cancel your existing booking first.
-        </p>
-      </div>
-    </div>
-  </div>
-)}
+                  {/* Time Conflict Warning */}
+                  {!isSessionBooked(selectedSession.id) && hasOverlappingBooking(selectedSession).hasOverlap && (
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg fade-in-blur">
+                      <div className="flex items-start">
+                        <Clock className="h-5 w-5 text-yellow-500 mr-2 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-yellow-800 font-medium text-sm">Time Conflict</p>
+                          <p className="text-yellow-700 text-xs mt-1">
+                            You already have a booking at this time. Please cancel your existing booking first.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Booking Status */}
                   <div className="pt-4 border-t border-gray-200 fade-in-blur">
                     {isSessionBooked(selectedSession.id) ? (
