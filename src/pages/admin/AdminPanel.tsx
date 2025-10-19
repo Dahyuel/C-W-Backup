@@ -1758,23 +1758,34 @@ const handleEditCompany = (company: CompanyItem) => {
 
   // Enhanced StatisticsTab Component with Fixed Today Filter
 // Simplified StatisticsTab Component - Event Only
+// Replace the existing StatisticsTab component with this:
+
 const StatisticsTab = () => {
-  const [eventStats, setEventStats] = useState<{
+  const [stats, setStats] = useState<{
     day: number;
     date: string;
     attendance_stats: {
       entries: number;
       exits: number;
       building_entries: number;
-      building_exits: number;
       session_entries: number;
-      total_scans: number;
     };
     current_state: {
-      building: { current: number; max: number; percentage: number; status: string };
-      event: { current: number; max: number; percentage: number; status: string };
+      current_in_event: number;
+      current_in_building: number;
     };
-    total_attendees: number;
+    degree_stats: {
+      students: number;
+      graduates: number;
+      total: number;
+      student_percentage: number;
+      graduate_percentage: number;
+    };
+    university_stats: Array<{
+      name: string;
+      count: number;
+      percentage: number;
+    }>;
   } | null>(null);
   
   const [loading, setLoading] = useState(true);
@@ -1787,24 +1798,96 @@ const StatisticsTab = () => {
   const fetchEventStats = async (day: number) => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('event-stats', {
-        body: { day }
+      // Calculate the date for the selected day (Day 1 = Oct 19, 2025)
+      const eventStartDate = new Date('2025-10-19');
+      const targetDate = new Date(eventStartDate);
+      targetDate.setDate(eventStartDate.getDate() + (day - 1));
+      
+      const startOfDay = new Date(targetDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const endOfDay = new Date(targetDate);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      // Fetch attendance statistics
+      const { data: attendances, error: attendanceError } = await supabase
+        .from('attendances')
+        .select('scan_type')
+        .gte('scanned_at', startOfDay.toISOString())
+        .lte('scanned_at', endOfDay.toISOString());
+
+      if (attendanceError) throw attendanceError;
+
+      // Count different scan types
+      const attendanceStats = {
+        entries: attendances.filter(a => a.scan_type === 'entry').length,
+        exits: attendances.filter(a => a.scan_type === 'exit').length,
+        building_entries: attendances.filter(a => a.scan_type === 'building_entry').length,
+        session_entries: attendances.filter(a => a.scan_type === 'session_entry').length,
+      };
+
+      // Fetch current building/event status
+      const { data: currentUsers, error: usersError } = await supabase
+        .from('users_profiles')
+        .select('building_entry, event_entry, degree_level, university')
+        .eq('event_entry', true);
+
+      if (usersError) throw usersError;
+
+      const currentState = {
+        current_in_event: currentUsers.filter(user => user.event_entry).length,
+        current_in_building: currentUsers.filter(user => user.building_entry).length,
+      };
+
+      // Calculate degree level statistics
+      const students = currentUsers.filter(user => user.degree_level === 'student').length;
+      const graduates = currentUsers.filter(user => user.degree_level === 'graduate').length;
+      const totalDegree = students + graduates;
+
+      const degreeStats = {
+        students,
+        graduates,
+        total: totalDegree,
+        student_percentage: totalDegree > 0 ? Math.round((students / totalDegree) * 100) : 0,
+        graduate_percentage: totalDegree > 0 ? Math.round((graduates / totalDegree) * 100) : 0,
+      };
+
+      // Calculate university statistics
+      const universityCounts: Record<string, number> = {};
+      currentUsers.forEach(user => {
+        if (user.university) {
+          universityCounts[user.university] = (universityCounts[user.university] || 0) + 1;
+        }
       });
 
-      if (error) throw error;
-      setEventStats(data);
+      const universityStats = Object.entries(universityCounts)
+        .map(([name, count]) => ({
+          name,
+          count,
+          percentage: Math.round((count / currentUsers.length) * 100)
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10); // Top 10 universities
+
+      setStats({
+        day,
+        date: targetDate.toISOString().split('T')[0],
+        attendance_stats: attendanceStats,
+        current_state: currentState,
+        degree_stats: degreeStats,
+        university_stats: universityStats,
+      });
+
     } catch (error) {
       console.error('Error fetching event stats:', error);
       // Fallback to empty stats
-      setEventStats({
+      setStats({
         day,
         date: new Date().toISOString().split('T')[0],
-        attendance_stats: { entries: 0, exits: 0, building_entries: 0, building_exits: 0, session_entries: 0, total_scans: 0 },
-        current_state: {
-          building: { current: 0, max: 350, percentage: 0, status: 'good' },
-          event: { current: 0, max: 1500, percentage: 0, status: 'good' }
-        },
-        total_attendees: 0
+        attendance_stats: { entries: 0, exits: 0, building_entries: 0, session_entries: 0 },
+        current_state: { current_in_event: 0, current_in_building: 0 },
+        degree_stats: { students: 0, graduates: 0, total: 0, student_percentage: 0, graduate_percentage: 0 },
+        university_stats: []
       });
     } finally {
       setLoading(false);
@@ -1819,7 +1902,7 @@ const StatisticsTab = () => {
     );
   }
 
-  if (!eventStats) {
+  if (!stats) {
     return (
       <div className="text-center py-8 fade-in-blur">
         <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
@@ -1850,54 +1933,130 @@ const StatisticsTab = () => {
       {/* Current Day Stats */}
       <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          Day {eventStats.day} - {getDateForDay(eventStats.day)}
+          Day {stats.day} - {getDateForDay(stats.day)}
         </h3>
         
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 stagger-children">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 stagger-children">
           <StatCard
             title="Entries"
-            value={eventStats.attendance_stats.entries}
+            value={stats.attendance_stats.entries}
             icon={<TrendingUp className="h-5 w-5" />}
             color="green"
           />
           <StatCard
             title="Exits"
-            value={eventStats.attendance_stats.exits}
+            value={stats.attendance_stats.exits}
             icon={<TrendingUp className="h-5 w-5" />}
             color="red"
           />
           <StatCard
             title="Building Entries"
-            value={eventStats.attendance_stats.building_entries}
+            value={stats.attendance_stats.building_entries}
             icon={<Building className="h-5 w-5" />}
             color="blue"
           />
           <StatCard
             title="Session Entries"
-            value={eventStats.attendance_stats.session_entries}
+            value={stats.attendance_stats.session_entries}
             icon={<Calendar className="h-5 w-5" />}
             color="purple"
           />
+        </div>
+      </div>
+
+      {/* Current State */}
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Current State</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 stagger-children">
           <StatCard
-            title="Total Scans"
-            value={eventStats.attendance_stats.total_scans}
-            icon={<Activity className="h-5 w-5" />}
+            title="Currently in Event"
+            value={stats.current_state.current_in_event}
+            icon={<Users className="h-5 w-5" />}
             color="orange"
           />
           <StatCard
-            title="Total Attendees"
-            value={eventStats.total_attendees}
-            icon={<Users className="h-5 w-5" />}
-            color="green"
+            title="Currently in Building"
+            value={stats.current_state.current_in_building}
+            icon={<Building className="h-5 w-5" />}
+            color="blue"
           />
         </div>
       </div>
+
+      {/* Student-Graduate Ratio */}
+      <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Student-Graduate Ratio</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-700">Students</span>
+              <span className="text-lg font-bold text-green-600">
+                {stats.degree_stats.students} ({stats.degree_stats.student_percentage}%)
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-4">
+              <div
+                className="bg-green-500 h-4 rounded-full"
+                style={{ width: `${stats.degree_stats.student_percentage}%` }}
+              ></div>
+            </div>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium text-gray-700">Graduates</span>
+              <span className="text-lg font-bold text-blue-600">
+                {stats.degree_stats.graduates} ({stats.degree_stats.graduate_percentage}%)
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-4">
+              <div
+                className="bg-blue-500 h-4 rounded-full"
+                style={{ width: `${stats.degree_stats.graduate_percentage}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="mt-4 text-center">
+          <p className="text-sm text-gray-600">
+            Total attendees with degree information: {stats.degree_stats.total}
+          </p>
+        </div>
+      </div>
+
+      {/* University Distribution */}
+      {stats.university_stats.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Universities in Event</h3>
+          <div className="space-y-3">
+            {stats.university_stats.map((university, index) => (
+              <div key={index} className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium text-gray-700 truncate flex-1 mr-2">
+                    {university.name}
+                  </span>
+                  <span className="text-gray-500 whitespace-nowrap">
+                    {university.count} ({university.percentage}%)
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-3">
+                  <div
+                    className="bg-purple-500 h-3 rounded-full"
+                    style={{ width: `${university.percentage}%` }}
+                  ></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Activity Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 stagger-children">
         <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Attendance Flow</h3>
-          <AttendanceFlowChart stats={eventStats.attendance_stats} />
+          <AttendanceFlowChart stats={stats.attendance_stats} />
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-orange-100 p-6 fade-in-blur card-hover">
@@ -1908,7 +2067,6 @@ const StatisticsTab = () => {
     </div>
   );
 };
-  // Registration Stats View Component
   const RegistrationStatsView: React.FC<{ statsData: StatsData; timeRange: string }> = ({ statsData, timeRange }) => (
     <div className="space-y-6 sm:space-y-8 fade-in-blur">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 stagger-children">
