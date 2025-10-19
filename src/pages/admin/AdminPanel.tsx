@@ -2173,65 +2173,7 @@ const StatisticsTab = () => {
   };
   
   // Current State Widget
-  const CurrentStateWidget: React.FC<{ statsData: StatsData }> = ({ statsData }) => (
-    <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden fade-in-blur card-hover dashboard-card">
-      <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-100 bg-gray-50">
-        <h2 className="text-xl sm:text-3xl font-bold text-black-800 flex items-center gap-2 mx-auto">
-          <Activity className="h-5 w-5 sm:h-7 sm:w-7 text-orange-500" />
-          Current State
-        </h2>
-      </div>
 
-      <div className="p-4 sm:p-6">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm sm:text-lg font-bold text-left border border-gray-200 rounded-lg overflow-hidden">
-            <thead className="bg-gray-100 text-gray-800 text-sm sm:text-xl font-extrabold">
-              <tr>
-                <th className="px-3 sm:px-4 py-2 sm:py-3">Site</th>
-                <th className="px-3 sm:px-4 py-2 sm:py-3">Maximum Capacity</th>
-                <th className="px-3 sm:px-4 py-2 sm:py-3">Current Capacity</th>
-                <th className="px-3 sm:px-4 py-2 sm:py-3">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-t">
-                <td className="px-3 sm:px-4 py-2 sm:py-3">Building</td>
-                <td className="px-3 sm:px-4 py-2 sm:py-3 text-red-600">350</td>
-                <td className="px-3 sm:px-4 py-2 sm:py-3">{statsData.currentInBuilding}</td>
-                <td className="px-3 sm:px-4 py-2 sm:py-3">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    statsData.currentInBuilding < 280 
-                      ? 'bg-green-100 text-green-800' 
-                      : statsData.currentInBuilding < 315 
-                      ? 'bg-yellow-100 text-yellow-800' 
-                      : 'bg-red-100 text-red-800'
-                  }`}>
-                    {statsData.currentInBuilding > 0 ? Math.round((statsData.currentInBuilding / 350) * 100) : 0}%
-                  </span>
-                </td>
-              </tr>
-              <tr className="border-t">
-                <td className="px-3 sm:px-4 py-2 sm:py-3">Event</td>
-                <td className="px-3 sm:px-4 py-2 sm:py-3 text-red-600">1500</td>
-                <td className="px-3 sm:px-4 py-2 sm:py-3">{statsData.currentInEvent}</td>
-                <td className="px-3 sm:px-4 py-2 sm:py-3">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    statsData.currentInEvent < 1200 
-                      ? 'bg-green-100 text-green-800' 
-                      : statsData.currentInEvent < 1350 
-                      ? 'bg-yellow-100 text-yellow-800' 
-                      : 'bg-red-100 text-red-800'
-                  }`}>
-                    {statsData.currentInEvent > 0 ? Math.round((statsData.currentInEvent / 1500) * 100) : 0}%
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
 
   // Chart Components
   const DailyActivityChart: React.FC<{ selectedDay: number }> = ({ selectedDay }) => {
