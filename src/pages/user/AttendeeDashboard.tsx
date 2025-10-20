@@ -992,13 +992,10 @@ const AttendeeDashboard: React.FC = () => {
   }
 
   // Day maps path
-  const mapImages = [
-    "/src/Assets/day1.jpg",
-    "/src/Assets/day2.jpg",
-    "/src/Assets/day3.jpg",
-    "/src/Assets/day4.jpg",
-    "/src/Assets/day5.jpg"
-  ];
+const mapImages = [
+  "/maps/day1.jpg",
+  "/maps/day2.jpg"
+];
 
   const handleEmployerWebsiteClick = (url: string) => {
     window.open(url, "_blank");
